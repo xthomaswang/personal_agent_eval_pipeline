@@ -7,7 +7,7 @@
 # `modeleval.capability.epoch.create_epoch(...)`, then write the id it returns here.
 
 [epoch]
-id = "203abe01c217"                                   # 2026-10-26, from the snapshot SHAs below
+id = "7582825160ad"                                   # 2026-10-26 07:1x: localmelo 3b8f310 in the pipeline clone
 
 # Snapshotted with `git archive` into vendor/<epoch>/ (both repos belong to other sessions)
 [snapshot.personal_agent_bench]
@@ -27,8 +27,11 @@ hermes_home = "homes/hermes"                        # tools/ and installs/ stay 
 
 # Live parts, re-checked before every task
 [localmelo]
-repo = "~/Developer/mlsys/agent/melo/worktrees/bench/localmelo"   # the agent bench's pinned worktree
-sha = "c295ce27c31368e5b7f0f11058a331a4ab785cb1"
+# The pipeline's own clone (vendor/, gitignored; no remote), so the agent bench moving its worktree
+# cannot stop a leg: it moved c295ce2 -> 3b8f310 (U1a, #37) at 07:03 on 2026-10-26, mid-run. The venv
+# is `uv sync --frozen --all-extras` from the clone's uv.lock: the same package versions as the bench's.
+repo = "~/Developer/mlsys/experiments/agent-model-eval/vendor/localmelo"
+sha = "3b8f310ee68714497bc3a08805c061ad73a106a8"
 dist = "localmelo"                                  # .venv/bin/melo must be an editable install of repo
 
 [hermes]
