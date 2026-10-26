@@ -1,0 +1,19 @@
+[project]
+name = "harness-smoke"
+version = "0.1.0"
+description = "Smoke test for agent harnesses on a local model: MCPMark filesystem-easy tasks and Aider polyglot Python exercises."
+requires-python = ">=3.13,<3.14"
+# This environment is what the agents find first on PATH, and what the checkers run the Aider
+# unit tests with. Keep it to pytest only.
+dependencies = [
+    "pytest==9.1.1",
+]
+
+[tool.uv]
+package = false
+
+# The self-tests run in the repository root's environment, which provides bench.harness:
+#   uv run pytest agent_ability/tests   (from the repository root)
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = [".", ".."]

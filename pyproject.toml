@@ -1,0 +1,24 @@
+[project]
+name = "personal-agent-eval-pipeline"
+version = "0.0.1"
+description = "Shared bench code (recorder proxy, harness adapters) and the memory suite of personal_agent_eval_pipeline."
+requires-python = ">=3.13"
+dependencies = [
+    "httpx>=0.28.1",
+    "pyyaml>=6.0",
+    "starlette>=1.8.0",
+    "uvicorn>=0.54.0",
+]
+
+[tool.uv]
+package = false
+
+[dependency-groups]
+dev = [
+    "openai>=3.35.1",
+    "pytest>=9.1.1",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests", "memory/tests"]
+pythonpath = ["."]

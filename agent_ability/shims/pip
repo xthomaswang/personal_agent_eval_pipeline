@@ -1,0 +1,4 @@
+#!/bin/sh
+# harness-smoke shim: agents must not install packages into the machine's Python.
+echo "pip is disabled in the harness smoke test: use only the Python standard library." >&2
+exit 1

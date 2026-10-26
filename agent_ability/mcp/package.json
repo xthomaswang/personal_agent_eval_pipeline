@@ -1,0 +1,8 @@
+{
+  "name": "harness-smoke-mcp",
+  "private": true,
+  "description": "Filesystem MCP server for the harness smoke suite's MCP-only arm, at the version MCPMark pins.",
+  "dependencies": {
+    "@modelcontextprotocol/server-filesystem": "2025.12.18"
+  }
+}
