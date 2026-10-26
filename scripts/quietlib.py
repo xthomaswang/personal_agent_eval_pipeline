@@ -23,13 +23,17 @@ Subcommands:
           minute and whose cause the foreign CPU total measures directly) are printed on a
           "minor:" line and do not fail the check. GPU busy while our server is idle stays
           blocking: QUIET_MAX_GPU (10 %) is the same share as the major foreign GPU rule.
+          Foreign CPU at or above QUIET_MAJOR_FOREIGN_CPU blocks from one sample: the check only
+          decides when a unit starts; the sustain/share rule below is the judge's.
   monitor --log FILE [--interval S] [--allow-pid PID]... [--until-pid PID] [--count N] [--allow NAME[,NAME]]
           Samples for the whole launch (default every 5 s). Every sample is a TSV row in FILE
           with the columns of MONITOR_COLUMNS; the header line is "# " + those names, after one
           "# quietlib monitor v4 ..." line with the interval and thresholds. stdout gets one line
           per state change. The state column is informational (DISTURBED for a major flag, MINOR
-          for minor flags only, SPIKE, QUIET; from row_flags); judge_window re-judges from the
-          logged columns. --count stops after N samples (tests and short traces).
+          for minor flags only, SPIKE, QUIET; from row_flags, which sees one sample and the one
+          before it, so CPU or GPU at the major line shows as MINOR there); judge_window re-judges
+          from the logged columns with the sustain/share rule over the unit's window. --count stops
+          after N samples (tests and short traces).
   battery --min PCT [--wait S]
           Waits up to S seconds (default 0) for the battery to reach PCT %, printing the level
           every 5 min. Exit 1 if it does not. Machines without a battery always pass.
@@ -48,21 +52,35 @@ flagged by:
   - a lock event (our lock missing), a foreign server port (8500 or 8600-8699 listening; 8703 is
     the server under test), power (not AC + High Power), the battery below QUIET_MIN_BATTERY_RUN:
     at once;
-  - foreign CPU in total at or above QUIET_MAJOR_FOREIGN_CPU (300 %) in this and the previous sample;
+  - foreign CPU in total at or above QUIET_MAJOR_FOREIGN_CPU (300 %) in this and the previous sample,
+    when it is sustained or frequent in the window (the sustain/share rule below);
   - foreign GPU time at or above QUIET_MAJOR_GPU_MS (500 ms per 5 s sample, 10 % of GPU time) in
-    this and the previous sample;
+    this and the previous sample, with the same sustain/share rule;
   - memory pressure >= 2 or a swap-out burst (SWAP_BURST_MB in one sample), but only when the
     foreign RSS total grew by more than FOREIGN_RSS_GROWTH_MB in the window up to that sample:
     pressure the server causes itself is a result (DESIGN section 5.2), not a disturbance;
   - a monitor coverage problem (no samples in the window, or a gap; see judge_window).
   MINOR (flag only)
   - the same foreign process above QUIET_MAX_PROC_CPU (25 %) in this and the previous sample;
-  - foreign CPU in total above QUIET_MAX_FOREIGN_CPU (150 %), below the major line, in this and
-    the previous sample;
-  - foreign GPU time above GPU_FLOOR_MS (250 ms), below the major line, in this and the previous
-    sample;
+  - foreign CPU in total above QUIET_MAX_FOREIGN_CPU (150 %) in this and the previous sample: below
+    the major line, or at it in a short burst (the sustain/share rule);
+  - foreign GPU time above GPU_FLOOR_MS (250 ms) in this and the previous sample: below the major
+    line, or at it in a short burst;
   - a build/convert/download tool (BUILD_NAMES, BUILD_ARGS) running: at once (what it costs the
     server is its CPU, which the CPU rules judge).
+Sustain/share rule (2026-10-26), for CPU and GPU alike: a sample at or above the major line in this
+and the previous sample is major only when the run of consecutive window samples at or above the
+line that it belongs to lasts at least QUIET_MAJOR_SUSTAIN_SAMPLES (6, i.e. 30 s), or when the
+window's samples at or above the line (lone ones included) make up at least QUIET_MAJOR_SHARE (25 %)
+of its samples; otherwise it is minor. Both are counted over the window's own samples. The two-sample
+persistence stays the entry condition, so a lone sample is never flagged and every major under this
+rule was major before it. Why: in the Nanbeige4.3-33B run of 2026-10-26 (20261026-104645,
+11:15-11:46) the user granted app permissions in System Settings four times during the timed block;
+each time macOS daemons ran 4-10 cores for 10-15 s (2-3 consecutive samples), and each made one unit
+major and repeat (m3-32k, m3-110k, m4-1, m4-2: ~17 min). A 10-15 s burst inside a 7-min M4 run
+changes its total by well under 1 %, and an M3 cell reports the median of 3 trials; the user's
+instruction that day: small disturbances are skipped, not re-run. In a short unit the share rule
+still counts a short burst: in m3-16k (~16 samples) two samples are 12.5 % of its time.
 Why the lines sit there: the user accepts ~10 % cross-run error. The campaign's M8 on oMLX
 measured one busy core at +2.9 % M1 / -0.9 % M3 / +2.0 % M4 against block 1 (about +8.5 % on M1
 against the stable baselines) and eight busy threads at +27 % / +17.5 % / +9.4 %, so about three
@@ -94,8 +112,10 @@ QUIET_MAX_FOREIGN_CPU (sum over foreign processes, default 150 %, minor), QUIET_
 (the same sum, default 300 %, major), QUIET_MAX_GPU (GPU "Device Utilization %" while our server
 is idle, check only, default 10 %), QUIET_MIN_BATTERY_RUN (default 20 %: the 96 W adapter cannot
 supply this machine under sustained load, and below ~7 % the system caps power),
-QUIET_GPU_FLOOR_MS (minor), QUIET_MAJOR_GPU_MS (major), QUIET_SWAP_BURST_MB,
-QUIET_FOREIGN_RSS_GROWTH_MB (see their comments). GPU_LOCK_PATH overrides the lock path (tests).
+QUIET_GPU_FLOOR_MS (minor), QUIET_MAJOR_GPU_MS (major), QUIET_MAJOR_SUSTAIN_SAMPLES (default 6)
+and QUIET_MAJOR_SHARE (percent of the window's samples, default 25; the sustain/share rule),
+QUIET_SWAP_BURST_MB, QUIET_FOREIGN_RSS_GROWTH_MB (see their comments). GPU_LOCK_PATH overrides the
+lock path (tests).
 """
 from __future__ import annotations
 
@@ -143,6 +163,20 @@ GPU_FLOOR_MS = float(os.environ.get("QUIET_GPU_FLOOR_MS", "250"))
 # Major foreign GPU time per 5 s sample, in two consecutive samples: 500 ms is a 10 % share of GPU
 # time, which costs the server up to ~10 %, the cross-run error the user accepts.
 MAJOR_GPU_MS = float(os.environ.get("QUIET_MAJOR_GPU_MS", "500"))
+# Sustain/share rule for both major lines above (judged per window in _window, 2026-10-26): a sample at
+# or above the line in this and the previous sample is major only when its run of consecutive window
+# samples at or above the line is at least MAJOR_SUSTAIN_SAMPLES long (6 x 5 s = 30 s), or when the
+# window's samples at or above the line make up at least MAJOR_SHARE percent of its samples; otherwise
+# it is minor. Evidence (results/nanbeige4-3-33b-oq5/20261026-104645/speed/monitor.tsv, 11:15-11:46):
+# the user granted app permissions in System Settings four times during the timed block; each time
+# macOS daemons (coreduetd, runningboardd, opendirectoryd, Siri AI, System Settings) ran 4-10 cores for
+# 10-15 s (2-3 consecutive samples), and each burst made one unit major and repeat (m3-32k, m3-110k,
+# m4-1, m4-2: ~17 min of re-runs). A 10-15 s burst inside a 7-min M4 run changes its total by well under
+# 1 %, and an M3 cell reports the median of 3 trials. The user's instruction of 2026-10-26: small
+# disturbances are skipped, not re-run. 30 s is twice the longest of those bursts; a 10 % share at
+# about three busy cores costs about 1 % (M8 above), and a build or a second model lasts far longer.
+MAJOR_SUSTAIN_SAMPLES = int(os.environ.get("QUIET_MAJOR_SUSTAIN_SAMPLES", "6"))
+MAJOR_SHARE = float(os.environ.get("QUIET_MAJOR_SHARE", "25"))   # percent of the window's samples
 # Swap-out burst: MB written to swap in one sample. Uncalibrated: the idle trace above swapped out
 # nothing (0 pages in all 36 samples, with 2 GB of swap in use and pressure level 1), so any burst
 # is a sign of tight memory; 64 MB keeps single pages from counting.
@@ -184,9 +218,13 @@ _CHECK_MINOR = ("busy: ", "tools: ", "load1 ")
 
 
 class Flag(NamedTuple):
-    """One reason a monitor sample is flagged: severity MAJOR (the unit is repeated) or MINOR (kept)."""
+    """One reason a monitor sample is flagged: severity MAJOR (the unit is repeated) or MINOR (kept).
+    `burst` names the column ("foreign_cpu" or "foreign_gpu_ms") of a level at or above its major line
+    in two consecutive samples: row_flags makes it MINOR, and _window settles its severity with the
+    sustain/share rule; "" for every other flag."""
     severity: str
     text: str
+    burst: str = ""
 
 
 class Proc(NamedTuple):
@@ -685,9 +723,10 @@ def _at_least(row: dict | None, col: str, limit: float) -> bool:
 def row_flags(row: dict, prev: dict | None, gpu_floor_ms: float = GPU_FLOOR_MS,
               major_gpu_ms: float = MAJOR_GPU_MS) -> list[Flag]:
     """Why a sample is flagged, given the sample before it (None at the start of a monitor
-    session), each reason with its severity (the module docstring); empty when it is not. A level
-    that persists counts as major only when both samples reach the major line, otherwise as minor.
-    Memory is judged per window (judge_window), not here."""
+    session), each reason with its severity (the module docstring); empty when it is not. A CPU or
+    GPU level that persists in both samples is minor here; when both reach the major line, the flag
+    carries `burst` and _window makes it major under the sustain/share rule. Memory is judged per
+    window (judge_window), not here."""
     segs = _segments(row.get("reasons") or "")
     flags = [Flag(MAJOR, x) for x in segs if x.startswith(_MAJOR_INSTANT)]
     b = row.get("battery")
@@ -700,14 +739,14 @@ def row_flags(row: dict, prev: dict | None, gpu_floor_ms: float = GPU_FLOOR_MS,
         if both:
             flags.append(Flag(MINOR, f"busy in 2 consecutive samples: {', '.join(both)}"))
         if _at_least(row, "foreign_cpu", MAJOR_FOREIGN_CPU) and _at_least(prev, "foreign_cpu", MAJOR_FOREIGN_CPU):
-            flags.append(Flag(MAJOR, f"foreign CPU {row['foreign_cpu']:.0f}% >= {MAJOR_FOREIGN_CPU:.0f}% "
-                                     "in 2 consecutive samples"))
+            flags.append(Flag(MINOR, f"foreign CPU {row['foreign_cpu']:.0f}% >= {MAJOR_FOREIGN_CPU:.0f}% "
+                                     "in 2 consecutive samples", "foreign_cpu"))
         elif _over(row, "foreign_cpu", MAX_FOREIGN_CPU) and _over(prev, "foreign_cpu", MAX_FOREIGN_CPU):
             flags.append(Flag(MINOR, f"foreign CPU {row['foreign_cpu']:.0f}% > {MAX_FOREIGN_CPU:.0f}% "
                                      "in 2 consecutive samples"))
         if _at_least(row, "foreign_gpu_ms", major_gpu_ms) and _at_least(prev, "foreign_gpu_ms", major_gpu_ms):
-            flags.append(Flag(MAJOR, f"foreign GPU {row['foreign_gpu_ms']:.0f} ms >= {major_gpu_ms:.0f} ms "
-                                     "in 2 consecutive samples"))
+            flags.append(Flag(MINOR, f"foreign GPU {row['foreign_gpu_ms']:.0f} ms >= {major_gpu_ms:.0f} ms "
+                                     "in 2 consecutive samples", "foreign_gpu_ms"))
         elif _over(row, "foreign_gpu_ms", gpu_floor_ms) and _over(prev, "foreign_gpu_ms", gpu_floor_ms):
             flags.append(Flag(MINOR, f"foreign GPU {row['foreign_gpu_ms']:.0f} ms > {gpu_floor_ms:.0f} ms "
                                      "in 2 consecutive samples"))
@@ -724,7 +763,8 @@ def severity(flags: list[Flag]) -> str:
 def row_state(row: dict, prev: dict | None, gpu_floor_ms: float = GPU_FLOOR_MS,
               major_gpu_ms: float = MAJOR_GPU_MS) -> str:
     """DISTURBED (a major flag), MINOR (minor flags only), SPIKE (a one-sample CPU or GPU excess)
-    or QUIET."""
+    or QUIET. Informational: CPU or GPU at the major line shows as MINOR here, and judge_window
+    decides its severity with the sustain/share rule over the unit's window."""
     level = severity(row_flags(row, prev, gpu_floor_ms, major_gpu_ms))
     if level != "clean":
         return "DISTURBED" if level == MAJOR else "MINOR"
@@ -774,6 +814,7 @@ def monitor_header(interval: float, allow_pids: list[int], allow: frozenset, pag
     return (f"# quietlib monitor v4 interval={interval} max_proc_cpu={MAX_PROC_CPU} "
             f"max_foreign_cpu={MAX_FOREIGN_CPU} major_foreign_cpu={MAJOR_FOREIGN_CPU} "
             f"min_battery_run={MIN_BATTERY_RUN} gpu_floor_ms={GPU_FLOOR_MS} major_gpu_ms={MAJOR_GPU_MS} "
+            f"major_sustain_samples={MAJOR_SUSTAIN_SAMPLES} major_share={MAJOR_SHARE} "
             f"swap_burst_mb={SWAP_BURST_MB} foreign_rss_growth_mb={FOREIGN_RSS_GROWTH_MB} page_size={page_size} "
             f"allow={','.join(map(str, allow_pids))}"
             + (f" allowances={','.join(sorted(allow))}" if allow else "") + "\n"
@@ -866,6 +907,51 @@ def read_monitor(path: Path | str) -> list[dict]:
     return rows
 
 
+def _runs(judged: list[tuple[dict, list[Flag]]], col: str, line: float) -> list[int]:
+    """Per window sample, the length of the run of consecutive window samples at or above `line`
+    in `col` that it belongs to (0 below the line or without a value). A run never spans two
+    monitor sessions and never reaches outside the window."""
+    runs = [0] * len(judged)
+    i = 0
+    while i < len(judged):
+        if not _at_least(judged[i][0], col, line):
+            i += 1
+            continue
+        j = i
+        while (j + 1 < len(judged) and _at_least(judged[j + 1][0], col, line)
+               and judged[j + 1][0]["_session"] == judged[i][0]["_session"]):
+            j += 1
+        runs[i:j + 1] = [j - i + 1] * (j - i + 1)
+        i = j + 1
+    return runs
+
+
+def _settle_bursts(judged: list[tuple[dict, list[Flag]]], col: str, line: float, label: str, unit: str) -> None:
+    """The sustain/share rule (module docstring), in place: each `burst` flag of `col` becomes major
+    when its run lasts at least MAJOR_SUSTAIN_SAMPLES or when the window's samples at or above `line`
+    make up at least MAJOR_SHARE percent of the window; otherwise it stays minor as a short burst."""
+    if not judged:
+        return
+    runs = _runs(judged, col, line)
+    n, high = len(judged), sum(1 for x in runs if x)
+    share = 100.0 * high / n
+    frequent = high * 100 >= MAJOR_SHARE * n          # integer-exact at the boundary (8 of 80 is 10 %)
+    for (r, flags), run in zip(judged, runs):
+        for k, f in enumerate(flags):
+            if f.burst != col:
+                continue
+            level = f"{label} {r[col]:.0f}{unit} >= {line:.0f}{unit}"
+            counts = f"{high} of {n} window samples at or above it ({share:.1f}%)"
+            if run >= MAJOR_SUSTAIN_SAMPLES:
+                flags[k] = Flag(MAJOR, f"{level} for {run} consecutive samples "
+                                       f"(sustained: >= {MAJOR_SUSTAIN_SAMPLES})", col)
+            elif frequent:
+                flags[k] = Flag(MAJOR, f"{level}; {counts}, >= {MAJOR_SHARE:g}%", col)
+            else:
+                flags[k] = Flag(MINOR, f"{level} in a short burst ({run} consecutive sample(s), "
+                                       f"< {MAJOR_SUSTAIN_SAMPLES}; {counts}, < {MAJOR_SHARE:g}%)", col)
+
+
 def _window(tsv_path: Path | str, t_start: float, t_end: float, pad_s: float, gpu_floor_ms: float,
             major_gpu_ms: float) -> tuple[list[tuple[dict, list[Flag]]], str | None]:
     """The samples inside [t_start - pad, t_end + pad] with their flags, and a coverage problem
@@ -883,6 +969,8 @@ def _window(tsv_path: Path | str, t_start: float, t_end: float, pad_s: float, gp
         if lo <= r["epoch"] <= hi:
             judged.append((r, row_flags(r, prev, gpu_floor_ms, major_gpu_ms)))
         prev = r
+    _settle_bursts(judged, "foreign_cpu", MAJOR_FOREIGN_CPU, "foreign CPU", "%")
+    _settle_bursts(judged, "foreign_gpu_ms", major_gpu_ms, "foreign GPU", " ms")
     growth = 0.0
     for r, flags in judged:
         growth += r.get("foreign_rss_delta_mb") or 0.0

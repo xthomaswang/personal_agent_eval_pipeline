@@ -5,7 +5,13 @@ T0 + 50 to T0 + 70, so its window [T0 + 45, T0 + 75] holds samples 9..15; sample
 just before, sample 16 the one just after.
 
 Two levels (the user's instruction of 2026-10-26): a major flag repeats the unit, a minor one keeps
-it with the flag. `level` in the cases below is the verdict's severity: clean, minor or major."""
+it with the flag. `level` in the cases below is the verdict's severity: clean, minor or major.
+
+CPU and GPU at the major line follow the sustain/share rule (2026-10-26): such a level in two
+consecutive samples is major only when its run in the window lasts 6 samples or the window's
+samples at the line make up 25 % of it. In the 7-sample window above two samples are already 29 %,
+so the sustain and burst cases use a long timeline: the unit runs from T0 + 50 to T0 + 435, its
+window [T0 + 45, T0 + 440] holds samples 9..88 (80 samples, so 20 make 25 %)."""
 
 from __future__ import annotations
 
@@ -19,6 +25,7 @@ import pytest
 
 T0 = 1_800_000_000.0
 T_START, T_END = T0 + 50, T0 + 70
+LONG_END, LONG_N = T0 + 435, 95          # the long timeline: 80 window samples (9..88)
 SYSTEM_PY = Path("/usr/bin/python3")
 REPO = Path(__file__).resolve().parents[2]
 
@@ -45,6 +52,10 @@ def write(q, path: Path, special: dict[int, dict] | None = None, n: int = 21, sk
 
 def judge(q, tmp_path, special=None, **kw) -> dict:
     return q.judge_window(write(q, tmp_path / "m.tsv", special, **kw), T_START, T_END)
+
+
+def judge_long(q, tmp_path, special=None) -> dict:
+    return q.judge_window(write(q, tmp_path / "long.tsv", special, n=LONG_N), T_START, LONG_END)
 
 
 def assert_level(v: dict, level: str, text: str | None = None) -> None:
@@ -86,10 +97,11 @@ def test_same_foreign_process_in_two_consecutive_samples(quietlib, tmp_path, bus
 @pytest.mark.parametrize("cpu, level", [
     ({11: 160.0, 12: 155.0}, "minor"), ({12: 400.0}, "clean"), ({11: 160.0, 13: 160.0}, "clean"),
     ({8: 200.0, 9: 151.0}, "minor"), ({11: 150.0, 12: 150.0}, "clean"),
+    # In 7 window samples a pair at the major line is 29 %: the share rule makes it major.
     ({11: 300.0, 12: 300.0}, "major"),                        # the major line itself counts
     ({11: 299.9, 12: 800.0}, "minor"),                        # both samples must reach it
-    ({8: 450.0, 9: 310.0}, "major"),                          # persistence may use the sample just before
-    ({11: 400.0, 13: 400.0}, "clean"),                        # never two in a row
+    ({8: 450.0, 9: 310.0}, "minor"),                          # the sample just before completes the pair; 1 of 7 is < 25 %
+    ({11: 400.0, 13: 400.0}, "clean"),                        # never two in a row: lone samples never count
     ({11: 200.0, 12: 400.0, 13: 400.0}, "major"),
 ])
 def test_foreign_cpu_total_in_two_consecutive_samples(quietlib, tmp_path, cpu, level):
@@ -97,7 +109,59 @@ def test_foreign_cpu_total_in_two_consecutive_samples(quietlib, tmp_path, cpu, l
     assert_level(v, level, "foreign CPU" if level != "clean" else None)
     assert v["peak_foreign_cpu"] == max(c for i, c in cpu.items() if 9 <= i <= 15)
     if level == "major":
-        assert any(">= 300% in 2 consecutive samples" in r for r in v["major_reasons"])
+        assert any("window samples at or above it" in r and r.endswith(", >= 25%") for r in v["major_reasons"])
+
+
+def _at(idx, value: float = 400.0, col: str = "foreign_cpu") -> dict[int, dict]:
+    return {i: {col: value} for i in idx}
+
+
+@pytest.mark.parametrize("special, level, why", [
+    (_at((30, 31)), "minor", "short burst (2 consecutive sample(s), < 6; 2 of 80"),
+    (_at((30, 31, 32)), "minor", "short burst (3 consecutive"),                  # the 2026-10-26 bursts
+    (_at(range(30, 35)), "minor", "short burst (5 consecutive"),                # 25 s
+    (_at(range(30, 36)), "major", "for 6 consecutive samples (sustained: >= 6)"),   # 30 s, 7.5 % of the window
+    ({**_at((30, 31, 32, 34, 35, 36)), 33: {"foreign_cpu": 299.9}}, "minor", "3 consecutive"),  # two runs of 3
+    (_at(tuple(x for s in range(20, 80, 6) for x in (s, s + 1))), "major",
+     "20 of 80 window samples at or above it (25.0%), >= 25%"),
+    (_at((20, 21, 30, 31, 40, 41, 60)), "minor", "7 of 80 window samples"),     # 8.75 %
+    (_at((20, 21, *range(24, 60, 2))), "major", "20 of 80"),                  # lone samples count in the share
+    (_at((20, 30, 40, 50, 60, 70, 80, 85)), "clean", None),                     # ... but are never flagged
+    (_at((4, 5, 6, 7, 8, 9)), "minor", "1 consecutive sample(s)"),              # a run counts inside the window
+    (_at(range(84, 95)), "minor", "5 consecutive sample(s)"),                   # samples after it never count
+    (_at(range(30, 36), 1000.0, "foreign_gpu_ms"), "major", "foreign GPU 1000 ms >= 500 ms for 6 consecutive"),
+    (_at((30, 31, 32), 1000.0, "foreign_gpu_ms"), "minor", "foreign GPU 1000 ms >= 500 ms in a short burst"),
+    (_at(tuple(x for s in range(20, 80, 6) for x in (s, s + 1)), 600.0, "foreign_gpu_ms"), "major", "20 of 80"),
+])
+def test_major_cpu_and_gpu_need_a_sustained_or_frequent_level(quietlib, tmp_path, special, level, why):
+    """A short burst at the major line is minor (the user's instruction of 2026-10-26)."""
+    v = judge_long(quietlib, tmp_path, special)
+    assert v["samples"] == 80
+    assert_level(v, level, why)
+
+
+def test_a_sustained_run_flags_its_persistent_samples(quietlib, tmp_path):
+    v = judge_long(quietlib, tmp_path, _at(range(30, 37)))
+    assert v["severity"] == "major" and v["major_samples"] == 6 and v["minor_samples"] == 0  # the first has no pair
+    assert all("for 7 consecutive samples" in r for r in v["major_reasons"][1:])
+    sub = tmp_path / "flags"
+    sub.mkdir()
+    path = write(quietlib, sub / "m.tsv", _at((30, 31, 32)), n=LONG_N)
+    assert quietlib.window_flags(path, T_START, LONG_END) == {
+        "disturbed_samples": 2, "major_samples": 0, "minor_samples": 2, "peak_foreign_cpu": 400.0,
+        "battery_min": 100, "samples": 80}
+
+
+def test_a_run_never_spans_two_monitor_sessions(quietlib, tmp_path):
+    path = tmp_path / "m.tsv"
+    with path.open("w", encoding="utf-8") as f:
+        for lo, hi in ((0, 33), (33, LONG_N)):                  # a monitor restart between samples 32 and 33
+            f.write(quietlib.monitor_header(5.0, [100], frozenset(), 16384))
+            for i in range(lo, hi):
+                f.write(quietlib.format_row(row(quietlib, i, foreign_cpu=400.0 if 30 <= i < 36 else 20.0)))
+    v = quietlib.judge_window(path, T_START, LONG_END)
+    assert v["severity"] == "minor" and v["minor_samples"] == 4, v      # 31, 32 and 34, 35
+    assert any("short burst (3 consecutive" in r for r in v["minor_reasons"]), v
 
 
 def test_cpu_samples_split_into_minor_and_major(quietlib, tmp_path):
@@ -127,21 +191,42 @@ def test_foreign_gpu_time_in_two_consecutive_samples(quietlib, tmp_path, gpu, fl
 def test_thresholds(quietlib):
     assert (quietlib.GPU_FLOOR_MS, quietlib.MAJOR_GPU_MS) == (250.0, 500.0)
     assert (quietlib.MAX_PROC_CPU, quietlib.MAX_FOREIGN_CPU, quietlib.MAJOR_FOREIGN_CPU) == (25.0, 150.0, 300.0)
+    assert (quietlib.MAJOR_SUSTAIN_SAMPLES, quietlib.MAJOR_SHARE) == (6, 25.0)
 
 
-def test_major_lines_follow_the_environment(quietlib, monkeypatch, tmp_path):
-    monkeypatch.setenv("QUIET_MAJOR_FOREIGN_CPU", "200")
-    monkeypatch.setenv("QUIET_MAJOR_GPU_MS", "300")
+def _reload(quietlib, monkeypatch, **env):
+    for k, val in env.items():
+        monkeypatch.setenv(k, val)
     monkeypatch.setattr(sys, "dont_write_bytecode", True)
     spec = importlib.util.spec_from_file_location("_quietlib_env", quietlib.__file__)
     q = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(q)
+    return q
+
+
+def test_major_lines_follow_the_environment(quietlib, monkeypatch, tmp_path):
+    q = _reload(quietlib, monkeypatch, QUIET_MAJOR_FOREIGN_CPU="200", QUIET_MAJOR_GPU_MS="300")
     assert (q.MAJOR_FOREIGN_CPU, q.MAJOR_GPU_MS) == (200.0, 300.0)
     assert judge(q, tmp_path, {11: {"foreign_cpu": 210.0}, 12: {"foreign_cpu": 205.0}})["severity"] == "major"
     sub = tmp_path / "gpu"
     sub.mkdir()
     assert judge(q, sub, {11: {"foreign_gpu_ms": 310.0}, 12: {"foreign_gpu_ms": 305.0}})["severity"] == "major"
     assert "major_foreign_cpu=200.0" in q.monitor_header(5.0, [], frozenset(), 16384)
+
+
+@pytest.mark.parametrize("env, burst, short_window", [
+    ({"QUIET_MAJOR_SUSTAIN_SAMPLES": "2"}, "major", "major"),     # the rule before 2026-10-26: any pair is major
+    ({"QUIET_MAJOR_SUSTAIN_SAMPLES": "4", "QUIET_MAJOR_SHARE": "50"}, "minor", "minor"),
+    ({"QUIET_MAJOR_SUSTAIN_SAMPLES": "3", "QUIET_MAJOR_SHARE": "50"}, "major", "minor"),
+])
+def test_sustain_and_share_follow_the_environment(quietlib, monkeypatch, tmp_path, env, burst, short_window):
+    q = _reload(quietlib, monkeypatch, **env)
+    assert q.MAJOR_SUSTAIN_SAMPLES == int(env["QUIET_MAJOR_SUSTAIN_SAMPLES"])
+    assert judge_long(q, tmp_path, _at((30, 31, 32)))["severity"] == burst
+    assert judge(q, tmp_path, {11: {"foreign_cpu": 400.0}, 12: {"foreign_cpu": 400.0}})["severity"] == short_window
+    header = q.monitor_header(5.0, [], frozenset(), 16384)
+    assert f"major_sustain_samples={env['QUIET_MAJOR_SUSTAIN_SAMPLES']} " in header
+    assert f"major_share={float(env.get('QUIET_MAJOR_SHARE', '25'))} " in header
 
 
 @pytest.mark.parametrize("reason, level", [
@@ -284,9 +369,14 @@ def test_row_state(quietlib):
     assert q.row_state(row(q, 1), row(q, 0)) == "QUIET"
     assert q.row_state(row(q, 1, foreign_gpu_ms=500.0), row(q, 0)) == "SPIKE"
     assert q.row_state(row(q, 1, foreign_gpu_ms=500.0), row(q, 0, foreign_gpu_ms=300.0)) == "MINOR"
-    assert q.row_state(row(q, 1, foreign_gpu_ms=500.0), row(q, 0, foreign_gpu_ms=600.0)) == "DISTURBED"
+    # at the major line in two samples: minor per sample; judge_window applies the sustain/share rule
+    assert q.row_state(row(q, 1, foreign_gpu_ms=500.0), row(q, 0, foreign_gpu_ms=600.0)) == "MINOR"
     assert q.row_state(row(q, 1, foreign_cpu=200.0), row(q, 0, foreign_cpu=180.0)) == "MINOR"
-    assert q.row_state(row(q, 1, foreign_cpu=320.0), row(q, 0, foreign_cpu=300.0)) == "DISTURBED"
+    assert q.row_state(row(q, 1, foreign_cpu=320.0), row(q, 0, foreign_cpu=300.0)) == "MINOR"
+    assert [f.burst for f in q.row_flags(row(q, 1, foreign_cpu=320.0, foreign_gpu_ms=600.0),
+                                         row(q, 0, foreign_cpu=300.0, foreign_gpu_ms=500.0))] == [
+        "foreign_cpu", "foreign_gpu_ms"]
+    assert q.row_flags(row(q, 1, foreign_cpu=200.0), row(q, 0, foreign_cpu=180.0))[0].burst == ""
     assert q.row_state(row(q, 1, reasons="thermal: x"), None) == "QUIET"
     assert q.row_state(row(q, 1, reasons="tools: make"), None) == "MINOR"
     assert q.row_state(row(q, 1, reasons="tools: make; port 8500 listening"), None) == "DISTURBED"

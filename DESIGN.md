@@ -181,12 +181,13 @@ means 16,000 Qwen3.8 tokens); every result records the server's own `prompt_toke
 Two levels, after the user's instruction of 2026-10-26: small disturbances have little effect, skip them
 and do not re-run. A **major** flag repeats a timed unit; a **minor** flag keeps the
 result and records the flag. Judged per 5 s monitor sample, with the old campaign's persistence (two
-consecutive samples) where its rule had it:
+consecutive samples) where its rule had it, and for the CPU and GPU major lines a sustain/share rule over
+the unit's window (below the table):
 
 | Level | A sample is flagged by |
 |---|---|
-| Major | our lock missing; a foreign server port (8500, 8600-8699) listening; not on AC power or not High Power; battery below 20 %; foreign CPU in total >= 300 % in two consecutive samples; foreign GPU time >= 500 ms per 5 s sample (10 % of GPU time) in two consecutive samples; memory pressure >= 2 or a swap-out burst **only when foreign RSS also grew** in the window (pressure the server causes itself is a result, §5.2); a monitor coverage gap (no samples in the window, or a gap) |
-| Minor | one foreign process above 25 % CPU in two consecutive samples; foreign CPU in total above 150 % and below 300 % in two consecutive samples; foreign GPU time above the 250 ms floor and below 500 ms in two consecutive samples; a build, convert or download tool running (what it costs the server is its CPU, which the CPU rules judge) |
+| Major | our lock missing; a foreign server port (8500, 8600-8699) listening; not on AC power or not High Power; battery below 20 %; foreign CPU in total >= 300 % in two consecutive samples, **sustained or frequent** (below); foreign GPU time >= 500 ms per 5 s sample (10 % of GPU time) in two consecutive samples, sustained or frequent; memory pressure >= 2 or a swap-out burst **only when foreign RSS also grew** in the window (pressure the server causes itself is a result, §5.2); a monitor coverage gap (no samples in the window, or a gap) |
+| Minor | one foreign process above 25 % CPU in two consecutive samples; foreign CPU in total above 150 % in two consecutive samples, below 300 % or at it in a short burst; foreign GPU time above the 250 ms floor in two consecutive samples, below 500 ms or at it in a short burst; a build, convert or download tool running (what it costs the server is its CPU, which the CPU rules judge) |
 
 Why there: the user accepts ~10 % cross-run error. The old campaign's M8 on oMLX measured one busy core
 at +2.9 % M1 / -0.9 % M3 / +2.0 % M4 against block 1 (about +8.5 % on M1 against the stable baselines)
@@ -196,7 +197,22 @@ WindowServer and kernel_task) takes GPU time slices from the server directly, so
 to ~10 %; the 250 ms floor sits above Terminal.app rendering agent output (75-142 ms per sample in the
 first live run). pmset thermal warnings and thermal pressure are logged, not judged. The thresholds are
 environment variables of `scripts/quietlib.py` (`QUIET_MAJOR_FOREIGN_CPU`, `QUIET_MAJOR_GPU_MS`,
-`QUIET_GPU_FLOOR_MS`, ...); a protocol run uses the defaults.
+`QUIET_GPU_FLOOR_MS`, `QUIET_MAJOR_SUSTAIN_SAMPLES`, `QUIET_MAJOR_SHARE`, ...); a protocol run uses the
+defaults.
+
+**Sustained or frequent (2026-10-26).** Foreign CPU or GPU at the major line in two consecutive samples
+is major only when its run of consecutive samples at the line inside the window lasts at least 6 samples
+(30 s), or when the window's samples at the line (lone ones included) make up at least 25 % of its
+samples; otherwise those samples are minor. Two consecutive samples stay the entry condition, so a lone
+sample is never flagged and every major under this rule was major before it. Evidence: in the Nanbeige
+run `20261026-104645` (11:15-11:46) the user granted app permissions in System Settings four times
+during the timed block; each time macOS daemons ran 4-10 cores for 10-15 s (2-3 samples), and each made
+one unit major and repeat (M3 32K, M3 110K, M4 run 1, M4 run 2: ~17 min). The share is 25 % because short
+units (an M3 cell has 16-26 samples) report the median of 3 trials, which one 10-15 s burst cannot move. A 10-15 s burst inside a
+7-min M4 run changes its total by well under 1 %, and an M3 cell reports the median of 3 trials; the
+user's instruction: small disturbances are skipped, not re-run. Re-judged with this rule, all four are
+minor. In a short unit a short burst is still a large share (two samples are 12.5 % of M3 16K's ~16), so
+it stays major there.
 
 Per unit:
 

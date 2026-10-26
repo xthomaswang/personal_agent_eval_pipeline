@@ -104,6 +104,8 @@ window_flags(tsv, t_start, t_end, ...) -> dict    # {"disturbed_samples", "major
                                                   #  "peak_foreign_cpu", "battery_min", "samples"}
 read_monitor(tsv) -> rows; row_flags(row, prev, ...) -> list[Flag(severity, text)]
 MAJOR_FOREIGN_CPU = 300 ($QUIET_MAJOR_FOREIGN_CPU); MAJOR_GPU_MS = 500 ($QUIET_MAJOR_GPU_MS); GPU_FLOOR_MS = 250
+MAJOR_SUSTAIN_SAMPLES = 6 ($QUIET_MAJOR_SUSTAIN_SAMPLES); MAJOR_SHARE = 25 % ($QUIET_MAJOR_SHARE)  # CPU/GPU major
+    # only when sustained (a run of 6 window samples) or frequent (25 % of them); else minor (DESIGN §5.4)
 ```
 
 ## Server (`server.py`, owned by core)

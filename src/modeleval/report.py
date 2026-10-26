@@ -29,10 +29,11 @@ MINOR_MARK = "‡"   # a unit kept with a minor disturbance flag (DESIGN §5.4);
 MINOR_NOTE = (
     "‡ Kept with a minor disturbance flag (DESIGN §5.4). Following the project owner's instruction of 2026-10-26 "
     "(small disturbances have little effect: skip them, no re-run), only a major disturbance repeats a unit: foreign CPU "
-    ">= 300 % or foreign GPU time >= 500 ms per 5 s sample (10 %) in two consecutive samples, the lock, a peer's "
-    "server port, power, a battery below 20 %, memory pressure from foreign growth, or a gap in the monitor. A minor "
-    "flag (one foreign process above 25 % CPU, foreign CPU 150-300 % or foreign GPU time 250-500 ms in two "
-    "consecutive samples, a build or download tool) keeps the result: in the old campaign's M8 one busy core moved "
+    ">= 300 % or foreign GPU time >= 500 ms per 5 s sample (10 %) for at least 6 consecutive samples (30 s) or in at "
+    "least 25 % of the unit's samples, the lock, a peer's server port, power, a battery below 20 %, memory pressure "
+    "from foreign growth, or a gap in the monitor. A minor flag (one foreign process above 25 % CPU, foreign CPU above "
+    "150 % or foreign GPU time above 250 ms in two consecutive samples, including a shorter burst above the major "
+    "lines, a build or download tool) keeps the result: in the old campaign's M8 one busy core moved "
     "M1 / M3 / M4 by +2.9 % / -0.9 % / +2.0 %, inside the ~10 % cross-run error the owner accepts.")
 
 

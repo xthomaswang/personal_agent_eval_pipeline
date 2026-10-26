@@ -59,13 +59,20 @@ judged from the samples in `[start - 5 s, end + 5 s]`.
 
 - **Major** (the unit is repeated): our lock is missing; a peer's server port (8500, 8600-8699)
   listens; the machine is not on AC power in High Power mode; the battery is below 20 %; foreign CPU
-  in total is at or above 300 % in two consecutive samples; foreign GPU time is at or above 500 ms
-  per 5 s sample (10 % of GPU time) in two consecutive samples; memory pressure reaches level 2, or
-  the system swaps out, while foreign memory is growing; the monitor has a gap in the window.
+  in total is at or above 300 % in two consecutive samples, sustained or frequent (below); foreign GPU
+  time is at or above 500 ms per 5 s sample (10 % of GPU time) in two consecutive samples, sustained
+  or frequent; memory pressure reaches level 2, or the system swaps out, while foreign memory is
+  growing; the monitor has a gap in the window.
 - **Minor** (kept, flagged): one foreign process is above 25 % CPU in two consecutive samples;
-  foreign CPU in total is above 150 % but below 300 % in two consecutive samples; foreign GPU time is
-  above 250 ms but below 500 ms in two consecutive samples; a build, convert or download tool is
-  running.
+  foreign CPU in total is above 150 % in two consecutive samples, below 300 % or at it in a short
+  burst; foreign GPU time is above 250 ms in two consecutive samples, below 500 ms or at it in a
+  short burst; a build, convert or download tool is running.
+
+Sustained or frequent (since 2026-10-26): CPU or GPU at its major line counts as major only when it
+lasts at least 6 consecutive samples (30 s) or when samples at the line make up at least 25 % of the
+unit's samples; a shorter burst is minor. On 2026-10-26, four 10-15 s bursts of macOS daemons (the
+owner granting app permissions) had each repeated a unit, although such a burst moves a 7-minute M4
+run by well under 1 % and an M3 cell reports the median of 3 trials.
 
 Why there: the owner accepts ~10 % error between runs. In the old campaign's M8 on oMLX, one busy
 core moved M1 / M3 / M4 by +2.9 % / -0.9 % / +2.0 % against block 1 (about +8.5 % on M1 against
