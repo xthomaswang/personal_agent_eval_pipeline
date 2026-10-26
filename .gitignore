@@ -7,7 +7,6 @@ __pycache__/
 # Runtime state and local logs (server logs carry absolute local paths)
 logs/
 *.log
-ws/
 
 # Disturbed units, mechanics checks and exploratory runs never go public
 results/_unverified/
@@ -25,3 +24,6 @@ fixtures/generated/
 *.key
 
 .DS_Store
+runs/
+vendor/
+envs/*/.venv/
