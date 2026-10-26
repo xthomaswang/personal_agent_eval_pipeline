@@ -1,0 +1,45 @@
+{
+  "schema": 1,
+  "suite": "agent_ability",
+  "protocol": "capability-1",
+  "title": "Claude Code, Hermes, localmelo on Aider 12 + MCPMark easy 10 (gate set) and Aider 22 (ranking set); thinking off",
+  "model": "Nanbeige4.3-33B oQ5",
+  "family": "nanbeige4.3_33b",
+  "quant": "oq5",
+  "run_id": "20261026-104645",
+  "date": "2026-10-26",
+  "system": {
+    "machine": "m5max-40c-128gb",
+    "macos_build": "26B5101f",
+    "xcode_build": "27A9275",
+    "server": "oMLX 0.7.1rc1 (7a5a3d75)"
+  },
+  "metrics": [
+    {
+      "name": "Claude Code (gate)",
+      "value": "16/22"
+    },
+    {
+      "name": "Hermes (gate)",
+      "value": "15/18 (partial)"
+    },
+    {
+      "name": "localmelo (gate)",
+      "value": "—"
+    },
+    {
+      "name": "Gate set",
+      "value": "31/40 (partial)"
+    },
+    {
+      "name": "Ranking set",
+      "value": "—"
+    },
+    {
+      "name": "M7 tool-call cases",
+      "value": "17/22"
+    }
+  ],
+  "notes": "Capability leg stopped (interrupted) after 40 of 66 gate-set runs. Not run: localmelo, the ranking set.",
+  "details": "../../backend/20261026-104645/README.md"
+}

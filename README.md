@@ -90,8 +90,11 @@ must pass on the changed files: it refuses home paths, host names, private addre
 ## Status (2026-10-26)
 
 Assembled on 2026-10-26 from three local projects: agent-model-eval (`eval/backend/`, with its history),
-harness-smoke (`eval/agent_ability/`) and personal-agent-bench (`eval/bench/`, `eval/memory/`). In progress:
-machine-independent paths for backend, its results under `docs/benchmark/`, and T4's harness runner.
+harness-smoke (`eval/agent_ability/`) and personal-agent-bench (`eval/bench/`, `eval/memory/`). The backend
+reads its machine paths from `eval/backend/config.defaults.toml` (local overrides in `config.toml`), takes
+the GPU lock only where the lock protocol is configured, writes its runs under `docs/benchmark/`, and
+snapshots its harness epoch from this repository (`eval/bench`, `eval/agent_ability`). In progress: T4's
+harness runner.
 
 ## Results
 

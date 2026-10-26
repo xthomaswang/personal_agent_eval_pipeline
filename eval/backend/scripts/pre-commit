@@ -1,0 +1,40 @@
+#!/bin/sh
+# Git pre-commit hook: refuse a commit whose staged files fail `scripts/redact.py --check`
+# (home paths, the host name, private IPv4 addresses, machine/user/session ids, non-UTF-8
+# files, symlinks, capability files off the export allowlist; DESIGN.md section 8).
+#
+# Install once per clone, from the repository root (the path of this file from the root, e.g.
+# eval/backend/scripts/pre-commit):
+#   ln -s ../../<path of this file> .git/hooks/pre-commit
+# redact.py is found next to this file (through the link), wherever the backend sits in the repository.
+#
+# It checks the staged content, not the working tree: the staged versions of the added, copied,
+# modified, renamed and type-changed files (T: a tracked file that became a symlink) are exported
+# with `git checkout-index` into a temporary directory (symlinks stay symlinks) and checked there
+# under their repo-relative paths.
+set -eu
+here=$(dirname "$(readlink -f "$0")")
+root=$(git rev-parse --show-toplevel)
+cd "$root"
+py=/usr/bin/python3
+[ -x "$py" ] || py=python3
+tmp=$(mktemp -d "${TMPDIR:-/tmp}/modeleval-pre-commit.XXXXXX")
+trap 'rm -rf "$tmp"' EXIT
+trap 'exit 1' HUP INT TERM
+git diff --cached --name-only --diff-filter=ACMRT -z > "$tmp/files"
+[ -s "$tmp/files" ] || exit 0
+mkdir "$tmp/index"
+git checkout-index --prefix="$tmp/index/" -z --stdin < "$tmp/files"
+cd "$tmp/index"
+if ! xargs -0 "$py" -I -B "$here/redact.py" --check < "$tmp/files"; then
+  echo "pre-commit: refused by scripts/redact.py --check (see above)" >&2
+  exit 1
+fi
+
+# The results page must match docs/benchmark (the repository's results contract): the same check
+# scripts/build_docs.py --check runs, on the working tree, from the repository root.
+cd "$root"
+if [ -f scripts/build_docs.py ] && ! "$py" -I -B scripts/build_docs.py --check; then
+  echo "pre-commit: docs/index.html or the README results block is stale: run python3 scripts/build_docs.py" >&2
+  exit 1
+fi

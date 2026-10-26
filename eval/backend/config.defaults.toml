@@ -1,0 +1,33 @@
+# Where things are on this machine, and whether it takes part in the shared GPU-lock protocol.
+#
+# These are the defaults (the owner's MacBook Pro). On another Mac, put only the keys that differ, in
+# their tables, into config.toml next to this file (gitignored); it overrides this file key by key.
+# `uv run modeleval selftest` prints the resolved values.
+#
+# Paths: `~` is the home directory, `${name}` is another key of [paths], and a relative path is relative
+# to this directory. pins.toml and models.toml use the same `${name}` references.
+
+[paths]
+mlsys = "~/Developer/mlsys"                           # the owner's tree; most defaults below hang off it
+omlx_repo = "${mlsys}/serving/omlx_0.7"               # oMLX 0.7.1rc1 checkout with its .venv (bin/omlx, bin/python)
+omlx_base = "${omlx_repo}/.modeleval-home"            # the pipeline's own oMLX base path (settings, HOME)
+models = "${mlsys}/models"                            # converted checkpoints: ${models}/oq/<served id>
+models_dir = "${models}/hf-bench"                     # what oMLX serves: one link per served id
+ws_root = "${mlsys}/experiments/agent-model-eval-ws"  # agent workspaces; part of every task prompt (epoch)
+agent_root = "${mlsys}/agent"                         # Claude Code and Hermes configs, the Hermes install
+claude_versions = "~/.local/share/claude/versions"    # Claude Code binaries, one file per version
+datasets = "~/Developer/ml_source/datasets"           # the pinned task data (Aider polyglot, MCPMark)
+hf_home = "~/Developer/ml_source/huggingface"         # Hugging Face cache; $HF_HOME wins when set
+gpu_lock = "${mlsys}/experiments/.gpu-lock"           # the GPU lock file shared with other sessions
+
+[lock]
+# The GPU-lock protocol: the lock file around every launch and conversion, a LOCK-NOTICE and a wait
+# before timed work so that other sessions can stop, and lock purposes that tell them what may run.
+# "auto": on when the directory of paths.gpu_lock exists; "on" or "off" force it. Off, the pipeline takes
+# no lock and does not wait; the quiet rule (PROTOCOL.md) still guards every timed unit.
+mode = "auto"
+
+[machine]
+# The first level of the results path (docs/benchmark/<machine>/...). Empty: derived from the hardware
+# as <chip>-<GPU cores>c-<RAM GiB>gb, for example m5max-40c-128gb.
+id = ""

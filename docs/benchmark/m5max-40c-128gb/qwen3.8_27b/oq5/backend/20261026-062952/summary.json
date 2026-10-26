@@ -1,0 +1,53 @@
+{
+  "schema": 1,
+  "suite": "backend",
+  "protocol": "speed-1",
+  "title": "Speed on oMLX 0.7.1rc1 (M5 Max): text-only, agent sampling, thinking off",
+  "model": "Qwen3.8-27B oQ5 + MTP",
+  "family": "qwen3.8_27b",
+  "quant": "oq5",
+  "run_id": "20261026-062952",
+  "date": "2026-10-26",
+  "system": {
+    "machine": "m5max-40c-128gb",
+    "macos_build": "26B5101f",
+    "xcode_build": "27A9275",
+    "server": "oMLX 0.7.1rc1 (7a5a3d75)"
+  },
+  "metrics": [
+    {
+      "name": "64K cold TTFT",
+      "value": "111.4 s"
+    },
+    {
+      "name": "Cached-prefix TTFT",
+      "value": "3.20 s"
+    },
+    {
+      "name": "Decode 16K",
+      "value": "55.1 tok/s"
+    },
+    {
+      "name": "Decode 32K",
+      "value": "51.0 tok/s"
+    },
+    {
+      "name": "Decode 64K",
+      "value": "41.9 tok/s"
+    },
+    {
+      "name": "Decode 110K",
+      "value": "36.9 tok/s"
+    },
+    {
+      "name": "20-step agent trajectory",
+      "value": "133.4 s"
+    },
+    {
+      "name": "Peak server memory",
+      "value": "58.0 GiB"
+    }
+  ],
+  "reference": true,
+  "details": "speed/units.json"
+}

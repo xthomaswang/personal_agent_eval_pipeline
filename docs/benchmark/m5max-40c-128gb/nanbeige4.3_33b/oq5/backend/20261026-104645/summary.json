@@ -1,0 +1,53 @@
+{
+  "schema": 1,
+  "suite": "backend",
+  "protocol": "speed-1",
+  "title": "Speed on oMLX 0.7.1rc1 (M5 Max): text-only, agent sampling, thinking off",
+  "model": "Nanbeige4.3-33B oQ5",
+  "family": "nanbeige4.3_33b",
+  "quant": "oq5",
+  "run_id": "20261026-104645",
+  "date": "2026-10-26",
+  "system": {
+    "machine": "m5max-40c-128gb",
+    "macos_build": "26B5101f",
+    "xcode_build": "27A9275",
+    "server": "oMLX 0.7.1rc1 (7a5a3d75)"
+  },
+  "metrics": [
+    {
+      "name": "64K cold TTFT",
+      "value": "210.6 s"
+    },
+    {
+      "name": "Cached-prefix TTFT",
+      "value": "5.05 s"
+    },
+    {
+      "name": "Decode 16K",
+      "value": "15.9 tok/s"
+    },
+    {
+      "name": "Decode 32K",
+      "value": "13.5 tok/s"
+    },
+    {
+      "name": "Decode 64K",
+      "value": "10.5 tok/s"
+    },
+    {
+      "name": "Decode 110K",
+      "value": "9.0 tok/s"
+    },
+    {
+      "name": "20-step agent trajectory",
+      "value": "328.5 s"
+    },
+    {
+      "name": "Peak server memory",
+      "value": "74.0 GiB"
+    }
+  ],
+  "notes": "Kept with a minor disturbance flag (DESIGN §5.4): m1. Some trajectory steps opened with a tool call, so their TTFT includes its decode.",
+  "details": "README.md"
+}

@@ -1,0 +1,1169 @@
+{
+ "units": {
+  "g5+m3-64k": {
+   "verdict": "clean",
+   "attempts": [
+    {
+     "attempt": 1,
+     "t_start": 1793027313.261251,
+     "t_end": 1793027581.803294,
+     "raw_file": "speed/g5+m3-64k-1.jsonl",
+     "valid": true,
+     "note": "",
+     "metrics": {
+      "g5": {
+       "ok": true,
+       "ttft_s": 210.5912333750166,
+       "e2e_s": 211.1213868339546,
+       "prompt_tokens": 66509,
+       "cached_tokens": 0,
+       "error": null,
+       "t_start": 1793027313.3027258,
+       "t_end": 1793027524.4241126
+      },
+      "m3": {
+       "ctx": 64000,
+       "cap": 150,
+       "thinking": false,
+       "decode_tps": {
+        "median": 10.451463229308072,
+        "min": 10.395495068605701,
+        "max": 11.142390228348512,
+        "n": 3
+       },
+       "s_per_100": 9.568038255120035,
+       "ttft_s": {
+        "median": 3.294347290880978,
+        "min": 3.2740901249926537,
+        "max": 8.724627791903913,
+        "n": 3
+       },
+       "completion_tokens": {
+        "median": 150,
+        "min": 150,
+        "max": 150,
+        "n": 3
+       },
+       "prompt_tokens": 66509,
+       "warmup": "reused",
+       "trial0_cached_tokens": 66304,
+       "reasoning_chars": 0,
+       "hit_cap": 3,
+       "trials": 3,
+       "errors": 0
+      },
+      "cold_cached_tokens": [
+       0
+      ]
+     },
+     "verdict": "clean",
+     "kept": true,
+     "launch": 1,
+     "severity": "clean",
+     "reasons": [],
+     "major_reasons": [],
+     "minor_reasons": [],
+     "peak_foreign_cpu": 209.3,
+     "samples": 56,
+     "disturbed_samples": 0,
+     "major_samples": 0,
+     "minor_samples": 0,
+     "battery_min": 98
+    }
+   ]
+  },
+  "m3-16k": {
+   "verdict": "clean",
+   "attempts": [
+    {
+     "attempt": 1,
+     "t_start": 1793027590.235968,
+     "t_end": 1793027660.4334002,
+     "raw_file": "speed/m3-16k-1.jsonl",
+     "valid": true,
+     "note": "",
+     "metrics": {
+      "m3": {
+       "ctx": 16000,
+       "cap": 150,
+       "thinking": false,
+       "decode_tps": {
+        "median": 15.907259821180215,
+        "min": 15.718197337252484,
+        "max": 15.908339492642842,
+        "n": 3
+       },
+       "s_per_100": 6.286437835563099,
+       "ttft_s": {
+        "median": 1.359434667043388,
+        "min": 1.350376124959439,
+        "max": 2.5549265830777586,
+        "n": 3
+       },
+       "completion_tokens": {
+        "median": 150,
+        "min": 150,
+        "max": 150,
+        "n": 3
+       },
+       "prompt_tokens": 16626,
+       "warmup": "normal",
+       "trial0_cached_tokens": 16384,
+       "reasoning_chars": 0,
+       "hit_cap": 3,
+       "trials": 3,
+       "errors": 0
+      }
+     },
+     "verdict": "clean",
+     "kept": true,
+     "launch": 1,
+     "severity": "clean",
+     "reasons": [],
+     "major_reasons": [],
+     "minor_reasons": [],
+     "peak_foreign_cpu": 87.9,
+     "samples": 16,
+     "disturbed_samples": 0,
+     "major_samples": 0,
+     "minor_samples": 0,
+     "battery_min": 98
+    }
+   ]
+  },
+  "m3-32k": {
+   "verdict": "clean",
+   "attempts": [
+    {
+     "attempt": 1,
+     "t_start": 1793027669.842805,
+     "t_end": 1793027792.85944,
+     "raw_file": "~/Developer/mlsys/experiments/agent-model-eval/results/_unverified/nanbeige4-3-33b-oq5/20261026-104645/speed/m3-32k-1.jsonl",
+     "valid": true,
+     "note": "",
+     "metrics": {
+      "m3": {
+       "ctx": 32000,
+       "cap": 150,
+       "thinking": false,
+       "decode_tps": {
+        "median": 13.476307407384986,
+        "min": 13.41673439583585,
+        "max": 13.977582302992795,
+        "n": 3
+       },
+       "s_per_100": 7.420430313514533,
+       "ttft_s": {
+        "median": 1.3921490828506649,
+        "min": 1.3649657911155373,
+        "max": 4.038130457978696,
+        "n": 3
+       },
+       "completion_tokens": {
+        "median": 150,
+        "min": 150,
+        "max": 150,
+        "n": 3
+       },
+       "prompt_tokens": 33336,
+       "warmup": "normal",
+       "trial0_cached_tokens": 33280,
+       "reasoning_chars": 0,
+       "hit_cap": 3,
+       "trials": 3,
+       "errors": 0
+      }
+     },
+     "verdict": "disturbed",
+     "kept": false,
+     "launch": 1,
+     "severity": "major",
+     "reasons": [
+      "3 flagged sample(s) of 26 (1 major, 3 minor)",
+      "11:15:14 busy in 2 consecutive samples: coreduetd(576), ReportMemoryException(81965), AI(8125); foreign CPU 456% >= 300% in 2 consecutive samples",
+      "11:15:29 foreign CPU 178% > 150% in 2 consecutive samples",
+      "11:15:34 busy in 2 consecutive samples: BackgroundShortcutRunner(82105)"
+     ],
+     "major_reasons": [
+      "1 sample(s) of 26 with a major flag",
+      "11:15:14 foreign CPU 456% >= 300% in 2 consecutive samples"
+     ],
+     "minor_reasons": [
+      "3 sample(s) of 26 with a minor flag",
+      "11:15:14 busy in 2 consecutive samples: coreduetd(576), ReportMemoryException(81965), AI(8125)",
+      "11:15:29 foreign CPU 178% > 150% in 2 consecutive samples",
+      "11:15:34 busy in 2 consecutive samples: BackgroundShortcutRunner(82105)"
+     ],
+     "peak_foreign_cpu": 623.1,
+     "samples": 26,
+     "disturbed_samples": 3,
+     "major_samples": 1,
+     "minor_samples": 3,
+     "battery_min": 98
+    },
+    {
+     "attempt": 2,
+     "t_start": 1793027805.847001,
+     "t_end": 1793027845.3679922,
+     "raw_file": "speed/m3-32k-2.jsonl",
+     "valid": true,
+     "note": "",
+     "metrics": {
+      "m3": {
+       "ctx": 32000,
+       "cap": 150,
+       "thinking": false,
+       "decode_tps": {
+        "median": 13.54900823461299,
+        "min": 13.47270906069084,
+        "max": 13.745530213183198,
+        "n": 3
+       },
+       "s_per_100": 7.380614010148351,
+       "ttft_s": {
+        "median": 1.401361082913354,
+        "min": 1.3876394170802087,
+        "max": 1.4049882078543305,
+        "n": 3
+       },
+       "completion_tokens": {
+        "median": 150,
+        "min": 150,
+        "max": 150,
+        "n": 3
+       },
+       "prompt_tokens": 33336,
+       "warmup": "normal",
+       "trial0_cached_tokens": 33280,
+       "reasoning_chars": 0,
+       "hit_cap": 3,
+       "trials": 3,
+       "errors": 0
+      }
+     },
+     "verdict": "clean",
+     "kept": true,
+     "launch": 1,
+     "severity": "clean",
+     "reasons": [],
+     "major_reasons": [],
+     "minor_reasons": [],
+     "peak_foreign_cpu": 106.6,
+     "samples": 10,
+     "disturbed_samples": 0,
+     "major_samples": 0,
+     "minor_samples": 0,
+     "battery_min": 98
+    }
+   ]
+  },
+  "m3-110k": {
+   "verdict": "clean",
+   "attempts": [
+    {
+     "attempt": 1,
+     "t_start": 1793027855.616323,
+     "t_end": 1793028438.1266072,
+     "raw_file": "~/Developer/mlsys/experiments/agent-model-eval/results/_unverified/nanbeige4-3-33b-oq5/20261026-104645/speed/m3-110k-1.jsonl",
+     "valid": true,
+     "note": "",
+     "metrics": {
+      "m3": {
+       "ctx": 110000,
+       "cap": 150,
+       "thinking": false,
+       "decode_tps": {
+        "median": 8.498769712975436,
+        "min": 7.818385737954633,
+        "max": 8.578956976501706,
+        "n": 3
+       },
+       "s_per_100": 11.766408948265266,
+       "ttft_s": {
+        "median": 7.784226791933179,
+        "min": 7.748928958084434,
+        "max": 18.55299879121594,
+        "n": 3
+       },
+       "completion_tokens": {
+        "median": 150,
+        "min": 150,
+        "max": 150,
+        "n": 3
+       },
+       "prompt_tokens": 114235,
+       "warmup": "normal",
+       "trial0_cached_tokens": 114176,
+       "reasoning_chars": 0,
+       "hit_cap": 3,
+       "trials": 3,
+       "errors": 0
+      }
+     },
+     "verdict": "disturbed",
+     "kept": false,
+     "launch": 1,
+     "severity": "major",
+     "reasons": [
+      "4 flagged sample(s) of 118 (1 major, 4 minor)",
+      "11:20:34 busy in 2 consecutive samples: biomesyncd(84785)",
+      "11:20:44 busy in 2 consecutive samples: runningboardd(617); foreign CPU 457% >= 300% in 2 consecutive samples",
+      "11:21:54 foreign CPU 269% > 150% in 2 consecutive samples",
+      "11:25:09 busy in 2 consecutive samples: com.apple.WebKit.WebContent(86440)"
+     ],
+     "major_reasons": [
+      "1 sample(s) of 118 with a major flag",
+      "11:20:44 foreign CPU 457% >= 300% in 2 consecutive samples"
+     ],
+     "minor_reasons": [
+      "4 sample(s) of 118 with a minor flag",
+      "11:20:34 busy in 2 consecutive samples: biomesyncd(84785)",
+      "11:20:44 busy in 2 consecutive samples: runningboardd(617)",
+      "11:21:54 foreign CPU 269% > 150% in 2 consecutive samples",
+      "11:25:09 busy in 2 consecutive samples: com.apple.WebKit.WebContent(86440)"
+     ],
+     "peak_foreign_cpu": 987.8,
+     "samples": 118,
+     "disturbed_samples": 4,
+     "major_samples": 1,
+     "minor_samples": 4,
+     "battery_min": 98
+    },
+    {
+     "attempt": 2,
+     "t_start": 1793028445.529269,
+     "t_end": 1793028528.756594,
+     "raw_file": "speed/m3-110k-2.jsonl",
+     "valid": true,
+     "note": "",
+     "metrics": {
+      "m3": {
+       "ctx": 110000,
+       "cap": 150,
+       "thinking": false,
+       "decode_tps": {
+        "median": 8.975333036344898,
+        "min": 8.858710983919883,
+        "max": 9.039078331941626,
+        "n": 3
+       },
+       "s_per_100": 11.14164784694428,
+       "ttft_s": {
+        "median": 7.81857033399865,
+        "min": 7.797969541046768,
+        "max": 7.86787737486884,
+        "n": 3
+       },
+       "completion_tokens": {
+        "median": 150,
+        "min": 150,
+        "max": 150,
+        "n": 3
+       },
+       "prompt_tokens": 114235,
+       "warmup": "normal",
+       "trial0_cached_tokens": 114176,
+       "reasoning_chars": 0,
+       "hit_cap": 3,
+       "trials": 3,
+       "errors": 0
+      }
+     },
+     "verdict": "clean",
+     "kept": true,
+     "launch": 1,
+     "severity": "clean",
+     "reasons": [],
+     "major_reasons": [],
+     "minor_reasons": [],
+     "peak_foreign_cpu": 140.9,
+     "samples": 18,
+     "disturbed_samples": 0,
+     "major_samples": 0,
+     "minor_samples": 0,
+     "battery_min": 98
+    }
+   ]
+  },
+  "m1": {
+   "verdict": "minor",
+   "attempts": [
+    {
+     "attempt": 1,
+     "t_start": 1793028535.66838,
+     "t_end": 1793028638.095498,
+     "raw_file": "speed/m1-1.jsonl",
+     "valid": true,
+     "note": "",
+     "metrics": {
+      "m1": {
+       "warm_ttft_s": {
+        "median": 5.05,
+        "min": 4.89,
+        "max": 5.331311290850863,
+        "n": 5
+       },
+       "cold_ttft_s": {
+        "median": 36.81676287506707,
+        "min": 36.81676287506707,
+        "max": 36.81676287506707,
+        "n": 1
+       },
+       "warm_e2e_s": {
+        "median": 10.251934417057782,
+        "min": 8.87890558410436,
+        "max": 15.24880720791407,
+        "n": 5
+       },
+       "warm_cached_tokens": 15360,
+       "warm_prompt_tokens": 17077,
+       "ttft_sources": {
+        "client": 4,
+        "server": 2
+       },
+       "ttft_includes_decode": 0,
+       "cold_cached_tokens": 0,
+       "errors": 0
+      },
+      "cold_cached_tokens": [
+       0
+      ]
+     },
+     "verdict": "minor",
+     "kept": true,
+     "launch": 1,
+     "severity": "minor",
+     "reasons": [
+      "1 flagged sample(s) of 22 (0 major, 1 minor)",
+      "11:30:25 foreign GPU 255 ms > 250 ms in 2 consecutive samples"
+     ],
+     "major_reasons": [],
+     "minor_reasons": [
+      "1 sample(s) of 22 with a minor flag",
+      "11:30:25 foreign GPU 255 ms > 250 ms in 2 consecutive samples"
+     ],
+     "peak_foreign_cpu": 406.8,
+     "samples": 22,
+     "disturbed_samples": 1,
+     "major_samples": 0,
+     "minor_samples": 1,
+     "battery_min": 98
+    }
+   ]
+  },
+  "m4-1": {
+   "verdict": "clean",
+   "attempts": [
+    {
+     "attempt": 1,
+     "t_start": 1793028646.0386932,
+     "t_end": 1793029051.652801,
+     "raw_file": "~/Developer/mlsys/experiments/agent-model-eval/results/_unverified/nanbeige4-3-33b-oq5/20261026-104645/speed/m4-1-1.jsonl",
+     "valid": true,
+     "note": "m4: step 0 has no usage; cache check not possible",
+     "metrics": {
+      "m4": {
+       "steps": 21,
+       "headline_s": 339.4645306608946,
+       "ttft_sum_s": 183.11115483078174,
+       "decode_rate_tps": 13.431113903685544,
+       "rate_steps": 5,
+       "raw_total_s": 405.15547845629044,
+       "mean_completion_tokens": 97.57142857142857,
+       "cap_hits": 16,
+       "cap_hits_by_kind": {
+        "length": 0,
+        "incomplete_tool_call": 16
+       },
+       "step0_cached_tokens": null,
+       "direct_calls": 0,
+       "ttft_includes_decode": 0,
+       "fixed_tokens": 100,
+       "hard_errors": 0
+      },
+      "cold_cached_tokens": [
+       null
+      ]
+     },
+     "verdict": "disturbed",
+     "kept": false,
+     "launch": 1,
+     "severity": "major",
+     "reasons": [
+      "2 flagged sample(s) of 83 (1 major, 2 minor)",
+      "11:31:05 busy in 2 consecutive samples: runningboardd(617); foreign CPU 421% >= 300% in 2 consecutive samples",
+      "11:35:45 foreign CPU 210% > 150% in 2 consecutive samples"
+     ],
+     "major_reasons": [
+      "1 sample(s) of 83 with a major flag",
+      "11:31:05 foreign CPU 421% >= 300% in 2 consecutive samples"
+     ],
+     "minor_reasons": [
+      "2 sample(s) of 83 with a minor flag",
+      "11:31:05 busy in 2 consecutive samples: runningboardd(617)",
+      "11:35:45 foreign CPU 210% > 150% in 2 consecutive samples"
+     ],
+     "peak_foreign_cpu": 565.8,
+     "samples": 83,
+     "disturbed_samples": 2,
+     "major_samples": 1,
+     "minor_samples": 2,
+     "battery_min": 98
+    },
+    {
+     "attempt": 2,
+     "t_start": 1793029061.101012,
+     "t_end": 1793029454.873931,
+     "raw_file": "speed/m4-1-2.jsonl",
+     "valid": true,
+     "note": "m4: step 0 has no usage; cache check not possible",
+     "metrics": {
+      "m4": {
+       "steps": 21,
+       "headline_s": 336.1720963526708,
+       "ttft_sum_s": 180.75844487221912,
+       "decode_rate_tps": 13.512326491242266,
+       "rate_steps": 7,
+       "raw_total_s": 393.3619298345875,
+       "mean_completion_tokens": 103.23809523809524,
+       "cap_hits": 14,
+       "cap_hits_by_kind": {
+        "length": 0,
+        "incomplete_tool_call": 14
+       },
+       "step0_cached_tokens": null,
+       "direct_calls": 0,
+       "ttft_includes_decode": 0,
+       "fixed_tokens": 100,
+       "hard_errors": 0
+      },
+      "cold_cached_tokens": [
+       null
+      ]
+     },
+     "verdict": "clean",
+     "kept": true,
+     "launch": 1,
+     "severity": "clean",
+     "reasons": [],
+     "major_reasons": [],
+     "minor_reasons": [],
+     "peak_foreign_cpu": 188.2,
+     "samples": 80,
+     "disturbed_samples": 0,
+     "major_samples": 0,
+     "minor_samples": 0,
+     "battery_min": 98
+    }
+   ]
+  },
+  "m4-2": {
+   "verdict": "clean",
+   "attempts": [
+    {
+     "attempt": 1,
+     "t_start": 1793029461.807465,
+     "t_end": 1793029855.370465,
+     "raw_file": "~/Developer/mlsys/experiments/agent-model-eval/results/_unverified/nanbeige4-3-33b-oq5/20261026-104645/speed/m4-2-1.jsonl",
+     "valid": true,
+     "note": "",
+     "metrics": {
+      "m4": {
+       "steps": 21,
+       "headline_s": 337.2690981554539,
+       "ttft_sum_s": 184.002000547247,
+       "decode_rate_tps": 13.701570870534658,
+       "rate_steps": 11,
+       "raw_total_s": 393.1598591695074,
+       "mean_completion_tokens": 106.33333333333333,
+       "cap_hits": 10,
+       "cap_hits_by_kind": {
+        "length": 0,
+        "incomplete_tool_call": 10
+       },
+       "step0_cached_tokens": 0,
+       "direct_calls": 0,
+       "ttft_includes_decode": 0,
+       "fixed_tokens": 100,
+       "hard_errors": 0
+      },
+      "cold_cached_tokens": [
+       0
+      ]
+     },
+     "verdict": "disturbed",
+     "kept": false,
+     "launch": 1,
+     "severity": "major",
+     "reasons": [
+      "2 flagged sample(s) of 80 (2 major, 2 minor)",
+      "11:46:10 busy in 2 consecutive samples: AI(8125), coreduetd(576), runningboardd(617), systemsettingsagent(95790); foreign CPU 343% >= 300% in 2 consecutive samples",
+      "11:46:15 tools: xcodebuild (pid 95879); busy in 2 consecutive samples: AI(8125); foreign CPU 616% >= 300% in 2 consecutive samples"
+     ],
+     "major_reasons": [
+      "2 sample(s) of 80 with a major flag",
+      "11:46:10 foreign CPU 343% >= 300% in 2 consecutive samples",
+      "11:46:15 foreign CPU 616% >= 300% in 2 consecutive samples"
+     ],
+     "minor_reasons": [
+      "2 sample(s) of 80 with a minor flag",
+      "11:46:10 busy in 2 consecutive samples: AI(8125), coreduetd(576), runningboardd(617), systemsettingsagent(95790)",
+      "11:46:15 tools: xcodebuild (pid 95879); busy in 2 consecutive samples: AI(8125)"
+     ],
+     "peak_foreign_cpu": 672.2,
+     "samples": 80,
+     "disturbed_samples": 2,
+     "major_samples": 2,
+     "minor_samples": 2,
+     "battery_min": 98
+    },
+    {
+     "attempt": 2,
+     "t_start": 1793029861.787848,
+     "t_end": 1793030251.571557,
+     "raw_file": "speed/m4-2-2.jsonl",
+     "valid": true,
+     "note": "m4: step 0 has no usage; cache check not possible; m4: steps [1] opened with a tool call and the server reported no TTFT; their TTFT includes the decode",
+     "metrics": {
+      "m4": {
+       "steps": 21,
+       "headline_s": 328.5354459237358,
+       "ttft_sum_s": 179.15268666576594,
+       "decode_rate_tps": 14.057847173471332,
+       "rate_steps": 6,
+       "raw_total_s": 389.37759778811596,
+       "mean_completion_tokens": 102.33333333333333,
+       "cap_hits": 15,
+       "cap_hits_by_kind": {
+        "length": 0,
+        "incomplete_tool_call": 15
+       },
+       "step0_cached_tokens": null,
+       "direct_calls": 1,
+       "ttft_includes_decode": 1,
+       "fixed_tokens": 100,
+       "hard_errors": 0
+      },
+      "cold_cached_tokens": [
+       null
+      ]
+     },
+     "verdict": "clean",
+     "kept": true,
+     "launch": 1,
+     "severity": "clean",
+     "reasons": [],
+     "major_reasons": [],
+     "minor_reasons": [],
+     "peak_foreign_cpu": 176.9,
+     "samples": 79,
+     "disturbed_samples": 0,
+     "major_samples": 0,
+     "minor_samples": 0,
+     "battery_min": 99
+    }
+   ]
+  },
+  "m4-3": {
+   "verdict": "clean",
+   "attempts": [
+    {
+     "attempt": 1,
+     "t_start": 1793030257.512196,
+     "t_end": 1793030633.3301592,
+     "raw_file": "speed/m4-3-1.jsonl",
+     "valid": true,
+     "note": "m4: step 0 has no usage; cache check not possible",
+     "metrics": {
+      "m4": {
+       "steps": 21,
+       "headline_s": 321.58844470133465,
+       "ttft_sum_s": 175.11748366609217,
+       "decode_rate_tps": 14.337312905967192,
+       "rate_steps": 6,
+       "raw_total_s": 375.41042341711,
+       "mean_completion_tokens": 99.9047619047619,
+       "cap_hits": 15,
+       "cap_hits_by_kind": {
+        "length": 0,
+        "incomplete_tool_call": 15
+       },
+       "step0_cached_tokens": null,
+       "direct_calls": 1,
+       "ttft_includes_decode": 0,
+       "fixed_tokens": 100,
+       "hard_errors": 0
+      },
+      "cold_cached_tokens": [
+       null
+      ]
+     },
+     "verdict": "clean",
+     "kept": true,
+     "launch": 1,
+     "severity": "clean",
+     "reasons": [],
+     "major_reasons": [],
+     "minor_reasons": [],
+     "peak_foreign_cpu": 115.5,
+     "samples": 77,
+     "disturbed_samples": 0,
+     "major_samples": 0,
+     "minor_samples": 0,
+     "battery_min": 99
+    }
+   ]
+  }
+ },
+ "functional": {
+  "passed": true,
+  "time": "2026-10-26T11:08:32-0400",
+  "result": {
+   "ok": true,
+   "stop_reason": null,
+   "items": {
+    "G0": {
+     "id": "G0",
+     "result": "PASS",
+     "detail": "no_tools 5995 ids; tools 15392 ids; history 17081 ids; all checks pass",
+     "checks": [
+      {
+       "request": "no_tools",
+       "check": "independent render",
+       "ok": true,
+       "detail": "5995 ids identical",
+       "first_difference": null,
+       "transformers": "5.17.0"
+      },
+      {
+       "request": "tools",
+       "check": "single BOS",
+       "ok": true,
+       "detail": "ids[0:2]=[166100, 8481]"
+      },
+      {
+       "request": "tools",
+       "check": "system prompt verbatim",
+       "ok": true,
+       "detail": "verbatim"
+      },
+      {
+       "request": "tools",
+       "check": "thinking-off suffix",
+       "ok": true,
+       "detail": "prompt ends in an empty think block (thinking off)"
+      },
+      {
+       "request": "history",
+       "check": "single BOS",
+       "ok": true,
+       "detail": "ids[0:2]=[166100, 8481]"
+      },
+      {
+       "request": "history",
+       "check": "system prompt verbatim",
+       "ok": true,
+       "detail": "verbatim"
+      },
+      {
+       "request": "history",
+       "check": "thinking-off suffix",
+       "ok": true,
+       "detail": "prompt ends in an empty think block (thinking off)"
+      },
+      {
+       "request": "history",
+       "check": "tool-call turn rendered",
+       "ok": true,
+       "detail": "computer_click ['button', 'clicks', 'x', 'y'] after the task"
+      },
+      {
+       "request": "history",
+       "check": "tool-response turn rendered",
+       "ok": true,
+       "detail": "tool result after the call"
+      },
+      {
+       "request": "tools",
+       "check": "G1 usage",
+       "ok": true,
+       "detail": "usage.prompt_tokens 15392 == tokenize 15392"
+      }
+     ]
+    },
+    "G1": {
+     "id": "G1",
+     "result": "PASS",
+     "detail": "fs_read_file {\"path\": \"docs/setup.md\"}; one delta; first call chunk at 28.31 s, e2e 28.31 s; finish=tool_calls",
+     "sub": [
+      {
+       "probe": "G1.hermes",
+       "ok": true,
+       "outcome": "fs_read_file {\"path\": \"docs/setup.md\"}"
+      }
+     ]
+    },
+    "G3": {
+     "id": "G3",
+     "result": "PASS",
+     "detail": "text ok, tool_use ok, image N/A, tool_result image N/A (vision=false); text ok ('ready'); reasoning 118 chars in thinking_block / text ok ('ready'); reasoning 118 chars in thinking_block",
+     "sub": [
+      {
+       "probe": "G3.text-adaptive",
+       "ok": true,
+       "outcome": "text ok ('ready'); reasoning 118 chars in thinking_block"
+      },
+      {
+       "probe": "G3.text-nothinking",
+       "ok": true,
+       "outcome": "text ok ('ready'); reasoning 118 chars in thinking_block"
+      },
+      {
+       "probe": "G3.tool_use",
+       "ok": true,
+       "outcome": "tool_use fs_read_file {'path': 'docs/setup.md'}; one delta; first call chunk at 21.79 s, e2e 21.79 s"
+      },
+      {
+       "probe": "G3.image",
+       "ok": null,
+       "outcome": "N/A: vision=false (image probes are not sent)"
+      },
+      {
+       "probe": "G3.tool_result-image",
+       "ok": null,
+       "outcome": "N/A: vision=false (image probes are not sent)"
+      },
+      {
+       "probe": "G3.tool_result-control",
+       "ok": null,
+       "outcome": "N/A: vision=false (image probes are not sent)"
+      }
+     ]
+    },
+    "G4": {
+     "id": "G4",
+     "result": "PASS",
+     "detail": "Hermes off: no reasoning; Hermes on: reasoning 154 chars in reasoning_content; note: reasoning_effort=none alone does not disable thinking (top-level effort ignored) | G4.effort-none-only: accepted; reasoning 96 chars in reasoning_content | G4.effort-high: accepted; reasoning 100 chars in reasoning_content | G4.effort-minimal: accepted; reasoning 101 chars in reasoning_content | G4.default: accepted; reasoning 93 chars in reasoning_content",
+     "sub": [
+      {
+       "probe": "G4.hermes-off",
+       "ok": true,
+       "outcome": "no reasoning"
+      },
+      {
+       "probe": "G4.hermes-on",
+       "ok": true,
+       "outcome": "reasoning 154 chars in reasoning_content"
+      },
+      {
+       "probe": "G4.kwargs-off",
+       "ok": true,
+       "outcome": "no reasoning"
+      },
+      {
+       "probe": "G4.kwargs-on",
+       "ok": true,
+       "outcome": "reasoning 112 chars in reasoning_content"
+      },
+      {
+       "probe": "G4.effort-none-only",
+       "ok": null,
+       "outcome": "accepted; reasoning 96 chars in reasoning_content"
+      },
+      {
+       "probe": "G4.effort-high",
+       "ok": null,
+       "outcome": "accepted; reasoning 100 chars in reasoning_content"
+      },
+      {
+       "probe": "G4.effort-minimal",
+       "ok": null,
+       "outcome": "accepted; reasoning 101 chars in reasoning_content"
+      },
+      {
+       "probe": "G4.default",
+       "ok": null,
+       "outcome": "accepted; reasoning 93 chars in reasoning_content"
+      }
+     ]
+    }
+   },
+   "m7": {
+    "scored_cases": 22,
+    "passed_cases": 17,
+    "failing": [
+     "m7-05-array-strings",
+     "m7-06-array-integers",
+     "m7-07-enum",
+     "m7-11-booleans",
+     "m7-12-chinese-args"
+    ],
+    "incomplete": [],
+    "na": [
+     "m7-22-image-read",
+     "m7-23-image-click"
+    ],
+    "trials": 110,
+    "misses": 23,
+    "cases": {
+     "m7-01-single": {
+      "category": "single call",
+      "trials": 5,
+      "misses": 0,
+      "reasons": [],
+      "pass": true,
+      "incomplete": false
+     },
+     "m7-02-multi-args": {
+      "category": "multiple args",
+      "trials": 5,
+      "misses": 0,
+      "reasons": [],
+      "pass": true,
+      "incomplete": false
+     },
+     "m7-03-nested-object": {
+      "category": "nested objects",
+      "trials": 5,
+      "misses": 0,
+      "reasons": [],
+      "pass": true,
+      "incomplete": false
+     },
+     "m7-04-array-of-objects": {
+      "category": "nested objects (array of objects, multi-turn)",
+      "trials": 5,
+      "misses": 1,
+      "reasons": [
+       "fs_edit_file.edits: expected 2 items, got 1"
+      ],
+      "pass": true,
+      "incomplete": false
+     },
+     "m7-05-array-strings": {
+      "category": "arrays",
+      "trials": 5,
+      "misses": 3,
+      "reasons": [
+       "called 'fs_list_dir' instead of 'fs_delete'",
+       "spurious extra call(s): expected 1, got 2"
+      ],
+      "pass": false,
+      "incomplete": false
+     },
+     "m7-06-array-integers": {
+      "category": "arrays",
+      "trials": 5,
+      "misses": 3,
+      "reasons": [
+       "spurious extra call(s): expected 1, got 3",
+       "called 'browser_navigate' instead of 'browser_close_tabs'"
+      ],
+      "pass": false,
+      "incomplete": false
+     },
+     "m7-07-enum": {
+      "category": "enums",
+      "trials": 5,
+      "misses": 3,
+      "reasons": [
+       "called 'window_focus' instead of 'window_arrange'",
+       "called 'window_list' instead of 'window_arrange'"
+      ],
+      "pass": false,
+      "incomplete": false
+     },
+     "m7-08-key-combo": {
+      "category": "enums / arrays",
+      "trials": 5,
+      "misses": 0,
+      "reasons": [],
+      "pass": true,
+      "incomplete": false
+     },
+     "m7-09-numbers": {
+      "category": "numbers",
+      "trials": 5,
+      "misses": 0,
+      "reasons": [],
+      "pass": true,
+      "incomplete": false
+     },
+     "m7-10-float-bool": {
+      "category": "numbers and booleans",
+      "trials": 5,
+      "misses": 0,
+      "reasons": [],
+      "pass": true,
+      "incomplete": false
+     },
+     "m7-11-booleans": {
+      "category": "numbers and booleans",
+      "trials": 5,
+      "misses": 5,
+      "reasons": [
+       "called 'fs_list_dir' instead of 'fs_write_file'",
+       "fs_write_file.overwrite: missing"
+      ],
+      "pass": false,
+      "incomplete": false
+     },
+     "m7-12-chinese-args": {
+      "category": "Unicode / Chinese args",
+      "trials": 5,
+      "misses": 4,
+      "reasons": [
+       "notes_create: schema: (root): Additional properties are not allowed ('tag' was unexpected)"
+      ],
+      "pass": false,
+      "incomplete": false
+     },
+     "m7-13-chinese-instruction": {
+      "category": "Unicode / Chinese args",
+      "trials": 5,
+      "misses": 0,
+      "reasons": [],
+      "pass": true,
+      "incomplete": false
+     },
+     "m7-14-unicode-text": {
+      "category": "Unicode / Chinese args",
+      "trials": 5,
+      "misses": 2,
+      "reasons": [
+       "called 'computer_screenshot' instead of 'computer_type_text'"
+      ],
+      "pass": true,
+      "incomplete": false
+     },
+     "m7-15-quotes-newlines": {
+      "category": "quotes and newlines in strings",
+      "trials": 5,
+      "misses": 0,
+      "reasons": [],
+      "pass": true,
+      "incomplete": false
+     },
+     "m7-16-commit-message": {
+      "category": "quotes and newlines in strings (multi-turn)",
+      "trials": 5,
+      "misses": 0,
+      "reasons": [],
+      "pass": true,
+      "incomplete": false
+     },
+     "m7-17-long-string": {
+      "category": "long string args",
+      "trials": 5,
+      "misses": 0,
+      "reasons": [],
+      "pass": true,
+      "incomplete": false
+     },
+     "m7-18-parallel": {
+      "category": "two parallel calls",
+      "trials": 5,
+      "misses": 0,
+      "reasons": [],
+      "pass": true,
+      "incomplete": false
+     },
+     "m7-19-similar-tools-glob": {
+      "category": "choosing between similar tools",
+      "trials": 5,
+      "misses": 2,
+      "reasons": [
+       "spurious extra call(s): expected 1, got 2"
+      ],
+      "pass": true,
+      "incomplete": false
+     },
+     "m7-20-similar-tools-http": {
+      "category": "choosing between similar tools",
+      "trials": 5,
+      "misses": 0,
+      "reasons": [],
+      "pass": true,
+      "incomplete": false
+     },
+     "m7-21-no-call": {
+      "category": "no call needed",
+      "trials": 5,
+      "misses": 0,
+      "reasons": [],
+      "pass": true,
+      "incomplete": false
+     },
+     "m7-24-calendar": {
+      "category": "nested objects",
+      "trials": 5,
+      "misses": 0,
+      "reasons": [],
+      "pass": true,
+      "incomplete": false
+     }
+    }
+   },
+   "files": [
+    "speed/gate-1.jsonl",
+    "speed/m7-1.jsonl"
+   ],
+   "t_start": 1793026613.279433,
+   "t_end": 1793027312.629825,
+   "server_error": null
+  },
+  "launch": 1
+ },
+ "run_id": "20261026-104645",
+ "model": "nanbeige4-3-33b-oq5",
+ "protocol_version": 1,
+ "model_info": {
+  "key": "nanbeige4-3-33b-oq5",
+  "display": "Nanbeige4.3-33B oQ5",
+  "served_id": "Nanbeige4.3-33B-oQ5",
+  "quant": "oQ5",
+  "spec": "none",
+  "vision": false,
+  "reference": false,
+  "sampling": {
+   "temperature": 1.0,
+   "top_p": 0.95,
+   "top_k": 0
+  },
+  "proxy_sampling": "inject:omlx-default",
+  "source": {
+   "hf_repo": "Nanbeige/Nanbeige4.3-33B",
+   "revision": "c1093c501cc6460427c0ac634db7223d0450c0ee",
+   "made_by": "oq_convert level 5, no MTP head"
+  },
+  "notes": [
+   "Converted 2026-10-26 by scripts/oq_convert.py (126 s, full-precision sensitivity); provenance in <path>/agent-model-eval.json.",
+   "Tokenizer fix drop-bos-post-processor: one <|im_start|> at the start of every prompt, as apply_chat_template and vLLM tokenize it.",
+   "Text only (vision: none); dense llama with full attention in all 52 layers (208 KiB of KV per token)."
+  ],
+  "path": "~/Developer/mlsys/models/oq/Nanbeige4.3-33B-oQ5"
+ },
+ "system": {
+  "macos": "27.2",
+  "macos_build": "26B5101f",
+  "xcode": "Xcode 27.1",
+  "xcode_build": "27A9275",
+  "harness": {
+   "commit": "723a9f1936989ff05343b229b170e68283b0971b",
+   "dirty": false
+  }
+ },
+ "memory": {
+  "after_load": 24696061952.0,
+  "after_load_system": 36508221440.0,
+  "peak": 79456894976.0,
+  "peak_system": 40626110464.0,
+  "max_pressure": 1.0,
+  "swapouts": 360.0,
+  "samples": 2011,
+  "g5_peak": 47244640256.0,
+  "g5_peak_system": 33762672640.0,
+  "m3_110k_peak": 74088185856.0,
+  "m3_110k_peak_system": 16145727488.0
+ }
+}
