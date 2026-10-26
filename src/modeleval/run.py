@@ -135,10 +135,11 @@ class Options:
     thinking: str = "off"                 # "off" | "on"
     only: tuple[str, ...] = ()            # fnmatch patterns on task ids, e.g. "aider/transpose"
     harnesses: tuple[str, ...] = ()       # subset of claude_code, hermes, localmelo
+    thinking_budget: int = 0              # > 0: oMLX's per-model thinking budget, in tokens (needs thinking on)
 
     @property
     def exploratory(self) -> bool:
-        return self.thinking != "off" or bool(self.only) or bool(self.harnesses)
+        return self.thinking != "off" or bool(self.only) or bool(self.harnesses) or self.thinking_budget > 0
 
 
 # ---------------------------------------------------------------- small helpers
@@ -361,6 +362,13 @@ class Run:
         self.opts = opts
         self.models = models or registry.load_models()
         self.model = registry.get(self.models, opts.model)
+        if opts.thinking_budget:
+            # oMLX ends the thinking block after this many tokens (model_settings thinking_budget_*): the
+            # only way to keep a thinking-on agent step bounded on a slow model (DESIGN §6.8).
+            self.model = dataclasses.replace(self.model, model_settings={
+                **self.model.model_settings, "thinking_budget_enabled": True,
+                "thinking_budget_tokens": int(opts.thinking_budget)})
+            self.models = {**self.models, self.model.key: self.model}
         bad = [x for x in opts.legs if x not in LEGS]
         if bad or not opts.legs:
             raise Stop("refused", f"--legs must be a subset of {','.join(LEGS)}, got {opts.legs}")
@@ -484,7 +492,8 @@ class Run:
             "protocol_version": paths.PROTOCOL_VERSION, "run_id": self.run_id, "status": self.status,
             "reason": self.reason, "started": self.started, "ended": None if self.status == "running" else _iso(),
             "model": self.model.to_dict(), "unverified": self.opts.unverified,
-            "arm": {"thinking": self.opts.thinking, "only": list(self.opts.only), "harnesses": list(self.opts.harnesses)},
+            "arm": {"thinking": self.opts.thinking, "only": list(self.opts.only), "harnesses": list(self.opts.harnesses),
+                    "thinking_budget": self.opts.thinking_budget},
             "options": {"legs": list(self.opts.legs), "capability": self.opts.capability,
                         "resumed": self.opts.resume is not None, "notice_wait_s": self.opts.notice_wait},
             "estimate": self.est,

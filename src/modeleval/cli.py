@@ -65,7 +65,9 @@ def _options(a: argparse.Namespace, dry: bool) -> run.Options:
     harnesses = tuple(x.strip() for x in (a.harnesses or "").split(",") if x.strip())
     opts = run.Options(model=a.model, legs=legs, capability=a.capability, unverified=a.unverified, resume=a.resume,
                        notice_wait=getattr(a, "notice_wait", 600), settle_s=getattr(a, "settle", 600), dry_run=dry,
-                       thinking=a.thinking, only=only, harnesses=harnesses)
+                       thinking=a.thinking, only=only, harnesses=harnesses, thinking_budget=a.thinking_budget)
+    if opts.thinking_budget and opts.thinking != "on":
+        raise SystemExit("--thinking-budget needs --thinking on")
     if opts.exploratory and (not opts.unverified or opts.legs != ("capability",)):
         raise SystemExit("--thinking on, --only and --harnesses are exploratory arms: "
                          "use them with --legs capability --unverified")
@@ -224,6 +226,8 @@ def parser() -> argparse.ArgumentParser:
         x.add_argument("--thinking", choices=("off", "on"), default="off",
                        help="capability with thinking on (exploratory; needs --legs capability --unverified)")
         x.add_argument("--only", metavar="PATTERNS", help="comma-separated task-id patterns, e.g. aider/transpose")
+        x.add_argument("--thinking-budget", type=int, default=0, metavar="TOKENS",
+                       help="with --thinking on: oMLX ends each thinking block after this many tokens")
         x.add_argument("--harnesses", metavar="LIST", help="comma-separated subset of claude_code,hermes,localmelo")
         if name == "run":
             x.add_argument("--notice-wait", type=int, default=600, help="seconds between LOCK-NOTICE and the lock")
