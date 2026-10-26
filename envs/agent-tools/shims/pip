@@ -1,0 +1,4 @@
+#!/bin/sh
+# agent-model-eval shim: agents must not install packages.
+echo "pip is disabled in this benchmark: use only the Python standard library." >&2
+exit 1

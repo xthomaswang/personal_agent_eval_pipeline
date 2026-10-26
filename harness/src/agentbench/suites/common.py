@@ -8,17 +8,20 @@ import hashlib
 import json
 import re
 import sys
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from ..client import RequestRecord, ServerConfig, StreamClient
 from ..fixtures.store import Fixtures
-from ..metrics import decode_metrics
+from ..metrics import decode_metrics, server_timing, ttft
 from ..profiles import Profile
 from ..provenance import header, redact, repo_root
 
 RESERVED_PORTS = {8500, *range(8600, 8700)}  # the agent benchmark's ports; never used here
+COLD_NONCE_MODES = ("tool", "system+tool")
+SAMPLING_FIELDS = ("temperature", "top_p", "top_k")
 
 
 def check_port(base_url: str) -> None:
@@ -55,6 +58,13 @@ class RunConfig:
     unverified: bool = False  # write raw files to <framework>/raw/_unverified/ (gitignored, never published)
     preflight: dict[str, Any] | None = None  # result of the last preflight, recorded in the header
     interference: dict[str, Any] | None = None  # M8 block record (scenario, parameters, allowances), in the header
+    # agent-model-eval additions (harness/CHANGES.md); the defaults keep the c15a0a8 behaviour
+    vision: bool = True  # False: the gate's image probes (G2, G2b, G3 image parts) are N/A, not sent
+    # where a cold request's nonce goes: the first tool's description (Qwen renders tools first), or also the
+    # start of the system message (templates that render the system prompt first, e.g. Nanbeige)
+    cold_nonce: Literal["tool", "system+tool"] = "tool"
+    anthropic_sampling: bool = False  # merge temperature/top_p/top_k of extra_body into /v1/messages bodies
+    tokenizer_dir: Path | None = None  # the model's own tokenizer for local fallback counts (None: Qwen3.8)
 
     @property
     def fw_dir(self) -> Path:
@@ -93,15 +103,33 @@ class Writer:
                        "thinking_fields": cfg.thinking_fields, "screenshot_placement": cfg.screenshot_placement,
                        "tool_call_mode": cfg.profile.tool_call_mode,
                        **({"structured_format": cfg.profile.structured_format, "structured_union": cfg.profile.structured_union}
-                          if cfg.profile.tool_call_mode == "structured_output" else {})}
+                          if cfg.profile.tool_call_mode == "structured_output" else {}),
+                       "vision": cfg.vision, "cold_nonce": cfg.cold_nonce, "anthropic_sampling": cfg.anthropic_sampling,
+                       "local_tokenizer": local_tokenizer_info(cfg)}
         self.write(hdr)
+        # the unit's window for quiet judging starts after the header (and the tokenizer load it triggers)
+        self.t_start = time.time()
 
     def write(self, obj: dict[str, Any]) -> None:
+        """A `summary` line is stamped with the unit's window (`t_start`, `t_end`, epoch seconds), in
+        place: suites return the dict they wrote, so the caller gets the same window."""
+        if obj.get("type") == "summary":
+            obj["t_start"], obj["t_end"] = self.t_start, time.time()
         self.f.write(redact(json.dumps(obj, ensure_ascii=False, default=str)) + "\n")
         self.f.flush()
 
     def close(self) -> None:
         self.f.close()
+
+
+def local_tokenizer_info(cfg: RunConfig) -> dict[str, Any]:
+    """Which tokenizer local fallback counts use, for the provenance header."""
+    if cfg.tokenizer_dir is None:
+        return {"dir": None, "kind": "qwen3.8 (default)"}
+    from ..tokenizer import load_model_prompt
+
+    prompt, err = load_model_prompt(cfg.tokenizer_dir)
+    return {"dir": str(cfg.tokenizer_dir), "kind": "model", "loaded": prompt is not None, "error": err}
 
 
 # ---------------------------------------------------------------- helpers
@@ -194,7 +222,8 @@ class Outcome:
         cached, src = cached_with_source(r)
         if cached is None and self.cached_log is not None:
             cached, src = self.cached_log, "server-log"
-        return {
+        s_ttft, s_gen = server_timing(r.usage_raw)
+        m = {
             "ok": r.ok and not self.skipped, "http_status": r.http_status, "error": short_error(r.error),
             "skipped": self.skipped,
             "ttft_s": r.ttft, "e2e_s": r.e2e, "t_headers_s": r.t_headers, "t_first_data_s": r.t_first_data,
@@ -202,13 +231,16 @@ class Outcome:
             "prompt_tokens": r.prompt_tokens, "prompt_tokens_local": self.prompt.get("local_tokens"),
             "completion_tokens": dm["completion_tokens"], "completion_tokens_source": dm["tokens_source"],
             "cached_tokens": cached, "cached_source": src, "finish_reason": r.finish_reason,
-            "decode_tps": dm["decode_tps"], "gap_p50_ms": dm["gap_p50_ms"], "gap_p99_ms": dm["gap_p99_ms"],
+            "decode_s": dm["decode_s"], "decode_tps": dm["decode_tps"], "gap_p50_ms": dm["gap_p50_ms"], "gap_p99_ms": dm["gap_p99_ms"],
             "tokens_per_chunk": dm["tokens_per_chunk"], "n_token_chunks": dm["n_token_chunks"],
             "n_tool_calls": len(r.tool_calls), "markup_leak": r.markup_leak(),
             "reasoning_chars": len(r.reasoning), "content_chars": len(r.content),
             "reasoning_fields": r.reasoning_fields, "retries_429": self.retries_429,
             "tool_call_mode": r.tool_call_mode, "structured_error": r.structured_error,
+            "server_ttft_s": s_ttft, "server_generation_s": s_gen,
         }
+        m["ttft_eff_s"], m["ttft_source"] = ttft(m)   # a direct tool call's client TTFT includes its decode
+        return m
 
     def line(self, suite: str, count_tokens=None, **fields: Any) -> dict[str, Any]:
         return {"type": "request", "suite": suite, **fields, "tool_call_mode": self.rec.tool_call_mode,
@@ -226,6 +258,8 @@ class Target:
 
     def __init__(self, cfg: RunConfig, fixtures: Fixtures | None = None, max_connections: int = 8) -> None:
         check_port(cfg.base_url)
+        if cfg.cold_nonce not in COLD_NONCE_MODES:
+            raise SystemExit(f"cold_nonce must be one of {COLD_NONCE_MODES}, not {cfg.cold_nonce!r}")
         self.cfg, self.profile = cfg, cfg.profile
         self.fx = fixtures
         self.client = StreamClient(ServerConfig(base_url=cfg.base_url, model=cfg.model, extra_body=cfg.extra_body,
@@ -245,16 +279,34 @@ class Target:
             self._prompt = default_prompt()
         return self._prompt
 
-    def count_tokens(self, text: str) -> int:
-        return self.qwen.count_text(text)
+    @property
+    def local(self):
+        """Tokenizer for local fallback counts: the model's own (`tokenizer_dir`), else Qwen3.8 (the
+        c15a0a8 behaviour). None when `tokenizer_dir` is set but does not load: counts stay empty
+        then, because another model's token counts would be silently wrong."""
+        if self.cfg.tokenizer_dir is None:
+            return self.qwen
+        from ..tokenizer import load_model_prompt
+
+        return load_model_prompt(self.cfg.tokenizer_dir)[0]
+
+    def count_tokens(self, text: str) -> int | None:
+        tok = self.local
+        return tok.count_text(text) if tok is not None else None
 
     # ------------------------------------------------------------ thinking
     def thinking_fields(self, thinking: bool | None, effort: str | None = None,
-                        effort_in_kwargs: bool = False) -> dict[str, Any]:
+                        effort_in_kwargs: bool = False, omit_effort: bool = False) -> dict[str, Any]:
         """Hermes-style by default: top-level reasoning_effort ("none" when off) plus
-        chat_template_kwargs.enable_thinking. thinking=None sends no thinking fields."""
+        chat_template_kwargs.enable_thinking. thinking=None sends no thinking fields.
+        `omit_effort` with thinking on sends chat_template_kwargs.enable_thinking=true only, no
+        reasoning_effort anywhere, so every template renders its own default effort (Qwen3.8's
+        template inserts an effort line, Nanbeige's ignores it)."""
         if thinking is None or self.cfg.thinking_fields == "none":
             return {}
+        if thinking and omit_effort:
+            return ({"chat_template_kwargs": {"enable_thinking": True}}
+                    if self.cfg.thinking_fields in ("hermes", "kwargs") else {})
         eff = (effort or "medium") if thinking else "none"
         kwargs: dict[str, Any] = {"enable_thinking": bool(thinking)}
         if thinking and effort_in_kwargs:
@@ -275,23 +327,28 @@ class Target:
         info: dict[str, Any] = {"sha256": prompt_hash(messages, tools), "n_messages": len(messages), "n_images": n_img,
                                 "n_tools": len(tools or [])}
         if count_local:
-            try:
-                info["local_tokens"] = self.qwen.count(messages, tools, enable_thinking=thinking is not False)
-            except Exception as e:  # never let local accounting break a measurement
-                info["local_tokens_error"] = f"{type(e).__name__}: {e}"
+            tok = self.local
+            if tok is None:
+                info["local_tokens_error"] = "model tokenizer unavailable (see the header's mode.local_tokenizer)"
+            else:
+                try:
+                    info["local_tokens"] = tok.count(messages, tools, enable_thinking=thinking is not False)
+                except Exception as e:  # never let local accounting break a measurement
+                    info["local_tokens_error"] = f"{type(e).__name__}: {e}"
         return info
 
     # ------------------------------------------------------------- requests
     async def chat(self, messages: list[dict[str, Any]], *, max_tokens: int, tools: list[dict[str, Any]] | None = None,
                    thinking: bool | None = False, effort: str | None = None, effort_in_kwargs: bool = False,
                    extra: dict[str, Any] | None = None, raw_fields: dict[str, Any] | None = None,
-                   retry_429: bool = True, count_local: bool = True, structured_format: str | None = None) -> Outcome:
+                   retry_429: bool = True, count_local: bool = True, structured_format: str | None = None,
+                   omit_effort: bool = False) -> Outcome:
         """`raw_fields` replaces the generated thinking fields (gate probes use exact shapes)."""
         if raw_fields is None:
             blocked = self.profile.thinking_blocked(thinking, effort)
             if blocked:
                 return skipped_outcome(blocked)
-            fields = self.thinking_fields(thinking, effort, effort_in_kwargs)
+            fields = self.thinking_fields(thinking, effort, effort_in_kwargs, omit_effort)
         else:
             fields = raw_fields
         body = self.client.openai_body(messages, max_tokens, tools, extra={**fields, **(extra or {})})
@@ -306,6 +363,8 @@ class Target:
         return await self._send(lambda: self.client.chat(body), notes, info, retry_429, structured)
 
     async def anthropic(self, body: dict[str, Any], retry_429: bool = True) -> Outcome:
+        if self.cfg.anthropic_sampling:  # the model's sampling, as in the OpenAI bodies (extra_body wins there too)
+            body = {**body, **{k: self.cfg.extra_body[k] for k in SAMPLING_FIELDS if k in self.cfg.extra_body}}
         body, notes = self.profile.shape_anthropic(dict(body, model=body.get("model", self.cfg.model)))
         info = {"sha256": prompt_hash(body.get("messages", []), body.get("tools")), "n_messages": len(body.get("messages", []))}
         return await self._send(lambda: self.client.messages(body, add_model=False), notes, info, retry_429)

@@ -1,8 +1,10 @@
 # agentbench (harness)
 
-Benchmark client used unchanged against every server in this experiment. It implements the
-gate G1–G5 and the metrics M1–M7 of [../METHODOLOGY.md](../METHODOLOGY.md); see
-[STATUS.md](STATUS.md) for what is verified and what still needs a live check.
+Benchmark client copied from `qwen3.8-27b_20261017-2258_benchmark@c15a0a8`, where it implements the
+gate G1–G5 and the metrics M1–M7 of that campaign's METHODOLOGY.md. agent-model-eval drives it
+in-process from `modeleval` (DESIGN.md §5, §10). The copy is modified; every change and why is in
+[CHANGES.md](CHANGES.md), and each new option defaults to the c15a0a8 behaviour.
+[STATUS.md](STATUS.md) is the old campaign's status note.
 
 Python 3.12, uv project, offline. The tokenizer and chat template come from a local directory:
 `$AGENTBENCH_TOKENIZER_DIR`, else the oQ5 checkpoint `~/Developer/mlsys/models/oq/Qwen3.8-27B-oQ5-mtp`,
@@ -39,7 +41,9 @@ compares every sha256 with `fixtures/manifest.json`.
 
 Generated (`fixtures/generated/`, gitignored): 47 fake-UI screenshots (1280×1024 PNG), their
 text equivalents (accessibility-tree text of exactly 1282 tokens, the image's token count),
-cold prompts, M3 prompts and M5 helper prompts.
+cold prompts, M3 prompts and M5 helper prompts. The build also writes the 110,000-token
+thinking-off M3 prompt (`EXTRA_PROMPTS`) but keeps it out of `manifest.json`, so the committed
+fixtures stay byte-identical to c15a0a8.
 
 Measured with the Qwen3.8 tokenizer and template (thinking off unless noted):
 
@@ -68,7 +72,8 @@ Rules the fixtures follow:
   M4 run gets a fresh nonce. Digits differ between runs, everything else is byte-identical
   across frameworks (`prompt.sha256` in the raw records zeroes the digits).
 - Sizes that are not pre-built (for example `--sizes 128000`) are generated on the fly with
-  the same procedure, but are not covered by the manifest.
+  the same procedure, cached under `generated/prompts/` (marked `outside_manifest`), and are not
+  covered by the manifest.
 
 ## Profiles
 
@@ -133,13 +138,38 @@ If G1 gets HTTP 400/404/422, the gate also sends the same request without `respo
 | `--interference JSON` | M8: a JSON object stored as the header's `interference` record (scenario, parameters, allowances, load PID, block, run); `scripts/run_m8.sh` builds it with `interference.py meta` |
 | `--read-timeout`, `--total-timeout` | seconds (defaults 1800 / 3600; a 64K cold prefill can take minutes) |
 | `--out-root`, `--fixtures` | redirect outputs and fixtures (tests use temporary directories) |
+| `--no-vision` | text-only model: G2, G2b and G3's image parts are N/A and never sent (G3 passes on text + `tool_use`), and the metric suites run in `--text-only` mode |
+| `--cold-nonce tool\|system+tool` | M1 cold trial and every M4 run: the nonce goes into the first tool's description (default), or also at the start of the system message, for templates that render the system prompt first (Nanbeige) |
+| `--anthropic-sampling` | also merge `temperature`, `top_p`, `top_k` from `--extra-body` into `/v1/messages` bodies (G3) |
+| `--tokenizer-dir DIR` | the model's own tokenizer (`tokenizer.json`; template from `chat_template.jinja` or `tokenizer_config.json`) for local fallback counts; counts stay empty if it does not load. Default: Qwen3.8 |
 
 Every suite writes `<framework>/raw/<suite>-<tag>-<YYYYmmdd-HHMMSS>.jsonl`. Line 1 is the
 provenance header (harness commit and dirty flag, `sw_vers`, `xcodebuild -version` default and
-beta, chip, memory, framework version, launch flags, all CLI args; home and `$HF_HOME` paths
-redacted). Then one `request` line per request (`metrics`, `prompt`, `shaping`, the full
+beta, chip, memory, framework version, launch flags, all CLI args, the `mode` including `vision`,
+`cold_nonce`, `anthropic_sampling` and which tokenizer the local counts use; home and `$HF_HOME`
+paths redacted). Then one `request` line per request (`metrics`, `prompt`, `shaping`, the full
 `record` with per-chunk timestamps), plus `memory`, `skip`, `gate_item` lines as relevant, and a
-final `summary` line.
+final `summary` line stamped with the unit's window `t_start` / `t_end` (epoch seconds).
+
+### In-process API (modeleval)
+
+```python
+from agentbench.suites import run_suite
+from agentbench.suites.gate import run_probes
+
+path, s = await run_probes(cfg, [("g1", {}), ("g3", {"vision": False}), ("g4", {})])   # functional block
+path, s = await run_probes(cfg, [("g5", {"prompt": "m3-off"})])     # cold 64K; s["items"]["G5"]["nonce"]
+path, s = await run_suite(cfg, SuiteOpts(spec_label="on", contexts=[64000], caps=[150], no_thinking_bucket=True,
+                                         reuse_nonce=nonce), "m3")                 # one M3 cell, G5's prefix
+path, s = await run_suite(cfg, SuiteOpts(spec_label="on", contexts=[], think_contexts=[16000], think_caps=[1000],
+                                         warmup_max_tokens=16, think_effort=None), "m3")   # the thinking cell
+path, s = await run_suite(cfg, SuiteOpts(runs=1), "m4")             # one M4 run = one unit
+```
+
+Each call writes one raw file `<suite>-<tag>-<ts>.jsonl` under `cfg.fw_dir/raw` (`raw/_unverified`
+with `cfg.unverified`) and returns its summary with `t_start` / `t_end`. `run_probes` never touches
+`capabilities.md`. Generate large prompts before a timed unit (`Fixtures(...).prompt("m3-off-110000")`):
+fitting the 110K prompt takes a few CPU seconds.
 
 ## Subcommands
 
@@ -155,17 +185,22 @@ uv run agentbench gate --profile omlx --model Qwen3.8-27B-oQ5-mtp --tag oq5mtp \
   with no markup in `content`. Records whether the call arrived incrementally or as one delta.
   If the Hermes shape gets HTTP 400/404/422, a plain request (no thinking fields) is tried too.
 - G2: base64 PNG with a random code; passes only if the answer contains the code. Images are
-  always probed, even with `--text-only`.
+  probed even with `--text-only`; with `--no-vision` G2 and G2b are N/A and not sent.
 - G3: Claude Code-style `/v1/messages` (system blocks with `cache_control`): text with
   `thinking: adaptive` and without a thinking field, `tool_use` with the agent tools, an image
   block. Never sends `thinking: disabled`. Servers that think by default (vLLM, llama.cpp,
   oMLX) get `max_tokens=4096`; a text probe whose default thinking streams until `max_tokens`
-  still counts as streaming that works, and says so.
+  still counts as streaming that works, and says so. The image block and the image inside a
+  `tool_result` are sent only with vision (`Gate.g3(vision=...)`); without it G3 passes on text +
+  `tool_use` and lists the image probes as N/A.
 - G4: Hermes off/on, `enable_thinking` alone, `reasoning_effort` alone, and the efforts the
   template rejects with thinking on (`high`, `minimal`) to see whether the server maps or
   rejects them. PASS / PARTIAL (only `enable_thinking` works) / FAIL.
 - G5: the 64,000-token cold prompt with `max_tokens=8`, memory sampled every second if
   `--server-pid` is given, configured context from `--context-config`, `/v1/models` or `/props`.
+  `Gate.g5(prompt="m3-off", nonce=None)` sends the thinking-off M3 prompt of the same size through
+  M3's request path instead, so the M3 cell can reuse its prefix (`reuse_nonce`); the item records
+  the prompt, the nonce, TTFT and the peak footprint.
 
 Prints the pass/fail table, writes `raw/gate-<tag>-<ts>.md`, and upserts the same fragment into
 `<framework>/capabilities.md` between `<!-- agentbench:begin gate <tag> -->` markers (text
@@ -179,7 +214,9 @@ uv run agentbench m1 --profile vllm --model qwen3.8-27b-8bit --tag 8bit --trials
 
 Warm-up = prefix + task (ends with a user message, `max_tokens=1`). Trials append the canned
 call, a unique tool result and a unique screenshot (about 1.6K new tokens). Cold trials use the
-same shape with a nonce in the first tool's description. `--rewarm` re-sends the warm-up
+same shape with a nonce in the first tool's description (and at the start of the system
+message with `--cold-nonce system+tool`); the summary's `cold_checks` lists each cold trial's
+cached tokens, which must stay below one cache block (256) for a valid cold sample. `--rewarm` re-sends the warm-up
 before each trial; `--m1-max-tokens` (192) caps the reply. TTFT follows METHODOLOGY (first
 content, reasoning or tool-call chunk); `first_kind` and e2e are recorded because oMLX and
 mlx-lm emit a tool call only when it is complete.
@@ -199,11 +236,15 @@ Fresh nonce at the very start, `max_tokens=1`, one warm-up. Throughput = prompt 
 uv run agentbench m3 --profile llamacpp --tag 4bit-mtp --spec-label on
 ```
 
-Thinking off: caps 50/150/300 at 16K/32K/64K. Thinking on (`--think-effort xhigh`, sent
-top-level and in `chat_template_kwargs`): caps 1000/2000 at 16K/32K. The prompt asks for a
+Thinking off: caps 50/150/300 at 16K/32K/64K (110K is available, outside the fixture manifest).
+Thinking on (`--think-effort xhigh`, sent top-level and in `chat_template_kwargs`; `--no-think-effort`
+sends `enable_thinking: true` only): caps 1000/2000 at 16K/32K. The prompt asks for a
 150-element JSON array in `content` (no `tools`), so every cap is exceeded; `hit_cap` flags
 cells that stopped early. Options: `--contexts`, `--caps`, `--think-contexts`, `--think-caps`,
-`--no-thinking-bucket`, `--bust-cache` (default: the warm-up primes the prompt cache).
+`--no-thinking-bucket`, `--bust-cache` (default: the warm-up primes the prompt cache),
+`--warmup-max-tokens` (default: the smallest cap), `--reuse-nonce DIGITS` (one thinking-off
+context: no warm-up if trial 0 finds the prefix cached, ≥ 90 % of its prompt; otherwise that
+request becomes the warm-up; the cell's `warmup` records which).
 `--spec-label` is required and only labels the rows (launch the server accordingly).
 
 ### `m4` — 20-step trajectory
@@ -215,7 +256,15 @@ uv run agentbench m4 --profile omlx --model Qwen3.8-27B-oQ5-mtp --tag oq5mtp --r
 Step 0 = prefix + task; step k appends canned call k, tool result k and screenshot k
 (`--m4-max-tokens` 150 output, discarded). Per step: TTFT, e2e, cached and prompt tokens; the
 summary adds the TTFT slope over steps and the total per run. Each run gets a fresh nonce
-(`--no-bust` to disable). `--steps` (20), `--runs` (3).
+(`--no-bust` to disable; `--cold-nonce system+tool` also puts it at the start of the system
+message of every step of the run). `--steps` (20), `--runs` (3).
+
+A stream cut at the cap inside a tool call (`incomplete_tool_call`) is a latency sample (TTFT
+and e2e valid, no usage); runs with cut steps are kept. Each step line has `derived`
+(`latency_sample`, `cap_hit` = `length` / `incomplete_tool_call`, `decode_s`, completion tokens and
+their source). `per_run` holds each run's headline inputs: `ttft_sum_s`, `cap_hits`,
+`usage_completion_tokens` / `usage_decode_s` (steps with server usage), `decode_rate_tps` = R and
+`headline_s` = `ttft_sum_s + n_steps × 100 / R`; `cold_checks` lists step 0's cached tokens.
 
 ### `m5` — concurrency
 

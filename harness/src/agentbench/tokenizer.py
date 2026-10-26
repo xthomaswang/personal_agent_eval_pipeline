@@ -20,10 +20,15 @@ Image tokens (Qwen2VLImageProcessorFast, patch_size=16, merge_size=2):
   tokens = (h / 16) * (w / 16) / merge_size**2 = (h * w) / 1024
   1280x1024 -> 1280 x 1024 (already multiples of 32) -> 80 * 64 / 4 = 1280 tokens,
   plus <|vision_start|> and <|vision_end|> = 1282 prompt tokens per screenshot.
+
+Other models (agent-model-eval): `load_model_prompt(dir)` loads a checkpoint's own tokenizer.json
+and chat template (chat_template.jinja, else tokenizer_config.json) for local fallback counts.
+Fixtures are always sized with the Qwen3.8 resolution above.
 """
 
 from __future__ import annotations
 
+import datetime as _dt
 import json
 import math
 import os
@@ -89,16 +94,22 @@ def image_tokens(width: int, height: int, cfg: dict[str, Any] | None = None) -> 
 
 class QwenPrompt:
     """Renders chat requests with the model's own chat_template.jinja (HF-compatible
-    Jinja environment) and counts tokens with tokenizer.json."""
+    Jinja environment) and counts tokens with tokenizer.json.
 
-    def __init__(self, snap: Path | None = None) -> None:
+    `template` and `template_vars` are for other models' tokenizers (`load_model_prompt`): their
+    template may live in tokenizer_config.json, and their templates may use `bos_token` & co."""
+
+    def __init__(self, snap: Path | None = None, template: str | None = None,
+                 template_vars: dict[str, Any] | None = None) -> None:
         import jinja2
         from jinja2.sandbox import ImmutableSandboxedEnvironment
         from tokenizers import Tokenizer
 
         self.snap = snap or snapshot_dir()
         self.tok = Tokenizer.from_file(str(self.snap / "tokenizer.json"))
-        self.pre = json.loads((self.snap / "preprocessor_config.json").read_text())
+        pre = self.snap / "preprocessor_config.json"
+        self.pre = json.loads(pre.read_text()) if template is None or pre.exists() else {}
+        self.template_vars = dict(template_vars or {})
         env = ImmutableSandboxedEnvironment(trim_blocks=True, lstrip_blocks=True,
                                             extensions=["jinja2.ext.loopcontrols"])
 
@@ -110,7 +121,9 @@ class QwenPrompt:
 
         env.filters["tojson"] = tojson
         env.globals["raise_exception"] = raise_exception
-        self.template = env.from_string((self.snap / "chat_template.jinja").read_text())
+        env.globals["strftime_now"] = lambda fmt: _dt.datetime.now().strftime(fmt)  # HF's template global
+        self.template = env.from_string(template if template is not None
+                                        else (self.snap / "chat_template.jinja").read_text())
 
     def count_text(self, text: str) -> int:
         return len(self.tok.encode(text, add_special_tokens=False).ids)
@@ -134,8 +147,9 @@ class QwenPrompt:
 
     def render(self, messages: list[dict[str, Any]], tools: list[dict[str, Any]] | None = None,
                enable_thinking: bool = False, add_generation_prompt: bool = True, **kw: Any) -> str:
-        return self.template.render(messages=self._template_messages(messages), tools=tools,
-                                    enable_thinking=enable_thinking, add_generation_prompt=add_generation_prompt, **kw)
+        return self.template.render(**{**self.template_vars, **kw}, messages=self._template_messages(messages),
+                                    tools=tools, enable_thinking=enable_thinking,
+                                    add_generation_prompt=add_generation_prompt)
 
     def count(self, messages: list[dict[str, Any]], tools: list[dict[str, Any]] | None = None,
               enable_thinking: bool = False, image_sizes: list[tuple[int, int]] | None = None, **kw: Any) -> int:
@@ -151,3 +165,52 @@ class QwenPrompt:
 @lru_cache(maxsize=1)
 def default_prompt() -> QwenPrompt:
     return QwenPrompt()
+
+
+# ------------------------------------------------------------ other models
+SPECIAL_TOKEN_VARS = ("bos_token", "eos_token", "unk_token", "pad_token")
+
+
+def _model_template(d: Path) -> tuple[str, dict[str, Any]]:
+    """Chat template and special-token variables of a checkpoint directory, as transformers
+    resolves them: chat_template.jinja first, else tokenizer_config.json's `chat_template` (a
+    string, or a list of named templates of which "default" is used)."""
+    cfg_path = d / "tokenizer_config.json"
+    cfg = json.loads(cfg_path.read_text(encoding="utf-8")) if cfg_path.exists() else {}
+    variables: dict[str, Any] = {}
+    for k in SPECIAL_TOKEN_VARS:
+        v = cfg.get(k)
+        if isinstance(v, dict):
+            v = v.get("content")
+        if isinstance(v, str):
+            variables[k] = v
+    jinja_file = d / "chat_template.jinja"
+    if jinja_file.exists():
+        return jinja_file.read_text(encoding="utf-8"), variables
+    tpl = cfg.get("chat_template")
+    if isinstance(tpl, list):
+        tpl = next((t.get("template") for t in tpl if isinstance(t, dict) and t.get("name") == "default"), None)
+    if not isinstance(tpl, str) or not tpl:
+        raise FileNotFoundError(f"{d.name}: no chat_template.jinja and no chat_template in tokenizer_config.json")
+    return tpl, variables
+
+
+@lru_cache(maxsize=8)
+def _load_model_prompt(d: str) -> tuple[QwenPrompt | None, str | None]:
+    path = Path(d).expanduser()
+    try:
+        if not (path / "tokenizer.json").exists():
+            raise FileNotFoundError(f"{path.name}: no tokenizer.json")
+        template, variables = _model_template(path)
+        return QwenPrompt(path, template=template, template_vars=variables), None
+    except Exception as e:  # noqa: BLE001 - reported to the caller, never replaced by Qwen's tokenizer
+        return None, f"{type(e).__name__}: {e}"
+
+
+def load_model_prompt(d: Path) -> tuple[QwenPrompt | None, str | None]:
+    """The tokenizer and chat template of the model under test, for local fallback counts
+    (completion tokens of streams without usage, `prompt.local_tokens`). Returns (prompt, None),
+    or (None, reason) when the directory cannot be loaded: callers then leave fallback counts
+    empty instead of counting with another model's tokenizer. Cached per directory, so one
+    process loads each tokenizer once."""
+    return _load_model_prompt(str(d))

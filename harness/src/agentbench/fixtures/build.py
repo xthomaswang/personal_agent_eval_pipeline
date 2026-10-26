@@ -42,6 +42,10 @@ PREFIX_TARGET = (14_900, 15_100)
 TOOL_RESULT_TOKENS = 250
 COLD_SIZES = [2_000, 16_000, 32_000, 64_000]
 M3_OFF_SIZES = [2_000, 16_000, 32_000, 64_000]
+# Prompts written by the build but kept out of manifest.json, so the committed fixtures stay byte-identical
+# to c15a0a8 (agent-model-eval): the 110K M3 cell (~114K Nanbeige tokens, inside a 131072 window). The
+# same procedure generates them on the fly (Fixtures.prompt) when they are missing.
+EXTRA_PROMPTS = [("m3-off", 110_000)]
 M3_ON_SIZES = [2_000, 16_000, 32_000]
 HELPER_TOKENS = 2_000
 N_M1_IMAGES = 12
@@ -436,6 +440,15 @@ class _Builder:
         self.write(f"generated/prompts/{obj['id']}.json", obj)
         return obj["tokens"]
 
+    def extra_prompts(self) -> dict[str, int]:
+        """EXTRA_PROMPTS under generated/prompts, not recorded in the manifest (see EXTRA_PROMPTS)."""
+        out = {}
+        for kind, size in EXTRA_PROMPTS:
+            obj = make_prompt(self.p, kind, size, self.seed)
+            _dump(self.gen / "prompts" / f"{obj['id']}.json", dict(obj, outside_manifest=True))
+            out[obj["id"]] = obj["tokens"]
+        return out
+
     def prompts(self) -> None:
         self.sizes["cold"] = {str(n): self.prompt_file("cold", n) for n in COLD_SIZES}
         self.sizes["m3_off"] = {str(n): self.prompt_file("m3-off", n) for n in M3_OFF_SIZES}
@@ -443,7 +456,7 @@ class _Builder:
         self.sizes["helper"] = {str(i): self.prompt_file(f"helper{i}", HELPER_TOKENS) for i in (1, 2)}
 
     # ------------------------------------------------------------------- run
-    def run(self) -> dict[str, Any]:
+    def run(self, extras: bool = True) -> dict[str, Any]:
         if self.gen.exists():
             shutil.rmtree(self.gen)
         sp = self.system_prompt()
@@ -471,19 +484,24 @@ class _Builder:
                       for p in sorted(self.files)},
         }
         _dump(self.root / "manifest.json", manifest)
+        if extras:
+            self.log("fitting the prompts outside the manifest ...")
+            sizes = self.extra_prompts()
+            return dict(manifest, extra_prompts=sizes)  # reported by the CLI; not part of manifest.json
         return manifest
 
 
-def build(root: Path, seed: int = DEFAULT_SEED, log: Callable[[str], None] = print) -> dict[str, Any]:
+def build(root: Path, seed: int = DEFAULT_SEED, log: Callable[[str], None] = print,
+          extras: bool = True) -> dict[str, Any]:
     root.mkdir(parents=True, exist_ok=True)
-    return _Builder(root, seed, log).run()
+    return _Builder(root, seed, log).run(extras)
 
 
 def check(root: Path, log: Callable[[str], None] = print) -> list[str]:
     """Rebuild into a temporary directory and compare every file hash with the manifest."""
     manifest = json.loads((root / "manifest.json").read_text())
     with tempfile.TemporaryDirectory() as tmp:
-        fresh = build(Path(tmp), manifest["seed"], log=lambda s: None)
+        fresh = build(Path(tmp), manifest["seed"], log=lambda s: None, extras=False)
     problems = []
     if fresh["pillow"] != manifest["pillow"]:
         problems.append(f"Pillow {fresh['pillow']} differs from the manifest's {manifest['pillow']}")
@@ -525,6 +543,7 @@ def format_sizes(m: dict[str, Any]) -> str:
     rows += [(f"M3 prompt, thinking off, {k}", v) for k, v in s["m3_off"].items()]
     rows += [(f"M3 prompt, thinking on, {k}", v) for k, v in s["m3_on"].items()]
     rows += [(f"M5 helper prompt {k}", v) for k, v in s["helper"].items()]
+    rows += [(f"{k} (outside the manifest)", v) for k, v in m.get("extra_prompts", {}).items()]
     suf = s["m7_case_suffix_tokens"]
     rows.append(("M7 case suffix beyond the prefix (min/max)", f"{min(suf.values())}/{max(suf.values())}"))
     w = max(len(a) for a, _ in rows)

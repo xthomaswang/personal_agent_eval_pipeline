@@ -12,7 +12,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any, Iterable
 
-from .metrics import mmm
+from .metrics import CAP_TRUNCATED, cap_truncated, mmm  # noqa: F401 - re-exported (moved to metrics)
 
 ORDER = ["gate", "m1", "m2", "m3", "m4", "m5", "m6", "m7"]
 
@@ -81,21 +81,6 @@ def reqs(runs: list[dict], **match: Any) -> list[dict]:
 def table(head: list[str], rows: list[list[str]]) -> str:
     return "\n".join(["| " + " | ".join(head) + " |", "| " + " | ".join("---" for _ in head) + " |"]
                      + ["| " + " | ".join(r) + " |" for r in rows])
-
-
-CAP_TRUNCATED = (
-    "incomplete_tool_call",  # oMLX: the token cap cut a tool call; the stream ends with this error code
-    "incomplete tool call; increase the output budget",  # lithos-metal: the same case, by message
-)
-
-
-def cap_truncated(m: dict) -> bool:
-    """The stream produced tokens and ended at the token cap inside a tool call, which the server
-    flagged as a stream error (oMLX and lithos-metal). llama.cpp reports the same case as
-    finish_reason=length."""
-    err = m.get("error") or ""
-    return (not m["ok"] and m.get("ttft_s") is not None and m.get("e2e_s") is not None
-            and any(c in err for c in CAP_TRUNCATED))
 
 
 def _ok(lines: list[dict]) -> list[dict]:

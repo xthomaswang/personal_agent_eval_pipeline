@@ -12,6 +12,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import time
 from collections import Counter
 from dataclasses import dataclass, field, replace
 from pathlib import Path
@@ -50,6 +51,12 @@ class Behavior:
     prefix_cache: bool = True  # mlc runs with --prefix-cache-mode disable
     prefill_tps: float = 400_000.0
     token_delay: float = 0.0005
+    # agent-model-eval test knobs (harness/CHANGES.md); the defaults keep the c15a0a8 behaviour
+    system_first: bool = False  # the prefix cache sees the system message before the tools (Nanbeige's template)
+    default_call: dict | None = None  # tool call for tool-bearing requests without a canned answer (M1, M4 steps)
+    cut_tool_calls: bool = False  # oMLX: a tool call cut by max_tokens ends the stream with incomplete_tool_call
+    report_usage: bool = True  # False: no usage chunk even with include_usage (local fallback counts)
+    server_timing: bool = False  # oMLX: usage carries time_to_first_token and generation_duration (seconds)
 
 
 BEHAVIORS: dict[str, Behavior] = {
@@ -199,6 +206,7 @@ class SmartResponder:
                               "chat_template_kwargs": body.get("chat_template_kwargs"),
                               "reasoning_effort": body.get("reasoning_effort"), "thinking": body.get("thinking"),
                               "max_tokens": body.get("max_tokens"), "has_tools": "tools" in body,
+                              "sampling": {k: body[k] for k in ("temperature", "top_p", "top_k") if k in body},
                               "response_format": body.get("response_format"),
                               "roles": [m.get("role") for m in body.get("messages", [])],
                               "system": next((m.get("content") for m in body.get("messages", [])
@@ -258,6 +266,8 @@ class SmartResponder:
             plan.text = ["391"]
         elif "single word: ready" in text:
             plan.text = ["ready"]
+        elif tools and self.b.default_call:
+            plan.calls = [self.b.default_call]
         else:
             plan.text = TEXT
         return plan
@@ -335,7 +345,10 @@ class SmartResponder:
                 obj = {"final": "".join(plan.text)}
             js = json.dumps(obj, ensure_ascii=False)
             plan = Plan(thinking=False, text=[js[i:i + 6] for i in range(0, len(js), 6)])
-        total, cached = self._prompt_cache([body.get("tools")] + msgs)
+        if b.system_first and msgs and msgs[0].get("role") == "system":
+            total, cached = self._prompt_cache([msgs[0], body.get("tools")] + msgs[1:])
+        else:
+            total, cached = self._prompt_cache([body.get("tools")] + msgs)
         if not b.prefix_cache:
             cached = 0
         max_tokens = body.get("max_tokens") or body.get("max_completion_tokens") or 256
@@ -369,7 +382,9 @@ class SmartResponder:
 
             yield chunk({"role": "assistant", "content": ""})
             yield ": keep-alive\n\n"
+            t_sent = time.monotonic()
             await asyncio.sleep((total - cached) / b.prefill_tps)
+            t_first = time.monotonic()
             n = 0
             if plan.thinking:
                 for i, w in enumerate(THINK[: max(1, min(len(THINK), max_tokens // 2))]):
@@ -386,6 +401,7 @@ class SmartResponder:
                     yield chunk({"content": "\n</think>\n\n"})
             finish = "stop"
             if plan.calls and n < max_tokens:
+                cut = False
                 for idx, c in enumerate(plan.calls):
                     args = json.dumps(c["arguments"], ensure_ascii=False)
                     cid = f"call_mock_{idx}"
@@ -398,9 +414,19 @@ class SmartResponder:
                         yield chunk({"tool_calls": [{"index": idx, "id": cid, "type": "function",
                                                      "function": {"name": c["name"], "arguments": ""}}]})
                         for i in range(0, len(args), 8):
+                            if b.cut_tool_calls and n >= max_tokens:
+                                cut = True
+                                break
                             await asyncio.sleep(b.token_delay)
                             yield chunk({"tool_calls": [{"index": idx, "function": {"arguments": args[i:i + 8]}}]})
                             n += 1
+                    if cut:
+                        break
+                if cut:  # oMLX: no finish chunk, no usage; the stream ends with this error event
+                    yield _sse({"error": {"message": "Model output contains an unrecoverable tool call. Previously "
+                                                     "delivered tool calls must not be executed again on retry.",
+                                          "type": "server_error", "param": None, "code": "incomplete_tool_call"}})
+                    return
                 finish = "tool_calls"
             else:
                 sent = 0
@@ -417,12 +443,15 @@ class SmartResponder:
             if b.cached_report in ("timings", "timings_only"):
                 fin["timings"] = {"cache_n": cached, "prompt_n": total - cached, "predicted_n": n}
             yield _sse(fin)
-            if include_usage:
+            if include_usage and b.report_usage:
                 usage: dict[str, Any] = {"prompt_tokens": total, "completion_tokens": n, "total_tokens": total + n}
                 if b.cached_report in ("usage", "timings"):
                     usage["prompt_tokens_details"] = {"cached_tokens": cached}
                 if b.cached_report == "extra":  # MLC --enable-debug: no prefix cache, prefill == prompt
                     usage["extra"] = {"prompt_tokens": total, "prefill_tokens": total, "ttft_s": 0.0}
+                if b.server_timing:
+                    usage["time_to_first_token"] = round(t_first - t_sent, 4)
+                    usage["generation_duration"] = round(time.monotonic() - t_first, 4)
                 yield _sse({"object": "chat.completion.chunk", "model": "mock", "choices": [], "usage": usage})
             self._log(cached, n)
             yield "data: [DONE]\n\n"

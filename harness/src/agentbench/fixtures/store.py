@@ -94,7 +94,9 @@ class Fixtures:
     @lru_cache(maxsize=None)
     def prompt(self, name: str) -> dict[str, Any]:
         """A generated prompt; sizes that were not pre-built are generated on the fly with
-        the same deterministic procedure (needs the local tokenizer)."""
+        the same deterministic procedure (needs the local Qwen3.8 tokenizer) and cached under
+        generated/prompts/, marked `outside_manifest`. Call it before a timed unit: a 110K prompt
+        takes a few CPU seconds to fit."""
         path = self.root / "generated" / "prompts" / f"{name}.json"
         if path.exists():
             return json.loads(path.read_text(encoding="utf-8"))
@@ -104,7 +106,16 @@ class Fixtures:
         from ..tokenizer import default_prompt
         from .build import make_prompt
         print(f"note: {name} is not pre-built; generating it now (not covered by the manifest)", file=sys.stderr)
-        return make_prompt(default_prompt(), m.group(1), int(m.group(2)), self.manifest["seed"])
+        obj = dict(make_prompt(default_prompt(), m.group(1), int(m.group(2)), self.manifest["seed"]),
+                   outside_manifest=True)
+        try:  # cache for the next process; generated/ is gitignored
+            tmp = path.with_suffix(f".{secrets.token_hex(4)}.tmp")
+            tmp.parent.mkdir(parents=True, exist_ok=True)
+            tmp.write_text(json.dumps(obj, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+            tmp.replace(path)
+        except OSError as e:
+            print(f"note: could not cache {name}: {e}", file=sys.stderr)
+        return obj
 
     def available_prompts(self) -> list[str]:
         return sorted(p.stem for p in (self.root / "generated" / "prompts").glob("*.json"))
@@ -119,8 +130,10 @@ class Fixtures:
         return msgs
 
     # ---------------------------------------------------------------- agent
-    def agent_system(self) -> dict[str, Any]:
-        return {"role": "system", "content": self.system_prompt}
+    def agent_system(self, nonce: str | None = None) -> dict[str, Any]:
+        """The agent system message; with a nonce, it starts with the nonce line (cold requests under
+        the `system+tool` rule, for templates that render the system prompt before the tools)."""
+        return {"role": "system", "content": (nonce_line(nonce) if nonce is not None else "") + self.system_prompt}
 
     def tools(self, nonce: str | None = None, api: str = "openai") -> list[dict[str, Any]]:
         """Agent tools; with a nonce, the first tool's description starts with it (the Qwen

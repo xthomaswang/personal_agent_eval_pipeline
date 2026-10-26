@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Pre-flight for a timed segment: is the machine quiet enough for publishable numbers?
-# Prints a provenance block (each raw file's header stores it) and exits 1 when not quiet.
+# Pre-flight for a timed unit (DESIGN.md section 5.4): is the machine quiet enough to measure?
+# Prints a provenance block and exits 1 when it is not quiet.
 # Usage: quiet_check.sh [--allow-pid PID]... [--settle SECONDS] [--max-gpu-gb GB] [--min-battery PCT] [--allow NAMES]
-#   --allow-pid  exempts PID and all its descendants (server, engine workers, harness, an M8 load).
-#   --allow      M8 only: accepts an interference load's own side effects by name (load, gpu, thermal,
-#                lowpower; see quietlib.py) and prints them, so the raw header records them.
+#   --allow-pid  exempts PID and all its descendants (server, engine workers, orchestrator, harness).
 #   --settle     re-checks soft failures (load, busy processes, build tools, thermal) every 5 s
-#                for up to SECONDS; lock, port 8500 and power failures fail at once.
-# The checks live in quietlib.py, which run_framework.sh also uses to monitor whole runs.
-exec /usr/bin/python3 -I "$(dirname "$0")/quietlib.py" check "$@"
+#                for up to SECONDS; lock, foreign server ports (8500, 8600-8699) and power fail at once.
+#   --max-gpu-gb before a launch: fails while more than GB of GPU memory is in use (a model resident).
+#   --allow      accepts an interference load's own side effects by name (see quietlib.py).
+# The checks live in quietlib.py, which modeleval.quiet also uses to monitor the whole launch.
+exec /usr/bin/python3 -I -B "$(dirname "$0")/quietlib.py" check "$@"

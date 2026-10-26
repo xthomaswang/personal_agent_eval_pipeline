@@ -60,6 +60,17 @@ def target_parser() -> argparse.ArgumentParser:
                    "(scenario, parameters, allowances, load PID, block; scripts/run_m8.sh)")
     g.add_argument("--out-root", type=Path, help="repo root that holds <framework>/raw (default: this repo)")
     g.add_argument("--fixtures", type=Path, help="fixtures directory (default: <repo>/fixtures)")
+    g.add_argument("--no-vision", action="store_true",
+                   help="text-only model: the gate's image probes (G2, G2b, G3 image parts) are N/A and not sent, "
+                        "and the metric suites run in --text-only mode")
+    g.add_argument("--cold-nonce", choices=["tool", "system+tool"], default="tool",
+                   help="m1 cold trial, m4 runs: nonce in the first tool's description (default), or also at the "
+                        "start of the system message (templates that render the system prompt first)")
+    g.add_argument("--anthropic-sampling", action="store_true",
+                   help="also merge temperature/top_p/top_k from --extra-body into /v1/messages bodies (gate G3)")
+    g.add_argument("--tokenizer-dir", type=Path,
+                   help="the model's own tokenizer for local fallback counts (default: Qwen3.8); counts stay "
+                        "empty if it does not load")
     return p
 
 
@@ -77,6 +88,11 @@ def suite_parser() -> argparse.ArgumentParser:
     g.add_argument("--think-caps", type=_ints, help="m3: thinking-on output caps (default 1000,2000)")
     g.add_argument("--no-thinking-bucket", action="store_true", help="m3: skip the thinking-on bucket")
     g.add_argument("--think-effort", default="xhigh", help="m3: reasoning effort for the thinking bucket")
+    g.add_argument("--no-think-effort", action="store_true",
+                   help="m3: thinking bucket sends enable_thinking=true only, no reasoning_effort anywhere")
+    g.add_argument("--warmup-max-tokens", type=int, help="m3: warm-up output cap (default: the smallest cap)")
+    g.add_argument("--reuse-nonce", help="m3: send the thinking-off cell with this 12-digit nonce and skip the "
+                   "warm-up if trial 0 hits the prefix cache (e.g. G5's nonce); needs one --contexts value")
     g.add_argument("--bust-cache", action="store_true", help="m3: fresh nonce per trial (default: cache allowed)")
     g.add_argument("--steps", type=int, help="m4/m6: trajectory steps (default 20)")
     g.add_argument("--runs", type=int, help="m4: trajectory runs (default 3)")
@@ -136,13 +152,15 @@ def make_config(a: argparse.Namespace):
     return RunConfig(profile=prof, base_url=base.rstrip("/"), model=a.model, framework=framework,
                      framework_version=a.framework_version, launch_flags=a.launch_flags, tag=a.tag,
                      out_root=a.out_root or repo_root(), fixtures_dir=a.fixtures or default_root(),
-                     text_only=a.text_only or bool(prof.force_text_only),
-                     text_only_reason="" if a.text_only else (prof.force_text_only or ""),
+                     text_only=a.text_only or bool(prof.force_text_only) or a.no_vision,
+                     text_only_reason="" if a.text_only else (prof.force_text_only or ("--no-vision" if a.no_vision else "")),
                      quick=a.quick, server_pid=a.server_pid, server_log=a.server_log,
                      api_key=a.api_key, extra_body=extra, thinking_fields=a.thinking_fields,
                      read_timeout=a.read_timeout, total_timeout=a.total_timeout,
                      screenshot_placement=a.screenshot_placement, context_config=a.context_config, args=args,
-                     preflight_cmd=preflight, unverified=a.unverified, interference=interference)
+                     preflight_cmd=preflight, unverified=a.unverified, interference=interference,
+                     vision=not a.no_vision, cold_nonce=a.cold_nonce, anthropic_sampling=a.anthropic_sampling,
+                     tokenizer_dir=a.tokenizer_dir)
 
 
 def make_opts(a: argparse.Namespace):
@@ -151,7 +169,8 @@ def make_opts(a: argparse.Namespace):
     return SuiteOpts(trials=a.trials, cold_trials=a.cold_trials, rewarm=a.rewarm, m1_max_tokens=a.m1_max_tokens,
                      sizes=a.sizes, spec_label=a.spec_label, contexts=a.contexts, caps=a.caps,
                      think_contexts=a.think_contexts, think_caps=a.think_caps, no_thinking_bucket=a.no_thinking_bucket,
-                     think_effort=a.think_effort, bust_cache=a.bust_cache, steps=a.steps, runs=a.runs,
+                     think_effort=None if a.no_think_effort else a.think_effort, bust_cache=a.bust_cache,
+                     warmup_max_tokens=a.warmup_max_tokens, reuse_nonce=a.reuse_nonce, steps=a.steps, runs=a.runs,
                      m4_max_tokens=a.m4_max_tokens, no_bust=a.no_bust, aux=a.aux, aux_lead=a.aux_lead,
                      aux_max_tokens=a.aux_max_tokens, no_rewarm=a.no_rewarm, minutes=a.minutes,
                      mem_interval=a.mem_interval, cases=a.cases, m7_max_tokens=a.m7_max_tokens)

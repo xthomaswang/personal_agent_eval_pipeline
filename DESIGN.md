@@ -70,7 +70,8 @@ vision         = true
 reference      = true
 sampling       = { temperature = 1.0, top_p = 0.95, top_k = 20 }
 proxy_sampling = "inject:qwen3.8-gen-config"       # bench proxy preset for the capability leg
-server_log_expect = ["Lightning MTP enabled"]      # the run is refused if a line is missing
+server_log_expect = ["Speculative backend selected for .*: Lightning MTP \\(.*active\\)", "MTP path activated"]
+                                                   # regexes; the run is refused if one has no match
 ```
 
 - Nanbeige4.3-33B: `hf_repo = "Nanbeige/Nanbeige4.3-33B"`, revision
@@ -109,7 +110,7 @@ does not change the post-processor in transformers 5.17). The reference stacks (
 
 One server launch per model per run (§6.7 covers relaunches). Order:
 
-1. **Before the lock**: print `LOCK-NOTICE <start> <eta> <timed-minutes>` and wait 10 minutes (the
+1. **Before the lock**: print `LOCK-NOTICE start=<t> eta=<t> timed_minutes=<n>` and wait 10 minutes (the
    driving session relays it to the peers with the rules below). Then acquire the lock with purpose
    `modeleval <model> speed (timed)`.
 2. **Pre-launch check**: `quietlib check --max-gpu-gb 6 --settle 600` (no foreign model resident,
@@ -258,8 +259,8 @@ The three harnesses come from personal-agent-bench's `bench.harness` (and its pr
 - **Writes into peer trees: none.** `PYTHONDONTWRITEBYTECODE=1` and `GIT_OPTIONAL_LOCKS=0` are exported
   by the orchestrator at startup for every child. `bench.manifest._git` is replaced by a version that runs
   only `git rev-parse` and `git --no-optional-locks status --porcelain`. The only git commands run on a
-  peer repo anywhere in the pipeline are `rev-parse`, `--no-optional-locks status --porcelain` and
-  `diff-index --quiet HEAD`. Hygiene audit: the mtime and inode of each pinned repo's `.git/index` (and
+  peer repo anywhere in the pipeline are `rev-parse`, `--no-optional-locks status --porcelain`,
+  `diff-index --quiet HEAD` and, when an epoch is created, `archive`. Hygiene audit: the mtime and inode of each pinned repo's `.git/index` (and
   worktree index) are recorded before and after our own operations; a change marks the run with a
   hygiene failure. Known, disclosed exception: Hermes's per-run home symlinks the shared `tools/` and
   `installs/` stores.
@@ -288,9 +289,11 @@ The three harnesses come from personal-agent-bench's `bench.harness` (and its pr
   (`transpose`, `proverb`, `pig-latin`, `list-ops`, `variable-length-quantity`, `robot-name`,
   `grade-school`, `affine-cipher`, `scale-generator`, `wordy`, `phone-number`, `react`) and the 10
   MCPMark filesystem easy tasks, x 3 harnesses = 66 runs.
-- **Ranking set** (is it better?), by default after the gate passes: the other 22 Aider Python exercises
-  of the pinned data (`7e0611e`), fixed in advance by the data, never chosen from the reference's past
-  failures, x 3 harnesses = 66 runs. `--capability gate` skips it.
+- **Ranking set** (is it better?): the other 22 Aider Python exercises of the pinned data (`7e0611e`),
+  fixed in advance by the data, never chosen from the reference's past failures, x 3 harnesses = 66 runs.
+  It runs after the gate set unless the gate decision against the reference (same epoch) is "worse"
+  (printed as `GATE-DECISION`); the reference itself, or a model with no reference gate set in the epoch,
+  always continues. `--capability gate` skips it; `--capability full-force` runs it regardless.
 - One unscored warm-up per harness block. One run per task. Harness-major order (Claude Code, Hermes,
   localmelo), sequential.
 - Budgets per task: 30 proxy steps (the capability budget), 40 harness turns, wall cap 3600 s (so that
@@ -304,8 +307,8 @@ The three harnesses come from personal-agent-bench's `bench.harness` (and its pr
   can be told from a hang.
 - **Invalid** (excluded, re-run once) only for pipeline mismatches: a call's `model` is not the target's
   `served_id`, `sampling_forwarded` or `thinking_forwarded` differs from the registry. A 5xx, a reasoning
-  leak while thinking is off, or a template fallback in the server log counts as that model's failure, is
-  flagged, and appears in a per-model anomaly count.
+  leak while thinking is off, or a template fallback in the server log is attributed to the model: the
+  verdict still comes from the checker, the run is flagged, and the report shows a per-model anomaly count.
 - Every task records the disturbed samples, peak foreign CPU and battery minimum that overlapped it
   (flags only).
 
@@ -341,7 +344,7 @@ removes a stale workspace lock of our own, and merges the chunk records. Every c
 (oMLX, proxies, harness PGIDs) is recorded in a run pidfile and killed on exit or signal; the lock is
 released only after nothing listens on 8703; the lock carries the run id, and release checks it.
 
-### 6.8 Optional arms (off by default)
+### 6.8 Optional arms (off by default; not implemented in protocol version 1)
 
 - `--thinking on`: capability with thinking on (4x wall budget); needs the reference in the same arm.
 - `--vision-extra`: M1 and M4 in image mode for VLMs. Tool-result images (G2b) need the patched oMLX
@@ -394,14 +397,14 @@ third-party app names.
 uv run modeleval models                 # registry, and what each model has
 uv run modeleval download|convert|register <model>
 uv run modeleval plan <model>           # units, per-model time estimates, what is already done
-uv run modeleval run <model> [--legs speed,capability] [--capability gate|full] [--unverified]
+uv run modeleval run <model> [--legs speed,capability] [--capability gate|full|full-force] [--unverified]
                                         [--resume <run-id>]
 uv run modeleval report                 # rebuild RESULTS.md
 uv run modeleval selftest               # offline: mock servers, fake harness, registry, paths, hygiene
 ```
 
 Progress lines for the driving session: `LOCK-NOTICE`, `UNIT-WAIT`, `UNIT-START`, `UNIT-DONE <verdict>`,
-`QUIET-WINDOW-END`, `TASK-DONE`, `BATTERY-PAUSE`, `BATTERY-READY`, `RESUMED`, `HOLD`, `HOLD-RELEASED`,
+`QUIET-WINDOW-END`, `GATE-DECISION`, `TASK-START`, `TASK-DONE`, `BATTERY-PAUSE`, `BATTERY-READY`, `RESUMED`, `HOLD`, `HOLD-RELEASED`,
 `RUN-DONE`. The orchestrator never messages other sessions itself.
 
 `plan` estimates times per model from the registry (weight bytes, KV bytes per token, spec) and, after a

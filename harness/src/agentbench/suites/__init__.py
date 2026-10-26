@@ -22,10 +22,27 @@ def validate(suites: list[str], opts: SuiteOpts) -> list[str]:
         errs.append("m3 needs --spec-label on|off")
     if "m6" in suites and opts.minutes is None:
         errs.append("m6 needs --minutes N")
+    if "m3" in suites and opts.reuse_nonce is not None:
+        if opts.bust_cache:
+            errs.append("m3: --reuse-nonce and --bust-cache exclude each other")
+        if opts.contexts is None or len(opts.contexts) != 1:
+            errs.append("m3: --reuse-nonce needs exactly one thinking-off context (--contexts N)")
+        if not (opts.reuse_nonce.isdigit() and len(opts.reuse_nonce) == 12):
+            errs.append("m3: --reuse-nonce must be 12 digits (a nonce never changes a prompt's token count)")
+    if opts.warmup_max_tokens is not None and opts.warmup_max_tokens < 1:
+        errs.append("--warmup-max-tokens must be at least 1")
     return errs
 
 
 async def run_suite(cfg: RunConfig, opts: SuiteOpts, name: str, fx: Fixtures | None = None) -> tuple[Path, dict[str, Any]]:
+    """Run one suite in-process; one raw file `<name>-<tag>-<timestamp>.jsonl` under cfg.fw_dir/raw
+    (raw/_unverified with cfg.unverified). The returned summary carries the unit's window `t_start`
+    and `t_end` (epoch seconds, stamped by the Writer), so one call can be one judged unit: e.g.
+    one M3 cell (`contexts=[c], caps=[150], no_thinking_bucket=True`, or `contexts=[],
+    think_contexts=[c], think_caps=[1000]`) or one M4 run (`runs=1`)."""
+    errs = validate([name], opts)
+    if errs:
+        raise ValueError("; ".join(errs))
     fx = fx or Fixtures(cfg.fixtures_dir)
     target = Target(cfg, fx)  # checks the port before any file is written
     run_preflight(cfg)  # quiet-machine check per timed segment (opt-in)

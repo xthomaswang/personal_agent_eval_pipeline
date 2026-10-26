@@ -4,22 +4,28 @@ Hermes-style (OpenAI API): every request carries top-level `reasoning_effort` ("
 when thinking is off) and `chat_template_kwargs.enable_thinking`. Claude Code-style
 (`/v1/messages`): `thinking: {type: "adaptive"}` or no thinking field, never "disabled";
 system prompt as text blocks with `cache_control`.
-Images are always probed, even with --text-only: a rejection is the gate result.
+Images are probed even with --text-only (a rejection is the gate result), unless
+`RunConfig.vision` is False: then G2, G2b and G3's image parts are N/A and never sent.
+
+Every probe is a coroutine method of `Gate` that can run on its own: `run_probes()` drives a
+chosen subset (for example G1, G3 text + tool_use, G4, then G5 with the M3 prompt as a timed
+unit) without `run()`, which runs all of them and upserts capabilities.md.
 """
 
 from __future__ import annotations
 
 import datetime as _dt
 import re
-from typing import Any
+from pathlib import Path
+from typing import Any, Literal
 
 import jsonschema
 
 from ..m7check import _norm
 from ..memory import MemorySampler
 from ..provenance import harness_git
-from .common import Outcome, RunConfig, Target, Writer, fmt_s, upsert_section
-from ..fixtures.store import new_digits
+from .common import Outcome, RunConfig, Target, Writer, fmt_s, run_preflight, upsert_section
+from ..fixtures.store import Fixtures, new_digits
 
 REQ = {"G1": "OpenAI chat completions + SSE + Qwen3.8 tool calls",
        "G2": "Image input (base64 PNG image_url), code read back",
@@ -27,6 +33,7 @@ REQ = {"G1": "OpenAI chat completions + SSE + Qwen3.8 tool calls",
        "G3": "Anthropic /v1/messages: text, tool_use, image, image in tool_result",
        "G4": "Thinking control (enable_thinking / reasoning_effort)",
        "G5": "Context >= 64K: a 64,000-token prompt completes"}
+NO_VISION = "N/A: vision=false (image probes are not sent)"
 
 HERMES_OFF = {"reasoning_effort": "none", "chat_template_kwargs": {"enable_thinking": False}}
 HERMES_ON = {"reasoning_effort": "medium", "chat_template_kwargs": {"enable_thinking": True}}
@@ -96,9 +103,19 @@ class Gate:
         self.items: dict[str, dict[str, Any]] = {}
         self.probes: list[dict[str, Any]] = []
 
-    def item(self, gid: str, result: str, detail: str, sub: list[dict[str, Any]] | None = None, **extra: Any) -> None:
+    def item(self, gid: str, result: str, detail: str, sub: list[dict[str, Any]] | None = None,
+             **extra: Any) -> dict[str, Any]:
         self.items[gid] = {"id": gid, "requirement": REQ[gid], "result": result, "detail": detail, "sub": sub or [], **extra}
         self.w.write({"type": "gate_item", **self.items[gid]})
+        return self.items[gid]
+
+    def not_sent(self, pid: str, shape: str, reason: str) -> dict[str, Any]:
+        """A probe that is N/A: listed in the probe table, never sent."""
+        self.probes.append({"probe": pid, "shape": shape, "http": "not sent", "outcome": reason, "ok": None, "notes": ""})
+        return {"probe": pid, "ok": None, "outcome": reason}
+
+    def summary(self, suite: str = "gate") -> dict[str, Any]:
+        return {"type": "summary", "suite": suite, "items": self.items, "probes": self.probes}
 
     def record(self, pid: str, shape: str, o: Outcome, outcome: str, ok: bool | None) -> None:
         notes = "; ".join(o.shaping + ([o.skipped] if o.skipped else []))
@@ -110,7 +127,7 @@ class Gate:
         return o.skipped or (o.metrics()["error"] or "no output")
 
     # -------------------------------------------------------------------- G1
-    async def g1(self) -> None:
+    async def g1(self) -> dict[str, Any]:
         fx = self.fx
         msgs = [fx.agent_system(), {"role": "user", "content": fx.gate["g1"]["prompt"]}]
         exp = fx.gate["g1"]["expect"]
@@ -165,9 +182,8 @@ class Gate:
                 self.record("G1.no-grammar", "structured output without response_format (instruction only)", p, pwhat, pok)
                 sub.append({"probe": "G1.no-grammar", "ok": pok, "outcome": pwhat})
             detail = what + (f"; {_style(o.rec)}; finish={o.rec.finish_reason}" if ok else "")
-            self.item("G1", "PASS via structured output (non-standard)" if ok else "FAIL", detail, sub,
-                      tool_call_mode="structured_output")
-            return
+            return self.item("G1", "PASS via structured output (non-standard)" if ok else "FAIL", detail, sub,
+                             tool_call_mode="structured_output")
         if not ok and o.rec.http_status in (400, 404, 422):
             p = await self.t.chat(msgs, tools=fx.tools(), max_tokens=2048, raw_fields={})
             pok, pwhat = judge(p.rec.tool_calls, p.rec.content) if p.rec.ok else (False, self.err(p))
@@ -180,10 +196,10 @@ class Gate:
         detail = what + (f"; {_style(o.rec)}; finish={o.rec.finish_reason}" if ok else "")
         if stripped:
             detail += " [profile stripped: " + "; ".join(stripped) + "]"
-        self.item("G1", "PASS" if ok else "FAIL", detail, sub)
+        return self.item("G1", "PASS" if ok else "FAIL", detail, sub)
 
     # -------------------------------------------------------------------- G2
-    async def g2(self) -> None:
+    async def g2(self) -> dict[str, Any]:
         fx = self.fx
         code = fx.manifest["g2_code"]
         msgs = fx.resolve([fx.screenshot_message(fx.gate["g2"]["image"], fx.gate["g2"]["prompt"])], text_only=False)
@@ -199,7 +215,7 @@ class Gate:
                 what += f"; prompt_tokens={pt}" + (" (image probably dropped)" if pt < 600 else "")
         self.record("G2.image", "Hermes, image_url data URI + question", o, what, ok)
         rejected = bool(o.rec.error and o.rec.error.get("type") == "http" and (o.rec.http_status or 0) >= 400)
-        self.item("G2", "PASS" if ok else "FAIL", what, rejected=rejected)
+        return self.item("G2", "PASS" if ok else "FAIL", what, rejected=rejected)
 
     # ------------------------------------------------------------------- G2b
     def shot_tools(self, api: str = "openai") -> list[dict[str, Any]]:
@@ -239,7 +255,7 @@ class Gate:
         gap = pt_ctrl - pt
         return gap > DROP_TOKENS, (f"; image dropped: {gap} fewer prompt tokens than the control" if gap > DROP_TOKENS else "")
 
-    async def g2b(self) -> None:
+    async def g2b(self) -> dict[str, Any]:
         tools = self.shot_tools()
         o = await self.t.chat(self.g2b_messages(True), tools=tools, max_tokens=64, raw_fields=HERMES_OFF, count_local=True)
         c = await self.t.chat(self.g2b_messages(False), tools=tools, max_tokens=64, raw_fields=HERMES_OFF, count_local=True)
@@ -253,7 +269,7 @@ class Gate:
         sub = [{"probe": "G2b.tool-image", "ok": ok, "outcome": what},
                {"probe": "G2b.user-control", "ok": cok, "outcome": cwhat}]
         detail = f"tool-message image: {what}; control (user message): {cwhat}"
-        self.item("G2b", "PASS" if ok else "FAIL", detail, sub, dropped=dropped)
+        return self.item("G2b", "PASS" if ok else "FAIL", detail, sub, dropped=dropped)
 
     # -------------------------------------------------------------------- G3
     def cc_body(self, messages: list[dict[str, Any]], system: str, tools: list | None = None,
@@ -267,7 +283,10 @@ class Gate:
             body["thinking"] = {"type": thinking}
         return body
 
-    async def g3(self) -> None:
+    async def g3(self, vision: bool = True) -> dict[str, Any]:
+        """Text (thinking adaptive / absent) and tool_use always; the image block and the image inside
+        a tool_result only with `vision`. Without vision, G3 passes on text + tool_use and the image
+        parts are N/A."""
         fx = self.fx
         code = fx.manifest["g2_code"]
         sub = []
@@ -306,6 +325,14 @@ class Gate:
                 else (self.err(o) if not o.rec.ok else f"no valid tool_use (calls={[c.get('name') for c in calls]})"))
         self.record("G3.tool_use", "Claude Code, tools, thinking absent", o, what, tool_ok)
         sub.append({"probe": "G3.tool_use", "ok": tool_ok, "outcome": what})
+        if not vision:
+            sub += [self.not_sent("G3.image", "Claude Code, image block (base64)", NO_VISION),
+                    self.not_sent("G3.tool_result-image", "Claude Code, screenshot as image block inside tool_result",
+                                  NO_VISION),
+                    self.not_sent("G3.tool_result-control", "Claude Code, same image after the tool_result (control)",
+                                  NO_VISION)]
+            return self._g3_item([("text", text_ok), ("tool_use", tool_ok)], sub, False,
+                                 na=["image", "tool_result image"])
         # image block
         o = await self.t.anthropic(self.cc_body([{"role": "user", "content": fx.resolve_content(
             [{"type": "image_ref", "image": fx.gate["g2"]["image"]}, {"type": "text", "text": fx.gate["g2"]["prompt"]}],
@@ -342,18 +369,24 @@ class Gate:
         sub.append({"probe": "G3.tool_result-image", "ok": tr_ok, "outcome": what})
         sub.append({"probe": "G3.tool_result-control", "ok": cok, "outcome": cwhat})
         parts = [("text", text_ok), ("tool_use", tool_ok), ("image", img_ok), ("tool_result image", tr_ok)]
+        return self._g3_item(parts, sub, dropped)
+
+    def _g3_item(self, parts: list[tuple[str, bool]], sub: list[dict[str, Any]], dropped: bool,
+                 na: list[str] | None = None) -> dict[str, Any]:
         res = "PASS" if all(v for _, v in parts) else "FAIL"
         detail = ", ".join(f"{k} {'ok' if v else 'FAIL'}" for k, v in parts)
+        if na:
+            detail += ", " + ", ".join(f"{k} N/A" for k in na) + " (vision=false)"
         first_fail = next((x["outcome"] for x in sub if x["ok"] is False), None)
         if first_fail:
             detail += f" (first failure: {first_fail[:160]})"
         thinking_notes = [s["outcome"] for s in sub if s["probe"].startswith("G3.text") and s["ok"]]
         if thinking_notes:
             detail += "; " + " / ".join(thinking_notes)
-        self.item("G3", res, detail, sub, dropped=dropped)
+        return self.item("G3", res, detail, sub, dropped=dropped, vision=not na)
 
     # -------------------------------------------------------------------- G4
-    async def g4(self) -> None:
+    async def g4(self) -> dict[str, Any]:
         msgs = [{"role": "user", "content": MATH}]
         probes = [("G4.hermes-off", HERMES_OFF, False), ("G4.hermes-on", HERMES_ON, True),
                   ("G4.kwargs-off", {"chat_template_kwargs": {"enable_thinking": False}}, False),
@@ -409,10 +442,16 @@ class Gate:
             detail += "; note: reasoning_effort=none alone does not disable thinking (top-level effort ignored)"
         info = [f"{p}: {res[p][1]}" for p in ("G4.effort-none-only", "G4.effort-high", "G4.effort-minimal", "G4.default")
                 if p in res]
-        self.item("G4", result, detail + (" | " + " | ".join(info) if info else ""), sub)
+        return self.item("G4", result, detail + (" | " + " | ".join(info) if info else ""), sub)
 
     # -------------------------------------------------------------------- G5
-    async def g5(self) -> None:
+    async def g5(self, prompt: Literal["cold", "m3-off"] = "cold", nonce: str | None = None) -> dict[str, Any]:
+        """A cold 64,000-token prompt (2,000 with --quick) with a fresh nonce at the start of the system
+        message. `prompt="m3-off"` sends the thinking-off M3 prompt of that size instead, through the
+        same request path as M3's thinking-off cells, so that M3's cell of that size can reuse its
+        prefix: pass the item's `nonce` to SuiteOpts.reuse_nonce. `nonce` fixes the nonce."""
+        if prompt not in ("cold", "m3-off"):
+            raise ValueError(f"g5: prompt must be 'cold' or 'm3-off', not {prompt!r}")
         info: dict[str, Any] = {}
         if self.t.profile.probe_models:
             st, js = await self.t.get_json("/v1/models")
@@ -422,14 +461,22 @@ class Gate:
             info["props"] = {"status": st, "context_fields": _ctx_fields(js)}
         self.w.write({"type": "server_info", **info})
         size = 2000 if self.cfg.quick else 64000
-        msgs = self.fx.prompt_messages(f"cold-{size}", nonce=new_digits())
+        name = f"{prompt}-{size}"
+        nonce = nonce or new_digits()
+        msgs = self.fx.prompt_messages(name, nonce=nonce)
+
+        async def send() -> Outcome:
+            if prompt == "m3-off":  # byte-identical to an M3 thinking-off request of this prompt and nonce
+                return await self.t.chat(msgs, max_tokens=8, thinking=False)
+            return await self.t.chat(msgs, max_tokens=8, raw_fields=HERMES_OFF)
+
         peak = None
         if self.cfg.server_pid:
             async with MemorySampler(self.cfg.server_pid, sink=lambda s: self.w.write(s), interval=1.0) as ms:
-                o = await self.t.chat(msgs, max_tokens=8, raw_fields=HERMES_OFF)
+                o = await send()
             peak = ms.peak_tree_bytes()
         else:
-            o = await self.t.chat(msgs, max_tokens=8, raw_fields=HERMES_OFF)
+            o = await send()
         ok = o.rec.ok
         m = o.metrics()
         ctx = self.cfg.context_config or next((v for d in info.values() for v in d["context_fields"].values()), None)
@@ -438,11 +485,13 @@ class Gate:
         what += f"; configured context: {ctx if ctx else 'unknown'}"
         if peak:
             what += f"; peak server footprint {peak / 2**30:.1f} GiB"
-        self.record(f"G5.cold-{size}", "Hermes off, cold prompt with nonce", o, what, ok)
+        shape = "Hermes off, cold prompt with nonce" + (" (the M3 thinking-off prompt)" if prompt == "m3-off" else "")
+        self.record(f"G5.{name}", shape, o, what, ok)
         result = ("INFO" if self.cfg.quick else ("PASS" if ok else "FAIL"))
         if self.cfg.quick:
             what = "quick mode (2K prompt, not a G5 result): " + what
-        self.item("G5", result, what)
+        return self.item("G5", result, what, prompt=name, nonce=nonce, peak_tree_bytes=peak,
+                         metrics={k: m[k] for k in ("ok", "ttft_s", "e2e_s", "prompt_tokens", "cached_tokens", "error")})
 
     # ------------------------------------------------------------------ report
     def table(self) -> str:
@@ -504,14 +553,55 @@ async def run(cfg: RunConfig, target: Target, writer: Writer, opts: Any = None) 
     writer.write({"type": "health", "status": st, "body": js if not isinstance(js, str) else js[:300]})
     if st is None:
         raise RuntimeError(f"server at {cfg.base_url} is not reachable: {js}")
-    for step in (g.g1, g.g2, g.g2b, g.g3, g.g4, g.g5):
-        await step()
+    await g.g1()
+    if cfg.vision:
+        await g.g2()
+        await g.g2b()
+    else:
+        g.item("G2", "N/A", g.not_sent("G2.image", "Hermes, image_url data URI + question", NO_VISION)["outcome"],
+               rejected=False)
+        g.item("G2b", "N/A", g.not_sent("G2b.tool-image", "Hermes, screenshot as image_url inside the role=tool message",
+                                        NO_VISION)["outcome"], dropped=False)
+    await g.g3(vision=cfg.vision)
+    await g.g4()
+    await g.g5()
     frag = g.fragment()
     md = writer.path.with_suffix(".md")
     md.write_text(frag, encoding="utf-8")
     cap = cfg.fw_dir / ("raw/_unverified/capabilities.md" if cfg.unverified else "capabilities.md")
     upsert_section(cap, f"gate {cfg.tag}", frag, f"{cfg.framework or cfg.profile.framework}: capabilities")
-    summary = {"type": "summary", "suite": "gate", "items": g.items, "probes": g.probes, "fragment": md.name}
+    summary = dict(g.summary(), fragment=md.name)
     writer.write(summary)
     print(g.table())
     return summary
+
+
+PROBES = ("g1", "g2", "g2b", "g3", "g4", "g5")
+
+
+async def run_probes(cfg: RunConfig, probes: list[tuple[str, dict[str, Any]]], fx: Fixtures | None = None,
+                     suite: str = "gate") -> tuple[Path, dict[str, Any]]:
+    """Run the named probes, in order, each with its keyword options, e.g.
+    `[("g1", {}), ("g3", {"vision": False}), ("g4", {})]` or `[("g5", {"prompt": "m3-off"})]`.
+    One raw file `<suite>-<tag>-<timestamp>.jsonl` under cfg.fw_dir/raw; capabilities.md and the
+    .md fragment are left alone. Returns (raw file, summary): the summary has `items`, `probes`
+    and the window `t_start`/`t_end` (epoch seconds)."""
+    bad = [name for name, _ in probes if name not in PROBES]
+    if bad:
+        raise ValueError(f"unknown gate probe(s) {bad}; choose from {PROBES}")
+    target = Target(cfg, fx or Fixtures(cfg.fixtures_dir))
+    run_preflight(cfg)  # opt-in quiet check, as run_suite does
+    writer = Writer(cfg, suite)
+    try:
+        g = Gate(cfg, target, writer)
+        for name, kwargs in probes:
+            await getattr(g, name)(**kwargs)
+        summary = g.summary(suite)
+        writer.write(summary)
+        return writer.path, summary
+    except BaseException as e:
+        writer.write({"type": "error", "suite": suite, "error": f"{type(e).__name__}: {e}"})
+        raise
+    finally:
+        writer.close()
+        await target.aclose()

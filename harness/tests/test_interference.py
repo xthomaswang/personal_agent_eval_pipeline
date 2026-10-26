@@ -19,6 +19,11 @@ ROOT = Path(__file__).resolve().parents[2]
 SCRIPTS = ROOT / "scripts"
 PY = "/usr/bin/python3"
 pytestmark = pytest.mark.skipif(sys.platform != "darwin" or not Path(PY).exists(), reason="macOS tooling")
+# agent-model-eval copied scripts/ without the M8 tooling (M8 is dropped by default, DESIGN §5.1)
+needs_interference = pytest.mark.skipif(not (SCRIPTS / "interference.py").exists(),
+                                        reason="scripts/interference.py is not in this repo (M8 tooling)")
+needs_run_m8 = pytest.mark.skipif(not (SCRIPTS / "run_m8.sh").exists() or not (SCRIPTS / "interference.py").exists(),
+                                  reason="scripts/run_m8.sh is not in this repo (M8 tooling)")
 
 
 def lf(*args, env=None, timeout=30) -> subprocess.CompletedProcess:
@@ -56,6 +61,7 @@ def gone(pid: int, timeout: float = 5.0) -> bool:
 
 
 # ---------------------------------------------------------------- interference.py
+@needs_interference
 def test_parameters_allowances_and_meta():
     r = lf("start", "cpuall", "--dry-run")
     assert r.returncode == 0 and json.loads(r.stdout) == {
@@ -74,6 +80,7 @@ def test_parameters_allowances_and_meta():
                     "block": 3, "base_tag": "4bit-mtp-on"}
 
 
+@needs_interference
 def test_cpu_load_is_one_process_tree_and_stops_cleanly(tmp_path):
     proc, pf = start_bg(tmp_path, "cpu1", "--threads", 2, "--duty", 0.2, "--period", 0.05)
     try:
@@ -94,6 +101,7 @@ def test_cpu_load_is_one_process_tree_and_stops_cleanly(tmp_path):
         proc.kill()
 
 
+@needs_interference
 def test_signals_and_a_killed_root_leave_no_orphans(tmp_path):
     proc, pf = start_bg(tmp_path, "cpu1", "--duty", 0.1)
     rec = wait_ready(proc, pf)
@@ -110,6 +118,7 @@ def test_signals_and_a_killed_root_leave_no_orphans(tmp_path):
     assert lf("stop", "--pidfile", pf).returncode == 0 and not pf.exists()
 
 
+@needs_interference
 def test_until_pid_and_duration_end_the_load(tmp_path):
     sleeper = subprocess.Popen(["sleep", "30"])
     proc, pf = start_bg(tmp_path, "cpu1", "--duty", 0.1, "--until-pid", sleeper.pid)
@@ -126,6 +135,7 @@ def test_until_pid_and_duration_end_the_load(tmp_path):
     assert r.returncode == 0 and "duration elapsed" in r.stdout and not (tmp_path / "d.pid").exists()
 
 
+@needs_interference
 def test_second_start_is_refused_and_stale_leftovers_are_cleaned(tmp_path):
     proc, pf = start_bg(tmp_path, "cpu1", "--duty", 0.1)
     try:
@@ -144,6 +154,7 @@ def test_second_start_is_refused_and_stale_leftovers_are_cleaned(tmp_path):
     assert r.returncode == 0 and "removed leftover file" in r.stdout and not left.exists()
 
 
+@needs_interference
 def test_mem_load_is_resident(tmp_path):
     proc, pf = start_bg(tmp_path, "mem", "--gb", 0.032, "--retouch", 0.05)
     try:
@@ -159,6 +170,7 @@ def test_mem_load_is_resident(tmp_path):
     assert lf("status", "--pidfile", tmp_path / "big.pid").returncode == 1
 
 
+@needs_interference
 def test_disk_load_writes_reads_and_deletes_its_file(tmp_path):
     d = tmp_path / "io.noindex"
     proc, pf = start_bg(tmp_path, "disk", "--dir", d, "--file-mb", 16, "--block-mb", 1, "--write-mbps", 40,
@@ -185,6 +197,7 @@ def fake_bin(tmp: Path, name: str, body: str) -> Path:
     return p
 
 
+@needs_interference
 def test_gpu_root_supervises_its_worker(tmp_path):
     """The real worker needs MLX and the GPU; a fake interpreter stands in for it."""
     ok = fake_bin(tmp_path, "gpu-ok", "echo ready\nexec sleep 30\n")
@@ -223,6 +236,7 @@ esac
     assert not (tmp_path / "sudo-called").exists()
 
 
+@needs_interference
 def test_power_waits_for_the_user_and_fails_when_low_power_goes_off(tmp_path, fake_pmset):
     mode, env = fake_pmset
     proc, pf = start_bg(tmp_path, "power", "--wait", 20, "--poll", 0.05, env=env)
@@ -257,6 +271,8 @@ def quietlib():
     spec = importlib.util.spec_from_file_location("quietlib_under_test", SCRIPTS / "quietlib.py")
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
+    if hasattr(mod, "MONITOR_COLUMNS"):  # agent-model-eval's rewrite (DESIGN §5.4): no verify, new judge rules
+        pytest.skip("scripts/quietlib.py is agent-model-eval's modified copy; these tests cover the c15a0a8 version")
     return mod
 
 
@@ -348,6 +364,7 @@ def test_monitor_records_allowances_and_stays_quiet(quietlib, tmp_path, monkeypa
 
 
 # ---------------------------------------------------------------- run_m8.sh
+@needs_run_m8
 def test_run_m8_dry_run_prints_the_alternating_plan():
     env = dict(os.environ, M8_DRY_RUN="1", M8_SCENARIOS="cpu1 gpu power", M8_POWER_WAIT_S="600",
                M8_LOAD_ARGS_gpu="--duty 0.25", SUITE_ARGS_m4="--runs 1 --steps 10")
@@ -466,6 +483,7 @@ def run_m8(repo: Path, env: dict) -> subprocess.CompletedProcess:
                            "--spec-label", "off"], cwd=repo, capture_output=True, text=True, env=env, timeout=120)
 
 
+@needs_run_m8
 def test_run_m8_mechanics_with_fakes(tmp_path):
     repo, env = fake_repo(tmp_path)
     r = run_m8(repo, env)
@@ -503,6 +521,7 @@ def test_run_m8_mechanics_with_fakes(tmp_path):
     assert gone(lpid, timeout=2)   # nor its root
 
 
+@needs_run_m8
 def test_run_m8_quarantines_a_suite_whose_load_died(tmp_path):
     repo, env = fake_repo(tmp_path)
     r = run_m8(repo, dict(env, FAKE_UV_KILL_LOAD="1"))

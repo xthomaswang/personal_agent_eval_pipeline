@@ -2,7 +2,7 @@
  "generator_version": 1,
  "seed": 20261017,
  "pillow": "13.0.0",
- "tokenizer_snapshot": "815b83c0df8ffd1d1b5244cf75fd6ef14fca9ef9",
+ "tokenizer_snapshot": "Qwen3.8-27B-oQ5-mtp",
  "image_tokens_formula": "h*w/1024 + 2 vision markers",
  "placeholders": {
   "nonce": "{{NONCE}}",

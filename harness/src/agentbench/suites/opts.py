@@ -21,8 +21,10 @@ class SuiteOpts:
     think_contexts: list[int] | None = None
     think_caps: list[int] | None = None
     no_thinking_bucket: bool = False
-    think_effort: str = "xhigh"
+    think_effort: str | None = "xhigh"  # None: enable_thinking only, no reasoning_effort anywhere
     bust_cache: bool = False
+    warmup_max_tokens: int | None = None  # None: the warm-up decodes min(caps) tokens (c15a0a8)
+    reuse_nonce: str | None = None  # thinking-off cell: this nonce, no warm-up if trial 0 hits the cache
     # m4 / m6 trajectory
     steps: int | None = None
     runs: int | None = None

@@ -1,5 +1,8 @@
 # Harness status (2026-10-18)
 
+This is the old campaign's note, kept as copied. agent-model-eval's changes to the copy are listed
+in [CHANGES.md](CHANGES.md).
+
 The harness is complete. Nothing is committed (review first). Nothing has run against a real
 model server: every test uses mock servers on ephemeral ports.
 

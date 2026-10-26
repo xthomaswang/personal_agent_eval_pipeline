@@ -4,9 +4,15 @@ Warm-up = agent prefix (system + tools) + task, ending with a user message (mlx-
 checkpoints after a user message). Each trial = prefix + task + canned assistant tool
 call + a unique tool result (fresh request_id digits) + a unique screenshot, so the
 warm-up prompt is an exact token prefix of every trial. The cold comparison sends the
-same shape with a nonce in the first tool's description, which busts every prefix cache.
+same shape with a nonce in the first tool's description, which busts every prefix cache of a
+template that renders the tools first (Qwen). `RunConfig.cold_nonce="system+tool"` also puts
+the same nonce at the start of the system message, for templates that render the system prompt
+first (Nanbeige); the summary's `cold_checks` lists each cold trial's cached tokens so that a
+caller can require them below one cache block.
 TTFT follows METHODOLOGY (first content / reasoning / tool_calls chunk); `first_kind`
-and e2e are recorded because some servers emit a tool call only when it is complete.
+and e2e are recorded because some servers emit a tool call only when it is complete. For a
+trial that opens with a tool call the summary uses the server's time_to_first_token
+(`metrics.ttft`); `ttft_sources` counts which source each TTFT came from.
 """
 
 from __future__ import annotations
@@ -14,16 +20,17 @@ from __future__ import annotations
 from typing import Any
 
 from ..fixtures.store import Fixtures, new_digits
-from ..metrics import mmm
+from ..metrics import mmm, ttft
 from .common import RunConfig, Target, Writer
 from .opts import SuiteOpts, pick
 
 
-def trial_messages(fx: Fixtures, cfg: RunConfig, i: int, images: list[str]) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+def trial_messages(fx: Fixtures, cfg: RunConfig, i: int, images: list[str],
+                   system_nonce: str | None = None) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     img = images[i % len(images)]
     rid = new_digits()
     result = fx.tool_result(i, rid)
-    msgs = [fx.agent_system(), {"role": "user", "content": fx.m1["m1_task"]}, fx.m1["m1_assistant"]]
+    msgs = [fx.agent_system(system_nonce), {"role": "user", "content": fx.m1["m1_task"]}, fx.m1["m1_assistant"]]
     if cfg.screenshot_placement == "tool":
         msgs.append({"role": "tool", "tool_call_id": "call_m1_click",
                      "content": [{"type": "text", "text": result}, {"type": "image_ref", "image": img}]})
@@ -58,15 +65,22 @@ async def run(cfg: RunConfig, t: Target, w: Writer, o: SuiteOpts) -> dict[str, A
         res["warm"].append(line["metrics"])
     for j in range(cold):
         nonce = new_digits()
-        msgs, meta = trial_messages(fx, cfg, trials + j, images)
+        system_nonce = nonce if cfg.cold_nonce == "system+tool" else None
+        msgs, meta = trial_messages(fx, cfg, trials + j, images, system_nonce=system_nonce)
         oc = await t.chat(msgs, tools=fx.tools(nonce=nonce), max_tokens=o.m1_max_tokens)
-        line = oc.line("m1", t.count_tokens, phase="cold", trial=j, cell={"phase": "cold"}, nonce=nonce, **meta)
+        line = oc.line("m1", t.count_tokens, phase="cold", trial=j, cell={"phase": "cold"}, nonce=nonce,
+                       nonce_at=cfg.cold_nonce, **meta)
         w.write(line)
         res["cold"].append(line["metrics"])
-    summary: dict[str, Any] = {"type": "summary", "suite": "m1"}
+    summary: dict[str, Any] = {"type": "summary", "suite": "m1", "cold_nonce": cfg.cold_nonce,
+                               "cold_checks": [{"trial": j, "cached_tokens": m["cached_tokens"],
+                                                "prompt_tokens": m["prompt_tokens"], "ok": m["ok"]}
+                                               for j, m in enumerate(res["cold"])]}
     for ph, ms in res.items():
         ok = [m for m in ms if m["ok"]]
-        summary[ph] = {"ttft_s": mmm([m["ttft_s"] for m in ok]), "e2e_s": mmm([m["e2e_s"] for m in ok]),
+        summary[ph] = {"ttft_s": mmm([ttft(m)[0] for m in ok]), "e2e_s": mmm([m["e2e_s"] for m in ok]),
+                       "ttft_sources": {k: sum(1 for m in ok if ttft(m)[1] == k)
+                                        for k in sorted({ttft(m)[1] for m in ok if ttft(m)[1]})},
                        "cached_tokens": mmm([m["cached_tokens"] for m in ok]),
                        "prompt_tokens": mmm([m["prompt_tokens"] for m in ok]),
                        "first_kind": sorted({m["first_kind"] for m in ok if m["first_kind"]}), "errors": len(ms) - len(ok)}

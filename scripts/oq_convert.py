@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Convert a BF16 HF snapshot to an oMLX oQ checkpoint, apply registry tokenizer fixes, register it.
+"""Convert a BF16 HF snapshot to an oMLX oQ checkpoint, apply registry tokenizer fixes, link it.
 
 Generalizes ../qwen3.8-27b_20261017-2258_benchmark/scripts/oq_convert.py (Qwen3.8-27B only):
   - the source snapshot, output name and oQ level come from the command line;
@@ -8,13 +8,16 @@ Generalizes ../qwen3.8-27b_20261017-2258_benchmark/scripts/oq_convert.py (Qwen3.
   - the sensitivity pass is the full-precision one, as for the Qwen3.8 oQ levels: the script refuses
     to start when oQ would fall back to its 4-bit proxy (too little free memory), unless --allow-proxy.
 
-Run with the bench oMLX interpreter while no model server runs and the GPU lock is held:
-  ~/Developer/mlsys/serving/omlx_0.7/.venv/bin/python -I scripts/oq_convert.py \
+`uv run modeleval convert <model>` runs it with --no-register, under the GPU lock, while no model
+server runs, and then makes the link itself (`modeleval register`). By hand, with the bench oMLX
+interpreter and the lock held:
+  ~/Developer/mlsys/serving/omlx_0.7/.venv/bin/python -I -B scripts/oq_convert.py \
       --src <HF snapshot dir> --name Nanbeige4.3-33B-oQ5 --level 5 --fix drop-bos-post-processor
 
-Writes ~/Developer/mlsys/models/oq/<name>, links ~/Developer/mlsys/models/hf-bench/<name> to it, and sets
-max_context_window 131072 (and mtp_enabled when the head is kept) in the bench oMLX's model_settings.json.
---register-only skips the conversion; --fix-only re-applies the tokenizer fixes to an existing output.
+Writes ~/Developer/mlsys/models/oq/<name> and, without --no-register, links
+~/Developer/mlsys/models/hf-bench/<name> to it. It writes no oMLX settings: the pipeline writes
+model_settings.json into its own base path before every launch (DESIGN.md section 2).
+--register-only only makes the link; --fix-only re-applies the tokenizer fixes to an existing output.
 """
 from __future__ import annotations
 
@@ -30,8 +33,6 @@ from pathlib import Path
 
 HOME = Path.home()
 MODELS = HOME / "Developer/mlsys/models"
-SETTINGS = HOME / "Developer/mlsys/serving/omlx_0.7/.bench-home/model_settings.json"
-CTX = 131072
 FIXES = ("drop-bos-post-processor",)
 
 
@@ -110,22 +111,14 @@ def record(out: Path, entry: dict) -> None:
     p.write_text(json.dumps(data, indent=2) + "\n")
 
 
-def register(out: Path, mtp: bool) -> None:
+def register(out: Path) -> None:
+    """The models/hf-bench/<name> link oMLX discovers the model through (nothing else)."""
     if port_listening(8703):
-        sys.exit("port 8703 is in use: stop the bench oMLX first (a running server rewrites model_settings.json)")
+        sys.exit("port 8703 is in use: link with the bench oMLX stopped")
     link = MODELS / "hf-bench" / out.name
     if not link.is_symlink():
         link.symlink_to(Path("..") / "oq" / out.name)
         print(f"linked {tilde(link)} -> ../oq/{out.name}")
-    data = json.loads(SETTINGS.read_text()) if SETTINGS.exists() else {"version": 1, "models": {}}
-    entry = data.setdefault("models", {}).setdefault(out.name, {})
-    want = {"max_context_window": CTX, **({"mtp_enabled": True} if mtp else {})}
-    if any(entry.get(k) != v for k, v in want.items()):
-        entry.update(want)
-        tmp = SETTINGS.with_suffix(".json.tmp")
-        tmp.write_text(json.dumps(data, indent=2) + "\n")
-        tmp.replace(SETTINGS)
-        print(f"{want} set for {out.name} in {tilde(SETTINGS)}")
 
 
 def main() -> int:
@@ -136,8 +129,10 @@ def main() -> int:
     ap.add_argument("--preserve-mtp", choices=("auto", "yes", "no"), default="auto")
     ap.add_argument("--fix", action="append", default=[], choices=FIXES)
     ap.add_argument("--allow-proxy", action="store_true", help="accept oQ's 4-bit proxy sensitivity pass")
-    ap.add_argument("--register-only", action="store_true")
+    ap.add_argument("--register-only", action="store_true", help="only make the models/hf-bench link")
     ap.add_argument("--fix-only", action="store_true")
+    ap.add_argument("--no-register", action="store_true",
+                    help="no models/hf-bench link (modeleval convert makes it with `modeleval register`)")
     a = ap.parse_args()
     out = MODELS / "oq" / a.name
 
@@ -179,8 +174,6 @@ def main() -> int:
         print(f"{time.strftime('%T')} done in {secs:.0f} s", flush=True)
         record(out, {"step": "convert", "source": tilde(a.src), "level": a.level, "group_size": 64,
                      "preserve_mtp": mtp, "seconds": round(secs), "memory": cap})
-    else:
-        mtp = (out / "config.json").exists() and has_mtp(out)
 
     for fix in a.fix:
         res = drop_bos_post_processor(out)
@@ -189,8 +182,8 @@ def main() -> int:
         if not res["check"]["equal"]:
             sys.exit(f"{fix}: the served encoding still differs from the reference")
         record(out, {"step": "tokenizer-fix", **res})
-    if not a.fix_only:
-        register(out, mtp)
+    if not (a.fix_only or a.no_register):
+        register(out)
     return 0
 
 
