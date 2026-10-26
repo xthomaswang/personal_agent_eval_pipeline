@@ -1,0 +1,220 @@
+F..FFFF.F.F.F.F..                                                        [100%]
+=================================== FAILURES ===================================
+______________ ScaleGeneratorTest.test_chromatic_scale_with_flats ______________
+
+self = <scale_generator_test.ScaleGeneratorTest testMethod=test_chromatic_scale_with_flats>
+
+    def test_chromatic_scale_with_flats(self):
+        expected = ["F", "Gb", "G", "Ab", "A", "Bb", "B", "C", "Db", "D", "Eb", "E"]
+>       self.assertEqual(Scale("F").chromatic(), expected)
+E       AssertionError: Lists differ: ['F', 'F#', 'G', 'G#', 'A', 'A#', 'B', 'C', 'C#', 'D', 'D#', 'E'] != ['F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B', 'C', 'Db', 'D', 'Eb', 'E']
+E       
+E       First differing element 1:
+E       'F#'
+E       'Gb'
+E       
+E       - ['F', 'F#', 'G', 'G#', 'A', 'A#', 'B', 'C', 'C#', 'D', 'D#', 'E']
+E       ?        ^^         ^^         ^^              ^^         ^^
+E       
+E       + ['F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B', 'C', 'Db', 'D', 'Eb', 'E']
+E       ?        ^^         ^^         ^^              ^^         ^^
+
+scale_generator_test.py:21: AssertionError
+______________________ ScaleGeneratorTest.test_enigmatic _______________________
+
+self = <scale_generator_test.ScaleGeneratorTest testMethod=test_enigmatic>
+
+    def test_enigmatic(self):
+        expected = ["G", "G#", "B", "C#", "D#", "F", "F#", "G"]
+>       self.assertEqual(Scale("G").interval("mAMMMmm"), expected)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+scale_generator_test.py:82: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <scale_generator.Scale object at 0x10735e780>, intervals = 'mAMMMmm'
+
+    def interval(self, intervals):
+        letter, accidentals = self._parse_tonic(self.tonic)
+        flat_tonic = accidentals < 0
+        current = self._sharps_index(letter, accidentals)
+        notes = [self._display(current, flat_tonic)]
+        for step in intervals:
+            if step == "M":
+                current = (current + 2) % 12
+            elif step == "m":
+                current = (current + 1) % 12
+            else:
+>               raise ValueError("Invalid interval: %r" % step)
+E               ValueError: Invalid interval: 'A'
+
+scale_generator.py:64: ValueError
+____________________ ScaleGeneratorTest.test_harmonic_minor ____________________
+
+self = <scale_generator_test.ScaleGeneratorTest testMethod=test_harmonic_minor>
+
+    def test_harmonic_minor(self):
+        expected = ["D", "E", "F", "G", "A", "Bb", "Db", "D"]
+>       self.assertEqual(Scale("d").interval("MmMMmAm"), expected)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+scale_generator_test.py:66: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <scale_generator.Scale object at 0x10735e3f0>, intervals = 'MmMMmAm'
+
+    def interval(self, intervals):
+        letter, accidentals = self._parse_tonic(self.tonic)
+        flat_tonic = accidentals < 0
+        current = self._sharps_index(letter, accidentals)
+        notes = [self._display(current, flat_tonic)]
+        for step in intervals:
+            if step == "M":
+                current = (current + 2) % 12
+            elif step == "m":
+                current = (current + 1) % 12
+            else:
+>               raise ValueError("Invalid interval: %r" % step)
+E               ValueError: Invalid interval: 'A'
+
+scale_generator.py:64: ValueError
+______________________ ScaleGeneratorTest.test_hexatonic _______________________
+
+self = <scale_generator_test.ScaleGeneratorTest testMethod=test_hexatonic>
+
+    def test_hexatonic(self):
+        expected = ["Db", "Eb", "F", "G", "A", "B", "Db"]
+>       self.assertEqual(Scale("Db").interval("MMMMMM"), expected)
+E       AssertionError: Lists differ: ['D', 'E', 'F#', 'G#', 'A#', 'C', 'D'] != ['Db', 'Eb', 'F', 'G', 'A', 'B', 'Db']
+E       
+E       First differing element 0:
+E       'D'
+E       'Db'
+E       
+E       - ['D', 'E', 'F#', 'G#', 'A#', 'C', 'D']
+E       ?              -     -     -    ^
+E       
+E       + ['Db', 'Eb', 'F', 'G', 'A', 'B', 'Db']
+E       ?    +     +                   ^     +
+
+scale_generator_test.py:74: AssertionError
+_____________________ ScaleGeneratorTest.test_locrian_mode _____________________
+
+self = <scale_generator_test.ScaleGeneratorTest testMethod=test_locrian_mode>
+
+    def test_locrian_mode(self):
+        expected = ["G", "Ab", "Bb", "C", "Db", "Eb", "F", "G"]
+>       self.assertEqual(Scale("g").interval("mMMmMMM"), expected)
+E       AssertionError: Lists differ: ['G', 'G#', 'A#', 'C', 'C#', 'D#', 'F', 'G'] != ['G', 'Ab', 'Bb', 'C', 'Db', 'Eb', 'F', 'G']
+E       
+E       First differing element 1:
+E       'G#'
+E       'Ab'
+E       
+E       - ['G', 'G#', 'A#', 'C', 'C#', 'D#', 'F', 'G']
+E       ?        ^^    ^^         ^^    ^^
+E       
+E       + ['G', 'Ab', 'Bb', 'C', 'Db', 'Eb', 'F', 'G']
+E       ?        ^^    ^^         ^^    ^^
+
+scale_generator_test.py:62: AssertionError
+________________ ScaleGeneratorTest.test_major_scale_with_flats ________________
+
+self = <scale_generator_test.ScaleGeneratorTest testMethod=test_major_scale_with_flats>
+
+    def test_major_scale_with_flats(self):
+        expected = ["F", "G", "A", "Bb", "C", "D", "E", "F"]
+>       self.assertEqual(Scale("F").interval("MMmMMMm"), expected)
+E       AssertionError: Lists differ: ['F', 'G', 'A', 'A#', 'C', 'D', 'E', 'F'] != ['F', 'G', 'A', 'Bb', 'C', 'D', 'E', 'F']
+E       
+E       First differing element 3:
+E       'A#'
+E       'Bb'
+E       
+E       - ['F', 'G', 'A', 'A#', 'C', 'D', 'E', 'F']
+E       ?                  ^^
+E       
+E       + ['F', 'G', 'A', 'Bb', 'C', 'D', 'E', 'F']
+E       ?                  ^^
+
+scale_generator_test.py:34: AssertionError
+________________ ScaleGeneratorTest.test_minor_scale_with_flats ________________
+
+self = <scale_generator_test.ScaleGeneratorTest testMethod=test_minor_scale_with_flats>
+
+    def test_minor_scale_with_flats(self):
+        expected = ["Bb", "C", "Db", "Eb", "F", "Gb", "Ab", "Bb"]
+>       self.assertEqual(Scale("bb").interval("MmMMmMM"), expected)
+E       AssertionError: Lists differ: ['B', 'C#', 'D', 'E', 'F#', 'G', 'A', 'B'] != ['Bb', 'C', 'Db', 'Eb', 'F', 'Gb', 'Ab', 'Bb']
+E       
+E       First differing element 0:
+E       'B'
+E       'Bb'
+E       
+E       - ['B', 'C#', 'D', 'E', 'F#', 'G', 'A', 'B']
+E       ?         -               -
+E       
+E       + ['Bb', 'C', 'Db', 'Eb', 'F', 'Gb', 'Ab', 'Bb']
+E       ?    +          +     +          +     +     +
+
+scale_generator_test.py:42: AssertionError
+___________________ ScaleGeneratorTest.test_mixolydian_mode ____________________
+
+self = <scale_generator_test.ScaleGeneratorTest testMethod=test_mixolydian_mode>
+
+    def test_mixolydian_mode(self):
+        expected = ["Eb", "F", "G", "Ab", "Bb", "C", "Db", "Eb"]
+>       self.assertEqual(Scale("Eb").interval("MMmMMmM"), expected)
+E       AssertionError: Lists differ: ['E', 'F#', 'G#', 'A', 'B', 'C#', 'D', 'E'] != ['Eb', 'F', 'G', 'Ab', 'Bb', 'C', 'Db', 'Eb']
+E       
+E       First differing element 0:
+E       'E'
+E       'Eb'
+E       
+E       - ['E', 'F#', 'G#', 'A', 'B', 'C#', 'D', 'E']
+E       ?         -     -               -
+E       
+E       + ['Eb', 'F', 'G', 'Ab', 'Bb', 'C', 'Db', 'Eb']
+E       ?    +               +     +          +     +
+
+scale_generator_test.py:50: AssertionError
+______________________ ScaleGeneratorTest.test_pentatonic ______________________
+
+self = <scale_generator_test.ScaleGeneratorTest testMethod=test_pentatonic>
+
+    def test_pentatonic(self):
+        expected = ["A", "B", "C#", "E", "F#", "A"]
+>       self.assertEqual(Scale("A").interval("MMAMA"), expected)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+scale_generator_test.py:78: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <scale_generator.Scale object at 0x10741d640>, intervals = 'MMAMA'
+
+    def interval(self, intervals):
+        letter, accidentals = self._parse_tonic(self.tonic)
+        flat_tonic = accidentals < 0
+        current = self._sharps_index(letter, accidentals)
+        notes = [self._display(current, flat_tonic)]
+        for step in intervals:
+            if step == "M":
+                current = (current + 2) % 12
+            elif step == "m":
+                current = (current + 1) % 12
+            else:
+>               raise ValueError("Invalid interval: %r" % step)
+E               ValueError: Invalid interval: 'A'
+
+scale_generator.py:64: ValueError
+=========================== short test summary info ============================
+FAILED scale_generator_test.py::ScaleGeneratorTest::test_chromatic_scale_with_flats
+FAILED scale_generator_test.py::ScaleGeneratorTest::test_enigmatic - ValueErr...
+FAILED scale_generator_test.py::ScaleGeneratorTest::test_harmonic_minor - Val...
+FAILED scale_generator_test.py::ScaleGeneratorTest::test_hexatonic - Assertio...
+FAILED scale_generator_test.py::ScaleGeneratorTest::test_locrian_mode - Asser...
+FAILED scale_generator_test.py::ScaleGeneratorTest::test_major_scale_with_flats
+FAILED scale_generator_test.py::ScaleGeneratorTest::test_minor_scale_with_flats
+FAILED scale_generator_test.py::ScaleGeneratorTest::test_mixolydian_mode - As...
+FAILED scale_generator_test.py::ScaleGeneratorTest::test_pentatonic - ValueEr...
+9 failed, 8 passed in 0.02s

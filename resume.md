@@ -1,6 +1,23 @@
 # resume
 
-## Current state (2026-10-26 07:10)
+## Current state (2026-10-26 17:15)
+
+**Done since 07:10**
+- Reference capability finished: gate set 63/66, ranking set 61/66 (`results/qwen3-8-27b-oq5/20261026-062952`).
+- Nanbeige4.3-33B: speed leg complete; capability stopped by the owner after 40 of 66 gate runs; the
+  thinking-on check was stopped too (too slow). Write-up: `findings/2026-10-26-nanbeige4.3-33b.md`.
+  Verdict: worse than Qwen3.8-27B as a local agent backend (31/40 vs 39/40 on the same runs; 2.5-4x slower).
+- Pipeline changes: two-level disturbance policy, sustained/frequent major rule (30 s or 25 % of a unit),
+  foreign-GPU floor 250 ms, memory watchdog for agent and checker processes (8 GiB per process, 16 GiB per
+  tree; a runaway agent script had driven macOS out of memory at 12:5x), exploratory arms
+  (`--thinking on`, `--thinking-budget`, `--only`, `--harnesses`, all with `--legs capability --unverified`).
+
+**Waiting for the owner:** whether to run Qwen3.8-Flash-Next next (~30 min timed + ~3 h capability).
+localmuse_main runs Flash-Next screenshots (60) tonight after that; ping it when the GPU is free.
+
+**Then:** public GitHub repo + PR for the owner to merge (redact check runs in the pre-commit hook).
+
+## Previous state (2026-10-26 07:10)
 
 **What this repo is.** The unified per-model evaluation pipeline the owner asked for on 2026-10-26
 (speed and agent capability of a local model under one setting, capability through Claude Code,

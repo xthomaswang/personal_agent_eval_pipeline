@@ -1,0 +1,25 @@
+{
+  "run_id": "mcpmark__legal_document__file_reorganize",
+  "harness": "claude_code",
+  "workspace": "~/Developer/mlsys/experiments/agent-model-eval-ws/mcpmark__legal_document__file_reorganize",
+  "started_at": 1793031407.138387,
+  "exit_code": 0,
+  "timed_out": false,
+  "wall_s": 102.123,
+  "harness_args": [],
+  "steps": {
+    "n_llm": 7,
+    "n_llm_aux": 0,
+    "n_llm_err": 0,
+    "n_llm_post_submit": 0,
+    "n_tool": 7,
+    "images_new_sum": 0
+  },
+  "harness_report": {
+    "num_turns": 8,
+    "subtype": "success",
+    "is_error": false,
+    "permission_denials": 0,
+    "duration_ms": 101913
+  }
+}

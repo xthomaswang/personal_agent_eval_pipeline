@@ -1,0 +1,25 @@
+{
+  "run_id": "mcpmark__file_context__pattern_matching",
+  "harness": "claude_code",
+  "workspace": "~/Developer/mlsys/experiments/agent-model-eval-ws/mcpmark__file_context__pattern_matching",
+  "started_at": 1793030767.023962,
+  "exit_code": 0,
+  "timed_out": false,
+  "wall_s": 416.927,
+  "harness_args": [],
+  "steps": {
+    "n_llm": 19,
+    "n_llm_aux": 0,
+    "n_llm_err": 0,
+    "n_llm_post_submit": 0,
+    "n_tool": 21,
+    "images_new_sum": 0
+  },
+  "harness_report": {
+    "num_turns": 22,
+    "subtype": "success",
+    "is_error": false,
+    "permission_denials": 0,
+    "duration_ms": 416693
+  }
+}
