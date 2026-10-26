@@ -1,0 +1,13 @@
+{
+ "g1": {
+  "prompt": "Read docs/setup.md and tell me which Python version the project requires.",
+  "expect": {
+   "name": "fs_read_file",
+   "path": "docs/setup.md"
+  }
+ },
+ "g2": {
+  "prompt": "The screenshot shows a dialog with a verification code. Reply with the verification code exactly as it is shown, and nothing else.",
+  "image": "g2-verify"
+ }
+}

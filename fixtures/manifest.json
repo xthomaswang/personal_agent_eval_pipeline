@@ -1,0 +1,1080 @@
+{
+ "generator_version": 1,
+ "seed": 20261017,
+ "pillow": "13.0.0",
+ "tokenizer_snapshot": "815b83c0df8ffd1d1b5244cf75fd6ef14fca9ef9",
+ "image_tokens_formula": "h*w/1024 + 2 vision markers",
+ "placeholders": {
+  "nonce": "{{NONCE}}",
+  "request_id": "{{REQUEST_ID}}",
+  "measured_with": "000000000000",
+  "nonce_at_start": "[run 000000000000]\n",
+  "nonce_in_first_tool": "[run 000000000000] "
+ },
+ "sizes": {
+  "prefix_tokens": 14905,
+  "system_prompt_tokens": 5698,
+  "n_tools": 44,
+  "image_tokens": 1282,
+  "n_images": 47,
+  "m1": {
+   "task_tokens": 32,
+   "warm_prompt_tokens": 14949,
+   "trial_prompt_tokens": 16590,
+   "suffix_tokens": 1641,
+   "tool_result_tokens": {
+    "min": 250,
+    "median": 250.0,
+    "max": 250
+   }
+  },
+  "m4": {
+   "start_prompt_tokens": 15015,
+   "steps": [
+    {
+     "step": 1,
+     "prompt_tokens": 16718,
+     "new_tokens": 1703
+    },
+    {
+     "step": 2,
+     "prompt_tokens": 18424,
+     "new_tokens": 1706
+    },
+    {
+     "step": 3,
+     "prompt_tokens": 20125,
+     "new_tokens": 1701
+    },
+    {
+     "step": 4,
+     "prompt_tokens": 21823,
+     "new_tokens": 1698
+    },
+    {
+     "step": 5,
+     "prompt_tokens": 23550,
+     "new_tokens": 1727
+    },
+    {
+     "step": 6,
+     "prompt_tokens": 25249,
+     "new_tokens": 1699
+    },
+    {
+     "step": 7,
+     "prompt_tokens": 26935,
+     "new_tokens": 1686
+    },
+    {
+     "step": 8,
+     "prompt_tokens": 28645,
+     "new_tokens": 1710
+    },
+    {
+     "step": 9,
+     "prompt_tokens": 30352,
+     "new_tokens": 1707
+    },
+    {
+     "step": 10,
+     "prompt_tokens": 32045,
+     "new_tokens": 1693
+    },
+    {
+     "step": 11,
+     "prompt_tokens": 33754,
+     "new_tokens": 1709
+    },
+    {
+     "step": 12,
+     "prompt_tokens": 35466,
+     "new_tokens": 1712
+    },
+    {
+     "step": 13,
+     "prompt_tokens": 37176,
+     "new_tokens": 1710
+    },
+    {
+     "step": 14,
+     "prompt_tokens": 38891,
+     "new_tokens": 1715
+    },
+    {
+     "step": 15,
+     "prompt_tokens": 40597,
+     "new_tokens": 1706
+    },
+    {
+     "step": 16,
+     "prompt_tokens": 42290,
+     "new_tokens": 1693
+    },
+    {
+     "step": 17,
+     "prompt_tokens": 43994,
+     "new_tokens": 1704
+    },
+    {
+     "step": 18,
+     "prompt_tokens": 45681,
+     "new_tokens": 1687
+    },
+    {
+     "step": 19,
+     "prompt_tokens": 47368,
+     "new_tokens": 1687
+    },
+    {
+     "step": 20,
+     "prompt_tokens": 49082,
+     "new_tokens": 1714
+    }
+   ],
+   "assistant_tokens": {
+    "min": 126,
+    "median": 144.0,
+    "max": 167,
+    "per_step": [
+     143,
+     146,
+     141,
+     138,
+     167,
+     139,
+     126,
+     150,
+     147,
+     132,
+     148,
+     151,
+     149,
+     154,
+     145,
+     132,
+     143,
+     126,
+     126,
+     153
+    ]
+   },
+   "final_prompt_tokens": 49082
+  },
+  "m7_case_suffix_tokens": {
+   "m7-01-single": 25,
+   "m7-02-multi-args": 43,
+   "m7-03-nested-object": 75,
+   "m7-04-array-of-objects": 169,
+   "m7-05-array-strings": 34,
+   "m7-06-array-integers": 24,
+   "m7-07-enum": 24,
+   "m7-08-key-combo": 26,
+   "m7-09-numbers": 31,
+   "m7-10-float-bool": 30,
+   "m7-11-booleans": 43,
+   "m7-12-chinese-args": 36,
+   "m7-13-chinese-instruction": 32,
+   "m7-14-unicode-text": 40,
+   "m7-15-quotes-newlines": 43,
+   "m7-16-commit-message": 120,
+   "m7-17-long-string": 185,
+   "m7-18-parallel": 33,
+   "m7-19-similar-tools-glob": 25,
+   "m7-20-similar-tools-http": 40,
+   "m7-21-no-call": 28,
+   "m7-22-image-read": 1312,
+   "m7-23-image-click": 1302,
+   "m7-24-calendar": 68
+  },
+  "cold": {
+   "2000": 2000,
+   "16000": 16000,
+   "32000": 32000,
+   "64000": 64000
+  },
+  "m3_off": {
+   "2000": 2000,
+   "16000": 16000,
+   "32000": 32000,
+   "64000": 64000
+  },
+  "m3_on": {
+   "2000": 2000,
+   "16000": 16000,
+   "32000": 32000
+  },
+  "helper": {
+   "1": 2000,
+   "2": 2000
+  }
+ },
+ "images": {
+  "m1-00": {
+   "png": "generated/screens/m1-00.png",
+   "text": "generated/a11y/m1-00.txt",
+   "width": 1280,
+   "height": 1024,
+   "kind": "settings",
+   "title": "Settings"
+  },
+  "m1-01": {
+   "png": "generated/screens/m1-01.png",
+   "text": "generated/a11y/m1-01.txt",
+   "width": 1280,
+   "height": 1024,
+   "kind": "settings",
+   "title": "Settings"
+  },
+  "m1-02": {
+   "png": "generated/screens/m1-02.png",
+   "text": "generated/a11y/m1-02.txt",
+   "width": 1280,
+   "height": 1024,
+   "kind": "settings",
+   "title": "Settings"
+  },
+  "m1-03": {
+   "png": "generated/screens/m1-03.png",
+   "text": "generated/a11y/m1-03.txt",
+   "width": 1280,
+   "height": 1024,
+   "kind": "settings",
+   "title": "Settings"
+  },
+  "m1-04": {
+   "png": "generated/screens/m1-04.png",
+   "text": "generated/a11y/m1-04.txt",
+   "width": 1280,
+   "height": 1024,
+   "kind": "settings",
+   "title": "Settings"
+  },
+  "m1-05": {
+   "png": "generated/screens/m1-05.png",
+   "text": "generated/a11y/m1-05.txt",
+   "width": 1280,
+   "height": 1024,
+   "kind": "settings",
+   "title": "Settings"
+  },
+  "m1-06": {
+   "png": "generated/screens/m1-06.png",
+   "text": "generated/a11y/m1-06.txt",
+   "width": 1280,
+   "height": 1024,
+   "kind": "settings",
+   "title": "Settings"
+  },
+  "m1-07": {
+   "png": "generated/screens/m1-07.png",
+   "text": "generated/a11y/m1-07.txt",
+   "width": 1280,
+   "height": 1024,
+   "kind": "settings",
+   "title": "Settings"
+  },
+  "m1-08": {
+   "png": "generated/screens/m1-08.png",
+   "text": "generated/a11y/m1-08.txt",
+   "width": 1280,
+   "height": 1024,
+   "kind": "settings",
+   "title": "Settings"
+  },
+  "m1-09": {
+   "png": "generated/screens/m1-09.png",
+   "text": "generated/a11y/m1-09.txt",
+   "width": 1280,
+   "height": 1024,
+   "kind": "settings",
+   "title": "Settings"
+  },
+  "m1-10": {
+   "png": "generated/screens/m1-10.png",
+   "text": "generated/a11y/m1-10.txt",
+   "width": 1280,
+   "height": 1024,
+   "kind": "settings",
+   "title": "Settings"
+  },
+  "m1-11": {
+   "png": "generated/screens/m1-11.png",
+   "text": "generated/a11y/m1-11.txt",
+   "width": 1280,
+   "height": 1024,
+   "kind": "settings",
+   "title": "Settings"
+  },
+  "m4-01": {
+   "png": "generated/screens/m4-01.png",
+   "text": "generated/a11y/m4-01.txt",
+   "width": 1280,
+   "height": 1024,
+   "kind": "editor",
+   "title": "demo-app - README.md"
+  },
+  "m4-02": {
+   "png": "generated/screens/m4-02.png",
+   "text": "generated/a11y/m4-02.txt",
+   "width": 1280,
+   "height": 1024,
+   "kind": "terminal",
+   "title": "Terminal - /workspace/demo-app"
+  },
+  "m4-03": {
+   "png": "generated/screens/m4-03.png",
+   "text": "generated/a11y/m4-03.txt",
+   "width": 1280,
+   "height": 1024,
+   "kind": "editor",
+   "title": "demo-app - test_parser.py"
+  },
+  "m4-04": {
+   "png": "generated/screens/m4-04.png",
+   "text": "generated/a11y/m4-04.txt",
+   "width": 1280,
+   "height": 1024,
+   "kind": "editor",
+   "title": "demo-app - parser.py"
+  },
+  "m4-05": {
+   "png": "generated/screens/m4-05.png",
+   "text": "generated/a11y/m4-05.txt",
+   "width": 1280,
+   "height": 1024,
+   "kind": "editor",
+   "title": "demo-app - parser.py"
+  },
+  "m4-06": {
+   "png": "generated/screens/m4-06.png",
+   "text": "generated/a11y/m4-06.txt",
+   "width": 1280,
+   "height": 1024,
+   "kind": "terminal",
+   "title": "Terminal - /workspace/demo-app"
+  },
+  "m4-07": {
+   "png": "generated/screens/m4-07.png",
+   "text": "generated/a11y/m4-07.txt",
+   "width": 1280,
+   "height": 1024,
+   "kind": "files",
+   "title": "Files - config"
+  },
+  "m4-08": {
+   "png": "generated/screens/m4-08.png",
+   "text": "generated/a11y/m4-08.txt",
+   "width": 1280,
+   "height": 1024,
+   "kind": "editor",
+   "title": "demo-app - local.ini"
+  },
+  "m4-09": {
+   "png": "generated/screens/m4-09.png",
+   "text": "generated/a11y/m4-09.txt",
+   "width": 1280,
+   "height": 1024,
+   "kind": "editor",
+   "title": "demo-app - CHANGELOG.md"
+  },
+  "m4-10": {
+   "png": "generated/screens/m4-10.png",
+   "text": "generated/a11y/m4-10.txt",
+   "width": 1280,
+   "height": 1024,
+   "kind": "terminal",
+   "title": "Terminal - /workspace/demo-app"
+  },
+  "m4-11": {
+   "png": "generated/screens/m4-11.png",
+   "text": "generated/a11y/m4-11.txt",
+   "width": 1280,
+   "height": 1024,
+   "kind": "terminal",
+   "title": "Terminal - /workspace/demo-app"
+  },
+  "m4-12": {
+   "png": "generated/screens/m4-12.png",
+   "text": "generated/a11y/m4-12.txt",
+   "width": 1280,
+   "height": 1024,
+   "kind": "terminal",
+   "title": "Terminal - /workspace/demo-app"
+  },
+  "m4-13": {
+   "png": "generated/screens/m4-13.png",
+   "text": "generated/a11y/m4-13.txt",
+   "width": 1280,
+   "height": 1024,
+   "kind": "terminal",
+   "title": "Terminal - /tmp/demo-release"
+  },
+  "m4-14": {
+   "png": "generated/screens/m4-14.png",
+   "text": "generated/a11y/m4-14.txt",
+   "width": 1280,
+   "height": 1024,
+   "kind": "terminal",
+   "title": "Terminal - /tmp/demo-release"
+  },
+  "m4-15": {
+   "png": "generated/screens/m4-15.png",
+   "text": "generated/a11y/m4-15.txt",
+   "width": 1280,
+   "height": 1024,
+   "kind": "browser",
+   "title": "Browser - localhost:8000/health"
+  },
+  "m4-16": {
+   "png": "generated/screens/m4-16.png",
+   "text": "generated/a11y/m4-16.txt",
+   "width": 1280,
+   "height": 1024,
+   "kind": "browser",
+   "title": "Browser - localhost:8000/health"
+  },
+  "m4-17": {
+   "png": "generated/screens/m4-17.png",
+   "text": "generated/a11y/m4-17.txt",
+   "width": 1280,
+   "height": 1024,
+   "kind": "browser",
+   "title": "Browser - localhost:8000/health"
+  },
+  "m4-18": {
+   "png": "generated/screens/m4-18.png",
+   "text": "generated/a11y/m4-18.txt",
+   "width": 1280,
+   "height": 1024,
+   "kind": "terminal",
+   "title": "Terminal - /tmp/demo-release"
+  },
+  "m4-19": {
+   "png": "generated/screens/m4-19.png",
+   "text": "generated/a11y/m4-19.txt",
+   "width": 1280,
+   "height": 1024,
+   "kind": "notes",
+   "title": "Notes"
+  },
+  "m4-20": {
+   "png": "generated/screens/m4-20.png",
+   "text": "generated/a11y/m4-20.txt",
+   "width": 1280,
+   "height": 1024,
+   "kind": "notes",
+   "title": "Notes"
+  },
+  "m5-00": {
+   "png": "generated/screens/m5-00.png",
+   "text": "generated/a11y/m5-00.txt",
+   "width": 1280,
+   "height": 1024,
+   "kind": "notes",
+   "title": "Notes"
+  },
+  "m5-01": {
+   "png": "generated/screens/m5-01.png",
+   "text": "generated/a11y/m5-01.txt",
+   "width": 1280,
+   "height": 1024,
+   "kind": "files",
+   "title": "Files - demo-app"
+  },
+  "m5-02": {
+   "png": "generated/screens/m5-02.png",
+   "text": "generated/a11y/m5-02.txt",
+   "width": 1280,
+   "height": 1024,
+   "kind": "calendar",
+   "title": "Calendar - November 2026"
+  },
+  "m5-03": {
+   "png": "generated/screens/m5-03.png",
+   "text": "generated/a11y/m5-03.txt",
+   "width": 1280,
+   "height": 1024,
+   "kind": "settings",
+   "title": "Settings"
+  },
+  "m5-04": {
+   "png": "generated/screens/m5-04.png",
+   "text": "generated/a11y/m5-04.txt",
+   "width": 1280,
+   "height": 1024,
+   "kind": "terminal",
+   "title": "Terminal - /workspace/demo-app"
+  },
+  "m5-05": {
+   "png": "generated/screens/m5-05.png",
+   "text": "generated/a11y/m5-05.txt",
+   "width": 1280,
+   "height": 1024,
+   "kind": "terminal",
+   "title": "Terminal - /workspace/demo-app"
+  },
+  "m5-06": {
+   "png": "generated/screens/m5-06.png",
+   "text": "generated/a11y/m5-06.txt",
+   "width": 1280,
+   "height": 1024,
+   "kind": "settings",
+   "title": "Settings"
+  },
+  "m5-07": {
+   "png": "generated/screens/m5-07.png",
+   "text": "generated/a11y/m5-07.txt",
+   "width": 1280,
+   "height": 1024,
+   "kind": "terminal",
+   "title": "Terminal - /workspace/demo-app"
+  },
+  "m5-08": {
+   "png": "generated/screens/m5-08.png",
+   "text": "generated/a11y/m5-08.txt",
+   "width": 1280,
+   "height": 1024,
+   "kind": "editor",
+   "title": "demo-app - parser.py"
+  },
+  "m5-09": {
+   "png": "generated/screens/m5-09.png",
+   "text": "generated/a11y/m5-09.txt",
+   "width": 1280,
+   "height": 1024,
+   "kind": "files",
+   "title": "Files - demo-app"
+  },
+  "m5-10": {
+   "png": "generated/screens/m5-10.png",
+   "text": "generated/a11y/m5-10.txt",
+   "width": 1280,
+   "height": 1024,
+   "kind": "editor",
+   "title": "demo-app - parser.py"
+  },
+  "m5-11": {
+   "png": "generated/screens/m5-11.png",
+   "text": "generated/a11y/m5-11.txt",
+   "width": 1280,
+   "height": 1024,
+   "kind": "files",
+   "title": "Files - demo-app"
+  },
+  "g2-verify": {
+   "png": "generated/screens/g2-verify.png",
+   "text": "generated/a11y/g2-verify.txt",
+   "width": 1280,
+   "height": 1024,
+   "kind": "g2_verify",
+   "code": "Y3N-9JT"
+  },
+  "m7-save-dialog": {
+   "png": "generated/screens/m7-save-dialog.png",
+   "text": "generated/a11y/m7-save-dialog.txt",
+   "width": 1280,
+   "height": 1024,
+   "kind": "save_dialog",
+   "save_box": [
+    779,
+    487,
+    875,
+    521
+   ],
+   "buttons": {
+    "Save": [
+     779,
+     487,
+     875,
+     521
+    ],
+    "Cancel": [
+     671,
+     487,
+     767,
+     521
+    ],
+    "Don't Save": [
+     553,
+     487,
+     659,
+     521
+    ]
+   }
+  },
+  "m7-files-highlight": {
+   "png": "generated/screens/m7-files-highlight.png",
+   "text": "generated/a11y/m7-files-highlight.txt",
+   "width": 1280,
+   "height": 1024,
+   "kind": "files_highlight",
+   "highlight": "dal-pribry-55.csv",
+   "box": [
+    254,
+    412,
+    1189,
+    438
+   ]
+  }
+ },
+ "g2_code": "Y3N-9JT",
+ "files": {
+  "gate.json": {
+   "sha256": "e1d87a7dae2cc8a3f36af5b50f13b16c32b95abf7579d798b7785964f3b9b1a6",
+   "bytes": 359
+  },
+  "generated/a11y/g2-verify.txt": {
+   "sha256": "fd38622c11a5ef5f94e7b7c46cbd5102f121d407688e4da2405c23d37cd08c41",
+   "bytes": 2303
+  },
+  "generated/a11y/m1-00.txt": {
+   "sha256": "f99485a8e6fef072c886ff3c9d8af5b4c2f265f73a68e1129ca0be3faeaf6385",
+   "bytes": 2293
+  },
+  "generated/a11y/m1-01.txt": {
+   "sha256": "648baf645f124b692cb3944d8b901790b1adf19d5d1e4f23adc3cf0206e4398b",
+   "bytes": 2228
+  },
+  "generated/a11y/m1-02.txt": {
+   "sha256": "4c710d43b86b5e606a8f6f9dc189cf8e10d2fd68a7fbd8161e34b4385c12c4fb",
+   "bytes": 2245
+  },
+  "generated/a11y/m1-03.txt": {
+   "sha256": "ffcab475c93bac0b5de042a39dc67bb8c497e82762d07c5c4aff36a23676b7e1",
+   "bytes": 2354
+  },
+  "generated/a11y/m1-04.txt": {
+   "sha256": "c9c510b87a83b745913d934b665e6e683318d7d51ef68f37c84d17dc1dfa3e8c",
+   "bytes": 2238
+  },
+  "generated/a11y/m1-05.txt": {
+   "sha256": "9df02c8a2d575f15b4219fb33614e012d06132ac3f1622fe911b4fe81336a639",
+   "bytes": 2327
+  },
+  "generated/a11y/m1-06.txt": {
+   "sha256": "1c579f096d35fb16c0a01d719752190c4a516807312c0227e6f0b1d3e1203533",
+   "bytes": 2357
+  },
+  "generated/a11y/m1-07.txt": {
+   "sha256": "28b71c4a508145cc6504715ead1001042ceb1066b29d562285560f15219ccfed",
+   "bytes": 2354
+  },
+  "generated/a11y/m1-08.txt": {
+   "sha256": "51393c58c7e9df2431b83de569abe909b21b70a2ebbd0d48bebcc92667f74a37",
+   "bytes": 2273
+  },
+  "generated/a11y/m1-09.txt": {
+   "sha256": "0a26917af41f3c0bde24d336c2d9591bef4d4788635785c36cb4bfea3004b13e",
+   "bytes": 2232
+  },
+  "generated/a11y/m1-10.txt": {
+   "sha256": "271b184f8c46c7fd9f97a776bc2f9c14bc8cd6ee3387e8ea64819348f598709a",
+   "bytes": 2431
+  },
+  "generated/a11y/m1-11.txt": {
+   "sha256": "937725015382a68ba4496f47689701f70e32a54aed674ded9399ff0b31fe424b",
+   "bytes": 2227
+  },
+  "generated/a11y/m4-01.txt": {
+   "sha256": "784ef892e273956eef7c9e55d10b788f42c3864245d9bdddd001b66687445704",
+   "bytes": 2168
+  },
+  "generated/a11y/m4-02.txt": {
+   "sha256": "77957eaf991703d4550b48bdf19bd61fc40d522c83086d0ce04029e7d61612de",
+   "bytes": 2165
+  },
+  "generated/a11y/m4-03.txt": {
+   "sha256": "6a6b84a4df4eb8e68b394e237756cdd0646997402c9f3136ee4e9d2b923fc2a4",
+   "bytes": 2071
+  },
+  "generated/a11y/m4-04.txt": {
+   "sha256": "bbd4a7cce4fa093b82342b40d8b53a776dca2e598276d2e16ff79a8400bf4a4b",
+   "bytes": 2153
+  },
+  "generated/a11y/m4-05.txt": {
+   "sha256": "1c030bf1ad1c9ea7cf159e7b190296e2251ade7af644c416a525a8ebe5001d6c",
+   "bytes": 2138
+  },
+  "generated/a11y/m4-06.txt": {
+   "sha256": "7640436a54e2c0efcc69e1b925601286d454bbf001385350e7c6ab244b691687",
+   "bytes": 2234
+  },
+  "generated/a11y/m4-07.txt": {
+   "sha256": "eaed56041e79e20c0baf5b10d0097e300ad46541658267dcb6386a219694ad0f",
+   "bytes": 1886
+  },
+  "generated/a11y/m4-08.txt": {
+   "sha256": "80e7f6b8e70fd3780ddf62cf426a87fb7ae7c29adfe173c2346a7f8637f970e0",
+   "bytes": 2076
+  },
+  "generated/a11y/m4-09.txt": {
+   "sha256": "958860b780e4a686f746e9c939e5f3930d51225791cbbcc036d8ee257ff5b4d0",
+   "bytes": 2112
+  },
+  "generated/a11y/m4-10.txt": {
+   "sha256": "b40d412f6e3d1d278a9855dcf61b07843ea6c7cab0715354b9e1f7f75d68782b",
+   "bytes": 2187
+  },
+  "generated/a11y/m4-11.txt": {
+   "sha256": "e61e206c81303b86df566e09a686a85db9ec5796be688f386612dbab4c281e1e",
+   "bytes": 2180
+  },
+  "generated/a11y/m4-12.txt": {
+   "sha256": "bda531e2f61852000dd06cb9aa01d75108b891587278dd81f97f7118811e8ce8",
+   "bytes": 2179
+  },
+  "generated/a11y/m4-13.txt": {
+   "sha256": "5e484189ef3845934ba25675204f87c2e49f668bb01b5af145a853d36ee05233",
+   "bytes": 2187
+  },
+  "generated/a11y/m4-14.txt": {
+   "sha256": "e0927b9697533db9bbad654ea087ef67e0a007a47fe63c18f07cd6ca19dc7a34",
+   "bytes": 2229
+  },
+  "generated/a11y/m4-15.txt": {
+   "sha256": "a0d74da0e90a40a4829a731986b8843578029a05c7f2f37bf8fd68a3f6b48085",
+   "bytes": 2644
+  },
+  "generated/a11y/m4-16.txt": {
+   "sha256": "344c2159bccd93157447f52538393949bfce7bc40f58659e933cbbabf5b7fba4",
+   "bytes": 2609
+  },
+  "generated/a11y/m4-17.txt": {
+   "sha256": "54b1804f14c64c312e665a9384650e6c29526f1b1ddd9fc69f39b4af86ee45d2",
+   "bytes": 2703
+  },
+  "generated/a11y/m4-18.txt": {
+   "sha256": "652738f531d0b322d39f7a2db24abad39bfaac6cc94c7d8eba993bcf4eae0ed6",
+   "bytes": 2190
+  },
+  "generated/a11y/m4-19.txt": {
+   "sha256": "438ceee3f4cfca4a1f1d455430568c6038b8416aeb5a65197a4b6112a75dec6d",
+   "bytes": 2489
+  },
+  "generated/a11y/m4-20.txt": {
+   "sha256": "077766d0542ef55ec49b604fa145f09b8f10b384e3de9ec0aa22d7193c74d1f8",
+   "bytes": 2424
+  },
+  "generated/a11y/m5-00.txt": {
+   "sha256": "22f8dddb09aba5d25ab9136c43538c00a5f8a757311b87078eb810f57f59e8a0",
+   "bytes": 2397
+  },
+  "generated/a11y/m5-01.txt": {
+   "sha256": "958d267742fd314604ded10abaf8a06a961fa22576de789b2ff002b04cd70a54",
+   "bytes": 1904
+  },
+  "generated/a11y/m5-02.txt": {
+   "sha256": "14763f79c992577c93fd088ee8698281c8301c568314e51328c9fab01109379b",
+   "bytes": 2459
+  },
+  "generated/a11y/m5-03.txt": {
+   "sha256": "fdc3800d1ac70f675c6f4be06f1ea26f4f734c182ba67a868979acc4d4b8d012",
+   "bytes": 2259
+  },
+  "generated/a11y/m5-04.txt": {
+   "sha256": "c163b8de36d201566b9c62b96998dd2089b1f5d3efcb54c4f6c18b44bd84a8ea",
+   "bytes": 2182
+  },
+  "generated/a11y/m5-05.txt": {
+   "sha256": "27d544594dd31f82aaaf2acc532d446f7d38d67e9c2e57cefe8a7c6a04b18326",
+   "bytes": 2158
+  },
+  "generated/a11y/m5-06.txt": {
+   "sha256": "3978e33e066eb9610682d02420b73aa1c45ab91d4db3f277db043155f6ff58e7",
+   "bytes": 2351
+  },
+  "generated/a11y/m5-07.txt": {
+   "sha256": "c9b12bf508fccb9c69b4764d47a3edc4a48e6737f21add76900e8d525f3a43e8",
+   "bytes": 2193
+  },
+  "generated/a11y/m5-08.txt": {
+   "sha256": "513fb767b7c98f50b3bedea77b3de7fb9edf6d8f4b5be0392737fdd0ec1883fa",
+   "bytes": 2176
+  },
+  "generated/a11y/m5-09.txt": {
+   "sha256": "2dac7306e403fc577a7210e636e431dedd9908ce7e93a306cb0a6f61a90344c3",
+   "bytes": 1911
+  },
+  "generated/a11y/m5-10.txt": {
+   "sha256": "4bcdb30ad9a9e46c7bc51e286c0dc91d9c3e279e38495a94d28da0c2bb24df9c",
+   "bytes": 2134
+  },
+  "generated/a11y/m5-11.txt": {
+   "sha256": "1e765423b08864f89b17bd0a0b79a0caf1b027c3de2b70704bfd5760082c753f",
+   "bytes": 1899
+  },
+  "generated/a11y/m7-files-highlight.txt": {
+   "sha256": "da2bb1a472d2cddf41c1fb0e71cc8f11b352caba5ba07df7b9705004b7216e60",
+   "bytes": 1910
+  },
+  "generated/a11y/m7-save-dialog.txt": {
+   "sha256": "e63e4cf6a053ab30b0e483088d04d2dad4657cc43bbb635a0b9081bd97eb6946",
+   "bytes": 2176
+  },
+  "generated/prompts/cold-16000.json": {
+   "sha256": "6f7e87c5ca1d2d653c4b4d838a88a5e22be8957b04c98e1bd8f95a0415c21730",
+   "bytes": 53652
+  },
+  "generated/prompts/cold-2000.json": {
+   "sha256": "0429da5a38b40c53e547c4204a8680d9e3c77b599c5e8410df19037243b4c879",
+   "bytes": 7454
+  },
+  "generated/prompts/cold-32000.json": {
+   "sha256": "bdc379634edff09f030a3d5860e167b0e0d8b7a4bd0989d8ef96ed901e1e5252",
+   "bytes": 109526
+  },
+  "generated/prompts/cold-64000.json": {
+   "sha256": "88e41f68fa16abb3beb2f2dc2fa4a002b158cd193827f3a8308833c9930fdb68",
+   "bytes": 214761
+  },
+  "generated/prompts/helper1.json": {
+   "sha256": "48bd75b995c9385974f6ea6739f64b0291b4117ee60833156cb5cf51f1f1b00f",
+   "bytes": 6708
+  },
+  "generated/prompts/helper2.json": {
+   "sha256": "040304d6fe31f147db85b4c24606d7e64898275efa7cd20dc4064e443e75035b",
+   "bytes": 6446
+  },
+  "generated/prompts/m3-off-16000.json": {
+   "sha256": "15f19c40a848dcd10100f25e54e0ef4b8c2c2d427674099ec702599262fc4ead",
+   "bytes": 52784
+  },
+  "generated/prompts/m3-off-2000.json": {
+   "sha256": "abe20d6e13b79f92348015cf3e433e4c103eeb6e8479c3a427c4c97b918aa41b",
+   "bytes": 7175
+  },
+  "generated/prompts/m3-off-32000.json": {
+   "sha256": "198985ddf37a9f55293d9fc251c0e0c1cd1b206694893927672bac5ff161449b",
+   "bytes": 109130
+  },
+  "generated/prompts/m3-off-64000.json": {
+   "sha256": "4d7f08812a0b6e892228d868a53d7d7c9b8e7d5c2f77f0e7fc549a0172f79ea9",
+   "bytes": 217355
+  },
+  "generated/prompts/m3-on-16000.json": {
+   "sha256": "ad57640ca5745a16266952689887cba7c1b6169cac7a45e182027de085c2b2dc",
+   "bytes": 53860
+  },
+  "generated/prompts/m3-on-2000.json": {
+   "sha256": "1ce16e0cb79f3f4ebb34c50ba14139b802f121522d8aea4927da6d68bd277e18",
+   "bytes": 6793
+  },
+  "generated/prompts/m3-on-32000.json": {
+   "sha256": "abb9e4da86da3bd4a977db8b9542f29ee61890af4e6b9b0f57a302fdde8f53fc",
+   "bytes": 109956
+  },
+  "generated/screens/g2-verify.png": {
+   "sha256": "c1c9bea0ca1e7d78b083b626e1f126b077fbd291699b4ea34c580be0d027bd9d",
+   "bytes": 61611
+  },
+  "generated/screens/m1-00.png": {
+   "sha256": "95baa107e2189359403b7a5a39a9c24afe74b5f93cece0ee3c509fb5f21936e8",
+   "bytes": 69328
+  },
+  "generated/screens/m1-01.png": {
+   "sha256": "2a34188cc5bd902c9eb84e20c64dc018cedb6f8f39b7253a4aae3eeaf98d8ac5",
+   "bytes": 70102
+  },
+  "generated/screens/m1-02.png": {
+   "sha256": "6f2e00b7e9081b34e6a7571a77cdc1869c283d02a2f2b3dee11d2a9ebadd5415",
+   "bytes": 61400
+  },
+  "generated/screens/m1-03.png": {
+   "sha256": "cf365934e30bc58930d427e3bc3726be580cb57c7af2b133524e4cf589672446",
+   "bytes": 66098
+  },
+  "generated/screens/m1-04.png": {
+   "sha256": "e85c5f7270587500df023a2771fdc6810b452a4346eb96624baf12dd024e5357",
+   "bytes": 67609
+  },
+  "generated/screens/m1-05.png": {
+   "sha256": "a31aae287d68c72452a766ced056d5ed7c2959fdebafcd724bbc1c8e39216966",
+   "bytes": 68507
+  },
+  "generated/screens/m1-06.png": {
+   "sha256": "e73068442f89d1ee89d05ba1b5534fc5f0c19ca824955706a1d48dea6360023c",
+   "bytes": 67484
+  },
+  "generated/screens/m1-07.png": {
+   "sha256": "3d3f3ba6519c4385442b7db52c2f39d6e63bed40a721219580667b5f4e102ad2",
+   "bytes": 66179
+  },
+  "generated/screens/m1-08.png": {
+   "sha256": "9cc2d2acfcd87894e1ad37bdd90ca13d9eeabd85f6ceeceb532980b25a24163c",
+   "bytes": 67643
+  },
+  "generated/screens/m1-09.png": {
+   "sha256": "13dd7d4f0b949fc3fb0d0531b3a7e79b3a8a774101718876bf2ab23ea0680e4f",
+   "bytes": 62015
+  },
+  "generated/screens/m1-10.png": {
+   "sha256": "6b0f210a180e1ee0fe6011ff296484b859580889ba69ac58d501b294caf72aa6",
+   "bytes": 65951
+  },
+  "generated/screens/m1-11.png": {
+   "sha256": "484c8c923f4818e51355e24ac2b4899aa6dc00c0dfe3b5795c0fc9897393f8d6",
+   "bytes": 72138
+  },
+  "generated/screens/m4-01.png": {
+   "sha256": "e23ae5a2eee0dfa6204a0d445f818ae44016bf21d72a37e404ce5fb2980605c7",
+   "bytes": 94042
+  },
+  "generated/screens/m4-02.png": {
+   "sha256": "9c825fbb154260b39c3fad4b28345412dba387400028afd6b807ba03eaa57340",
+   "bytes": 178647
+  },
+  "generated/screens/m4-03.png": {
+   "sha256": "8902601dbd6cf08dbb240b81f97d6a69acbf914248346011d01d91c2438c1746",
+   "bytes": 89143
+  },
+  "generated/screens/m4-04.png": {
+   "sha256": "86fface234fbccc6acf912336be5ae5b305c681bf23cacab0b5c905a9aea70cb",
+   "bytes": 103318
+  },
+  "generated/screens/m4-05.png": {
+   "sha256": "cb484269b83a392d9b4465352ea309ae20e9bbd1992ee66bd9ec9b309f26fe18",
+   "bytes": 94537
+  },
+  "generated/screens/m4-06.png": {
+   "sha256": "f7e2a602313f6059d9ad1e1f979d460727193c6e44d7bea1ede3fe0520071cac",
+   "bytes": 183332
+  },
+  "generated/screens/m4-07.png": {
+   "sha256": "6f7cd106b6691fc19c7011e4e5e36957caabfacbbf91ad015e52972b2049b1ca",
+   "bytes": 87428
+  },
+  "generated/screens/m4-08.png": {
+   "sha256": "36efb0a42bf8298f589b27786a2d82b62cf44dfa426bab6aea932004554b6d57",
+   "bytes": 97625
+  },
+  "generated/screens/m4-09.png": {
+   "sha256": "17541d8fae5dbe28bdee63977ee3bd7aeb37c0aa3ff9ea4093db32b410f5de98",
+   "bytes": 113954
+  },
+  "generated/screens/m4-10.png": {
+   "sha256": "9fecbbf8ad986a3e7817c2b38e2c04fa5136439b34b08f5a3585ed91b8583ae6",
+   "bytes": 168699
+  },
+  "generated/screens/m4-11.png": {
+   "sha256": "ea80dd33e330f0b79bf7f907fccd85895b739af0076b9157790c9776a01a9d16",
+   "bytes": 182469
+  },
+  "generated/screens/m4-12.png": {
+   "sha256": "cdfbfe97ebe896dd9b0f3df900d6f9c9825b132e25c6a9a978dfbe8142d7b4a3",
+   "bytes": 171410
+  },
+  "generated/screens/m4-13.png": {
+   "sha256": "c4eb6a56538ea5ce83a25616f487d27fa2dad1f8ac9b1d5408b8297e307b4f9b",
+   "bytes": 168098
+  },
+  "generated/screens/m4-14.png": {
+   "sha256": "412309d6710cf3d23fddad3ba1995e0232b70247db649802b00289a7d1d18271",
+   "bytes": 167149
+  },
+  "generated/screens/m4-15.png": {
+   "sha256": "dbf4d9c15fd405ec2983a19c300e946222060a985f985cea8cefcb1c0a8ab600",
+   "bytes": 89506
+  },
+  "generated/screens/m4-16.png": {
+   "sha256": "aac1f18c22e5be6b5fab92dfa0cdebf05b726a9e49bf99e8b1c5d9b3996fac11",
+   "bytes": 96038
+  },
+  "generated/screens/m4-17.png": {
+   "sha256": "b340ec39b8e222c614fed0d59864d2c897923c0681717422766f1054fd37f218",
+   "bytes": 95028
+  },
+  "generated/screens/m4-18.png": {
+   "sha256": "3d6e857dac2fe1639f36887d65833dfb53663a41deddf83161e6cbcb0dceb84a",
+   "bytes": 178112
+  },
+  "generated/screens/m4-19.png": {
+   "sha256": "361ab8b34ef3455877b756847ff0dc08037b2e697401fa86abd7a2b21afc915f",
+   "bytes": 77184
+  },
+  "generated/screens/m4-20.png": {
+   "sha256": "af42b0b5a398702e956767edfb14fad6db7fa4b8bef21d75a8982c0efd515de8",
+   "bytes": 83036
+  },
+  "generated/screens/m5-00.png": {
+   "sha256": "922193298058fa9d2c5803a3e717454c6b75cbe978dac0fc157565b66150eb37",
+   "bytes": 78685
+  },
+  "generated/screens/m5-01.png": {
+   "sha256": "9683ffe9f4e2a02e27a4f95b7bde0ab1b840e80c7b0b3ea957c492330852981c",
+   "bytes": 93342
+  },
+  "generated/screens/m5-02.png": {
+   "sha256": "84c7f4ad0366ddb1736ae75467daa3a282721ececd128cdc2ccc38b6c77baddd",
+   "bytes": 29197
+  },
+  "generated/screens/m5-03.png": {
+   "sha256": "7d67089434af900a2ffae1899822996d2d5970e5adc83728f709afbff8b6995f",
+   "bytes": 68011
+  },
+  "generated/screens/m5-04.png": {
+   "sha256": "ebe63e886cc78c5a8afa741e9ebd1639591bc62c3b3a7b226fd67df04c70f648",
+   "bytes": 178498
+  },
+  "generated/screens/m5-05.png": {
+   "sha256": "9ac99fc0bcbd5938005ffe67aeefc5033773a7f6ede9459cf7ed68486a56e98b",
+   "bytes": 175986
+  },
+  "generated/screens/m5-06.png": {
+   "sha256": "57483b26cd3374f0babae0bbb299bcbf1e1edd783948d25630a62f499289c542",
+   "bytes": 66413
+  },
+  "generated/screens/m5-07.png": {
+   "sha256": "07a22d6a51acf18c9eb4644b28288b101a0b2bce1d3bef257c7482cdf0cac681",
+   "bytes": 180160
+  },
+  "generated/screens/m5-08.png": {
+   "sha256": "32263edb26a4ee72f35f6a780a8610d085a1ba8a97b0d019dc0d79690523eacf",
+   "bytes": 93295
+  },
+  "generated/screens/m5-09.png": {
+   "sha256": "0c9100f4d6578ec7e237f1ad36410766e7d0c8202dce57d875859e084eda7da9",
+   "bytes": 94428
+  },
+  "generated/screens/m5-10.png": {
+   "sha256": "0ae176cd3454cd91ea822c1fdd006411984cd170fd965de7a1275ddd2872622a",
+   "bytes": 112253
+  },
+  "generated/screens/m5-11.png": {
+   "sha256": "95f26259d5b3c1e9bbf438f46a41f2def09f44f15768dbfdc700cb5d5c9f5b58",
+   "bytes": 94823
+  },
+  "generated/screens/m7-files-highlight.png": {
+   "sha256": "942d85b22082e72a656db18b609ce8f58e11239ff81611f04f00d2296a5e3f74",
+   "bytes": 67038
+  },
+  "generated/screens/m7-save-dialog.png": {
+   "sha256": "f5dd0efa4298e7d101493acfbb23d19d00a6d03152055ce00240aed6b2b40b17",
+   "bytes": 101801
+  },
+  "m1_m5.json": {
+   "sha256": "a3398da81e44dcd365674b0d06ac7a5905dcd984b08795930aebbf2225911359",
+   "bytes": 15401
+  },
+  "m4_trajectory.json": {
+   "sha256": "218e7f6ddc485d23415ad66e0b1aec3947dc0451dc2dfaacd5b6216d4afee705",
+   "bytes": 29772
+  },
+  "m7_suite.json": {
+   "sha256": "2256aa135805342df2cf836dbf9b636f4904516c7472c8114eb1e70cb973dd2c",
+   "bytes": 21318
+  },
+  "system_prompt.md": {
+   "sha256": "5e9728c3b3fc897cde037ebb887b4756ad384583f93ebcb3b8292b96a66e97d0",
+   "bytes": 24738
+  },
+  "tools.anthropic.json": {
+   "sha256": "2e74c782086007e77823e24dca9bccd45baf6221e29a3ccf785a548f27741fba",
+   "bytes": 41952
+  },
+  "tools.openai.json": {
+   "sha256": "fc867e43bbf180628b69336bd17215fec103aa6d139164a1a6f211485dc6836f",
+   "bytes": 45159
+  }
+ }
+}

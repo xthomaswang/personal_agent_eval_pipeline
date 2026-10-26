@@ -1,0 +1,1026 @@
+{
+ "cases": [
+  {
+   "id": "m7-01-single",
+   "category": "single call",
+   "messages": [
+    {
+     "role": "user",
+     "content": "Show me the contents of src/demo_app/config/defaults.yaml."
+    }
+   ],
+   "expect": {
+    "calls": [
+     {
+      "name": "fs_read_file",
+      "args": {
+       "path": {
+        "eq": "src/demo_app/config/defaults.yaml",
+        "norm": "path"
+       }
+      }
+     }
+    ]
+   },
+   "reference": [
+    {
+     "name": "fs_read_file",
+     "arguments": {
+      "path": "src/demo_app/config/defaults.yaml"
+     }
+    }
+   ]
+  },
+  {
+   "id": "m7-02-multi-args",
+   "category": "multiple args",
+   "messages": [
+    {
+     "role": "user",
+     "content": "Search the src directory for the regular expression TODO\\(.*\\) in Python files only, ignoring case, and show 2 lines of context around each match."
+    }
+   ],
+   "expect": {
+    "calls": [
+     {
+      "name": "fs_grep",
+      "args": {
+       "pattern": {
+        "contains": "TODO"
+       },
+       "path": {
+        "eq": "src",
+        "norm": "path"
+       },
+       "glob": {
+        "in": [
+         "*.py",
+         "**/*.py",
+         "src/**/*.py"
+        ]
+       },
+       "case_insensitive": {
+        "eq": true
+       },
+       "context_lines": {
+        "eq": 2
+       }
+      }
+     }
+    ]
+   },
+   "reference": [
+    {
+     "name": "fs_grep",
+     "arguments": {
+      "pattern": "TODO\\(.*\\)",
+      "path": "src",
+      "glob": "*.py",
+      "case_insensitive": true,
+      "context_lines": 2
+     }
+    }
+   ]
+  },
+  {
+   "id": "m7-03-nested-object",
+   "category": "nested objects",
+   "messages": [
+    {
+     "role": "user",
+     "content": "Send a POST request to http://localhost:8080/api/jobs with the header X-Request-Source set to bench and this JSON body: {\"name\": \"nightly-build\", \"retries\": 3, \"notify\": {\"on_failure\": true, \"channel\": \"builds\"}}"
+    }
+   ],
+   "expect": {
+    "calls": [
+     {
+      "name": "http_request",
+      "args": {
+       "method": {
+        "eq": "POST"
+       },
+       "url": {
+        "eq": "http://localhost:8080/api/jobs"
+       },
+       "headers": {
+        "subset": {
+         "X-Request-Source": "bench"
+        }
+       },
+       "json_body": {
+        "eq": {
+         "name": "nightly-build",
+         "retries": 3,
+         "notify": {
+          "on_failure": true,
+          "channel": "builds"
+         }
+        }
+       }
+      }
+     }
+    ]
+   },
+   "reference": [
+    {
+     "name": "http_request",
+     "arguments": {
+      "method": "POST",
+      "url": "http://localhost:8080/api/jobs",
+      "headers": {
+       "X-Request-Source": "bench"
+      },
+      "json_body": {
+       "name": "nightly-build",
+       "retries": 3,
+       "notify": {
+        "on_failure": true,
+        "channel": "builds"
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "m7-04-array-of-objects",
+   "category": "nested objects (array of objects, multi-turn)",
+   "messages": [
+    {
+     "role": "user",
+     "content": "Open src/demo_app/settings.py."
+    },
+    {
+     "role": "assistant",
+     "content": "",
+     "tool_calls": [
+      {
+       "id": "call_m7_04",
+       "type": "function",
+       "function": {
+        "name": "fs_read_file",
+        "arguments": "{\"path\": \"src/demo_app/settings.py\"}"
+       }
+      }
+     ]
+    },
+    {
+     "role": "tool",
+     "tool_call_id": "call_m7_04",
+     "content": "src/demo_app/settings.py (7 lines):\n\"\"\"Runtime settings for the development server.\"\"\"\n\nDEBUG = True\nPORT = 8000\nHOST = \"127.0.0.1\"\nLOG_LEVEL = \"info\"\nMAX_UPLOAD_MB = 16\n"
+    },
+    {
+     "role": "user",
+     "content": "In that file, replace DEBUG = True with DEBUG = False and PORT = 8000 with PORT = 8080. Use a single edit call with two edits."
+    }
+   ],
+   "expect": {
+    "calls": [
+     {
+      "name": "fs_edit_file",
+      "args": {
+       "path": {
+        "eq": "src/demo_app/settings.py",
+        "norm": "path"
+       },
+       "edits": {
+        "match_each": [
+         {
+          "old_text": {
+           "contains": "DEBUG = True"
+          },
+          "new_text": {
+           "contains": "DEBUG = False"
+          }
+         },
+         {
+          "old_text": {
+           "contains": "PORT = 8000"
+          },
+          "new_text": {
+           "contains": "PORT = 8080"
+          }
+         }
+        ]
+       }
+      }
+     }
+    ]
+   },
+   "reference": [
+    {
+     "name": "fs_edit_file",
+     "arguments": {
+      "path": "src/demo_app/settings.py",
+      "edits": [
+       {
+        "old_text": "DEBUG = True",
+        "new_text": "DEBUG = False"
+       },
+       {
+        "old_text": "PORT = 8000",
+        "new_text": "PORT = 8080"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "m7-05-array-strings",
+   "category": "arrays",
+   "messages": [
+    {
+     "role": "user",
+     "content": "Delete the build leftovers build/a.tmp, build/b.tmp and build/c.tmp now; no need to ask."
+    }
+   ],
+   "expect": {
+    "calls": [
+     {
+      "name": "fs_delete",
+      "args": {
+       "paths": {
+        "set_eq": [
+         "build/a.tmp",
+         "build/b.tmp",
+         "build/c.tmp"
+        ],
+        "norm": "path"
+       }
+      }
+     }
+    ]
+   },
+   "reference": [
+    {
+     "name": "fs_delete",
+     "arguments": {
+      "paths": [
+       "build/a.tmp",
+       "build/b.tmp",
+       "build/c.tmp"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "m7-06-array-integers",
+   "category": "arrays",
+   "messages": [
+    {
+     "role": "user",
+     "content": "Close browser tabs 2, 5 and 7."
+    }
+   ],
+   "expect": {
+    "calls": [
+     {
+      "name": "browser_close_tabs",
+      "args": {
+       "tab_ids": {
+        "set_eq": [
+         2,
+         5,
+         7
+        ]
+       }
+      }
+     }
+    ]
+   },
+   "reference": [
+    {
+     "name": "browser_close_tabs",
+     "arguments": {
+      "tab_ids": [
+       2,
+       5,
+       7
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "m7-07-enum",
+   "category": "enums",
+   "messages": [
+    {
+     "role": "user",
+     "content": "Snap the focused window to the left half of the screen."
+    }
+   ],
+   "expect": {
+    "calls": [
+     {
+      "name": "window_arrange",
+      "args": {
+       "layout": {
+        "eq": "tile_left"
+       }
+      }
+     }
+    ]
+   },
+   "reference": [
+    {
+     "name": "window_arrange",
+     "arguments": {
+      "layout": "tile_left"
+     }
+    }
+   ]
+  },
+  {
+   "id": "m7-08-key-combo",
+   "category": "enums / arrays",
+   "messages": [
+    {
+     "role": "user",
+     "content": "Press Command+Shift+T to reopen the last closed browser tab."
+    }
+   ],
+   "expect": {
+    "calls": [
+     {
+      "name": "computer_key_press",
+      "args": {
+       "keys": {
+        "set_eq": [
+         "cmd",
+         "shift",
+         "t"
+        ],
+        "norm": "key"
+       }
+      }
+     }
+    ]
+   },
+   "reference": [
+    {
+     "name": "computer_key_press",
+     "arguments": {
+      "keys": [
+       "cmd",
+       "shift",
+       "t"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "m7-09-numbers",
+   "category": "numbers",
+   "messages": [
+    {
+     "role": "user",
+     "content": "Scroll down 5 notches at the point (640, 512)."
+    }
+   ],
+   "expect": {
+    "calls": [
+     {
+      "name": "computer_scroll",
+      "args": {
+       "x": {
+        "eq": 640
+       },
+       "y": {
+        "eq": 512
+       },
+       "direction": {
+        "eq": "down"
+       },
+       "amount": {
+        "eq": 5
+       }
+      }
+     }
+    ]
+   },
+   "reference": [
+    {
+     "name": "computer_scroll",
+     "arguments": {
+      "x": 640,
+      "y": 512,
+      "direction": "down",
+      "amount": 5
+     }
+    }
+   ]
+  },
+  {
+   "id": "m7-10-float-bool",
+   "category": "numbers and booleans",
+   "messages": [
+    {
+     "role": "user",
+     "content": "Set the system volume to 35% and make sure the output is not muted."
+    }
+   ],
+   "expect": {
+    "calls": [
+     {
+      "name": "system_set_volume",
+      "args": {
+       "level": {
+        "range": [
+         0.345,
+         0.355
+        ]
+       },
+       "muted": {
+        "eq": false
+       }
+      }
+     }
+    ]
+   },
+   "reference": [
+    {
+     "name": "system_set_volume",
+     "arguments": {
+      "level": 0.35,
+      "muted": false
+     }
+    }
+   ]
+  },
+  {
+   "id": "m7-11-booleans",
+   "category": "numbers and booleans",
+   "messages": [
+    {
+     "role": "user",
+     "content": "Write the line retry_limit = 5 to config/local.ini. Replace the file if it already exists, and create the config directory if it is missing."
+    }
+   ],
+   "expect": {
+    "calls": [
+     {
+      "name": "fs_write_file",
+      "args": {
+       "path": {
+        "eq": "config/local.ini",
+        "norm": "path"
+       },
+       "content": {
+        "contains": "retry_limit = 5"
+       },
+       "overwrite": {
+        "eq": true
+       },
+       "create_dirs": {
+        "eq": true
+       }
+      }
+     }
+    ]
+   },
+   "reference": [
+    {
+     "name": "fs_write_file",
+     "arguments": {
+      "path": "config/local.ini",
+      "content": "retry_limit = 5\n",
+      "overwrite": true,
+      "create_dirs": true
+     }
+    }
+   ]
+  },
+  {
+   "id": "m7-12-chinese-args",
+   "category": "Unicode / Chinese args",
+   "messages": [
+    {
+     "role": "user",
+     "content": "Create a note titled 会议纪要 with the body 下周一上午十点讨论发布计划。 and the tag 工作."
+    }
+   ],
+   "expect": {
+    "calls": [
+     {
+      "name": "notes_create",
+      "args": {
+       "title": {
+        "eq": "会议纪要",
+        "norm": "strip"
+       },
+       "body": {
+        "eq": "下周一上午十点讨论发布计划。",
+        "norm": "strip"
+       },
+       "tags": {
+        "set_eq": [
+         "工作"
+        ]
+       }
+      }
+     }
+    ]
+   },
+   "reference": [
+    {
+     "name": "notes_create",
+     "arguments": {
+      "title": "会议纪要",
+      "body": "下周一上午十点讨论发布计划。",
+      "tags": [
+       "工作"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "m7-13-chinese-instruction",
+   "category": "Unicode / Chinese args",
+   "messages": [
+    {
+     "role": "user",
+     "content": "请在终端里运行命令 ls -la /workspace/demo-app/logs ，只运行这一条命令。"
+    }
+   ],
+   "expect": {
+    "calls": [
+     {
+      "name": "shell_run",
+      "args": {
+       "command": {
+        "eq": "ls -la /workspace/demo-app/logs",
+        "norm": "ws"
+       }
+      }
+     }
+    ]
+   },
+   "reference": [
+    {
+     "name": "shell_run",
+     "arguments": {
+      "command": "ls -la /workspace/demo-app/logs",
+      "description": "List the log directory."
+     }
+    }
+   ]
+  },
+  {
+   "id": "m7-14-unicode-text",
+   "category": "Unicode / Chinese args",
+   "messages": [
+    {
+     "role": "user",
+     "content": "Type the following text into the focused field, exactly as written:\n\n```\nCafé déjà vu — naïve résumé ✓\n```"
+    }
+   ],
+   "expect": {
+    "calls": [
+     {
+      "name": "computer_type_text",
+      "args": {
+       "text": {
+        "eq": "Café déjà vu — naïve résumé ✓",
+        "norm": "strip"
+       }
+      }
+     }
+    ]
+   },
+   "reference": [
+    {
+     "name": "computer_type_text",
+     "arguments": {
+      "text": "Café déjà vu — naïve résumé ✓"
+     }
+    }
+   ]
+  },
+  {
+   "id": "m7-15-quotes-newlines",
+   "category": "quotes and newlines in strings",
+   "messages": [
+    {
+     "role": "user",
+     "content": "Create the file scripts/hello.py with exactly this content:\n\n```python\nprint(\"Hello, \\\"world\\\"\")\nprint('done')\n```"
+    }
+   ],
+   "expect": {
+    "calls": [
+     {
+      "name": "fs_write_file",
+      "args": {
+       "path": {
+        "eq": "scripts/hello.py",
+        "norm": "path"
+       },
+       "content": {
+        "eq": "print(\"Hello, \\\"world\\\"\")\nprint('done')",
+        "norm": "strip"
+       }
+      }
+     }
+    ]
+   },
+   "reference": [
+    {
+     "name": "fs_write_file",
+     "arguments": {
+      "path": "scripts/hello.py",
+      "content": "print(\"Hello, \\\"world\\\"\")\nprint('done')\n"
+     }
+    }
+   ]
+  },
+  {
+   "id": "m7-16-commit-message",
+   "category": "quotes and newlines in strings (multi-turn)",
+   "messages": [
+    {
+     "role": "user",
+     "content": "What is staged right now?"
+    },
+    {
+     "role": "assistant",
+     "content": "",
+     "tool_calls": [
+      {
+       "id": "call_m7_16",
+       "type": "function",
+       "function": {
+        "name": "git_status",
+        "arguments": "{}"
+       }
+      }
+     ]
+    },
+    {
+     "role": "tool",
+     "tool_call_id": "call_m7_16",
+     "content": "On branch main\nChanges to be committed:\n  modified:   src/demo_app/parser.py\n  modified:   tests/test_parser.py\n"
+    },
+    {
+     "role": "user",
+     "content": "Commit exactly what is staged, with this exact message (keep the blank line):\n\n```\nfix: handle \"null\" values in the parser\n\nCloses #42\n```"
+    }
+   ],
+   "expect": {
+    "calls": [
+     {
+      "name": "git_commit",
+      "args": {
+       "message": {
+        "eq": "fix: handle \"null\" values in the parser\n\nCloses #42",
+        "norm": "strip"
+       }
+      }
+     }
+    ]
+   },
+   "reference": [
+    {
+     "name": "git_commit",
+     "arguments": {
+      "message": "fix: handle \"null\" values in the parser\n\nCloses #42"
+     }
+    }
+   ]
+  },
+  {
+   "id": "m7-17-long-string",
+   "category": "long string args",
+   "messages": [
+    {
+     "role": "user",
+     "content": "Write the following text to docs/notice.md exactly as given, as a single paragraph:\n\n```\nScheduled maintenance: on Saturday, 2026-11-07, between 06:00 and 08:00 UTC, the demo-app staging environment will be unavailable while the database is migrated to the new storage layout. Jobs that are queued during the window will start after the migration completes, in their original order. The public API keeps its current version, and no client changes are required. If a job fails after the migration, rerun it once; if it fails again, attach the job id and the last fifty lines of the job log to the release issue so that the maintainers can investigate. The next maintenance window is planned for early December and will be announced at least one week in advance.\n```"
+    }
+   ],
+   "expect": {
+    "calls": [
+     {
+      "name": "fs_write_file",
+      "args": {
+       "path": {
+        "eq": "docs/notice.md",
+        "norm": "path"
+       },
+       "content": {
+        "eq": "Scheduled maintenance: on Saturday, 2026-11-07, between 06:00 and 08:00 UTC, the demo-app staging environment will be unavailable while the database is migrated to the new storage layout. Jobs that are queued during the window will start after the migration completes, in their original order. The public API keeps its current version, and no client changes are required. If a job fails after the migration, rerun it once; if it fails again, attach the job id and the last fifty lines of the job log to the release issue so that the maintainers can investigate. The next maintenance window is planned for early December and will be announced at least one week in advance.",
+        "norm": "strip"
+       }
+      }
+     }
+    ]
+   },
+   "reference": [
+    {
+     "name": "fs_write_file",
+     "arguments": {
+      "path": "docs/notice.md",
+      "content": "Scheduled maintenance: on Saturday, 2026-11-07, between 06:00 and 08:00 UTC, the demo-app staging environment will be unavailable while the database is migrated to the new storage layout. Jobs that are queued during the window will start after the migration completes, in their original order. The public API keeps its current version, and no client changes are required. If a job fails after the migration, rerun it once; if it fails again, attach the job id and the last fifty lines of the job log to the release issue so that the maintainers can investigate. The next maintenance window is planned for early December and will be announced at least one week in advance.\n"
+     }
+    }
+   ]
+  },
+  {
+   "id": "m7-18-parallel",
+   "category": "two parallel calls",
+   "messages": [
+    {
+     "role": "user",
+     "content": "Read README.md and CHANGELOG.md. The two reads are independent, so issue both calls at once."
+    }
+   ],
+   "expect": {
+    "calls": [
+     {
+      "name": "fs_read_file",
+      "args": {
+       "path": {
+        "eq": "README.md",
+        "norm": "path"
+       }
+      }
+     },
+     {
+      "name": "fs_read_file",
+      "args": {
+       "path": {
+        "eq": "CHANGELOG.md",
+        "norm": "path"
+       }
+      }
+     }
+    ]
+   },
+   "reference": [
+    {
+     "name": "fs_read_file",
+     "arguments": {
+      "path": "README.md"
+     }
+    },
+    {
+     "name": "fs_read_file",
+     "arguments": {
+      "path": "CHANGELOG.md"
+     }
+    }
+   ]
+  },
+  {
+   "id": "m7-19-similar-tools-glob",
+   "category": "choosing between similar tools",
+   "messages": [
+    {
+     "role": "user",
+     "content": "Find all files whose names end in .yaml anywhere under config/."
+    }
+   ],
+   "expect": {
+    "calls": [
+     {
+      "name": "fs_search_files",
+      "args": {
+       "pattern": {
+        "contains": ".yaml"
+       }
+      }
+     }
+    ]
+   },
+   "reference": [
+    {
+     "name": "fs_search_files",
+     "arguments": {
+      "pattern": "**/*.yaml",
+      "root": "config"
+     }
+    }
+   ]
+  },
+  {
+   "id": "m7-20-similar-tools-http",
+   "category": "choosing between similar tools",
+   "messages": [
+    {
+     "role": "user",
+     "content": "Get the raw JSON from http://localhost:8000/health. I only need the response body, not a browser page."
+    }
+   ],
+   "expect": {
+    "calls": [
+     {
+      "name": "http_request",
+      "args": {
+       "method": {
+        "eq": "GET"
+       },
+       "url": {
+        "eq": "http://localhost:8000/health"
+       }
+      }
+     }
+    ]
+   },
+   "reference": [
+    {
+     "name": "http_request",
+     "arguments": {
+      "method": "GET",
+      "url": "http://localhost:8000/health"
+     }
+    }
+   ]
+  },
+  {
+   "id": "m7-21-no-call",
+   "category": "no call needed",
+   "messages": [
+    {
+     "role": "user",
+     "content": "In one sentence, what does the HTTP status code 404 mean?"
+    }
+   ],
+   "expect": {
+    "no_call": true
+   },
+   "reference": []
+  },
+  {
+   "id": "m7-22-image-read",
+   "category": "call after an image",
+   "image": "m7-files-highlight",
+   "messages": [
+    {
+     "role": "user",
+     "content": [
+      {
+       "type": "image_ref",
+       "image": "m7-files-highlight"
+      },
+      {
+       "type": "text",
+       "text": "This is the Files window. Read the contents of the file that is highlighted in blue."
+      }
+     ]
+    }
+   ],
+   "expect": {
+    "calls": [
+     {
+      "name": "fs_read_file",
+      "args": {
+       "path": {
+        "endswith": "dal-pribry-55.csv"
+       }
+      }
+     }
+    ]
+   },
+   "reference": [
+    {
+     "name": "fs_read_file",
+     "arguments": {
+      "path": "data/dal-pribry-55.csv"
+     }
+    }
+   ]
+  },
+  {
+   "id": "m7-23-image-click",
+   "category": "call after an image",
+   "image": "m7-save-dialog",
+   "messages": [
+    {
+     "role": "user",
+     "content": [
+      {
+       "type": "image_ref",
+       "image": "m7-save-dialog"
+      },
+      {
+       "type": "text",
+       "text": "Click the Save button in this dialog."
+      }
+     ]
+    }
+   ],
+   "expect": {
+    "alternatives": [
+     [
+      {
+       "name": "computer_click",
+       "point_in_box": {
+        "x": "x",
+        "y": "y",
+        "box": [
+         779,
+         487,
+         875,
+         521
+        ]
+       }
+      }
+     ],
+     [
+      {
+       "name": "ui_find_element",
+       "args": {
+        "query": {
+         "icontains": "save"
+        }
+       }
+      }
+     ]
+    ]
+   },
+   "reference": [
+    {
+     "name": "computer_click",
+     "arguments": {
+      "x": 827,
+      "y": 504
+     }
+    }
+   ]
+  },
+  {
+   "id": "m7-24-calendar",
+   "category": "nested objects",
+   "messages": [
+    {
+     "role": "user",
+     "content": "Schedule \"Release planning\" on 2026-11-03 from 10:00 to 11:00 in room B2. It repeats weekly for 4 occurrences, with reminders 10 and 30 minutes before."
+    }
+   ],
+   "expect": {
+    "calls": [
+     {
+      "name": "calendar_create_event",
+      "args": {
+       "title": {
+        "eq": "Release planning",
+        "norm": "strip"
+       },
+       "start": {
+        "startswith": "2026-11-03T10:00"
+       },
+       "end": {
+        "startswith": "2026-11-03T11:00"
+       },
+       "location": {
+        "icontains": "B2"
+       },
+       "reminders_min": {
+        "set_eq": [
+         10,
+         30
+        ]
+       },
+       "recurrence": {
+        "subset": {
+         "frequency": "weekly",
+         "count": 4
+        }
+       }
+      }
+     }
+    ]
+   },
+   "reference": [
+    {
+     "name": "calendar_create_event",
+     "arguments": {
+      "title": "Release planning",
+      "start": "2026-11-03T10:00",
+      "end": "2026-11-03T11:00",
+      "location": "Room B2",
+      "reminders_min": [
+       10,
+       30
+      ],
+      "recurrence": {
+       "frequency": "weekly",
+       "interval": 1,
+       "count": 4
+      }
+     }
+    }
+   ]
+  }
+ ],
+ "quick": [
+  "m7-01-single",
+  "m7-03-nested-object",
+  "m7-12-chinese-args",
+  "m7-18-parallel",
+  "m7-21-no-call",
+  "m7-22-image-read"
+ ]
+}
