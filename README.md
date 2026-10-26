@@ -56,6 +56,7 @@ memory/          T4 (memory consolidation) and R3 (retrieval); in progress
 bench/           shared: recorder proxy (docs/proxy.md), harness adapters, run manifest
 docs/            index.html (results page), benchmark/ (results), proxy.md
 scripts/         build_docs.py
+customize/       the owner's private tasks (gitignored, never pushed)
 tests/           bench/ tests (offline)
 ```
 

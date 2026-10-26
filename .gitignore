@@ -9,7 +9,9 @@ __pycache__/
 runs/
 *.log
 
-# Secrets and private data never go into this repo
+# Secrets and private data never go into this repo. customize/ holds the owner's own tasks
+# (accounts, messages, mail) and stays on this machine.
+customize/
 .env
 .envrc.local
 *.key
