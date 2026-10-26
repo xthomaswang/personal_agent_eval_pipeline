@@ -416,7 +416,7 @@ probes:
 - id: ab11
   category: abstention
   type: entity
-  question: In which room at Harbor Hall is the Q2 planning offsite held?
+  question: Who is giving the keynote at the Q2 planning offsite?
   answer: null
   support: []
 - id: ab12

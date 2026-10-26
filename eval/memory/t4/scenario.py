@@ -585,7 +585,7 @@ PROBES: list[dict[str, Any]] = [
     {"id": "ab10", "category": "abstention", "type": "date", "answer": None, "support": [],
      "question": "On what date does Kenji fly back from the Seattle conference?"},
     {"id": "ab11", "category": "abstention", "type": "entity", "answer": None, "support": [],
-     "question": "In which room at Harbor Hall is the Q2 planning offsite held?"},
+     "question": "Who is giving the keynote at the Q2 planning offsite?"},
     {"id": "ab12", "category": "abstention", "type": "entity", "answer": None, "support": [],
      "question": "Who will present at the reading group on April 23?"},
 ]

@@ -58,11 +58,13 @@ thinking off, temperature 0; macOS 26B5101f, Xcode 27A9275; M5 Max 128 GB):
 
 - Empty-memory filter, 3 reps: no answerable probe was answered right from an empty store, so none is
   dropped (`t4/fixtures/v1/drop_list.yaml`). The reader answered null to every probe.
-- Gold store (the ceiling), 3 reps: 48/48 answerable and 12/12 abstention, the same answers in every rep.
-  The gold store is 1,415 tokens; a reader call takes about 2.9 s at 1,562 prompt tokens.
-- A first ceiling run missed one abstention probe 3 times of 3: "Who will present at the next reading
-  group?" was answered with the April 9 presenter, since the reader does not know today's date. The
-  probe now names a date (April 23).
+- Gold store (the ceiling), 3 reps: 48/48 answerable and 12/12 abstention (every abstention a literal
+  null), the same answers in every rep. The gold store is 1,415 tokens; a reader call takes about 2.9 s
+  at 1,562 prompt tokens.
+- Earlier ceiling runs found three faults, fixed in v1 before this result: "the next reading group"
+  (ab12) depended on today's date, which the reader is not told; "which room at Harbor Hall" (ab11) was
+  answered with the floor the store does give; and the oracle credited any unparsable answer to an
+  abstention probe. ab04, ab07, ab08 and ab10 were also reworded so the question fits its answer type.
 
 **Scoring rules.** Accuracy is counted per probe and reported per category. The empty-memory filter
 drops answerable probes that the reader gets right from an empty store; abstention probes are never
