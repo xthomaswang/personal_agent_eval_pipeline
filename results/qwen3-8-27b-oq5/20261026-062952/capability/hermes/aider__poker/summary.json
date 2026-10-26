@@ -1,0 +1,23 @@
+{
+  "run_id": "aider__poker",
+  "harness": "hermes",
+  "workspace": "~/Developer/mlsys/experiments/agent-model-eval-ws/aider__poker",
+  "started_at": 1793020660.9677691,
+  "exit_code": 0,
+  "timed_out": false,
+  "wall_s": 48.853,
+  "harness_args": [],
+  "steps": {
+    "n_llm": 8,
+    "n_llm_aux": 0,
+    "n_llm_err": 0,
+    "n_llm_post_submit": 0,
+    "n_tool": 8,
+    "images_new_sum": 0
+  },
+  "harness_report": {
+    "tool_use_events": 8,
+    "api_call_count": 8,
+    "exit_code": 0
+  }
+}

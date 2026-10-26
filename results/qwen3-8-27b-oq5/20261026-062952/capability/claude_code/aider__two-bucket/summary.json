@@ -1,0 +1,25 @@
+{
+  "run_id": "aider__two-bucket",
+  "harness": "claude_code",
+  "workspace": "~/Developer/mlsys/experiments/agent-model-eval-ws/aider__two-bucket",
+  "started_at": 1793018365.069526,
+  "exit_code": 1,
+  "timed_out": false,
+  "wall_s": 583.871,
+  "harness_args": [],
+  "steps": {
+    "n_llm": 30,
+    "n_llm_aux": 0,
+    "n_llm_err": 2,
+    "n_llm_post_submit": 0,
+    "n_tool": 33,
+    "images_new_sum": 0
+  },
+  "harness_report": {
+    "num_turns": 34,
+    "subtype": "success",
+    "is_error": true,
+    "permission_denials": 0,
+    "duration_ms": 583655
+  }
+}

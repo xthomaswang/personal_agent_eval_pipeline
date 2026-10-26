@@ -1,0 +1,25 @@
+{
+  "run_id": "aider__pov",
+  "harness": "claude_code",
+  "workspace": "~/Developer/mlsys/experiments/agent-model-eval-ws/aider__pov",
+  "started_at": 1793017440.573638,
+  "exit_code": 0,
+  "timed_out": false,
+  "wall_s": 206.339,
+  "harness_args": [],
+  "steps": {
+    "n_llm": 22,
+    "n_llm_aux": 0,
+    "n_llm_err": 0,
+    "n_llm_post_submit": 0,
+    "n_tool": 22,
+    "images_new_sum": 0
+  },
+  "harness_report": {
+    "num_turns": 23,
+    "subtype": "success",
+    "is_error": false,
+    "permission_denials": 0,
+    "duration_ms": 206159
+  }
+}

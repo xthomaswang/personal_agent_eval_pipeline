@@ -110,10 +110,13 @@ def check_calls(
         if record.get("handled_locally"):
             continue
         status = record.get("status")
-        if isinstance(status, int) and status >= 500:
-            note("http_5xx", record, f"HTTP {status}")
-        if error and (error.get("source") == "upstream" or error.get("type") in UPSTREAM_ERROR_TYPES):
-            note("upstream_error", record, str(error.get("type")))
+        # Only generation calls count: Hermes probes /api/v1/models, /api/tags, /v1/props, /props and
+        # /version at every start and oMLX answers them 404, which says nothing about the model.
+        if endpoint in GENERATION_ENDPOINTS:
+            if isinstance(status, int) and status >= 500:
+                note("http_5xx", record, f"HTTP {status}")
+            if error and (error.get("source") == "upstream" or error.get("type") in UPSTREAM_ERROR_TYPES):
+                note("upstream_error", record, str(error.get("type")))
         if endpoint in THINKING_ENDPOINTS and not thinking_ok(record.get("protocol"), record.get("thinking_forwarded"), thinking):
             note("thinking_mismatch", record, json.dumps(record.get("thinking_forwarded"), sort_keys=True))
         if endpoint not in GENERATION_ENDPOINTS:

@@ -1,0 +1,23 @@
+{
+  "run_id": "warmup__a2",
+  "harness": "hermes",
+  "workspace": "~/Developer/mlsys/experiments/agent-model-eval-ws/warmup",
+  "started_at": 1793019232.810925,
+  "exit_code": 0,
+  "timed_out": false,
+  "wall_s": 6.652,
+  "harness_args": [],
+  "steps": {
+    "n_llm": 2,
+    "n_llm_aux": 0,
+    "n_llm_err": 0,
+    "n_llm_post_submit": 0,
+    "n_tool": 1,
+    "images_new_sum": 0
+  },
+  "harness_report": {
+    "tool_use_events": 1,
+    "api_call_count": 2,
+    "exit_code": 0
+  }
+}

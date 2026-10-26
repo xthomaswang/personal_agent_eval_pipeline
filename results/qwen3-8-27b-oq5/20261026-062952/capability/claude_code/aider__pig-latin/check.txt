@@ -1,0 +1,138 @@
+F..F..F.F...FFF.F..F.F                                                   [100%]
+=================================== FAILURES ===================================
+_______________________ PigLatinTest.test_a_whole_phrase _______________________
+
+self = <pig_latin_test.PigLatinTest testMethod=test_a_whole_phrase>
+
+    def test_a_whole_phrase(self):
+>       self.assertEqual(translate("quick fast run"), "ickquay astfay unray")
+E       AssertionError: 'ickquay fastay runay' != 'ickquay astfay unray'
+E       - ickquay fastay runay
+E       ?         -      -
+E       + ickquay astfay unray
+E       ?            +     +
+
+pig_latin_test.py:77: AssertionError
+___________________ PigLatinTest.test_word_beginning_with_ch ___________________
+
+self = <pig_latin_test.PigLatinTest testMethod=test_word_beginning_with_ch>
+
+    def test_word_beginning_with_ch(self):
+>       self.assertEqual(translate("chair"), "airchay")
+E       AssertionError: 'chairay' != 'airchay'
+E       - chairay
+E       + airchay
+
+pig_latin_test.py:44: AssertionError
+___________________ PigLatinTest.test_word_beginning_with_k ____________________
+
+self = <pig_latin_test.PigLatinTest testMethod=test_word_beginning_with_k>
+
+    def test_word_beginning_with_k(self):
+>       self.assertEqual(translate("koala"), "oalakay")
+E       AssertionError: 'koalaay' != 'oalakay'
+E       - koalaay
+E       ? -
+E       + oalakay
+E       ?     +
+
+pig_latin_test.py:35: AssertionError
+___________________ PigLatinTest.test_word_beginning_with_p ____________________
+
+self = <pig_latin_test.PigLatinTest testMethod=test_word_beginning_with_p>
+
+    def test_word_beginning_with_p(self):
+>       self.assertEqual(translate("pig"), "igpay")
+E       AssertionError: 'pigay' != 'igpay'
+E       - pigay
+E       ? -
+E       + igpay
+E       ?   +
+
+pig_latin_test.py:32: AssertionError
+__________________ PigLatinTest.test_word_beginning_with_sch ___________________
+
+self = <pig_latin_test.PigLatinTest testMethod=test_word_beginning_with_sch>
+
+    def test_word_beginning_with_sch(self):
+>       self.assertEqual(translate("school"), "oolschay")
+E       AssertionError: 'schoolay' != 'oolschay'
+E       - schoolay
+E       + oolschay
+
+pig_latin_test.py:59: AssertionError
+___________________ PigLatinTest.test_word_beginning_with_th ___________________
+
+self = <pig_latin_test.PigLatinTest testMethod=test_word_beginning_with_th>
+
+    def test_word_beginning_with_th(self):
+>       self.assertEqual(translate("therapy"), "erapythay")
+E       AssertionError: 'therapyay' != 'erapythay'
+E       - therapyay
+E       ? --
+E       + erapythay
+E       ?      ++
+
+pig_latin_test.py:53: AssertionError
+__________________ PigLatinTest.test_word_beginning_with_thr ___________________
+
+self = <pig_latin_test.PigLatinTest testMethod=test_word_beginning_with_thr>
+
+    def test_word_beginning_with_thr(self):
+>       self.assertEqual(translate("thrush"), "ushthray")
+E       AssertionError: 'thrushay' != 'ushthray'
+E       - thrushay
+E       + ushthray
+
+pig_latin_test.py:56: AssertionError
+___________________ PigLatinTest.test_word_beginning_with_x ____________________
+
+self = <pig_latin_test.PigLatinTest testMethod=test_word_beginning_with_x>
+
+    def test_word_beginning_with_x(self):
+>       self.assertEqual(translate("xenon"), "enonxay")
+E       AssertionError: 'xenonay' != 'enonxay'
+E       - xenonay
+E       ? -
+E       + enonxay
+E       ?     +
+
+pig_latin_test.py:38: AssertionError
+___________ PigLatinTest.test_y_as_second_letter_in_two_letter_word ____________
+
+self = <pig_latin_test.PigLatinTest testMethod=test_y_as_second_letter_in_two_letter_word>
+
+    def test_y_as_second_letter_in_two_letter_word(self):
+>       self.assertEqual(translate("my"), "ymay")
+E       AssertionError: 'myay' != 'ymay'
+E       - myay
+E       ?  -
+E       + ymay
+E       ? +
+
+pig_latin_test.py:74: AssertionError
+_ PigLatinTest.test_y_is_treated_like_a_vowel_at_the_end_of_a_consonant_cluster _
+
+self = <pig_latin_test.PigLatinTest testMethod=test_y_is_treated_like_a_vowel_at_the_end_of_a_consonant_cluster>
+
+    def test_y_is_treated_like_a_vowel_at_the_end_of_a_consonant_cluster(self):
+>       self.assertEqual(translate("rhythm"), "ythmrhay")
+E       AssertionError: 'thmrhyay' != 'ythmrhay'
+E       - thmrhyay
+E       ?      -
+E       + ythmrhay
+E       ? +
+
+pig_latin_test.py:71: AssertionError
+=========================== short test summary info ============================
+FAILED pig_latin_test.py::PigLatinTest::test_a_whole_phrase - AssertionError:...
+FAILED pig_latin_test.py::PigLatinTest::test_word_beginning_with_ch - Asserti...
+FAILED pig_latin_test.py::PigLatinTest::test_word_beginning_with_k - Assertio...
+FAILED pig_latin_test.py::PigLatinTest::test_word_beginning_with_p - Assertio...
+FAILED pig_latin_test.py::PigLatinTest::test_word_beginning_with_sch - Assert...
+FAILED pig_latin_test.py::PigLatinTest::test_word_beginning_with_th - Asserti...
+FAILED pig_latin_test.py::PigLatinTest::test_word_beginning_with_thr - Assert...
+FAILED pig_latin_test.py::PigLatinTest::test_word_beginning_with_x - Assertio...
+FAILED pig_latin_test.py::PigLatinTest::test_y_as_second_letter_in_two_letter_word
+FAILED pig_latin_test.py::PigLatinTest::test_y_is_treated_like_a_vowel_at_the_end_of_a_consonant_cluster
+10 failed, 12 passed in 0.02s

@@ -1,0 +1,23 @@
+{
+  "run_id": "aider__simple-linked-list",
+  "harness": "hermes",
+  "workspace": "~/Developer/mlsys/experiments/agent-model-eval-ws/aider__simple-linked-list",
+  "started_at": 1793021156.296376,
+  "exit_code": 0,
+  "timed_out": false,
+  "wall_s": 42.632,
+  "harness_args": [],
+  "steps": {
+    "n_llm": 7,
+    "n_llm_aux": 0,
+    "n_llm_err": 0,
+    "n_llm_post_submit": 0,
+    "n_tool": 7,
+    "images_new_sum": 0
+  },
+  "harness_report": {
+    "tool_use_events": 7,
+    "api_call_count": 7,
+    "exit_code": 0
+  }
+}

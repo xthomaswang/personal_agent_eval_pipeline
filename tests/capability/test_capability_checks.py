@@ -162,3 +162,13 @@ def test_native_turns() -> None:
     assert checks.native_turns("claude_code", {"num_turns": 7}) == 7
     assert checks.native_turns("hermes", {"api_call_count": 4}) == 4
     assert checks.native_turns("localmelo", {"steps": None}) is None
+
+
+def test_endpoint_probes_are_not_anomalies():
+    """Hermes probes /api/v1/models, /api/tags, /v1/props, /props and /version at every start; oMLX
+    answers them 404 (seen on every Hermes run of 2026-10-26). They say nothing about the model."""
+    probes = [call(method="GET", path=p, endpoint="other", role=None, status=404,
+                   error={"source": "upstream", "status": 404, "message": "Not Found"})
+              for p in ("/api/v1/models", "/api/tags", "/v1/props", "/props", "/version")]
+    out = run(probes + [call()])
+    assert out["upstream_error"] == 0 and out["http_5xx"] == 0 and out["generation_calls"] == 1

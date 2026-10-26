@@ -145,6 +145,6 @@ def test_ensure_epoch_matches_the_pinned_id(world: dict[str, Any], pinned_shas: 
 def test_the_repo_pins_describe_this_machine() -> None:
     raw, pins = epochs.load_pins()
     assert pins["claude_code"]["bin"].name == pins["claude_code"]["version"] == "2.1.302"
-    assert pins["hermes"]["sha"].startswith("d923a5eb48") and pins["localmelo"]["sha"].startswith("c295ce2")
+    assert pins["hermes"]["sha"].startswith("d923a5eb48") and pins["localmelo"]["sha"].startswith("3b8f310")
     assert pins["data"]["aider_polyglot"].startswith("7e0611e") and pins["data"]["mcpmark"].startswith("cd45b7f")
     assert pins["epoch_id"] and len(pins["epoch_id"]) == epochs.ID_LENGTH

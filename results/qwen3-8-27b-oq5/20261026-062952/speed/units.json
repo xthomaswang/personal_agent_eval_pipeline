@@ -1,0 +1,984 @@
+{
+ "units": {
+  "g5+m3-64k": {
+   "verdict": "clean",
+   "attempts": [
+    {
+     "attempt": 1,
+     "t_start": 1793011466.41766,
+     "t_end": 1793011591.955204,
+     "raw_file": "speed/g5+m3-64k-1.jsonl",
+     "valid": true,
+     "note": "",
+     "metrics": {
+      "g5": {
+       "ok": true,
+       "ttft_s": 111.37152154115029,
+       "e2e_s": 111.53370337514207,
+       "prompt_tokens": 64000,
+       "cached_tokens": 0,
+       "error": null,
+       "t_start": 1793011466.461899,
+       "t_end": 1793011577.9956024
+      },
+      "m3": {
+       "ctx": 64000,
+       "cap": 150,
+       "thinking": false,
+       "decode_tps": {
+        "median": 41.89375665869527,
+        "min": 39.124405438283695,
+        "max": 51.85978603964957,
+        "n": 3
+       },
+       "s_per_100": 2.386990520203074,
+       "ttft_s": {
+        "median": 0.8767255421262234,
+        "min": 0.8623862080276012,
+        "max": 1.8614771671127528,
+        "n": 3
+       },
+       "completion_tokens": {
+        "median": 150,
+        "min": 150,
+        "max": 150,
+        "n": 3
+       },
+       "prompt_tokens": 64000,
+       "warmup": "reused",
+       "trial0_cached_tokens": 63993,
+       "reasoning_chars": 0,
+       "hit_cap": 3,
+       "trials": 3,
+       "errors": 0
+      },
+      "cold_cached_tokens": [
+       0
+      ]
+     },
+     "verdict": "clean",
+     "kept": true,
+     "launch": 1,
+     "severity": "clean",
+     "reasons": [],
+     "major_reasons": [],
+     "minor_reasons": [],
+     "peak_foreign_cpu": 32.6,
+     "samples": 27,
+     "disturbed_samples": 0,
+     "major_samples": 0,
+     "minor_samples": 0,
+     "battery_min": 100
+    }
+   ]
+  },
+  "m3-16k": {
+   "verdict": "clean",
+   "attempts": [
+    {
+     "attempt": 1,
+     "t_start": 1793011599.912262,
+     "t_end": 1793011632.938487,
+     "raw_file": "speed/m3-16k-1.jsonl",
+     "valid": true,
+     "note": "",
+     "metrics": {
+      "m3": {
+       "ctx": 16000,
+       "cap": 150,
+       "thinking": false,
+       "decode_tps": {
+        "median": 55.09937129939701,
+        "min": 53.36906236057653,
+        "max": 61.105450912752374,
+        "n": 3
+       },
+       "s_per_100": 1.8149027410244583,
+       "ttft_s": {
+        "median": 0.3619485411327332,
+        "min": 0.3549599158577621,
+        "max": 0.6315642918925732,
+        "n": 3
+       },
+       "completion_tokens": {
+        "median": 150,
+        "min": 150,
+        "max": 150,
+        "n": 3
+       },
+       "prompt_tokens": 16000,
+       "warmup": "normal",
+       "trial0_cached_tokens": 15993,
+       "reasoning_chars": 0,
+       "hit_cap": 3,
+       "trials": 3,
+       "errors": 0
+      }
+     },
+     "verdict": "clean",
+     "kept": true,
+     "launch": 1,
+     "severity": "clean",
+     "reasons": [],
+     "major_reasons": [],
+     "minor_reasons": [],
+     "peak_foreign_cpu": 29.5,
+     "samples": 8,
+     "disturbed_samples": 0,
+     "major_samples": 0,
+     "minor_samples": 0,
+     "battery_min": 100
+    }
+   ]
+  },
+  "m3-32k": {
+   "verdict": "clean",
+   "attempts": [
+    {
+     "attempt": 1,
+     "t_start": 1793011639.861521,
+     "t_end": 1793011699.872431,
+     "raw_file": "speed/m3-32k-1.jsonl",
+     "valid": true,
+     "note": "",
+     "metrics": {
+      "m3": {
+       "ctx": 32000,
+       "cap": 150,
+       "thinking": false,
+       "decode_tps": {
+        "median": 50.96090085768953,
+        "min": 50.79035531244703,
+        "max": 59.19374250352955,
+        "n": 3
+       },
+       "s_per_100": 1.9622887020630626,
+       "ttft_s": {
+        "median": 0.52165437489748,
+        "min": 0.5181002919562161,
+        "max": 1.027380916988477,
+        "n": 3
+       },
+       "completion_tokens": {
+        "median": 150,
+        "min": 150,
+        "max": 150,
+        "n": 3
+       },
+       "prompt_tokens": 32000,
+       "warmup": "normal",
+       "trial0_cached_tokens": 31993,
+       "reasoning_chars": 0,
+       "hit_cap": 3,
+       "trials": 3,
+       "errors": 0
+      }
+     },
+     "verdict": "clean",
+     "kept": true,
+     "launch": 1,
+     "severity": "clean",
+     "reasons": [],
+     "major_reasons": [],
+     "minor_reasons": [],
+     "peak_foreign_cpu": 34.0,
+     "samples": 14,
+     "disturbed_samples": 0,
+     "major_samples": 0,
+     "minor_samples": 0,
+     "battery_min": 100
+    }
+   ]
+  },
+  "m3-110k": {
+   "verdict": "clean",
+   "attempts": [
+    {
+     "attempt": 1,
+     "t_start": 1793011710.326328,
+     "t_end": 1793011948.9945621,
+     "raw_file": "speed/m3-110k-1.jsonl",
+     "valid": true,
+     "note": "",
+     "metrics": {
+      "m3": {
+       "ctx": 110000,
+       "cap": 150,
+       "thinking": false,
+       "decode_tps": {
+        "median": 36.88574063342912,
+        "min": 36.88351007255037,
+        "max": 44.50301961805094,
+        "n": 3
+       },
+       "s_per_100": 2.7110747482015083,
+       "ttft_s": {
+        "median": 1.4337402919773012,
+        "min": 1.4090430841315538,
+        "max": 2.9327470001298934,
+        "n": 3
+       },
+       "completion_tokens": {
+        "median": 150,
+        "min": 150,
+        "max": 150,
+        "n": 3
+       },
+       "prompt_tokens": 110000,
+       "warmup": "normal",
+       "trial0_cached_tokens": 109993,
+       "reasoning_chars": 0,
+       "hit_cap": 3,
+       "trials": 3,
+       "errors": 0
+      }
+     },
+     "verdict": "clean",
+     "kept": true,
+     "launch": 1,
+     "severity": "clean",
+     "reasons": [],
+     "major_reasons": [],
+     "minor_reasons": [],
+     "peak_foreign_cpu": 53.9,
+     "samples": 49,
+     "disturbed_samples": 0,
+     "major_samples": 0,
+     "minor_samples": 0,
+     "battery_min": 100
+    }
+   ]
+  },
+  "m3-think-16k": {
+   "verdict": "clean",
+   "attempts": [
+    {
+     "attempt": 1,
+     "t_start": 1793011955.435814,
+     "t_end": 1793012045.334028,
+     "raw_file": "speed/m3-think-16k-1.jsonl",
+     "valid": true,
+     "note": "",
+     "metrics": {
+      "m3": {
+       "ctx": 16000,
+       "cap": 1000,
+       "thinking": true,
+       "decode_tps": {
+        "median": 44.485578308622834,
+        "min": 43.920025853563075,
+        "max": 50.93060805956883,
+        "n": 3
+       },
+       "s_per_100": 2.247919523631697,
+       "ttft_s": {
+        "median": 0.3264462088700384,
+        "min": 0.3253029999323189,
+        "max": 0.6239697081036866,
+        "n": 3
+       },
+       "completion_tokens": {
+        "median": 1000,
+        "min": 1000,
+        "max": 1000,
+        "n": 3
+       },
+       "prompt_tokens": 16000,
+       "warmup": "normal",
+       "trial0_cached_tokens": 15995,
+       "reasoning_chars": 3704,
+       "hit_cap": 3,
+       "trials": 3,
+       "errors": 0
+      }
+     },
+     "verdict": "clean",
+     "kept": true,
+     "launch": 1,
+     "severity": "clean",
+     "reasons": [],
+     "major_reasons": [],
+     "minor_reasons": [],
+     "peak_foreign_cpu": 35.3,
+     "samples": 20,
+     "disturbed_samples": 0,
+     "major_samples": 0,
+     "minor_samples": 0,
+     "battery_min": 100
+    }
+   ]
+  },
+  "m1": {
+   "verdict": "clean",
+   "attempts": [
+    {
+     "attempt": 1,
+     "t_start": 1793012055.828258,
+     "t_end": 1793012106.698466,
+     "raw_file": "speed/m1-1.jsonl",
+     "valid": true,
+     "note": "",
+     "metrics": {
+      "m1": {
+       "warm_ttft_s": {
+        "median": 3.202422749949619,
+        "min": 2.93,
+        "max": 3.2472849171608686,
+        "n": 5
+       },
+       "cold_ttft_s": {
+        "median": 24.62,
+        "min": 24.62,
+        "max": 24.62,
+        "n": 1
+       },
+       "warm_e2e_s": {
+        "median": 4.873594167176634,
+        "min": 3.853230291046202,
+        "max": 5.149352625012398,
+        "n": 5
+       },
+       "warm_cached_tokens": 14996,
+       "warm_prompt_tokens": 16644,
+       "ttft_sources": {
+        "client": 4,
+        "server": 2
+       },
+       "ttft_includes_decode": 0,
+       "cold_cached_tokens": 0,
+       "errors": 0
+      },
+      "cold_cached_tokens": [
+       0
+      ]
+     },
+     "verdict": "clean",
+     "kept": true,
+     "launch": 1,
+     "severity": "clean",
+     "reasons": [],
+     "major_reasons": [],
+     "minor_reasons": [],
+     "peak_foreign_cpu": 32.4,
+     "samples": 12,
+     "disturbed_samples": 0,
+     "major_samples": 0,
+     "minor_samples": 0,
+     "battery_min": 100
+    }
+   ]
+  },
+  "m4-1": {
+   "verdict": "clean",
+   "attempts": [
+    {
+     "attempt": 1,
+     "t_start": 1793012115.644994,
+     "t_end": 1793012256.777566,
+     "raw_file": "speed/m4-1-1.jsonl",
+     "valid": true,
+     "note": "m4: step 0 has no usage; cache check not possible",
+     "metrics": {
+      "m4": {
+       "steps": 21,
+       "headline_s": 132.5699926867497,
+       "ttft_sum_s": 96.48643670814111,
+       "decode_rate_tps": 58.198255217555115,
+       "rate_steps": 13,
+       "raw_total_s": 140.58699916559272,
+       "mean_completion_tokens": 86.42857142857143,
+       "cap_hits": 8,
+       "cap_hits_by_kind": {
+        "length": 0,
+        "incomplete_tool_call": 8
+       },
+       "step0_cached_tokens": null,
+       "direct_calls": 4,
+       "ttft_includes_decode": 0,
+       "fixed_tokens": 100,
+       "hard_errors": 0
+      },
+      "cold_cached_tokens": [
+       null
+      ]
+     },
+     "verdict": "clean",
+     "kept": true,
+     "launch": 1,
+     "severity": "clean",
+     "reasons": [],
+     "major_reasons": [],
+     "minor_reasons": [],
+     "peak_foreign_cpu": 67.1,
+     "samples": 30,
+     "disturbed_samples": 0,
+     "major_samples": 0,
+     "minor_samples": 0,
+     "battery_min": 100
+    }
+   ]
+  },
+  "m4-2": {
+   "verdict": "clean",
+   "attempts": [
+    {
+     "attempt": 1,
+     "t_start": 1793012266.26861,
+     "t_end": 1793012419.403754,
+     "raw_file": "speed/m4-2-1.jsonl",
+     "valid": true,
+     "note": "m4: step 0 has no usage; cache check not possible",
+     "metrics": {
+      "m4": {
+       "steps": 21,
+       "headline_s": 133.40178973882325,
+       "ttft_sum_s": 97.81436599998734,
+       "decode_rate_tps": 59.00961011988931,
+       "rate_steps": 8,
+       "raw_total_s": 152.63515354250558,
+       "mean_completion_tokens": 97.23809523809524,
+       "cap_hits": 13,
+       "cap_hits_by_kind": {
+        "length": 0,
+        "incomplete_tool_call": 13
+       },
+       "step0_cached_tokens": null,
+       "direct_calls": 1,
+       "ttft_includes_decode": 0,
+       "fixed_tokens": 100,
+       "hard_errors": 0
+      },
+      "cold_cached_tokens": [
+       null
+      ]
+     },
+     "verdict": "clean",
+     "kept": true,
+     "launch": 1,
+     "severity": "clean",
+     "reasons": [],
+     "major_reasons": [],
+     "minor_reasons": [],
+     "peak_foreign_cpu": 58.3,
+     "samples": 32,
+     "disturbed_samples": 0,
+     "major_samples": 0,
+     "minor_samples": 0,
+     "battery_min": 100
+    }
+   ]
+  },
+  "m4-3": {
+   "verdict": "clean",
+   "attempts": [
+    {
+     "attempt": 1,
+     "t_start": 1793012426.315156,
+     "t_end": 1793012581.08406,
+     "raw_file": "speed/m4-3-1.jsonl",
+     "valid": true,
+     "note": "",
+     "metrics": {
+      "m4": {
+       "steps": 21,
+       "headline_s": 140.85611531504196,
+       "ttft_sum_s": 98.78428908135741,
+       "decode_rate_tps": 49.91463855967936,
+       "rate_steps": 12,
+       "raw_total_s": 154.2670357490424,
+       "mean_completion_tokens": 107.76190476190476,
+       "cap_hits": 9,
+       "cap_hits_by_kind": {
+        "length": 0,
+        "incomplete_tool_call": 9
+       },
+       "step0_cached_tokens": 0,
+       "direct_calls": 1,
+       "ttft_includes_decode": 0,
+       "fixed_tokens": 100,
+       "hard_errors": 0
+      },
+      "cold_cached_tokens": [
+       0
+      ]
+     },
+     "verdict": "clean",
+     "kept": true,
+     "launch": 1,
+     "severity": "clean",
+     "reasons": [],
+     "major_reasons": [],
+     "minor_reasons": [],
+     "peak_foreign_cpu": 32.3,
+     "samples": 33,
+     "disturbed_samples": 0,
+     "major_samples": 0,
+     "minor_samples": 0,
+     "battery_min": 100
+    }
+   ]
+  }
+ },
+ "functional": {
+  "passed": true,
+  "time": "2026-10-26T06:44:25-0400",
+  "result": {
+   "ok": true,
+   "stop_reason": null,
+   "items": {
+    "G0": {
+     "id": "G0",
+     "result": "PASS",
+     "detail": "no_tools 5729 ids; tools 14985 ids; history 16644 ids; all checks pass",
+     "checks": [
+      {
+       "request": "no_tools",
+       "check": "independent render",
+       "ok": true,
+       "detail": "5729 ids identical",
+       "first_difference": null,
+       "transformers": "5.17.0"
+      },
+      {
+       "request": "tools",
+       "check": "single BOS",
+       "ok": true,
+       "detail": "ids[0:2]=[248045, 8678]"
+      },
+      {
+       "request": "tools",
+       "check": "system prompt verbatim",
+       "ok": true,
+       "detail": "verbatim"
+      },
+      {
+       "request": "tools",
+       "check": "thinking-off suffix",
+       "ok": true,
+       "detail": "prompt ends in an empty think block (thinking off)"
+      },
+      {
+       "request": "history",
+       "check": "single BOS",
+       "ok": true,
+       "detail": "ids[0:2]=[248045, 8678]"
+      },
+      {
+       "request": "history",
+       "check": "system prompt verbatim",
+       "ok": true,
+       "detail": "verbatim"
+      },
+      {
+       "request": "history",
+       "check": "thinking-off suffix",
+       "ok": true,
+       "detail": "prompt ends in an empty think block (thinking off)"
+      },
+      {
+       "request": "history",
+       "check": "tool-call turn rendered",
+       "ok": true,
+       "detail": "computer_click ['button', 'clicks', 'x', 'y'] after the task"
+      },
+      {
+       "request": "history",
+       "check": "tool-response turn rendered",
+       "ok": true,
+       "detail": "tool result after the call"
+      },
+      {
+       "request": "tools",
+       "check": "G1 usage",
+       "ok": true,
+       "detail": "usage.prompt_tokens 14985 == tokenize 14985"
+      }
+     ]
+    },
+    "G1": {
+     "id": "G1",
+     "result": "PASS",
+     "detail": "fs_read_file {\"path\": \"docs/setup.md\"}; one delta; first call chunk at 19.90 s, e2e 19.91 s; finish=tool_calls",
+     "sub": [
+      {
+       "probe": "G1.hermes",
+       "ok": true,
+       "outcome": "fs_read_file {\"path\": \"docs/setup.md\"}"
+      }
+     ]
+    },
+    "G3": {
+     "id": "G3",
+     "result": "PASS",
+     "detail": "text ok, tool_use ok, image ok, tool_result image ok; text ok ('ready'); reasoning 63 chars in thinking_block / text ok ('ready'); reasoning 59 chars in thinking_block",
+     "sub": [
+      {
+       "probe": "G3.text-adaptive",
+       "ok": true,
+       "outcome": "text ok ('ready'); reasoning 63 chars in thinking_block"
+      },
+      {
+       "probe": "G3.text-nothinking",
+       "ok": true,
+       "outcome": "text ok ('ready'); reasoning 59 chars in thinking_block"
+      },
+      {
+       "probe": "G3.tool_use",
+       "ok": true,
+       "outcome": "tool_use fs_read_file {'path': 'docs/setup.md'}; one delta; first call chunk at 22.41 s, e2e 22.41 s"
+      },
+      {
+       "probe": "G3.image",
+       "ok": true,
+       "outcome": "read Y3N-9JT"
+      },
+      {
+       "probe": "G3.tool_result-image",
+       "ok": true,
+       "outcome": "read Y3N-9JT; input_tokens=0+cache_creation 1969 (sum 1969)"
+      },
+      {
+       "probe": "G3.tool_result-control",
+       "ok": true,
+       "outcome": "read Y3N-9JT; input_tokens=0+cache_creation 1979 (sum 1979)"
+      }
+     ]
+    },
+    "G4": {
+     "id": "G4",
+     "result": "PASS",
+     "detail": "Hermes off: no reasoning; Hermes on: reasoning 45 chars in reasoning_content; note: reasoning_effort=none alone does not disable thinking (top-level effort ignored) | G4.effort-none-only: accepted; reasoning 117 chars in reasoning_content | G4.effort-high: accepted; reasoning 150 chars in reasoning_content | G4.effort-minimal: accepted; reasoning 117 chars in reasoning_content | G4.default: accepted; reasoning 176 chars in reasoning_content",
+     "sub": [
+      {
+       "probe": "G4.hermes-off",
+       "ok": true,
+       "outcome": "no reasoning"
+      },
+      {
+       "probe": "G4.hermes-on",
+       "ok": true,
+       "outcome": "reasoning 45 chars in reasoning_content"
+      },
+      {
+       "probe": "G4.kwargs-off",
+       "ok": true,
+       "outcome": "no reasoning"
+      },
+      {
+       "probe": "G4.kwargs-on",
+       "ok": true,
+       "outcome": "reasoning 82 chars in reasoning_content"
+      },
+      {
+       "probe": "G4.effort-none-only",
+       "ok": null,
+       "outcome": "accepted; reasoning 117 chars in reasoning_content"
+      },
+      {
+       "probe": "G4.effort-high",
+       "ok": null,
+       "outcome": "accepted; reasoning 150 chars in reasoning_content"
+      },
+      {
+       "probe": "G4.effort-minimal",
+       "ok": null,
+       "outcome": "accepted; reasoning 117 chars in reasoning_content"
+      },
+      {
+       "probe": "G4.default",
+       "ok": null,
+       "outcome": "accepted; reasoning 176 chars in reasoning_content"
+      }
+     ]
+    },
+    "G2": {
+     "id": "G2",
+     "result": "PASS",
+     "detail": "read Y3N-9JT correctly; prompt_tokens=1319",
+     "sub": []
+    },
+    "G2b": {
+     "id": "G2b",
+     "result": "FAIL",
+     "detail": "tool-message image: code not read (answer '662', expected Y3N-9JT); prompt_tokens=639; image dropped: 1297 fewer prompt tokens than the control; control (user message): read Y3N-9JT; prompt_tokens=1936",
+     "sub": [
+      {
+       "probe": "G2b.tool-image",
+       "ok": false,
+       "outcome": "code not read (answer '662', expected Y3N-9JT); prompt_tokens=639; image dropped: 1297 fewer prompt tokens than the control"
+      },
+      {
+       "probe": "G2b.user-control",
+       "ok": true,
+       "outcome": "read Y3N-9JT; prompt_tokens=1936"
+      }
+     ]
+    }
+   },
+   "m7": {
+    "scored_cases": 22,
+    "passed_cases": 21,
+    "failing": [
+     "m7-07-enum"
+    ],
+    "incomplete": [],
+    "na": [
+     "m7-22-image-read",
+     "m7-23-image-click"
+    ],
+    "trials": 110,
+    "misses": 12,
+    "cases": {
+     "m7-01-single": {
+      "category": "single call",
+      "trials": 5,
+      "misses": 0,
+      "reasons": [],
+      "pass": true,
+      "incomplete": false
+     },
+     "m7-02-multi-args": {
+      "category": "multiple args",
+      "trials": 5,
+      "misses": 0,
+      "reasons": [],
+      "pass": true,
+      "incomplete": false
+     },
+     "m7-03-nested-object": {
+      "category": "nested objects",
+      "trials": 5,
+      "misses": 2,
+      "reasons": [
+       "called 'shell_run' instead of 'http_request'",
+       "spurious extra call(s): expected 1, got 2"
+      ],
+      "pass": true,
+      "incomplete": false
+     },
+     "m7-04-array-of-objects": {
+      "category": "nested objects (array of objects, multi-turn)",
+      "trials": 5,
+      "misses": 0,
+      "reasons": [],
+      "pass": true,
+      "incomplete": false
+     },
+     "m7-05-array-strings": {
+      "category": "arrays",
+      "trials": 5,
+      "misses": 0,
+      "reasons": [],
+      "pass": true,
+      "incomplete": false
+     },
+     "m7-06-array-integers": {
+      "category": "arrays",
+      "trials": 5,
+      "misses": 0,
+      "reasons": [],
+      "pass": true,
+      "incomplete": false
+     },
+     "m7-07-enum": {
+      "category": "enums",
+      "trials": 5,
+      "misses": 5,
+      "reasons": [
+       "called 'window_list' instead of 'window_arrange'"
+      ],
+      "pass": false,
+      "incomplete": false
+     },
+     "m7-08-key-combo": {
+      "category": "enums / arrays",
+      "trials": 5,
+      "misses": 1,
+      "reasons": [
+       "called 'browser_close_tabs' instead of 'computer_key_press'"
+      ],
+      "pass": true,
+      "incomplete": false
+     },
+     "m7-09-numbers": {
+      "category": "numbers",
+      "trials": 5,
+      "misses": 0,
+      "reasons": [],
+      "pass": true,
+      "incomplete": false
+     },
+     "m7-10-float-bool": {
+      "category": "numbers and booleans",
+      "trials": 5,
+      "misses": 0,
+      "reasons": [],
+      "pass": true,
+      "incomplete": false
+     },
+     "m7-11-booleans": {
+      "category": "numbers and booleans",
+      "trials": 5,
+      "misses": 1,
+      "reasons": [
+       "called 'fs_list_dir' instead of 'fs_write_file'"
+      ],
+      "pass": true,
+      "incomplete": false
+     },
+     "m7-12-chinese-args": {
+      "category": "Unicode / Chinese args",
+      "trials": 5,
+      "misses": 0,
+      "reasons": [],
+      "pass": true,
+      "incomplete": false
+     },
+     "m7-13-chinese-instruction": {
+      "category": "Unicode / Chinese args",
+      "trials": 5,
+      "misses": 0,
+      "reasons": [],
+      "pass": true,
+      "incomplete": false
+     },
+     "m7-14-unicode-text": {
+      "category": "Unicode / Chinese args",
+      "trials": 5,
+      "misses": 2,
+      "reasons": [
+       "called 'computer_screenshot' instead of 'computer_type_text'"
+      ],
+      "pass": true,
+      "incomplete": false
+     },
+     "m7-15-quotes-newlines": {
+      "category": "quotes and newlines in strings",
+      "trials": 5,
+      "misses": 0,
+      "reasons": [],
+      "pass": true,
+      "incomplete": false
+     },
+     "m7-16-commit-message": {
+      "category": "quotes and newlines in strings (multi-turn)",
+      "trials": 5,
+      "misses": 0,
+      "reasons": [],
+      "pass": true,
+      "incomplete": false
+     },
+     "m7-17-long-string": {
+      "category": "long string args",
+      "trials": 5,
+      "misses": 1,
+      "reasons": [
+       "called 'fs_search_files' instead of 'fs_write_file'"
+      ],
+      "pass": true,
+      "incomplete": false
+     },
+     "m7-18-parallel": {
+      "category": "two parallel calls",
+      "trials": 5,
+      "misses": 0,
+      "reasons": [],
+      "pass": true,
+      "incomplete": false
+     },
+     "m7-19-similar-tools-glob": {
+      "category": "choosing between similar tools",
+      "trials": 5,
+      "misses": 0,
+      "reasons": [],
+      "pass": true,
+      "incomplete": false
+     },
+     "m7-20-similar-tools-http": {
+      "category": "choosing between similar tools",
+      "trials": 5,
+      "misses": 0,
+      "reasons": [],
+      "pass": true,
+      "incomplete": false
+     },
+     "m7-21-no-call": {
+      "category": "no call needed",
+      "trials": 5,
+      "misses": 0,
+      "reasons": [],
+      "pass": true,
+      "incomplete": false
+     },
+     "m7-24-calendar": {
+      "category": "nested objects",
+      "trials": 5,
+      "misses": 0,
+      "reasons": [],
+      "pass": true,
+      "incomplete": false
+     }
+    }
+   },
+   "files": [
+    "speed/gate-1.jsonl",
+    "speed/m7-1.jsonl"
+   ],
+   "t_start": 1793011198.421193,
+   "t_end": 1793011465.811309,
+   "server_error": null
+  },
+  "launch": 1
+ },
+ "run_id": "20261026-062952",
+ "model": "qwen3-8-27b-oq5",
+ "protocol_version": 1,
+ "model_info": {
+  "key": "qwen3-8-27b-oq5",
+  "display": "Qwen3.8-27B oQ5 + MTP",
+  "served_id": "Qwen3.8-27B-oQ5-mtp",
+  "quant": "oQ5",
+  "spec": "mtp",
+  "vision": true,
+  "reference": true,
+  "sampling": {
+   "temperature": 1.0,
+   "top_p": 0.95,
+   "top_k": 20
+  },
+  "proxy_sampling": "inject:qwen3.8-gen-config",
+  "source": {
+   "hf_repo": "Qwen/Qwen3.8-27B",
+   "revision": "1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0",
+   "made_by": "oq_convert level 5, MTP kept"
+  },
+  "notes": [
+   "Converted 2026-10-21 by the qwen3.8-27b campaign (oMLX 0.7.1rc1 oQ, group 64, full-precision sensitivity, MTP head kept).",
+   "Read only: its files are hard links shared with the agent-benchmark session's models/chat copy."
+  ],
+  "path": "~/Developer/mlsys/models/oq/Qwen3.8-27B-oQ5-mtp"
+ },
+ "system": {
+  "macos": "27.2",
+  "macos_build": "26B5101f",
+  "xcode": "Xcode 27.1",
+  "xcode_build": "27A9275",
+  "harness": {
+   "commit": "646cab0a75a0d05f707a9ab1e548389dabfa7b53",
+   "dirty": false
+  }
+ },
+ "memory": {
+  "after_load": 25769803776.0,
+  "after_load_system": 25340510208.0,
+  "peak": 62277025792.0,
+  "peak_system": 51724353536.0,
+  "max_pressure": 1.0,
+  "swapouts": 0.0,
+  "samples": 695,
+  "g5_peak": 41875931136.0,
+  "g5_peak_system": 46500478976.0,
+  "m3_110k_peak": 62277025792.0,
+  "m3_110k_peak_system": 51724353536.0
+ }
+}

@@ -1,0 +1,23 @@
+{
+  "run_id": "aider__react",
+  "harness": "hermes",
+  "workspace": "~/Developer/mlsys/experiments/agent-model-eval-ws/aider__react",
+  "started_at": 1793015021.886728,
+  "exit_code": 0,
+  "timed_out": false,
+  "wall_s": 100.24,
+  "harness_args": [],
+  "steps": {
+    "n_llm": 19,
+    "n_llm_aux": 0,
+    "n_llm_err": 0,
+    "n_llm_post_submit": 0,
+    "n_tool": 19,
+    "images_new_sum": 0
+  },
+  "harness_report": {
+    "tool_use_events": 19,
+    "api_call_count": 19,
+    "exit_code": 0
+  }
+}
