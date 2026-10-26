@@ -1,0 +1,4 @@
+#!/bin/sh
+# agent-model-eval shim: agents must not install packages or create environments.
+echo "uv is disabled in this benchmark: use only the Python standard library." >&2
+exit 1

@@ -1,0 +1,25 @@
+{
+  "run_id": "aider__robot-name",
+  "harness": "claude_code",
+  "workspace": "~/Developer/mlsys/experiments/agent-model-eval-ws/aider__robot-name",
+  "started_at": 1793013332.639362,
+  "exit_code": 1,
+  "timed_out": false,
+  "wall_s": 210.229,
+  "harness_args": [],
+  "steps": {
+    "n_llm": 30,
+    "n_llm_aux": 0,
+    "n_llm_err": 2,
+    "n_llm_post_submit": 0,
+    "n_tool": 32,
+    "images_new_sum": 0
+  },
+  "harness_report": {
+    "num_turns": 33,
+    "subtype": "success",
+    "is_error": true,
+    "permission_denials": 0,
+    "duration_ms": 210008
+  }
+}

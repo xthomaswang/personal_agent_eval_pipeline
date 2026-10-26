@@ -1,0 +1,25 @@
+{
+  "run_id": "aider__transpose",
+  "harness": "claude_code",
+  "workspace": "~/Developer/mlsys/experiments/agent-model-eval-ws/aider__transpose",
+  "started_at": 1793013031.307765,
+  "exit_code": 0,
+  "timed_out": false,
+  "wall_s": 93.063,
+  "harness_args": [],
+  "steps": {
+    "n_llm": 10,
+    "n_llm_aux": 0,
+    "n_llm_err": 0,
+    "n_llm_post_submit": 0,
+    "n_tool": 10,
+    "images_new_sum": 0
+  },
+  "harness_report": {
+    "num_turns": 11,
+    "subtype": "success",
+    "is_error": false,
+    "permission_denials": 0,
+    "duration_ms": 92855
+  }
+}

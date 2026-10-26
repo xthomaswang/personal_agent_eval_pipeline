@@ -1,0 +1,23 @@
+{
+  "run_id": "aider__pig-latin",
+  "harness": "hermes",
+  "workspace": "~/Developer/mlsys/experiments/agent-model-eval-ws/aider__pig-latin",
+  "started_at": 1793038720.9859998,
+  "exit_code": 0,
+  "timed_out": false,
+  "wall_s": 291.523,
+  "harness_args": [],
+  "steps": {
+    "n_llm": 14,
+    "n_llm_aux": 0,
+    "n_llm_err": 0,
+    "n_llm_post_submit": 0,
+    "n_tool": 14,
+    "images_new_sum": 0
+  },
+  "harness_report": {
+    "tool_use_events": 14,
+    "api_call_count": 14,
+    "exit_code": 0
+  }
+}

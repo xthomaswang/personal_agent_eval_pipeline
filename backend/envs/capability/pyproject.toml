@@ -1,0 +1,41 @@
+# The capability runner's environment (DESIGN §6.1): the interpreter of
+# `python -I -B -m modeleval.capability.runner` and of the recorder proxy that bench.harness starts as
+# `sys.executable -m bench.proxy`. Python 3.13 and the exact runtime set of personal-agent-bench's
+# uv.lock (3ea190e), so the proxy's clocks and behavior match the agent bench.
+#
+# The project itself is installed editable only to put ../../src on sys.path through a .pth file:
+# `-I` drops the working directory and PYTHONPATH, and modeleval itself requires Python 3.12, so it
+# cannot be a dependency here.
+[project]
+name = "modeleval-capability-env"
+version = "1"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    "httpx==0.28.1",
+    "pyyaml==6.0.3",
+    "starlette==1.8.0",
+    "uvicorn==0.54.0",
+]
+
+[tool.uv]
+package = true
+# Transitive versions from the same personal-agent-bench uv.lock
+constraint-dependencies = [
+    "anyio==4.15.1",
+    "certifi==2026.7.22",
+    "click==8.5.0",
+    "h11==0.16.0",
+    "httpcore==1.0.9",
+    "idna==3.20",
+    "typing-extensions==4.16.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+bypass-selection = true
+
+[tool.hatch.build]
+dev-mode-dirs = ["../../src"]

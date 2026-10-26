@@ -1,0 +1,72 @@
+# Model registry (DESIGN.md §3). One table per model; `modeleval models` lists them.
+#
+# served_id          oMLX model id = the entry's name under ~/Developer/mlsys/models/hf-bench
+# path               where the checkpoint lives (~ is expanded); never edited after conversion
+# source             what the checkpoint was made from: HF repo, exact revision, how
+# spec               "mtp" (the model's own MTP head, Lightning MTP) or "none"
+# sampling           the model's recommended agent sampling, sent in every generation request
+# proxy_sampling     the bench proxy preset of the capability leg
+# model_settings     extra per-model oMLX settings; max_context_window (131072) and mtp_enabled are
+#                    written by the pipeline, and a per-model max_tokens is refused (DESIGN §2)
+# server_log_expect  regexes that must each match a server-log line after the warm-up, else the
+#                    run is refused (they prove the speculative/offload mode actually loaded)
+# prepare            convert level and tokenizer fixes for `modeleval convert`
+
+[models.qwen3-8-27b-oq5]
+display = "Qwen3.8-27B oQ5 + MTP"
+served_id = "Qwen3.8-27B-oQ5-mtp"
+path = "~/Developer/mlsys/models/oq/Qwen3.8-27B-oQ5-mtp"
+source = { hf_repo = "Qwen/Qwen3.8-27B", revision = "1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0", made_by = "oq_convert level 5, MTP kept" }
+quant = "oQ5"
+spec = "mtp"
+vision = true
+reference = true
+sampling = { temperature = 1.0, top_p = 0.95, top_k = 20 }
+proxy_sampling = "inject:qwen3.8-gen-config"
+# Qwen3.5-family models log "Speculative backend selected ...: Lightning MTP (..., active)" at load;
+# "Lightning MTP enabled" is the Qwen4-Exp wording only. "MTP path activated" proves the warm-up used it.
+server_log_expect = ["Speculative backend selected for .*: Lightning MTP \\(.*active\\)", "MTP path activated"]
+notes = [
+  "Converted 2026-10-21 by the qwen3.8-27b campaign (oMLX 0.7.1rc1 oQ, group 64, full-precision sensitivity, MTP head kept).",
+  "Read only: its files are hard links shared with the agent-benchmark session's models/chat copy.",
+]
+
+[models.nanbeige4-3-33b-oq5]
+display = "Nanbeige4.3-33B oQ5"
+served_id = "Nanbeige4.3-33B-oQ5"
+path = "~/Developer/mlsys/models/oq/Nanbeige4.3-33B-oQ5"
+source = { hf_repo = "Nanbeige/Nanbeige4.3-33B", revision = "c1093c501cc6460427c0ac634db7223d0450c0ee", made_by = "oq_convert level 5, no MTP head" }
+quant = "oQ5"
+spec = "none"
+vision = false
+reference = false
+sampling = { temperature = 1.0, top_p = 0.95, top_k = 0 }
+proxy_sampling = "inject:omlx-default"
+server_log_expect = ["Loaded model: Nanbeige4\\.3-33B-oQ5 "]
+prepare = { convert = { level = 5 }, tokenizer_fixes = ["drop-bos-post-processor"] }
+notes = [
+  "Converted 2026-10-26 by scripts/oq_convert.py (126 s, full-precision sensitivity); provenance in <path>/agent-model-eval.json.",
+  "Tokenizer fix drop-bos-post-processor: one <|im_start|> at the start of every prompt, as apply_chat_template and vLLM tokenize it.",
+  "Text only (vision: none); dense llama with full attention in all 52 layers (208 KiB of KV per token).",
+]
+
+[models.qwen3-8-flash-next-oq4e]
+display = "Qwen3.8-Flash-Next oQ4e + MTP"
+served_id = "Qwen3.8-Flash-Next-oQ4e-mtp"
+path = "~/.omlx-0.7/models/Qwen3.8-Flash-Next-oQ4e-mtp"
+source = { hf_repo = "Jundot/Qwen3.8-Flash-Next-oQ4e-mtp", revision = "e878710debbe7b31b9cd5a5756af629c903eb91d", made_by = "published oQ4e build (oMLX 0.7.3.dev1, Better Low-Bit oQ), base Qwen/Qwen3.8-Flash-Next" }
+quant = "oQ4e"
+spec = "mtp"
+vision = true
+reference = false
+sampling = { temperature = 1.0, top_p = 0.95, top_k = 20 }
+proxy_sampling = "inject:qwen3.8-gen-config"
+# PLE on SSD (mmap) is what loads on this machine; a resident PLE needs a global wired-limit change
+# (sudo), which only the user makes, and would be a new protocol version.
+model_settings = { qwen4_ple_ssd_offload = true, moe_expert_offload_enabled = false }
+server_log_expect = ["PLE mode for .*: mmap", "Lightning MTP enabled", "MTP path activated"]
+notes = [
+  "Read only: downloaded by the agent-benchmark session into ~/.omlx-0.7/models; models/hf-bench links to it.",
+  "Closest published build (its BF16 is ~250 GB): oQ4e, not oQ5; disclosed in every table.",
+  "Its 29.8 GiB PLE table is mmapped and file-backed, so the server footprint excludes it; the system-wide memory delta includes it.",
+]

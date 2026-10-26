@@ -1,0 +1,91 @@
+F.....FFF...F                                                            [100%]
+=================================== FAILURES ===================================
+____________________ DominoesTest.test_can_reverse_dominoes ____________________
+
+self = <dominoes_test.DominoesTest testMethod=test_can_reverse_dominoes>
+
+    def test_can_reverse_dominoes(self):
+        input_dominoes = [(1, 2), (1, 3), (2, 3)]
+        output_chain = can_chain(input_dominoes)
+>       self.assert_correct_chain(input_dominoes, output_chain)
+
+dominoes_test.py:36: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+dominoes_test.py:123: in assert_correct_chain
+    self.assertIsNotNone(output_chain, msg)
+E   AssertionError: unexpectedly None : There should be a chain for [(1, 2), (1, 3), (2, 3)]
+_______________________ DominoesTest.test_need_backtrack _______________________
+
+self = <dominoes_test.DominoesTest testMethod=test_need_backtrack>
+
+    def test_need_backtrack(self):
+        input_dominoes = [(1, 2), (2, 3), (3, 1), (2, 4), (2, 4)]
+        output_chain = can_chain(input_dominoes)
+>       self.assert_correct_chain(input_dominoes, output_chain)
+
+dominoes_test.py:61: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+dominoes_test.py:123: in assert_correct_chain
+    self.assertIsNotNone(output_chain, msg)
+E   AssertionError: unexpectedly None : There should be a chain for [(1, 2), (2, 3), (3, 1), (2, 4), (2, 4)]
+_______________________ DominoesTest.test_nine_elements ________________________
+
+self = <dominoes_test.DominoesTest testMethod=test_nine_elements>
+
+    def test_nine_elements(self):
+        input_dominoes = [
+            (1, 2),
+            (5, 3),
+            (3, 1),
+            (1, 2),
+            (2, 4),
+            (1, 6),
+            (2, 3),
+            (3, 4),
+            (5, 6),
+        ]
+        output_chain = can_chain(input_dominoes)
+>       self.assert_correct_chain(input_dominoes, output_chain)
+
+dominoes_test.py:81: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+dominoes_test.py:123: in assert_correct_chain
+    self.assertIsNotNone(output_chain, msg)
+E   AssertionError: unexpectedly None : There should be a chain for [(1, 2), (5, 3), (3, 1), (1, 2), (2, 4), (1, 6), (2, 3), (3, 4), (5, 6)]
+_______________________ DominoesTest.test_separate_loops _______________________
+
+self = <dominoes_test.DominoesTest testMethod=test_separate_loops>
+
+    def test_separate_loops(self):
+        input_dominoes = [(1, 2), (2, 3), (3, 1), (1, 1), (2, 2), (3, 3)]
+        output_chain = can_chain(input_dominoes)
+>       self.assert_correct_chain(input_dominoes, output_chain)
+
+dominoes_test.py:66: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+dominoes_test.py:127: in assert_correct_chain
+    self.assert_consecutive_dominoes_match(output_chain)
+dominoes_test.py:111: in assert_consecutive_dominoes_match
+    self.assertEqual(output_chain[i][1], output_chain[i + 1][0], msg)
+E   AssertionError: 2 != 3 : In chain [(1, 2), (2, 2), (3, 2), (3, 3), (1, 3), (1, 1)], right end of domino 1 ((2, 2)) and left end of domino 2 ((3, 2)) must match
+_______________________ DominoesTest.test_three_elements _______________________
+
+self = <dominoes_test.DominoesTest testMethod=test_three_elements>
+
+    def test_three_elements(self):
+        input_dominoes = [(1, 2), (3, 1), (2, 3)]
+        output_chain = can_chain(input_dominoes)
+>       self.assert_correct_chain(input_dominoes, output_chain)
+
+dominoes_test.py:31: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+dominoes_test.py:123: in assert_correct_chain
+    self.assertIsNotNone(output_chain, msg)
+E   AssertionError: unexpectedly None : There should be a chain for [(1, 2), (3, 1), (2, 3)]
+=========================== short test summary info ============================
+FAILED dominoes_test.py::DominoesTest::test_can_reverse_dominoes - AssertionE...
+FAILED dominoes_test.py::DominoesTest::test_need_backtrack - AssertionError: ...
+FAILED dominoes_test.py::DominoesTest::test_nine_elements - AssertionError: u...
+FAILED dominoes_test.py::DominoesTest::test_separate_loops - AssertionError: ...
+FAILED dominoes_test.py::DominoesTest::test_three_elements - AssertionError: ...
+5 failed, 8 passed in 0.02s

@@ -1,0 +1,188 @@
+FFFF.FFFFFFFFF.F                                                         [100%]
+=================================== FAILURES ===================================
+___________________ AffineCipherTest.test_decode_a_sentence ____________________
+
+self = <affine_cipher_test.AffineCipherTest testMethod=test_decode_a_sentence>
+
+    def test_decode_a_sentence(self):
+>       self.assertEqual(
+            decode("qdwju nqcro muwhn odqun oppmd aunwd o", 19, 16),
+            "anobstacleisoftenasteppingstone",
+        )
+E       AssertionError: 'qq\x85k\x87\x81qe}su\x87\x85m\x81sqq\x87\x81s\x7f\x7fuqg\x87\x81\x85qs' != 'anobstacleisoftenasteppingstone'
+E       + anobstacleisoftenasteppingstone
+E       - qq- kqe}su- msqqsuqg- qs
+
+affine_cipher_test.py:53: AssertionError
+_________________ AffineCipherTest.test_decode_all_the_letters _________________
+
+self = <affine_cipher_test.AffineCipherTest testMethod=test_decode_all_the_letters>
+
+    def test_decode_all_the_letters(self):
+>       self.assertEqual(
+            decode("swxtj npvyk lruol iejdc blaxk swxmh qzglf", 17, 33),
+            "thequickbrownfoxjumpsoverthelazydog",
+        )
+E       AssertionError: '\x86~|\x84~vr\x80z|z\x88\x82tz\x80n~prtzv||\x86~|xh\x8a\x92jzl' != 'thequickbrownfoxjumpsoverthelazydog'
+E       - ~|~vrz|ztzn~prtzv||~|xhjzl
+E       + thequickbrownfoxjumpsoverthelazydog
+
+affine_cipher_test.py:62: AssertionError
+____________________ AffineCipherTest.test_decode_exercism _____________________
+
+self = <affine_cipher_test.AffineCipherTest testMethod=test_decode_exercism>
+
+    def test_decode_exercism(self):
+>       self.assertEqual(decode("tytgn fjr", 3, 7), "exercism")
+E       AssertionError: 'x\x90xxpn|~' != 'exercism'
+E       - xxxpn|~
+E       + exercism
+
+affine_cipher_test.py:50: AssertionError
+_____________________ AffineCipherTest.test_decode_numbers _____________________
+
+self = <affine_cipher_test.AffineCipherTest testMethod=test_decode_numbers>
+
+    def test_decode_numbers(self):
+>       self.assertEqual(decode("odpoz ub123 odpoz ub", 25, 7), "testing123testing")
+E       AssertionError: '\x82h\x82\x82\x82\x82h\x82h\x82\x82\x82\x82h' != 'testing123testing'
+E       - hhhh
+E       + testing123testing
+
+affine_cipher_test.py:59: AssertionError
+_____________ AffineCipherTest.test_decode_with_no_spaces_in_input _____________
+
+self = <affine_cipher_test.AffineCipherTest testMethod=test_decode_with_no_spaces_in_input>
+
+    def test_decode_with_no_spaces_in_input(self):
+>       self.assertEqual(
+            decode("swxtjnpvyklruoliejdcblaxkswxmhqzglf", 17, 33),
+            "thequickbrownfoxjumpsoverthelazydog",
+        )
+E       AssertionError: '\x86~|\x84~vr\x80z|z\x88\x82tz\x80n~prtzv||\x86~|xh\x8a\x92jzl' != 'thequickbrownfoxjumpsoverthelazydog'
+E       - ~|~vrz|ztzn~prtzv||~|xhjzl
+E       + thequickbrownfoxjumpsoverthelazydog
+
+affine_cipher_test.py:68: AssertionError
+______________ AffineCipherTest.test_decode_with_too_many_spaces _______________
+
+self = <affine_cipher_test.AffineCipherTest testMethod=test_decode_with_too_many_spaces>
+
+    def test_decode_with_too_many_spaces(self):
+>       self.assertEqual(
+            decode("vszzm    cly   yd cg    qdp", 15, 16), "jollygreengiant"
+        )
+E       AssertionError: '\x7f\x81\x85\x85\x85i}}}qioqq\x83' != 'jollygreengiant'
+E       + jollygreengiant
+E       - - - - i}}}qioqq
+
+affine_cipher_test.py:74: AssertionError
+_________________ AffineCipherTest.test_encode_all_the_letters _________________
+
+self = <affine_cipher_test.AffineCipherTest testMethod=test_encode_all_the_letters>
+
+    def test_encode_all_the_letters(self):
+>       self.assertEqual(
+            encode("The quick brown fox jumps over the lazy dog.", 17, 33),
+            "swxtj npvyk lruol iejdc blaxk swxmh qzglf",
+        )
+E       AssertionError: '\x86 ~ | \x84 ~ v r \x80 z | z \x88 \x82 [51 chars] z l' != 'swxtj npvyk lruol iejdc blaxk swxmh qzglf'
+E       -  ~ |  ~ v r  z | z   t z  n ~ p r t z v | |  ~ | x h   j z l
+E       + swxtj npvyk lruol iejdc blaxk swxmh qzglf
+
+affine_cipher_test.py:38: AssertionError
+__________________ AffineCipherTest.test_encode_deep_thought ___________________
+
+self = <affine_cipher_test.AffineCipherTest testMethod=test_encode_deep_thought>
+
+    def test_encode_deep_thought(self):
+>       self.assertEqual(encode("Truth is fiction.", 5, 17), "iynia fdqfb ifje")
+E       AssertionError: '| \x8a \x82 | h n v v n d | n x r' != 'iynia fdqfb ifje'
+E       - |   | h n v v n d | n x r
+E       + iynia fdqfb ifje
+
+affine_cipher_test.py:35: AssertionError
+__________________ AffineCipherTest.test_encode_mindblowingly __________________
+
+self = <affine_cipher_test.AffineCipherTest testMethod=test_encode_mindblowingly>
+
+    def test_encode_mindblowingly(self):
+>       self.assertEqual(encode("mindblowingly", 11, 15), "rzcwa gnxzc dgt")
+E       AssertionError: '~ \x82 p z b r | \x8e \x82 p j r \x8c' != 'rzcwa gnxzc dgt'
+E       - ~  p z b r |   p j r 
+E       + rzcwa gnxzc dgt
+
+affine_cipher_test.py:27: AssertionError
+_______________________ AffineCipherTest.test_encode_no ________________________
+
+self = <affine_cipher_test.AffineCipherTest testMethod=test_encode_no>
+
+    def test_encode_no(self):
+>       self.assertEqual(encode("no", 15, 18), "fu")
+E       AssertionError: 's \x83' != 'fu'
+E       - s 
+E       + fu
+
+affine_cipher_test.py:18: AssertionError
+_____________________ AffineCipherTest.test_encode_numbers _____________________
+
+self = <affine_cipher_test.AffineCipherTest testMethod=test_encode_numbers>
+
+    def test_encode_numbers(self):
+>       self.assertEqual(
+            encode("Testing,1 2 3, testing.", 3, 4), "jqgjc rw123 jqgjc rw"
+        )
+E       AssertionError: '} u y } k \x7f } } u y } k \x7f }' != 'jqgjc rw123 jqgjc rw'
+E       - } u y } k  } } u y } k  }
+E       + jqgjc rw123 jqgjc rw
+
+affine_cipher_test.py:30: AssertionError
+______________________ AffineCipherTest.test_encode_o_m_g ______________________
+
+self = <affine_cipher_test.AffineCipherTest testMethod=test_encode_o_m_g>
+
+    def test_encode_o_m_g(self):
+>       self.assertEqual(encode("O M G", 25, 47), "hjp")
+E       AssertionError: 'v v v' != 'hjp'
+E       - v v v
+E       + hjp
+
+affine_cipher_test.py:24: AssertionError
+_______________________ AffineCipherTest.test_encode_omg _______________________
+
+self = <affine_cipher_test.AffineCipherTest testMethod=test_encode_omg>
+
+    def test_encode_omg(self):
+>       self.assertEqual(encode("OMG", 21, 3), "lvz")
+E       AssertionError: 'z \x82 \x80' != 'lvz'
+E       - z  
+E       + lvz
+
+affine_cipher_test.py:21: AssertionError
+_______________________ AffineCipherTest.test_encode_yes _______________________
+
+self = <affine_cipher_test.AffineCipherTest testMethod=test_encode_yes>
+
+    def test_encode_yes(self):
+>       self.assertEqual(encode("yes", 5, 7), "xbt")
+E       AssertionError: '\x90 f \x86' != 'xbt'
+E       -  f 
+E       + xbt
+
+affine_cipher_test.py:15: AssertionError
+=========================== short test summary info ============================
+FAILED affine_cipher_test.py::AffineCipherTest::test_decode_a_sentence - Asse...
+FAILED affine_cipher_test.py::AffineCipherTest::test_decode_all_the_letters
+FAILED affine_cipher_test.py::AffineCipherTest::test_decode_exercism - Assert...
+FAILED affine_cipher_test.py::AffineCipherTest::test_decode_numbers - Asserti...
+FAILED affine_cipher_test.py::AffineCipherTest::test_decode_with_no_spaces_in_input
+FAILED affine_cipher_test.py::AffineCipherTest::test_decode_with_too_many_spaces
+FAILED affine_cipher_test.py::AffineCipherTest::test_encode_all_the_letters
+FAILED affine_cipher_test.py::AffineCipherTest::test_encode_deep_thought - As...
+FAILED affine_cipher_test.py::AffineCipherTest::test_encode_mindblowingly - A...
+FAILED affine_cipher_test.py::AffineCipherTest::test_encode_no - AssertionErr...
+FAILED affine_cipher_test.py::AffineCipherTest::test_encode_numbers - Asserti...
+FAILED affine_cipher_test.py::AffineCipherTest::test_encode_o_m_g - Assertion...
+FAILED affine_cipher_test.py::AffineCipherTest::test_encode_omg - AssertionEr...
+FAILED affine_cipher_test.py::AffineCipherTest::test_encode_yes - AssertionEr...
+14 failed, 2 passed in 0.02s

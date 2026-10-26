@@ -1,0 +1,62 @@
+# The harness epoch (DESIGN §6.5): what the capability leg snapshots and what it re-checks live.
+#
+# capability/epoch.py hashes the content these pins select (git tree hashes of the snapshotted
+# directories, config bytes, uv.lock files, the live SHAs and versions, the data commits) into the
+# epoch id below. Changing any pinned input is a new epoch, and a new epoch means a new reference
+# capability run (DESIGN §7). Make it a deliberate edit: change the pin, run
+# `modeleval.capability.epoch.create_epoch(...)`, then write the id it returns here.
+
+[epoch]
+id = "7582825160ad"                                   # 2026-10-26 07:1x: localmelo 3b8f310 in the pipeline clone
+
+# Snapshotted with `git archive` into vendor/<epoch>/ (both repos belong to other sessions)
+[snapshot.personal_agent_bench]
+repo = "~/Developer/mlsys/experiments/personal-agent-bench"
+sha = "3ea190e25fe3114e48308ae77cd7468d4cb80036"   # HEAD on 2026-10-26; bench/ tree 40152a3f
+
+[snapshot.harness_smoke]
+repo = "~/Developer/mlsys/experiments/harness-smoke"
+sha = "abddd26190f5e734b98d26f86c23a28a7e0af051"   # HEAD on 2026-10-26; smoke/ a9b62dbe, shims/ bb008bb6
+
+# Copied once per epoch into vendor/<epoch>/configs (relative to agent_root)
+[configs]
+agent_root = "~/Developer/mlsys/agent"
+claude_env = "configs/claude-code/claude-code.env"
+claude_settings = "homes/claude-code/settings.json"
+hermes_home = "homes/hermes"                        # tools/ and installs/ stay links to this live store
+
+# Live parts, re-checked before every task
+[localmelo]
+# The pipeline's own clone (vendor/, gitignored; no remote), so the agent bench moving its worktree
+# cannot stop a leg: it moved c295ce2 -> 3b8f310 (U1a, #37) at 07:03 on 2026-10-26, mid-run. The venv
+# is `uv sync --frozen --all-extras` from the clone's uv.lock: the same package versions as the bench's.
+repo = "~/Developer/mlsys/experiments/agent-model-eval/vendor/localmelo"
+sha = "3b8f310ee68714497bc3a08805c061ad73a106a8"
+dist = "localmelo"                                  # .venv/bin/melo must be an editable install of repo
+
+[hermes]
+repo = "~/Developer/mlsys/agent/hermes-agent"
+tag = "v0.22.2"
+sha = "d923a5eb487a17c0a68801bba9ef0f56c81040a8"
+bin = "~/Developer/mlsys/agent/.venv/bin/hermes"
+dist = "hermes_agent"
+
+[claude_code]
+version = "2.1.302"
+bin = "~/.local/share/claude/versions/2.1.302"
+
+# Task data (fetched by harness-smoke's scripts/fetch_data.py into ml_source)
+[data]
+root = "~/Developer/ml_source/datasets"
+aider_polyglot = "7e0611e77b54e2dea774cdc0aa00cf9f7ed6144f"
+mcpmark = "cd45b7f57923b9b3985467f5139927575f83141c"
+
+# Pipeline-owned environments (relative to this repo)
+[envs]
+capability = "envs/capability"                      # Python 3.13: the runner and the recorder proxy
+agent_tools = "envs/agent-tools"                    # pytest only: the agents' PATH and the checkers
+shims = "envs/agent-tools/shims"                    # pip, pip3, uv, uvx fail on the agents' PATH
+
+[workspace]
+# One fixed path for every model and run: it is part of every task prompt (prompt_sha256)
+ws_root = "~/Developer/mlsys/experiments/agent-model-eval-ws"

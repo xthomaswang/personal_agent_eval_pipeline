@@ -1,0 +1,127 @@
+.F.F.F.F....                                                             [100%]
+=================================== FAILURES ===================================
+____________ TransposeTest.test_first_line_longer_than_second_line _____________
+
+self = <transpose_test.TransposeTest testMethod=test_first_line_longer_than_second_line>
+
+    def test_first_line_longer_than_second_line(self):
+        text = "The fourth line.\nThe fifth line."
+        expected = "TT\nhh\nee\n  \nff\noi\nuf\nrt\nth\nh \n l\nli\nin\nne\ne.\n."
+    
+>       self.assertEqual(transpose(text), expected)
+E       AssertionError: 'TT\nhh\nee\n\nff\noi\nuf\nrt\nth\nh\n l\nli\nin\nne\ne.\n.' != 'TT\nhh\nee\n  \nff\noi\nuf\nrt\nth\nh \n l\nli\nin\nne\ne.\n.'
+E         TT
+E         hh
+E         ee
+E       - 
+E       +   
+E         ff
+E         oi
+E         uf
+E         rt
+E         th
+E       - h
+E       + h 
+E       ?  +
+E          l
+E         li
+E         in
+E         ne
+E         e.
+E         .
+
+transpose_test.py:47: AssertionError
+_____________________ TransposeTest.test_mixed_line_length _____________________
+
+self = <transpose_test.TransposeTest testMethod=test_mixed_line_length>
+
+    def test_mixed_line_length(self):
+        text = "The longest line.\nA long line.\nA longer line.\nA line."
+        expected = "TAAA\nh   \nelll\n ooi\nlnnn\nogge\nn e.\nglr\nei \nsnl\ntei\n .n\nl e\ni .\nn\ne\n."
+    
+>       self.assertEqual(transpose(text), expected)
+E       AssertionError: 'TAAA\nh\nelll\n ooi\nlnnn\nogge\nn e.\nglr\nei\n[28 chars]e\n.' != 'TAAA\nh   \nelll\n ooi\nlnnn\nogge\nn e.\nglr\ne[32 chars]e\n.'
+E         TAAA
+E       - h
+E       + h   
+E         elll
+E          ooi
+E         lnnn
+E         ogge
+E         n e.
+E         glr
+E       - ei
+E       + ei 
+E       ?   +
+E         snl
+E         tei
+E          .n
+E         l e
+E         i .
+E         n
+E         e
+E         .
+
+transpose_test.py:59: AssertionError
+____________ TransposeTest.test_second_line_longer_than_first_line _____________
+
+self = <transpose_test.TransposeTest testMethod=test_second_line_longer_than_first_line>
+
+    def test_second_line_longer_than_first_line(self):
+        text = "The first line.\nThe second line."
+        expected = "TT\nhh\nee\n  \nfs\nie\nrc\nso\ntn\n d\nl \nil\nni\nen\n.e\n ."
+    
+>       self.assertEqual(transpose(text), expected)
+E       AssertionError: 'TT\nhh\nee\n\nfs\nie\nrc\nso\ntn\n d\nl\nil\nni\nen\n.e\n .' != 'TT\nhh\nee\n  \nfs\nie\nrc\nso\ntn\n d\nl \nil\nni\nen\n.e\n .'
+E         TT
+E         hh
+E         ee
+E       - 
+E       +   
+E         fs
+E         ie
+E         rc
+E         so
+E         tn
+E          d
+E       - l
+E       + l 
+E       ?  +
+E         il
+E         ni
+E         en
+E         .e
+E          .
+
+transpose_test.py:53: AssertionError
+________________________ TransposeTest.test_single_line ________________________
+
+self = <transpose_test.TransposeTest testMethod=test_single_line>
+
+    def test_single_line(self):
+        text = "Single line."
+        expected = "S\ni\nn\ng\nl\ne\n \nl\ni\nn\ne\n."
+    
+>       self.assertEqual(transpose(text), expected)
+E       AssertionError: 'S\ni\nn\ng\nl\ne\n\nl\ni\nn\ne\n.' != 'S\ni\nn\ng\nl\ne\n \nl\ni\nn\ne\n.'
+E         S
+E         i
+E         n
+E         g
+E         l
+E         e
+E       - 
+E       +  
+E         l
+E         i
+E         n
+E         e
+E         .
+
+transpose_test.py:41: AssertionError
+=========================== short test summary info ============================
+FAILED transpose_test.py::TransposeTest::test_first_line_longer_than_second_line
+FAILED transpose_test.py::TransposeTest::test_mixed_line_length - AssertionEr...
+FAILED transpose_test.py::TransposeTest::test_second_line_longer_than_first_line
+FAILED transpose_test.py::TransposeTest::test_single_line - AssertionError: '...
+4 failed, 8 passed in 0.01s

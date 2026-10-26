@@ -1,0 +1,23 @@
+{
+  "run_id": "aider__paasio",
+  "harness": "hermes",
+  "workspace": "~/Developer/mlsys/experiments/agent-model-eval-ws/aider__paasio",
+  "started_at": 1793020602.444865,
+  "exit_code": 0,
+  "timed_out": false,
+  "wall_s": 57.463,
+  "harness_args": [],
+  "steps": {
+    "n_llm": 8,
+    "n_llm_aux": 0,
+    "n_llm_err": 0,
+    "n_llm_post_submit": 0,
+    "n_tool": 9,
+    "images_new_sum": 0
+  },
+  "harness_report": {
+    "tool_use_events": 9,
+    "api_call_count": 8,
+    "exit_code": 0
+  }
+}

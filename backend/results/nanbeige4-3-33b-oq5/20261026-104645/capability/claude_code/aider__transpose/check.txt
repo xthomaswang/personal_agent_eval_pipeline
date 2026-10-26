@@ -1,0 +1,192 @@
+.FFF.F...F..                                                             [100%]
+=================================== FAILURES ===================================
+____________ TransposeTest.test_first_line_longer_than_second_line _____________
+
+self = <transpose_test.TransposeTest testMethod=test_first_line_longer_than_second_line>
+
+    def test_first_line_longer_than_second_line(self):
+        text = "The fourth line.\nThe fifth line."
+        expected = "TT\nhh\nee\n  \nff\noi\nuf\nrt\nth\nh \n l\nli\nin\nne\ne.\n."
+    
+>       self.assertEqual(transpose(text), expected)
+E       AssertionError: 'T \nhT\neh\n e\nf \nof\nui\nrf\ntt\nhh\n  \nll\nii\nnn\nee\n..' != 'TT\nhh\nee\n  \nff\noi\nuf\nrt\nth\nh \n l\nli\nin\nne\ne.\n.'
+E       + TT
+E       - T 
+E       - hT
+E       - eh
+E       -  e
+E       - f 
+E       - of
+E       - ui
+E       - rf
+E       - tt
+E         hh
+E       + ee
+E           
+E       - ll
+E       - ii
+E       - nn
+E       - ee
+E       + ff
+E       + oi
+E       + uf
+E       + rt
+E       + th
+E       + h 
+E       +  l
+E       + li
+E       + in
+E       + ne
+E       + e.
+E       - ..
+E       ? -
+E       + .
+
+transpose_test.py:47: AssertionError
+______________________ TransposeTest.test_jagged_triangle ______________________
+
+self = <transpose_test.TransposeTest testMethod=test_jagged_triangle>
+
+    def test_jagged_triangle(self):
+        text = "11\n2\n3333\n444\n555555\n66666"
+        expected = "123456\n1 3456\n  3456\n  3 56\n    56\n    5"
+    
+>       self.assertEqual(transpose(text), expected)
+E       AssertionError: '    5 \n    56\n  3 56\n  3456\n1 3456\n123456' != '123456\n1 3456\n  3456\n  3 56\n    56\n    5'
+E       -     5 
+E       + 123456
+E       + 1 3456
+E       +   3456
+E       +   3 56
+E             56
+E       -   3 56
+E       ?   ^  -
+E       +     5
+E       ?   ^
+E       -   3456
+E       - 1 3456
+E       - 123456
+
+transpose_test.py:83: AssertionError
+_____________________ TransposeTest.test_mixed_line_length _____________________
+
+self = <transpose_test.TransposeTest testMethod=test_mixed_line_length>
+
+    def test_mixed_line_length(self):
+        text = "The longest line.\nA long line.\nA longer line.\nA line."
+        expected = "TAAA\nh   \nelll\n ooi\nlnnn\nogge\nn e.\nglr\nei \nsnl\ntei\n .n\nl e\ni .\nn\ne\n."
+    
+>       self.assertEqual(transpose(text), expected)
+E       AssertionError: 'T   \nh   \ne   \n  A \nl   \noAl \nn o \n[54 chars]....' != 'TAAA\nh   \nelll\n ooi\nlnnn\nogge\nn e.\n[38 chars]e\n.'
+E       - T   
+E       + TAAA
+E         h   
+E       - e   
+E       -   A 
+E       - l   
+E       - oAl 
+E       - n o 
+E       - gln 
+E       - eog 
+E       - sne 
+E       - tgrA
+E       -     
+E       - llll
+E       ? ^
+E       + elll
+E       ? ^
+E       - iiii
+E       +  ooi
+E       - nnnn
+E       ? ^
+E       + lnnn
+E       ? ^
+E       - eeee
+E       - ....
+E       + ogge
+E       + n e.
+E       + glr
+E       + ei 
+E       + snl
+E       + tei
+E       +  .n
+E       + l e
+E       + i .
+E       + n
+E       + e
+E       + .
+
+transpose_test.py:59: AssertionError
+____________ TransposeTest.test_second_line_longer_than_first_line _____________
+
+self = <transpose_test.TransposeTest testMethod=test_second_line_longer_than_first_line>
+
+    def test_second_line_longer_than_first_line(self):
+        text = "The first line.\nThe second line."
+        expected = "TT\nhh\nee\n  \nfs\nie\nrc\nso\ntn\n d\nl \nil\nni\nen\n.e\n ."
+    
+>       self.assertEqual(transpose(text), expected)
+E       AssertionError: ' T\nTh\nhe\ne \n s\nfe\nic\nro\nsn\ntd\n  \nll\nii\nnn\nee\n..' != 'TT\nhh\nee\n  \nfs\nie\nrc\nso\ntn\n d\nl \nil\nni\nen\n.e\n .'
+E       + TT
+E       + hh
+E       + ee
+E       -  T
+E       - Th
+E       - he
+E       - e 
+E       -  s
+E       - fe
+E       - ic
+E       - ro
+E       - sn
+E       - td
+E           
+E       - ll
+E       - ii
+E       - nn
+E       - ee
+E       - ..
+E       + fs
+E       + ie
+E       + rc
+E       + so
+E       + tn
+E       +  d
+E       + l 
+E       + il
+E       + ni
+E       + en
+E       + .e
+E       +  .
+
+transpose_test.py:53: AssertionError
+_________________________ TransposeTest.test_triangle __________________________
+
+self = <transpose_test.TransposeTest testMethod=test_triangle>
+
+    def test_triangle(self):
+        text = "T\nEE\nAAA\nSSSS\nEEEEE\nRRRRRR"
+        expected = "TEASER\n EASER\n  ASER\n   SER\n    ER\n     R"
+    
+>       self.assertEqual(transpose(text), expected)
+E       AssertionError: '     R\n    ER\n   SER\n  ASER\n EASER\nTEASER' != 'TEASER\n EASER\n  ASER\n   SER\n    ER\n     R'
+E       + TEASER
+E       +  EASER
+E       +   ASER
+E       +    SER
+E       +     ER
+E              R
+E       -     ER
+E       -    SER
+E       -   ASER
+E       -  EASER
+E       - TEASER
+
+transpose_test.py:77: AssertionError
+=========================== short test summary info ============================
+FAILED transpose_test.py::TransposeTest::test_first_line_longer_than_second_line
+FAILED transpose_test.py::TransposeTest::test_jagged_triangle - AssertionErro...
+FAILED transpose_test.py::TransposeTest::test_mixed_line_length - AssertionEr...
+FAILED transpose_test.py::TransposeTest::test_second_line_longer_than_first_line
+FAILED transpose_test.py::TransposeTest::test_triangle - AssertionError: '   ...
+5 failed, 7 passed in 0.01s

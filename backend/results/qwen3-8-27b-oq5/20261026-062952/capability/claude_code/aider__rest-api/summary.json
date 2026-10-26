@@ -1,0 +1,25 @@
+{
+  "run_id": "aider__rest-api",
+  "harness": "claude_code",
+  "workspace": "~/Developer/mlsys/experiments/agent-model-eval-ws/aider__rest-api",
+  "started_at": 1793017647.9042869,
+  "exit_code": 0,
+  "timed_out": false,
+  "wall_s": 82.29,
+  "harness_args": [],
+  "steps": {
+    "n_llm": 10,
+    "n_llm_aux": 0,
+    "n_llm_err": 0,
+    "n_llm_post_submit": 0,
+    "n_tool": 10,
+    "images_new_sum": 0
+  },
+  "harness_report": {
+    "num_turns": 11,
+    "subtype": "success",
+    "is_error": false,
+    "permission_denials": 0,
+    "duration_ms": 82077
+  }
+}
