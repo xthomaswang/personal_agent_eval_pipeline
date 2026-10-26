@@ -8,6 +8,7 @@ reader:
   max_tokens: 200
   reps: 3
   date: '2026-10-26'
+  server: oMLX v0.7.1rc1-1-g57620a3f
   macos_build: 26B5101f
   xcode_build: 27A9275
 errors: 0
