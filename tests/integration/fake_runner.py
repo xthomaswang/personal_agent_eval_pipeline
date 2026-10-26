@@ -3,12 +3,14 @@
 Unlike tests/core/fakes/fake_capability.py it checks what it was given with the real runner's own
 code: `runner.spec_problems(spec)` on the spec.json run.py wrote and `runner.forbidden_names` on the
 environment `allowed_env` built. It then writes state.json and results.json the way the runner does
-(two records, flags null, results through export.write_results) and exits. Its knobs are BENCH_*
+(two records, flags null unless BENCH_FAKE_RUNNER_MEMKILL, results through export.write_results) and exits. Its knobs are BENCH_*
 variables because nothing else passes the runner's environment allowlist.
 
   BENCH_FAKE_RUNNER_LOG      JSON lines: what it saw (spec problems, forbidden names, PATH, argv)
   BENCH_FAKE_RUNNER_EXIT     exit code (default 0); with 75 it writes yield.json with BENCH_FAKE_RUNNER_REASON
   BENCH_FAKE_RUNNER_DISTURB  a file it creates during its scored task (the fake monitor marks those rows)
+  BENCH_FAKE_RUNNER_MEMKILL  any value: its scored task's flags start with a memory watchdog kill, as the
+                             runner's do (the orchestrator must keep it and add its own flags)
 """
 from __future__ import annotations
 
@@ -21,7 +23,7 @@ from pathlib import Path
 from modeleval.capability import export, runner
 
 
-def task(name: str, scored: bool, disturb: str | None = None) -> dict:
+def task(name: str, scored: bool, disturb: str | None = None, flags: dict | None = None) -> dict:
     t0 = time.time()
     if disturb:
         Path(disturb).touch()
@@ -30,7 +32,7 @@ def task(name: str, scored: bool, disturb: str | None = None) -> dict:
         Path(disturb).unlink()
     return {"set": "gate", "harness": "claude_code", "task": name, "kind": "aider", "scored": scored,
             "attempt": 1, "run_dir": f"claude_code/{name}", "launch": 1, "verdict": "pass", "valid": True,
-            "solved": True, "t_start": round(t0, 3), "t_end": round(time.time(), 3), "flags": None,
+            "solved": True, "t_start": round(t0, 3), "t_end": round(time.time(), 3), "flags": flags,
             "anomalies": []}
 
 
@@ -48,7 +50,10 @@ def main() -> int:
     (run_root / "yield.json").unlink(missing_ok=True)
     records = [task("hello-warmup", False)]
     time.sleep(1.5)                      # a gap, so the warm-up's window never sees the disturbance
-    records.append(task("transpose", True, os.environ.get("BENCH_FAKE_RUNNER_DISTURB")))
+    kill = {"pid": 4242, "cmdline": "python3 -c 'while True: ...'", "footprint_gib": 8.5, "t": time.time(),
+            "limit": "process"}
+    flags = {"memory_kills": [kill]} if os.environ.get("BENCH_FAKE_RUNNER_MEMKILL") else None
+    records.append(task("transpose", True, os.environ.get("BENCH_FAKE_RUNNER_DISTURB"), flags))
     (run_root / "state.json").write_text(json.dumps({"records": records, "meta": {"hygiene": []}}, indent=1) + "\n")
     export.write_results(Path(spec["results"]), {
         "schema_version": 1, "model": spec["model"]["key"], "epoch": spec["epoch"], "sets": spec["sets"],

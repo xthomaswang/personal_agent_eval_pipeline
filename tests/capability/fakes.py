@@ -6,7 +6,9 @@
   a test hook in the runner: the real bench.harness builders, env-file sourcing, Hermes home copy
   and config rewrite, and localmelo argument insertion all run. Each fake reads its endpoint and
   model the way the real harness does, makes two tool calls through the recorder proxy, records what
-  it saw (argv, environment) in its run directory, and then does what its mode says.
+  it saw (argv, environment) in its run directory, and then does what its mode says ("memory-hog":
+  a command that allocates 0.4 GiB page by page and holds it, then a solution; fake_hog.json records the
+  command's pid and exit code).
 - A "world": small git repos for hermes-agent (tagged v0.22.2) and the localmelo worktree, an agent
   root with byte copies of the live Claude Code config files and a minimal Hermes home, and pins
   that point at them. personal-agent-bench and harness-smoke are the live repos, read only through
@@ -93,8 +95,17 @@ server.serve_forever()
 '''
 
 FAKE_AGENT = r'''
-import json, os, re, shutil, signal, sys, time, urllib.request
+import json, os, re, shutil, signal, subprocess, sys, time, urllib.request
 from pathlib import Path
+
+HOG = """
+import os, sys, time
+size = int(float(sys.argv[1]) * 2**30)
+block = bytearray(size)
+for i in range(0, size, os.sysconf("SC_PAGESIZE")):
+    block[i] = 1
+time.sleep(float(sys.argv[2]))
+"""
 
 CONF = json.loads(Path(CONF_PATH).read_text())
 argv = sys.argv[1:]
@@ -147,7 +158,10 @@ if mode == "sleep":
 if mode == "kill-server":
     os.kill(int(Path(CONF["server_pid_file"]).read_text()), signal.SIGKILL)
     time.sleep(0.5)
-if mode in ("solve", "wrong-model", "self-timeout-solved"):
+if mode == "memory-hog":  # the agent's command runs away; the runner's memory watchdog should kill it
+    hog = subprocess.Popen([sys.executable, "-I", "-c", HOG, "0.4", "60"])
+    (run_dir / "fake_hog.json").write_text(json.dumps({"pid": hog.pid, "returncode": hog.wait()}))
+if mode in ("solve", "wrong-model", "self-timeout-solved", "memory-hog"):
     if slug == "warmup":
         (ws / "warmup.txt").write_text("ready\n")
     elif slug.startswith("aider__"):

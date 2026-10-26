@@ -186,7 +186,9 @@ envs/capability/.venv/bin/python -I -B -m modeleval.capability.runner --spec <ru
 ```
 
 with `cwd=REPO`, an allowlisted environment (DESIGN §6.2; built by `capability.runner.allowed_env(os.environ, extra)`,
-which the orchestrator imports, with this repo's own `.venv/bin` removed from PATH), and `sys.path` coming from the
+which the orchestrator imports, with this repo's own `.venv/bin` removed from PATH; `MODELEVAL_AGENT_PROC_LIMIT_GB`
+and `MODELEVAL_AGENT_TREE_LIMIT_GB` override the memory watchdog's limits in GiB, and a bad value is a preflight
+refusal), and `sys.path` coming from the
 environment's editable install of `src/` (`-I` drops the working directory). `spec.json`:
 
 ```json
@@ -206,12 +208,14 @@ Runner exit codes: 0 done; 75 yield, with `<run_root>/yield.json` = `{"reason": 
 "hold" | "drift", "detail", "at", "exit_code"}` (state saved; the orchestrator pauses for the battery, waits for
 the hold, or stops resumably on drift, then restarts with resume); 76 server lost (the orchestrator relaunches,
 then restarts with resume); 2 preflight refused; 1 error. The runner prints TASK-START / TASK-DONE progress
-lines, keeps every run in `<run_root>/state.json`, and writes `results.json` (rows, superseded attempts and
+lines (TASK-DONE with `memory_kills=N`), keeps every run in `<run_root>/state.json`, and writes `results.json` (rows, superseded attempts and
 warm-ups) and each run's allowlisted files after every task, through `capability/export.py`.
 
-Rows carry `flags: null` and `t_start`/`t_end`. After every runner exit the orchestrator fills `flags` from
-`QuietGuard.flags(t_start, t_end)` into `state.json` (so the runner's later rewrites keep them) and into
-`results.json` (through `export.write_results`).
+Rows carry `flags: null` and `t_start`/`t_end`; when the memory watchdog (`capability/memwatch.py`, DESIGN §6.1)
+killed something during the task, `flags` starts as `{"memory_kills": [{"pid", "cmdline", "footprint_gib", "t",
+"limit": "process" | "tree"}]}`. After every runner exit the orchestrator adds `QuietGuard.flags(t_start, t_end)`
+to every row whose flags have no `disturbed` yet, keeping `memory_kills`, into `state.json` (so the runner's later
+rewrites keep them) and into `results.json` (through `export.write_results`).
 
 `capability/epoch.py`: `create_epoch(pab_sha, smoke_sha, *, pins_raw=None, vendor_root=VENDOR) -> str`,
 `load_epoch(id, vendor_root=VENDOR)`, `verify_live(epoch) -> list[str]` (problems; empty = ok),

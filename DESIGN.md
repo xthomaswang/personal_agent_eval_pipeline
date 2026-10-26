@@ -276,6 +276,14 @@ The three harnesses come from personal-agent-bench's `bench.harness` (and its pr
 - **Health checks.** Before each task: server PID tree alive and `GET /v1/models` answers; battery; hold.
   After each task: scan its `calls.jsonl` for upstream errors. A dead server stops the leg, relaunches
   the same configuration with a warm-up, marks the task `server_lost` and runs it again.
+- **Memory watchdog** (since 2026-10-26). While each task runs, `capability/memwatch.py` reads every
+  second the phys_footprint (compressed and swapped pages included) of every process in the harness's and
+  the checker's trees and SIGKILLs any process above 8 GiB, or the largest descendants while the tree is
+  above 16 GiB (`MODELEVAL_AGENT_PROC_LIMIT_GB`, `MODELEVAL_AGENT_TREE_LIMIT_GB`); the proxy and the server
+  are outside the tree, and the task goes on with its verdict unchanged. Why: on 2026-10-26, 12:39-12:57,
+  scripts an agent wrote in claude_code/aider/variable-length-quantity (Nanbeige4.3-33B) grew until the
+  compressor held ~60 GB more and memory pressure reached level 4 ("Your system has run out of application
+  memory"), where macOS could have killed the model server or other users' sessions.
 - **Claude Code config.** Per-run copies of `agent/configs/claude-code/claude-code.env` and
   `agent/homes/claude-code/settings.json` from the epoch snapshot, byte copies with only these variables
   replaced by name: `ANTHROPIC_MODEL`, `ANTHROPIC_DEFAULT_{OPUS,SONNET,HAIKU}_MODEL`,
@@ -300,7 +308,8 @@ The three harnesses come from personal-agent-bench's `bench.harness` (and its pr
 
 - The runner starts with an **allowlisted environment**: PATH, HOME, USER, LOGNAME, SHELL, TMPDIR, TERM,
   LANG, LC_*, HF_HOME, NVM_DIR, the pipeline's BENCH_*, OMLX_*, PAB_ROOT, HARNESS_SMOKE_DATA,
-  PYTHONDONTWRITEBYTECODE, GIT_OPTIONAL_LOCKS. `DEVELOPER_DIR` is dropped (the manifest records the
+  PYTHONDONTWRITEBYTECODE, GIT_OPTIONAL_LOCKS, the watchdog's MODELEVAL_AGENT_PROC_LIMIT_GB and
+  MODELEVAL_AGENT_TREE_LIMIT_GB (§6.1). `DEVELOPER_DIR` is dropped (the manifest records the
   global Xcode). At start it asserts that no variable matching `CLAUDE*`, `ANTHROPIC*`, `OPENAI*`,
   `*TOKEN*`, `*_KEY` is present, and records the sorted variable names. `CLAUDE_CONFIG_DIR` and
   `HERMES_HOME` point to scratch directories for the whole process (the manifest's version probes
@@ -342,6 +351,13 @@ The three harnesses come from personal-agent-bench's `bench.harness` (and its pr
   verdict still comes from the checker, the run is flagged, and the report shows a per-model anomaly count.
 - Every task records the flagged samples (with the §5.4 severity and the major and minor counts), peak
   foreign CPU and battery minimum that overlapped it (flags only).
+- Kills by the memory watchdog (§6.1) go into the row's flags as `memory_kills` (pid, command line,
+  footprint, time, limit) and onto `TASK-DONE` as `memory_kills=N`. The Qwen3.8-27B reference run
+  (20261026-062952) had no watchdog. Its memory.tsv shows pressure at most 1, but two runaways the watchdog
+  would almost certainly have killed, both on failed claude_code ranking rows: aider/sgf-parsing (the
+  checker's pytest, compressor +24 GB, ended by the checker's 180 s timeout, so the verdict cannot change)
+  and aider/two-bucket (the agent's `timeout 60 python3 -m unittest`, compressor +43 GB, 6420 swap-outs;
+  the agent would have seen it killed sooner). Its other rows show no such growth and stay comparable.
 
 ### 6.5 Harness epoch
 
@@ -464,6 +480,7 @@ agent-model-eval/
       epoch.py             snapshot, hashes, live re-checks
       runner.py            runs in envs/capability; task loop, adapters of §6.1-6.2
       checks.py            calls.jsonl checks, verdict mapping
+      memwatch.py          memory watchdog over the harness's and checker's process trees (§6.1)
       export.py            allowlisted export into results/
     stats.py               per-task sign tests, minimum detectable difference, Wilson intervals
     report.py              RESULTS.md

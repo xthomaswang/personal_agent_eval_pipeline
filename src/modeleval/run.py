@@ -981,9 +981,10 @@ class Run:
     def flag_tasks(self) -> None:
         """DESIGN §6.4: every capability task records the flagged samples (severity and major/minor counts,
         §5.4), peak foreign CPU and battery minimum that overlapped it (flags only; nothing is repeated,
-        whatever the severity). The runner leaves `flags` null,
-        since the monitor belongs to this process. They go into the runner's state.json, so that its
-        later rewrites of results.json keep them, and into results.json now (through the exporter)."""
+        whatever the severity). The runner leaves `flags` null, since the monitor belongs to this
+        process, or starts them with its memory watchdog's `memory_kills` (§6.1), which are kept. They go
+        into the runner's state.json, so that its later rewrites of results.json keep them, and into
+        results.json now (through the exporter)."""
         try:
             self._flag_tasks()
         except Exception as e:  # noqa: BLE001 - flags never stop the leg
@@ -998,8 +999,9 @@ class Run:
         guard = self.guard or quiet.QuietGuard(self.results, [])
         new, by_run = 0, {}
         for r in state.get("records", []):
-            if r.get("flags") is None and r.get("t_start") and r.get("t_end"):
-                r["flags"] = guard.flags(float(r["t_start"]), float(r["t_end"]))
+            own = r.get("flags")
+            if (own is None or "disturbed" not in own) and r.get("t_start") and r.get("t_end"):
+                r["flags"] = {**guard.flags(float(r["t_start"]), float(r["t_end"])), **(own or {})}
                 new += 1
             if r.get("run_dir") and r.get("flags") is not None:
                 by_run[r["run_dir"]] = r["flags"]

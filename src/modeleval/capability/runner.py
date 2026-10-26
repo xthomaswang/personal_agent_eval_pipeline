@@ -13,7 +13,8 @@ then restart with resume); 2 preflight refused; 1 error.
 Why the runner owns the task loop instead of calling smoke.runner.run_suite: it gives yield points
 between tasks, lets a restart skip pairs that already have a valid verdict, and lets a retry get a
 new run directory (bench.harness refuses an existing one). Each task is still exactly
-smoke.runner.run_one, so workspaces, prompts and checkers are harness-smoke's.
+smoke.runner.run_one, so workspaces, prompts and checkers are harness-smoke's. It runs under the memory
+watchdog of memwatch.py (DESIGN §6.1), which kills runaway processes the agents or the checker start.
 
 What is changed in the vendored code at run time (no snapshot file is edited):
 - every location-derived constant of bench.manifest, bench.harness, smoke.paths and smoke.adapters
@@ -57,7 +58,7 @@ from types import ModuleType, SimpleNamespace
 from typing import Any
 
 from modeleval import paths, progress
-from modeleval.capability import checks, export
+from modeleval.capability import checks, export, memwatch
 from modeleval.capability import epoch as epochs
 
 EXIT_DONE, EXIT_ERROR, EXIT_PREFLIGHT, EXIT_YIELD, EXIT_SERVER_LOST = 0, 1, 2, 75, 76
@@ -88,6 +89,7 @@ TEMPLATE_ERROR_PATTERNS = ("Chat template rendering failed", "Chat template erro
 ALLOWED_NAMES = frozenset({
     "PATH", "HOME", "USER", "LOGNAME", "SHELL", "TMPDIR", "TERM", "LANG", "HF_HOME", "NVM_DIR",
     "PAB_ROOT", "HARNESS_SMOKE_DATA", "PYTHONDONTWRITEBYTECODE", "GIT_OPTIONAL_LOCKS",
+    memwatch.PROC_LIMIT_ENV, memwatch.TREE_LIMIT_ENV,
 })  # fmt: skip
 ALLOWED_PREFIXES = ("LC_", "BENCH_", "OMLX_")
 FORBIDDEN_PATTERNS = ("CLAUDE*", "ANTHROPIC*", "OPENAI*", "*TOKEN*", "*_KEY")
@@ -787,8 +789,11 @@ def _template_errors(spec: Mapping[str, Any], offset: int | None) -> int:
 def run_task(
     ctx: SimpleNamespace, set_name: str, harness_name: str, task: Any
 ) -> dict[str, Any]:
-    """smoke.runner.run_one for one (harness, task), then the call checks, the server check and the
-    verdict; the record is saved and exported before this returns."""
+    """smoke.runner.run_one for one (harness, task) under the memory watchdog, then the call checks, the
+    server check and the verdict; the record is saved and exported before this returns.
+
+    The row's `flags` stay null for the orchestrator's disturbance flags unless the watchdog killed
+    something: then they start as {"memory_kills": [...]}, and the orchestrator adds its flags to them."""
     spec, rig, state = ctx.spec, ctx.rig, ctx.state
     n = state.next_attempt(harness_name, task.id)
     settings = rig.Settings(
@@ -801,7 +806,8 @@ def run_task(
     battery = ctx.boundaries.battery()
     log_offset = _server_log_size(spec)
     t_start = time.time()
-    record = rig.smoke_runner.run_one(rig.harness, harness_name, task, settings, ctx.run_root, ctx.ws_root, rig.env_file, n)
+    with memwatch.Watchdog(os.getpid(), *ctx.memory_limits) as watchdog:  # the agents' code is bounded (§6.1)
+        record = rig.smoke_runner.run_one(rig.harness, harness_name, task, settings, ctx.run_root, ctx.ws_root, rig.env_file, n)
     t_end = time.time()
     run_dir = ctx.run_root / record["run_dir"]
     calls_records, unreadable = checks.load_calls(run_dir / "calls.jsonl")
@@ -819,7 +825,7 @@ def run_task(
         "set": set_name, "attempt": n, "launch": spec.get("launch", 1), "calls": calls,
         "turns": checks.native_turns(harness_name, record.get("harness_report") or {}),
         "t_start": round(t_start, 3), "t_end": round(t_end, 3), "battery_start": battery,
-        "server_problem": lost, "flags": None,
+        "server_problem": lost, "flags": watchdog.row_flags(),
     }  # fmt: skip
     state.records.append(full)
     state.save()
@@ -827,7 +833,7 @@ def run_task(
     export.export_run(run_dir, ctx.results_dir / record["run_dir"])
     progress.emit(
         "TASK-DONE", set=set_name, harness=harness_name, task=task.id, attempt=n, verdict=full["verdict"],
-        solved=full["solved"], wall_s=full.get("wall_s"), n_llm=full.get("n_llm"),
+        solved=full["solved"], wall_s=full.get("wall_s"), n_llm=full.get("n_llm"), memory_kills=len(watchdog.kills),
     )  # fmt: skip
     return full
 
@@ -1011,6 +1017,10 @@ def main(argv: list[str] | None = None) -> int:
     bad = forbidden_names(os.environ)
     if bad:
         return _refuse([f"the environment carries {', '.join(bad)}; start the runner with allowed_env()"])
+    try:
+        memory_limits = memwatch.limits(os.environ)
+    except ValueError as exc:
+        return _refuse([str(exc)])
 
     run_root = Path(spec["run_root"])
     scratch = run_root / "scratch"
@@ -1047,6 +1057,7 @@ def main(argv: list[str] | None = None) -> int:
         spec=spec, epoch=epoch, state=state, run_root=run_root, ws_root=ws_root, env_names=env_names,
         results_path=Path(spec["results"]), results_dir=Path(spec["results"]).parent,
         boundaries=Boundaries(spec.get("selftest") or {}), audit_repos=audit_repos, rig=None, blocks=None,
+        memory_limits=memory_limits,
     )  # fmt: skip
     signal.signal(signal.SIGTERM, _on_signal)
     signal.signal(signal.SIGINT, _on_signal)

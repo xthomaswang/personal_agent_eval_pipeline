@@ -17,7 +17,7 @@ import pytest
 
 from modeleval import paths
 from modeleval.capability import epoch as epochs
-from modeleval.capability import runner
+from modeleval.capability import memwatch, runner
 
 from .conftest import CAPABILITY_PY, needs_envs, needs_live
 from .fakes import SAMPLING, SERVED_ID, MockServer, set_modes
@@ -259,6 +259,10 @@ def test_preflight_refusals(world, epoch_id, mock_server) -> None:  # noqa: ANN0
     spec.write_text(json.dumps(bad))
     proc = _run(spec)
     assert proc.returncode == runner.EXIT_PREFLIGHT and "proxy preset" in proc.stderr
+    # A memory limit that is not a number of GiB
+    proc = _run(_spec(world, vendor, epoch_id, mock_server, "p3"),
+                env=runner.allowed_env({**os.environ, memwatch.PROC_LIMIT_ENV: "lots"}))  # fmt: skip
+    assert proc.returncode == runner.EXIT_PREFLIGHT and memwatch.PROC_LIMIT_ENV in proc.stderr
     # A project marker above the workspace root
     (world["ws_root"].parent / "pyproject.toml").write_text("[project]\n")
     spec = _spec(world, vendor, epoch_id, mock_server, "p2")
@@ -283,3 +287,33 @@ def test_a_stopped_runner_leaves_no_harness_behind(world, epoch_id, mock_server)
     with pytest.raises(ProcessLookupError):
         os.kill(harness_pid, 0)
     assert not (world["ws_root"] / ".lock").exists()
+
+
+def test_memory_watchdog_kills_a_runaway_command(world, epoch_id, mock_server, live_index_stamps) -> None:  # noqa: ANN001
+    """DESIGN §6.1: a command the agent runs that grows past the per-process limit (0.2 GiB here) is
+    killed; the harness, the proxy and the task go on, the verdict is the checker's, and the kill is in
+    the row's flags and on its TASK-DONE line. Other tasks get no kill and keep null flags."""
+    set_modes(world, {"claude_code": {"aider__transpose": "memory-hog"}})
+    spec = _spec(world, world["root"] / "vendor", epoch_id, mock_server, "m1",
+                 only=["aider/transpose", "aider/proverb"], harnesses=["claude_code"])  # fmt: skip
+    env = runner.allowed_env({**os.environ, memwatch.PROC_LIMIT_ENV: "0.2", memwatch.TREE_LIMIT_ENV: "0.3"})
+    proc = _run(spec, env=env)
+    assert proc.returncode == 0, proc.stderr[-3000:]
+    doc = _results(spec)
+    run_root = Path(json.loads(spec.read_text())["run_root"])
+    by = {r["task"]: r for r in doc["rows"]}
+    row = by["aider/transpose"]
+    hog = json.loads((run_root / row["run_dir"] / "fake_hog.json").read_text())
+    assert hog["returncode"] == -9
+    assert (row["verdict"], row["solved"], row["valid"], row["n_llm"]) == ("pass", True, True, 2)
+    (kill,) = row["flags"]["memory_kills"]
+    assert kill["pid"] == hog["pid"] and kill["limit"] == "process" and kill["footprint_gib"] >= 0.2
+    assert " -I -c import os, sys, time size = " in kill["cmdline"] and len(kill["cmdline"]) <= 120
+    assert str(Path.home()) not in json.dumps(doc)
+    assert by["aider/proverb"]["flags"] is None and [w["flags"] for w in doc["warmups"]] == [None]
+    done = {line.split(" task=")[1].split()[0]: line for line in proc.stdout.splitlines() if " TASK-DONE " in line}
+    assert {task: line.split("memory_kills=")[1].split()[0] for task, line in done.items()} == {
+        "warmup": "0", "aider/transpose": "1", "aider/proverb": "0",
+    }
+    assert "memory watchdog: killed pid" in proc.stderr
+

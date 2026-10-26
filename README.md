@@ -81,7 +81,7 @@ Each progress line is `<HH:MM:SS> <TAG> key=value ...` on stdout.
 | `UNIT-WAIT` | A pre-unit check (or `unit=lock`, or `unit=launch`) is waiting for quiet; `reason` says why. A repeat appears only when the reason changes |
 | `UNIT-START` / `UNIT-DONE` | One attempt of a timed unit, with its launch number. `verdict` is `clean`, `minor` (only minor disturbance flags; kept with them, not repeated, DESIGN §5.4), `disturbed` (a major disturbance; repeated after the next passing check), `incomplete` (a missing latency sample or an error; repeated the same way) or `invalid` (a cold request hit the cache; not repeated). `reason` names the flags. After 3 attempts without a kept one the unit is `disturbed x3`, `incomplete x3` or `disturbed/incomplete x3` |
 | `QUIET-WINDOW-END` | Timed work is over, and the lock purpose now says `accuracy only (untimed)`. Peers may resume light work |
-| `TASK-START` / `TASK-DONE` | One capability task (printed by the capability runner) |
+| `TASK-START` / `TASK-DONE` | One capability task (printed by the capability runner); `memory_kills` counts the processes the memory watchdog killed during it (DESIGN §6.1) |
 | `GATE-DECISION` | After the gate set: `decision` (DESIGN §6.6 against the reference, or `-` with `why`), `action` (`ranking` or `skip`), wins, losses, the reference run and the number of excluded pairs |
 | `BATTERY-PAUSE` / `BATTERY-READY` / `RESUMED` | The battery rule: the server is stopped and the lock released; the battery reached 80 %; the model is relaunched and warmed up |
 | `HOLD` / `HOLD-RELEASED` | `runs/hold` exists; the run waits at a boundary and keeps the lock |

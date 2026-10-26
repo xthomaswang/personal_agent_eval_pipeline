@@ -130,11 +130,13 @@ def test_epoch_problems_are_refused_before_the_lock(sandbox, monkeypatch, capsys
 
 def test_capability_leg_spec_env_and_flags(sandbox, monkeypatch):
     """run.py's spec passes the runner's own preflight, the environment is the allowlist (no
-    credentials, no pipeline venv on PATH), and every task gets its disturbance flags."""
+    credentials, no pipeline venv on PATH), and every task gets its disturbance flags, next to the
+    memory watchdog's kills the runner recorded."""
     monkeypatch.setenv("PATH", f"{paths.REPO / '.venv/bin'}{os.pathsep}{os.environ['PATH']}")
     monkeypatch.setenv("ANTHROPIC_API_KEY", "must-not-pass")
     monkeypatch.setenv("CLAUDE_CONFIG_DIR", "/nowhere")
     monkeypatch.setenv("BENCH_FAKE_RUNNER_DISTURB", str(sandbox.disturb))
+    monkeypatch.setenv("BENCH_FAKE_RUNNER_MEMKILL", "1")
     assert _run(sandbox, legs=("capability",), capability="gate") == 0
     (seen,) = [json.loads(x) for x in (sandbox.root / "runner.log").read_text().splitlines()]
     assert seen["spec_problems"] == [] and seen["forbidden"] == []
@@ -150,6 +152,7 @@ def test_capability_leg_spec_env_and_flags(sandbox, monkeypatch):
     assert row["flags"]["severity"] == "major" and row["flags"]["major_samples"] >= 1, row["flags"]
     assert warm["flags"]["disturbed"] is False and warm["flags"]["battery_min"] == 95, warm["flags"]
     assert warm["flags"]["severity"] == "clean" and warm["flags"]["major_samples"] == warm["flags"]["minor_samples"] == 0
+    assert [k["pid"] for k in row["flags"]["memory_kills"]] == [4242] and "memory_kills" not in warm["flags"]
     state = json.loads((sandbox.runs / "mock-1b" / res.name / "capability/state.json").read_text())
     assert all(r["flags"] is not None for r in state["records"])   # the runner's rewrites keep them
     assert str(Path.home()) not in (res / "capability/results.json").read_text()

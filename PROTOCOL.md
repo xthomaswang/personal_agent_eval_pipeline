@@ -131,6 +131,12 @@ excluded pairs is marked provisional. Disturbances never repeat a capability tas
 flags: the flagged samples (major and minor counts), peak foreign CPU and the battery minimum
 during the task.
 
+Since 2026-10-26 a memory watchdog kills any process an agent starts (or the checker runs) whose
+memory footprint, compressed memory included, exceeds 8 GiB, or the largest of them while all
+together exceed 16 GiB; the task goes on as after an out-of-memory kill, and the kill is recorded in
+its flags. That day a runaway agent script drove macOS to critical memory pressure. The reference
+run had no watchdog; it would have fired on two of its failed ranking rows (DESIGN §6.4).
+
 ## Comparability
 
 The reference row (Qwen3.8-27B oQ5 + MTP) is measured once per protocol version, per macOS or
