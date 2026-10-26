@@ -1,0 +1,917 @@
+version: 1
+seed: 1
+timeline:
+  start: '2026-04-06'
+  days: 10
+  tz: -04:00
+  owner: jamie_park
+entities:
+  jamie_park:
+    type: person
+    name: Jamie Park
+    aliases:
+    - Jamie
+  maya_lindqvist:
+    type: person
+    name: Maya Lindqvist
+    aliases:
+    - Maya
+  priya_raman:
+    type: person
+    name: Priya Raman
+    aliases:
+    - Priya
+  dev_kapoor:
+    type: person
+    name: Dev Kapoor
+    aliases:
+    - Dev
+  tom_whitfield:
+    type: person
+    name: Tom Whitfield
+    aliases:
+    - Tom
+  elena_brooks:
+    type: person
+    name: Elena Brooks
+    aliases:
+    - Elena
+    - Lena
+    - Lena Brooks
+  omar_haddad:
+    type: person
+    name: Omar Haddad
+    aliases:
+    - Omar
+  ana_sousa:
+    type: person
+    name: Ana Sousa
+    aliases:
+    - Dr. Sousa
+    - Dr. Ana Sousa
+    - Sousa
+  ken_ito:
+    type: person
+    name: Ken Ito
+    aliases:
+    - Dr. Ito
+    - Dr. Ken Ito
+    - Ito
+  lucia_ferrante:
+    type: person
+    name: Lucia Ferrante
+    aliases:
+    - Lucia
+  kenji_mori:
+    type: person
+    name: Kenji Mori
+    aliases:
+    - Kenji
+  grace_liu:
+    type: person
+    name: Grace Liu
+    aliases:
+    - Grace
+  ben_okoro:
+    type: person
+    name: Ben Okoro
+    aliases:
+    - Ben
+  hannah_reyes:
+    type: person
+    name: Hannah Reyes
+    aliases:
+    - Hannah
+  imani_cole:
+    type: person
+    name: Imani Cole
+    aliases: []
+  sam_torres:
+    type: person
+    name: Sam Torres
+    aliases:
+    - Sam
+  pine_street:
+    type: place
+    name: Pine Street Community Center
+    aliases:
+    - Pine Street
+  harbor_hall:
+    type: place
+    name: Harbor Hall
+    aliases: []
+  harbor_room:
+    type: place
+    name: Harbor Room
+    aliases: []
+  lupa_trattoria:
+    type: place
+    name: Lupa Trattoria
+    aliases:
+    - Lupa
+  kestrel_books:
+    type: place
+    name: Kestrel Books
+    aliases: []
+  paradise_lot:
+    type: place
+    name: Paradise Lot
+    aliases:
+    - The Paradise Lot
+  studio_verde:
+    type: place
+    name: Studio Verde
+    aliases: []
+  room_4b:
+    type: place
+    name: Room 4B
+    aliases:
+    - 4B
+  room_7a:
+    type: place
+    name: Room 7A
+    aliases:
+    - 7A
+  denver:
+    type: place
+    name: Denver
+    aliases:
+    - DEN
+  boston:
+    type: place
+    name: Boston
+    aliases:
+    - BOS
+  riverside_dental:
+    type: org
+    name: Riverside Dental
+    aliases: []
+  adler_plumbing:
+    type: org
+    name: Adler Plumbing
+    aliases:
+    - Adler
+  cedar_ridge:
+    type: org
+    name: Cedar Ridge Rentals
+    aliases:
+    - Cedar Ridge
+  metro_auto:
+    type: org
+    name: Metro Auto
+    aliases: []
+  lumen_office:
+    type: org
+    name: Lumen Office
+    aliases: []
+  whitfield_properties:
+    type: org
+    name: Whitfield Properties
+    aliases: []
+  northwind:
+    type: org
+    name: Northwind
+    aliases: []
+  glass_orchard:
+    type: title
+    name: The Glass Orchard
+    aliases:
+    - Glass Orchard
+  salt_and_signal:
+    type: title
+    name: Salt and Signal
+    aliases:
+    - Salt & Signal
+  static_bloom:
+    type: title
+    name: Static Bloom
+    aliases: []
+  flight_ua1482:
+    type: code
+    name: UA 1482
+    aliases:
+    - UA1482
+    - United 1482
+  flight_ua990:
+    type: code
+    name: UA 990
+    aliases:
+    - UA990
+    - United 990
+records:
+  r38ad45f23d:
+    day: 1
+    kind: mail
+    key: A1
+    resolved: []
+  r4af3c64af7:
+    day: 1
+    kind: mail
+    key: R1
+    resolved:
+    - date:2026-05-01
+  rd66a8ac4ba:
+    day: 1
+    kind: mail
+    key: L0
+    resolved:
+    - time:19:00
+  ra4ec148cb4:
+    day: 1
+    kind: event
+    key: Y1
+    resolved: []
+  rfea11d459a:
+    day: 1
+    kind: message
+    key: C1
+    resolved:
+    - date:2026-04-18
+    - date:2026-04-19
+  r1e4be03db0:
+    day: 1
+    kind: message
+    key: null
+    resolved: []
+  rb8e5446dd4:
+    day: 1
+    kind: mail
+    key: null
+    resolved: []
+  ref803468b6:
+    day: 1
+    kind: mail
+    key: null
+    resolved: []
+  rd481f9c1f6:
+    day: 1
+    kind: mail
+    key: null
+    resolved: []
+  rf0d8a064df:
+    day: 2
+    kind: mail
+    key: B1
+    resolved: []
+  rda96c8da19:
+    day: 2
+    kind: message
+    key: K0
+    resolved: []
+  rbe3e2434e3:
+    day: 2
+    kind: mail
+    key: E1
+    resolved:
+    - date:2026-04-22
+  raa6a107b75:
+    day: 2
+    kind: message
+    key: F1
+    resolved:
+    - date:2026-04-11
+    - time:20:00
+  re18c7e134f:
+    day: 2
+    kind: event
+    key: null
+    resolved: []
+  rbcacab1a6b:
+    day: 2
+    kind: message
+    key: null
+    resolved: []
+  ra9705fca16:
+    day: 2
+    kind: mail
+    key: null
+    resolved: []
+  r29c74803e3:
+    day: 2
+    kind: mail
+    key: null
+    resolved: []
+  r0b78255d68:
+    day: 3
+    kind: message
+    key: D1
+    resolved:
+    - date:2026-04-10
+    - time:13:00
+  rfbd92a4aa2:
+    day: 3
+    kind: event
+    key: A2
+    resolved: []
+  r649403560d:
+    day: 3
+    kind: event
+    key: H1
+    resolved: []
+  r802b28fef0:
+    day: 3
+    kind: mail
+    key: D2
+    resolved: []
+  rc50326324d:
+    day: 3
+    kind: message
+    key: T7
+    resolved:
+    - date:2026-04-10
+  rdceb8ac8ce:
+    day: 3
+    kind: message
+    key: Y2
+    resolved:
+    - date:2026-04-11
+    - time:10:00
+    - time:09:00
+  r83678a5aa3:
+    day: 3
+    kind: mail
+    key: null
+    resolved: []
+  r93d8f33418:
+    day: 3
+    kind: message
+    key: null
+    resolved: []
+  r44e8e5b461:
+    day: 3
+    kind: message
+    key: null
+    resolved: []
+  rf59be3cecb:
+    day: 3
+    kind: message
+    key: null
+    resolved: []
+  r8fc7038069:
+    day: 4
+    kind: mail
+    key: C2
+    resolved: []
+  r0ef320cd57:
+    day: 4
+    kind: message
+    key: H2
+    resolved:
+    - date:2026-04-09
+  r915d5f576c:
+    day: 4
+    kind: mail
+    key: G1
+    resolved: []
+  r81f0e642f4:
+    day: 4
+    kind: message
+    key: R2
+    resolved:
+    - date:2026-05-01
+  r5bd037cdff:
+    day: 4
+    kind: event
+    key: null
+    resolved: []
+  r890067dba8:
+    day: 4
+    kind: message
+    key: null
+    resolved: []
+  r9cc9546b43:
+    day: 4
+    kind: message
+    key: null
+    resolved: []
+  r0799901c04:
+    day: 4
+    kind: message
+    key: null
+    resolved: []
+  rdc2e47dc0e:
+    day: 5
+    kind: message
+    key: D3
+    resolved:
+    - date:2026-04-13
+    - time:13:00
+    - time:15:00
+  rcc8d103ed3:
+    day: 5
+    kind: message
+    key: E2
+    resolved: []
+  r41ee52bdb6:
+    day: 5
+    kind: message
+    key: F2
+    resolved:
+    - date:2026-04-09
+  racf18dd1ee:
+    day: 5
+    kind: message
+    key: L1
+    resolved:
+    - date:2026-04-15
+    - time:19:00
+  r04de3a5db5:
+    day: 5
+    kind: mail
+    key: V1
+    resolved: []
+  rc1c10faa40:
+    day: 5
+    kind: mail
+    key: X5
+    resolved: []
+  r1c44c5b476:
+    day: 5
+    kind: mail
+    key: null
+    resolved: []
+  r582f429ce5:
+    day: 5
+    kind: message
+    key: null
+    resolved: []
+  r282adf559a:
+    day: 5
+    kind: mail
+    key: null
+    resolved: []
+  r2bf3b37f32:
+    day: 5
+    kind: event
+    key: null
+    resolved: []
+  r7f526eb523:
+    day: 6
+    kind: mail
+    key: A3
+    resolved:
+    - time:09:30
+    - time:16:00
+  r4f060cea63:
+    day: 6
+    kind: mail
+    key: X6
+    resolved: []
+  rcb6bc15385:
+    day: 6
+    kind: mail
+    key: P1
+    resolved:
+    - date:2026-04-14
+  r401bd7ce73:
+    day: 6
+    kind: message
+    key: F3
+    resolved:
+    - date:2026-04-11
+    - time:21:00
+  rfa8296f5ea:
+    day: 6
+    kind: mail
+    key: X7
+    resolved: []
+  r6e9b0bca16:
+    day: 6
+    kind: event
+    key: null
+    resolved: []
+  r39055455e8:
+    day: 6
+    kind: mail
+    key: null
+    resolved: []
+  r09257e8454:
+    day: 6
+    kind: message
+    key: null
+    resolved: []
+  r722904acec:
+    day: 6
+    kind: mail
+    key: null
+    resolved: []
+  rf9fa1b1bf1:
+    day: 7
+    kind: mail
+    key: G2
+    resolved: []
+  r84b1eedaff:
+    day: 7
+    kind: message
+    key: C3
+    resolved:
+    - date:2026-04-17
+  ra6861e02ec:
+    day: 7
+    kind: message
+    key: M1
+    resolved:
+    - date:2026-04-13
+    - time:11:00
+  r93acc66a57:
+    day: 7
+    kind: mail
+    key: null
+    resolved: []
+  ra1a8ea37f7:
+    day: 7
+    kind: mail
+    key: null
+    resolved: []
+  r4cbcc99ae8:
+    day: 7
+    kind: mail
+    key: null
+    resolved: []
+  re0364e433f:
+    day: 7
+    kind: mail
+    key: null
+    resolved: []
+  rf0eacc110e:
+    day: 8
+    kind: mail
+    key: B2
+    resolved: []
+  r6a28804790:
+    day: 8
+    kind: mail
+    key: H3
+    resolved:
+    - date:2026-04-27
+  r0221615022:
+    day: 8
+    kind: message
+    key: F4
+    resolved: []
+  r09d9bc1d97:
+    day: 8
+    kind: mail
+    key: D4
+    resolved: []
+  rf637b4000b:
+    day: 8
+    kind: message
+    key: C4
+    resolved:
+    - date:2026-04-18
+    - time:19:30
+  r2b75fa6dd8:
+    day: 8
+    kind: mail
+    key: null
+    resolved: []
+  rf9deb0e066:
+    day: 8
+    kind: mail
+    key: null
+    resolved: []
+  r829f7a7daf:
+    day: 8
+    kind: message
+    key: null
+    resolved: []
+  r58334de73d:
+    day: 8
+    kind: message
+    key: null
+    resolved: []
+  rf01abb8ba3:
+    day: 9
+    kind: mail
+    key: E3
+    resolved: []
+  r814bcb6b22:
+    day: 9
+    kind: message
+    key: A4
+    resolved:
+    - date:2026-04-17
+  r9c5349da48:
+    day: 9
+    kind: mail
+    key: P2
+    resolved:
+    - date:2026-04-16
+  r48e65150b5:
+    day: 9
+    kind: mail
+    key: V2
+    resolved: []
+  rdb336b1a45:
+    day: 9
+    kind: message
+    key: null
+    resolved: []
+  r90fcaf4a5a:
+    day: 9
+    kind: message
+    key: null
+    resolved: []
+  r6d56cef8ec:
+    day: 9
+    kind: message
+    key: null
+    resolved: []
+  r18aca91679:
+    day: 9
+    kind: mail
+    key: null
+    resolved: []
+  rfcc49872c6:
+    day: 10
+    kind: message
+    key: K2
+    resolved:
+    - date:2026-04-16
+  rb910b8fe22:
+    day: 10
+    kind: event
+    key: A5
+    resolved: []
+  r2b220d672b:
+    day: 10
+    kind: message
+    key: L2
+    resolved:
+    - date:2026-04-15
+    - time:19:00
+  r3689c80c4d:
+    day: 10
+    kind: message
+    key: C5
+    resolved:
+    - date:2026-04-17
+  r99550d40dd:
+    day: 10
+    kind: mail
+    key: null
+    resolved: []
+  r5e415ac400:
+    day: 10
+    kind: mail
+    key: null
+    resolved: []
+  r4a1d296588:
+    day: 10
+    kind: event
+    key: null
+    resolved: []
+  r9af1a9a658:
+    day: 10
+    kind: mail
+    key: null
+    resolved: []
+items:
+- key: offsite
+  versions:
+  - day: 1
+    text: 'Q2 planning offsite (work; organizer Maya Lindqvist): Thursday 2026-04-16, 09:30-16:00, at Pine Street Community
+      Center. Lunch catered by Lupa Trattoria. Bring the team''s Q2 draft.'
+    source_ids:
+    - r38ad45f23d
+  - day: 6
+    text: 'Q2 planning offsite (work; organizer Maya Lindqvist): moved to Friday 2026-04-17, 09:30-16:00, at Harbor Hall (2nd
+      floor), because Pine Street had a water leak. Lunch catered by Lupa Trattoria. Bring the team''s Q2 draft.'
+    source_ids:
+    - r38ad45f23d
+    - r7f526eb523
+- key: rent
+  versions:
+  - day: 1
+    text: 'Lease at 14 Orchard Lane, Apt 3, landlord Tom Whitfield (Whitfield Properties): rent goes from $1,980 to $2,150
+      per month starting 2026-05-01.'
+    source_ids:
+    - r4af3c64af7
+  - day: 4
+    text: 'Lease at 14 Orchard Lane, Apt 3, landlord Tom Whitfield (Whitfield Properties): new rent $2,095 per month (corrected
+      from $2,150) starting 2026-05-01; the old rent is $1,980.'
+    source_ids:
+    - r4af3c64af7
+    - r81f0e642f4
+- key: lena
+  versions:
+  - day: 1
+    text: Elena (Lena) Brooks is Omar Haddad's partner. They host a game night at their place on Friday 2026-04-24 around
+      19:00.
+    source_ids:
+    - rd66a8ac4ba
+- key: yoga
+  versions:
+  - day: 1
+    text: Yoga at Studio Verde with instructor Hannah Reyes, weekly on Saturdays, 09:00-10:00.
+    source_ids:
+    - ra4ec148cb4
+  - day: 3
+    text: 'Yoga at Studio Verde with instructor Hannah Reyes, weekly on Saturdays: from Saturday 2026-04-11 the class is at
+      10:00 instead of 09:00.'
+    source_ids:
+    - ra4ec148cb4
+    - rdceb8ac8ce
+- key: sister
+  versions:
+  - day: 1
+    text: Priya Raman is Jamie's older sister. Priya and Dev are visiting the weekend of 2026-04-18 to 2026-04-19.
+    source_ids:
+    - rfea11d459a
+- key: dentist
+  versions:
+  - day: 2
+    text: 'Dental cleaning at Riverside Dental (220 Water Street) with Dr. Ana Sousa: Tuesday 2026-04-21 at 08:15.'
+    source_ids:
+    - rf0d8a064df
+  - day: 8
+    text: 'Dental cleaning at Riverside Dental (220 Water Street): moved to Thursday 2026-04-23 at 10:45 with Dr. Ken Ito,
+      because Dr. Sousa is unavailable on 2026-04-21 (originally 08:15 with Dr. Ana Sousa).'
+    source_ids:
+    - rf0d8a064df
+    - rf0eacc110e
+- key: kenji_trip
+  versions:
+  - day: 2
+    text: Kenji Mori flies UA 990 to a conference in Seattle on 2026-05-04.
+    source_ids:
+    - rda96c8da19
+- key: book_club
+  versions:
+  - day: 2
+    text: 'Book club (organizer Lucia Ferrante): reading The Glass Orchard by Imani Cole; meeting Wednesday 2026-04-22 at
+      19:00 at Kestrel Books.'
+    source_ids:
+    - rbe3e2434e3
+  - day: 5
+    text: 'Book club (organizer Lucia Ferrante): now reading Salt and Signal instead of The Glass Orchard; meeting Wednesday
+      2026-04-22 at 19:00 at Kestrel Books.'
+    source_ids:
+    - rbe3e2434e3
+    - rcc8d103ed3
+  - day: 9
+    text: 'Book club (organizer Lucia Ferrante): reading Salt and Signal; meeting Wednesday 2026-04-22 at 19:00 at Kestrel
+      Books. Grace Liu brings snacks; Omar leads the discussion.'
+    source_ids:
+    - rbe3e2434e3
+    - rcc8d103ed3
+    - rf01abb8ba3
+- key: concert
+  versions:
+  - day: 2
+    text: Static Bloom concert at the Paradise Lot on Saturday 2026-04-11, doors at 20:00. Omar bought 3 tickets at $84.50
+      each (Jamie, Omar, Lena); Jamie owes Omar $84.50.
+    source_ids:
+    - raa6a107b75
+  - day: 5
+    text: Static Bloom concert at the Paradise Lot on Saturday 2026-04-11, doors at 20:00. Omar bought 3 tickets at $84.50
+      each (Jamie, Omar, Lena). Jamie paid Omar $84.50 for his own ticket on 2026-04-09.
+    source_ids:
+    - raa6a107b75
+    - r41ee52bdb6
+  - day: 6
+    text: 'Static Bloom concert at the Paradise Lot on Saturday 2026-04-11: doors moved to 21:00 (the opener cancelled; Lena
+      told Jamie). Omar bought 3 tickets at $84.50 each (Jamie, Omar, Lena). Jamie paid Omar $84.50 for his own ticket on
+      2026-04-09.'
+    source_ids:
+    - raa6a107b75
+    - r41ee52bdb6
+    - r401bd7ce73
+  - day: 8
+    text: Static Bloom concert at the Paradise Lot on Saturday 2026-04-11, doors at 21:00. Omar bought 3 tickets at $84.50
+      each (Jamie, Omar, Lena). Jamie paid Omar $84.50 for his own ticket on 2026-04-09, and is also covering Lena's ticket
+      as her birthday present, which he still has to pay Omar for.
+    source_ids:
+    - raa6a107b75
+    - r41ee52bdb6
+    - r401bd7ce73
+    - r0221615022
+- key: plumber
+  versions:
+  - day: 3
+    text: 'Kitchen sink repair at 14 Orchard Lane, Apt 3, arranged by landlord Tom: Adler Plumbing, technician Ben Okoro,
+      Friday 2026-04-10 between 13:00 and 15:00. Estimate $180.00.'
+    source_ids:
+    - r0b78255d68
+    - r802b28fef0
+  - day: 5
+    text: 'Kitchen sink repair at 14 Orchard Lane, Apt 3, arranged by landlord Tom: Adler Plumbing, technician Ben Okoro.
+      The part is on backorder, so the visit moved from Friday 2026-04-10 to Monday 2026-04-13, 13:00-15:00. Estimate $180.00.'
+    source_ids:
+    - r0b78255d68
+    - r802b28fef0
+    - rdc2e47dc0e
+  - day: 8
+    text: 'Kitchen sink repair at 14 Orchard Lane, Apt 3, arranged by landlord Tom: Adler Plumbing, technician Ben Okoro,
+      visit Monday 2026-04-13 (moved from 2026-04-10, part on backorder). Final invoice $215.00 (estimate was $180.00), billed
+      to Whitfield Properties.'
+    source_ids:
+    - r0b78255d68
+    - r802b28fef0
+    - rdc2e47dc0e
+    - r09d9bc1d97
+- key: reading_group
+  versions:
+  - day: 3
+    text: 'Reading group: Grace Liu presents a sparse attention survey on Thursday 2026-04-09, 15:00-16:00, in Room 4B.'
+    source_ids:
+    - r649403560d
+  - day: 4
+    text: 'Reading group: Grace Liu presents a sparse attention survey on Thursday 2026-04-09, 15:00-16:00; moved to Room
+      7A because 4B was double-booked.'
+    source_ids:
+    - r649403560d
+    - r0ef320cd57
+- key: code_freeze
+  versions:
+  - day: 3
+    text: Code freeze on Friday 2026-04-10 at 17:00 (from Kenji Mori).
+    source_ids:
+    - rc50326324d
+- key: flight
+  versions:
+  - day: 4
+    text: Priya Raman and Dev Kapoor fly UA 1482 from Denver (DEN) to Boston (BOS), arriving Friday 2026-04-17 at 18:40.
+    source_ids:
+    - r8fc7038069
+  - day: 7
+    text: 'Priya Raman and Dev Kapoor fly UA 1482 from Denver (DEN) to Boston (BOS) on Friday 2026-04-17. United rebooked
+      them (Dev told Jamie): they now arrive at 20:55 instead of 18:40, same flight number.'
+    source_ids:
+    - r8fc7038069
+    - r84b1eedaff
+- key: cabin
+  versions:
+  - day: 4
+    text: 'Cedar Ridge Cabin #3 (Cedar Ridge Rentals): check-in 2026-06-12, check-out 2026-06-15 (3 nights). Deposit $250.00
+      due by 2026-04-20.'
+    source_ids:
+    - r915d5f576c
+  - day: 7
+    text: 'Cedar Ridge Cabin #3 (Cedar Ridge Rentals): check-in 2026-06-12, check-out 2026-06-15 (3 nights). Deposit of $250.00
+      received; remaining balance $615.00 due 2026-06-01.'
+    source_ids:
+    - r915d5f576c
+    - rf9fa1b1bf1
+- key: lena_birthday
+  versions:
+  - day: 5
+    text: 'Lena''s birthday dinner (a surprise; don''t tell her): Wednesday 2026-04-15 at 19:00 at Harbor Room, booked by
+      Omar.'
+    source_ids:
+    - racf18dd1ee
+- key: car
+  versions:
+  - day: 5
+    text: 'Metro Auto service for the 2019 Honda Civic: Saturday 2026-04-25 at 09:00. Estimate $129.99.'
+    source_ids:
+    - r04de3a5db5
+  - day: 9
+    text: 'Metro Auto service for the 2019 Honda Civic: Saturday 2026-04-25 at 09:00. Revised estimate $164.99 (front brake
+      pads added; was $129.99).'
+    source_ids:
+    - r04de3a5db5
+    - r48e65150b5
+- key: desk
+  versions:
+  - day: 6
+    text: Ordered an Ergo standing desk (walnut) from Lumen Office; delivery expected Tuesday 2026-04-14.
+    source_ids:
+    - rcb6bc15385
+  - day: 9
+    text: Ordered an Ergo standing desk (walnut) from Lumen Office; delivery delayed from 2026-04-14 to Thursday 2026-04-16.
+    source_ids:
+    - rcb6bc15385
+    - r9c5349da48
+- key: one_on_one
+  versions:
+  - day: 7
+    text: 1:1 with Maya Lindqvist on Monday 2026-04-13 at 11:00.
+    source_ids:
+    - ra6861e02ec
+- key: benefits
+  versions:
+  - day: 8
+    text: Northwind benefits open enrollment closes on 2026-04-27.
+    source_ids:
+    - r6a28804790
+- key: family_dinner
+  versions:
+  - day: 8
+    text: Dinner at Lupa Trattoria on Saturday 2026-04-18 at 19:30 with Priya, Dev and Omar (Jamie booked it).
+    source_ids:
+    - rfea11d459a
+    - rf637b4000b
+- key: ride
+  versions:
+  - day: 9
+    text: Kenji Mori asked Jamie for a ride to Harbor Hall on Friday 2026-04-17; he can meet at the Elm St stop.
+    source_ids:
+    - r814bcb6b22
+- key: pr_review
+  versions:
+  - day: 10
+    text: PR review with Kenji Mori on Thursday 2026-04-16 at 14:00.
+    source_ids:
+    - rfcc49872c6

@@ -1,0 +1,92 @@
+# T4 consolidate multi-source information into memory (frozen tier). Draft: the fields are meant to be read by the future runner.
+# Built 2026-10-26: generator, fixtures v1, pab, reader and oracle exist (memory/t4, memory/pab); the runner that drives
+# the harnesses over the 10 sessions does not yet.
+schema_version: 1
+id: t4_memory_consolidation
+version: 1
+tier: frozen
+title: Consolidate multi-source information into organized memory
+description: >-
+  A synthetic 10-day timeline (messages, emails and calendar entries, including updates such as rescheduled times
+  and changed addresses, cross-source links, relative dates and distractors) is fed in one day at a time. Each day
+  starts a new session, and the agent can maintain the memory store only through pab.memory_*; all of the
+  harness's built-in memory is turned off. Afterwards a fixed reader answers the probe questions from the memory
+  store alone. The primary measure is "how well the memory store is built", not the harness's retrieval ability.
+  Having the harness answer by itself is a different construct and is listed separately as a variant.
+
+data:
+  generator: python -m memory.t4.gen --seed 1   # the story is memory/t4/scenario.py; the seed places the distractors and draws the ids
+  path: memory/t4/fixtures/v1/   # days/day01.jsonl…day10.jsonl, facts.yaml (incl. the gold items), probes.yaml, drop_list.yaml; all synthetic, in git
+  record_shape: JSON with the same shape as macos-apps-mcp read results; each record carries a record_id and a kind (mail, message, event)
+
+phases:
+  ingest:
+    # Each session starts a fresh harness process and a fresh proxy instance; the instances share the run's run_id and
+    # one calls.jsonl, and call_index, main_index and images_new restart per session, so --max-steps applies per
+    # session. T4 events carry session (1-10).
+    sessions: 10   # one new harness process per day; the memory store persists across sessions
+    prompt: |
+      You maintain the user's personal memory. Today is {date}. Read today's records with the
+      feed_day tool. Then update the memory store with memory_write, memory_update and memory_delete
+      so that it stays organized and free of duplicates, uses absolute dates, and keeps facts current
+      (update an entry when newer information replaces it). Every entry must list the record_ids it
+      comes from in source_ids. Call the submit tool with status "done" when you are finished.
+    allowed_tools:
+      pab: [feed_day, memory_write, memory_update, memory_delete, memory_search, memory_list, submit]
+    server: {pab: "python -m memory.pab --run-dir <run> --session <n>"}   # stdio MCP; the store persists in <run>/t4/store.json, calls in <run>/events/pab.jsonl
+    feed_day_returns: only that day's records; future days cannot be fetched
+    on_budget_exhausted: continue_next_day   # record budget_exhausted, leave the memory store as it is, and go on to feed the next day
+    native_memory: disabled   # CC: auto-memory off; Hermes: the memory toolset is not enabled
+  probe_primary:   # a bench call, not a harness call (decided 2026-10-18): it sets its own parameters, records under reader/ and is excluded from agent steps and time
+    reader: python -m memory.t4.reader
+    call: one model call per probe question, through the reader's own proxy instance (--harness t4-reader --sampling passthrough, run_id = <run_id>-reader), thinking off, temperature 0
+    input: the full memory store export (JSON) plus the probe question
+    output_schema: {answer: typed}
+  probe_secondary:
+    enabled: false   # variant: the harness opens a new session and answers using only memory_search and memory_list
+
+probes:
+  categories: {extraction: 12, cross_session: 12, temporal: 12, knowledge_update: 12, abstention: 12}
+  empty_memory_filter: the reader answers each probe question 3 times with an empty memory store; an answerable probe answered correctly at least once is dropped, and the drop list is frozen with v1 (memory/t4/fixtures/v1/drop_list.yaml, with the reader's setting; it is bound to that setting's epoch)
+  abstention: never dropped, since an empty store answers it right by construction (decided 2026-10-26). Scored apart, as the share the reader still answers null from the full store; the headline is the accuracy over the four answerable categories
+
+preconditions:
+  - {gpu_lock_absent: ~/Developer/mlsys/experiments/.gpu-lock}   # a timed trial takes this lock for its duration and does not start while another session (such as local_ai-benchmark) holds it: default assumed (2026-10-18); the user may change it
+  - {omlx_idle: true}
+
+oracle:
+  type: probe_exact
+  module: memory.t4.oracle
+  unit: trial_x_probe   # success rate is counted per probe: correctly answered probes / retained probes, also reported per category
+  normalize: {datetime: utc_minute, date: iso, time: hh_mm, entity: alias, money: integer_cents, list: set_equal, "null": [null, "NOT_FOUND", ""]}   # memory/t4/values.py
+  checks:
+    source_ids_exist: every source_id in every memory_write and memory_update must be a record_id that feed_day had already returned (pab's events); otherwise record the hard violation fabricated_source
+    source_precision: among entries with at least one key value (dates, clock times, amounts, entity aliases), the fraction whose key values all appear in the records they cite, relative dates resolved
+    duplicate_ratio: fraction of entries whose text (key and value) equals an earlier entry's after normalization (case, punctuation, date/time/amount formats)
+    memory_tokens: token count of the memory store export (same tokenizer)
+
+env_fail_rules:
+  - {code: model_server_down, rule: "the proxy records upstream_unreachable"}
+
+budget:   # per ingestion session (the proxy enforces max_steps per session with --max-steps); T4's steps and time are the sums over the 10 sessions
+  max_steps: 30
+  timeout_s: {"off": 900, "effort:low": 1500, "effort:medium": 2400, "on": 3600}   # main arm: "off" (decided 2026-10-18)
+  submit_grace_s: 30
+
+harness_overrides:
+  claude-code: {max_turns: 200, allowed_tools_from: phases.ingest.allowed_tools, env: {CLAUDE_CODE_DISABLE_AUTO_MEMORY: "1"}}
+  hermes: {max_turns: 200, run_budget: null, toolsets: [mcp-pab]}
+  localmelo: {status: not_runnable, reason: "MCP client since Phase 1a (cb5fe23, merged 2026-10-22); the bench has not smoked it", gate: [mcp_smoke]}
+
+trials:
+  k: 3                      # the frozen-tier default is k=5; T4 uses k=3 because each trial is 10 ingestion sessions. Each trial = a fresh memory store + 10 days of ingestion + probes
+  harnesses: [claude-code, hermes]
+  order: interleaved
+  kv: warm
+  analysis:
+    per_probe: [pass_at_1, pass_hat_k]
+    paired: bootstrap_over_probes
+
+gold:
+  source: the generator produces facts.yaml and probes.yaml by construction; the user reviews the 60 probe questions once (about 20 minutes)
+  stored_in_git: true       # all synthetic data

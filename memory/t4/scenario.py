@@ -223,7 +223,7 @@ RECORDS: list[dict[str, Any]] = [
          "to Whitfield Properties.\n\nAdler Plumbing"),
     msg("C4", 8, "20:20", "priya_raman",
         "Booked us a table at Lupa Trattoria for Saturday at 7:30, the four of us with Omar 🍝", from_me=True,
-        resolved=("date:2026-04-18",)),
+        resolved=("date:2026-04-18", "time:19:30")),
 
     # Day 9, Tuesday 2026-04-14
     mail("E3", 9, "08:15", "lucia_ferrante", "Book club next week",
@@ -448,7 +448,7 @@ ITEMS: list[dict[str, Any]] = [
         {"day": 8, "sources": ["H3"], "text": "Northwind benefits open enrollment closes on 2026-04-27."},
     ]},
     {"key": "family_dinner", "versions": [
-        {"day": 8, "sources": ["C4"], "text": "Dinner at Lupa Trattoria on Saturday 2026-04-18 at 19:30 with "
+        {"day": 8, "sources": ["C1", "C4"], "text": "Dinner at Lupa Trattoria on Saturday 2026-04-18 at 19:30 with "
          "Priya, Dev and Omar (Jamie booked it)."},
     ]},
     {"key": "ride", "versions": [

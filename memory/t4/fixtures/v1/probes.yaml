@@ -1,0 +1,427 @@
+version: 1
+probes:
+- id: ex01
+  category: extraction
+  type: time
+  question: At what time does the Q2 planning offsite start?
+  answer: 09:30
+  support:
+  - r38ad45f23d
+- id: ex02
+  category: extraction
+  type: entity
+  question: From which city does Priya and Dev's flight depart?
+  answer: denver
+  support:
+  - r8fc7038069
+- id: ex03
+  category: extraction
+  type: entity
+  question: What is the name of the Adler Plumbing technician for Jamie's kitchen sink?
+  answer: ben_okoro
+  support:
+  - r802b28fef0
+- id: ex04
+  category: extraction
+  type: entity
+  question: Who will lead the discussion at the book club meeting?
+  answer: omar_haddad
+  support:
+  - rf01abb8ba3
+- id: ex05
+  category: extraction
+  type: money
+  question: How much did each Static Bloom ticket cost?
+  answer: 8450
+  support:
+  - raa6a107b75
+- id: ex06
+  category: extraction
+  type: date
+  question: 'What is the check-in date for Cedar Ridge Cabin #3?'
+  answer: '2026-06-12'
+  support:
+  - r915d5f576c
+- id: ex07
+  category: extraction
+  type: money
+  question: What is the remaining balance for the Cedar Ridge cabin?
+  answer: 61500
+  support:
+  - rf9fa1b1bf1
+- id: ex08
+  category: extraction
+  type: date
+  question: By what date is the remaining balance for the Cedar Ridge cabin due?
+  answer: '2026-06-01'
+  support:
+  - rf9fa1b1bf1
+- id: ex09
+  category: extraction
+  type: entity
+  question: Who presented at the reading group on April 9?
+  answer: grace_liu
+  support:
+  - r649403560d
+- id: ex10
+  category: extraction
+  type: datetime
+  question: When is Jamie's car booked for service at Metro Auto?
+  answer: 2026-04-25T09:00
+  support:
+  - r04de3a5db5
+- id: ex11
+  category: extraction
+  type: entity
+  question: Which dentist was Jamie's cleaning originally booked with?
+  answer: ana_sousa
+  support:
+  - rf0d8a064df
+- id: ex12
+  category: extraction
+  type: entity
+  question: From which company did Jamie order the standing desk?
+  answer: lumen_office
+  support:
+  - rcb6bc15385
+- id: cs01
+  category: cross_session
+  type: datetime
+  question: When does the flight of Jamie's sister land?
+  answer: 2026-04-17T20:55
+  support:
+  - rfea11d459a
+  - r8fc7038069
+  - r84b1eedaff
+- id: cs02
+  category: cross_session
+  type: entity
+  question: At which restaurant is the birthday dinner for Omar's partner?
+  answer: harbor_room
+  support:
+  - rd66a8ac4ba
+  - racf18dd1ee
+- id: cs03
+  category: cross_session
+  type: money
+  question: What is the total price of the Cedar Ridge cabin stay, deposit plus remaining balance?
+  answer: 86500
+  support:
+  - r915d5f576c
+  - rf9fa1b1bf1
+- id: cs04
+  category: cross_session
+  type: entity
+  question: Which colleague asked Jamie for a ride to the Q2 planning offsite?
+  answer: kenji_mori
+  support:
+  - r7f526eb523
+  - r814bcb6b22
+- id: cs05
+  category: cross_session
+  type: date
+  question: On what date will Omar lead a book club discussion?
+  answer: '2026-04-22'
+  support:
+  - rbe3e2434e3
+  - rf01abb8ba3
+- id: cs06
+  category: cross_session
+  type: money
+  question: How much does Jamie still owe Omar for Static Bloom tickets?
+  answer: 8450
+  support:
+  - raa6a107b75
+  - r41ee52bdb6
+  - r0221615022
+- id: cs07
+  category: cross_session
+  type: entity
+  question: Who told Jamie that the flight of Jamie's sister had been rebooked?
+  answer: dev_kapoor
+  support:
+  - rfea11d459a
+  - r8fc7038069
+  - r84b1eedaff
+- id: cs08
+  category: cross_session
+  type: list
+  question: Who arrives in Boston on the day of the rescheduled Q2 planning offsite?
+  answer:
+  - priya_raman
+  - dev_kapoor
+  support:
+  - r7f526eb523
+  - r8fc7038069
+- id: cs09
+  category: cross_session
+  type: entity
+  question: What is the flight number of the rebooked flight that Dev mentioned?
+  answer: flight_ua1482
+  support:
+  - r8fc7038069
+  - r84b1eedaff
+- id: cs10
+  category: cross_session
+  type: entity
+  question: Which person presented at the April 9 reading group and is also bringing snacks to the book club?
+  answer: grace_liu
+  support:
+  - r649403560d
+  - rf01abb8ba3
+- id: cs11
+  category: cross_session
+  type: entity
+  question: Which restaurant is catering lunch at the event at Harbor Hall on April 17?
+  answer: lupa_trattoria
+  support:
+  - r38ad45f23d
+  - r7f526eb523
+- id: cs12
+  category: cross_session
+  type: entity
+  question: At which studio is the yoga class that moved to 10 AM?
+  answer: studio_verde
+  support:
+  - ra4ec148cb4
+  - rdceb8ac8ce
+- id: tm01
+  category: temporal
+  type: date
+  question: On what date is the Static Bloom concert that Omar bought tickets for?
+  answer: '2026-04-11'
+  support:
+  - raa6a107b75
+- id: tm02
+  category: temporal
+  type: date
+  question: On what date was the plumber originally scheduled to come?
+  answer: '2026-04-10'
+  support:
+  - r0b78255d68
+- id: tm03
+  category: temporal
+  type: datetime
+  question: When is Lena's birthday dinner?
+  answer: 2026-04-15T19:00
+  support:
+  - racf18dd1ee
+- id: tm04
+  category: temporal
+  type: date
+  question: On what date was the standing desk originally expected to arrive?
+  answer: '2026-04-14'
+  support:
+  - rcb6bc15385
+- id: tm05
+  category: temporal
+  type: datetime
+  question: When is Jamie's 1:1 with Maya?
+  answer: 2026-04-13T11:00
+  support:
+  - ra6861e02ec
+- id: tm06
+  category: temporal
+  type: date
+  question: On what date does Northwind's benefits open enrollment close?
+  answer: '2026-04-27'
+  support:
+  - r6a28804790
+- id: tm07
+  category: temporal
+  type: datetime
+  question: When is the code freeze?
+  answer: 2026-04-10T17:00
+  support:
+  - rc50326324d
+- id: tm08
+  category: temporal
+  type: date
+  question: On what date did Jamie send Omar the money for Jamie's own concert ticket?
+  answer: '2026-04-09'
+  support:
+  - r41ee52bdb6
+- id: tm09
+  category: temporal
+  type: datetime
+  question: When is the first yoga class at the new 10 AM time?
+  answer: 2026-04-11T10:00
+  support:
+  - rdceb8ac8ce
+- id: tm10
+  category: temporal
+  type: date
+  question: On what date does Jamie's new rent take effect?
+  answer: '2026-05-01'
+  support:
+  - r4af3c64af7
+- id: tm11
+  category: temporal
+  type: datetime
+  question: When is the dinner reservation at Lupa Trattoria with Priya and Dev?
+  answer: 2026-04-18T19:30
+  support:
+  - rf637b4000b
+- id: tm12
+  category: temporal
+  type: datetime
+  question: When is the PR review with Kenji?
+  answer: 2026-04-16T14:00
+  support:
+  - rfcc49872c6
+- id: ku01
+  category: knowledge_update
+  type: date
+  question: On what date is the Q2 planning offsite?
+  answer: '2026-04-17'
+  support:
+  - r7f526eb523
+- id: ku02
+  category: knowledge_update
+  type: entity
+  question: Where is the Q2 planning offsite held?
+  answer: harbor_hall
+  support:
+  - r7f526eb523
+- id: ku03
+  category: knowledge_update
+  type: datetime
+  question: When is Jamie's dental cleaning?
+  answer: 2026-04-23T10:45
+  support:
+  - rf0eacc110e
+- id: ku04
+  category: knowledge_update
+  type: entity
+  question: Which dentist will do Jamie's dental cleaning?
+  answer: ken_ito
+  support:
+  - rf0eacc110e
+- id: ku05
+  category: knowledge_update
+  type: date
+  question: On what date will the plumber come to fix the kitchen sink?
+  answer: '2026-04-13'
+  support:
+  - rdc2e47dc0e
+- id: ku06
+  category: knowledge_update
+  type: money
+  question: What is the final cost of the kitchen sink repair?
+  answer: 21500
+  support:
+  - r09d9bc1d97
+- id: ku07
+  category: knowledge_update
+  type: entity
+  question: Which book is the book club reading this month?
+  answer: salt_and_signal
+  support:
+  - rcc8d103ed3
+- id: ku08
+  category: knowledge_update
+  type: time
+  question: At what time do doors open for the Static Bloom show that Jamie is going to?
+  answer: '21:00'
+  support:
+  - r401bd7ce73
+- id: ku09
+  category: knowledge_update
+  type: entity
+  question: In which room was the April 9 reading group held?
+  answer: room_7a
+  support:
+  - r0ef320cd57
+- id: ku10
+  category: knowledge_update
+  type: date
+  question: On what date will the standing desk arrive?
+  answer: '2026-04-16'
+  support:
+  - r9c5349da48
+- id: ku11
+  category: knowledge_update
+  type: money
+  question: What is the current estimate for Jamie's car service at Metro Auto?
+  answer: 16499
+  support:
+  - r48e65150b5
+- id: ku12
+  category: knowledge_update
+  type: money
+  question: What will Jamie's new monthly rent be?
+  answer: 209500
+  support:
+  - r81f0e642f4
+- id: ab01
+  category: abstention
+  type: money
+  question: What is the parking fee at the Q2 planning offsite venue?
+  answer: null
+  support: []
+- id: ab02
+  category: abstention
+  type: entity
+  question: Which part was on backorder for the kitchen sink repair?
+  answer: null
+  support: []
+- id: ab03
+  category: abstention
+  type: entity
+  question: Who is the author of Salt and Signal?
+  answer: null
+  support: []
+- id: ab04
+  category: abstention
+  type: entity
+  question: 'What is the door code for Cedar Ridge Cabin #3?'
+  answer: null
+  support: []
+- id: ab05
+  category: abstention
+  type: date
+  question: On what date do Priya and Dev fly back home?
+  answer: null
+  support: []
+- id: ab06
+  category: abstention
+  type: time
+  question: 'What is the check-in time at Cedar Ridge Cabin #3?'
+  answer: null
+  support: []
+- id: ab07
+  category: abstention
+  type: entity
+  question: How old is Lena turning on her birthday?
+  answer: null
+  support: []
+- id: ab08
+  category: abstention
+  type: entity
+  question: What is the order number of Jamie's standing desk order?
+  answer: null
+  support: []
+- id: ab09
+  category: abstention
+  type: money
+  question: How much did the birthday dinner at Harbor Room cost?
+  answer: null
+  support: []
+- id: ab10
+  category: abstention
+  type: entity
+  question: What is Kenji's home address?
+  answer: null
+  support: []
+- id: ab11
+  category: abstention
+  type: entity
+  question: In which room at Harbor Hall is the Q2 planning offsite held?
+  answer: null
+  support: []
+- id: ab12
+  category: abstention
+  type: entity
+  question: Who will present at the next reading group?
+  answer: null
+  support: []
