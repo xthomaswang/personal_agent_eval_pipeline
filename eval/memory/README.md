@@ -6,6 +6,9 @@ Does an agent keep a correct, current and compact memory? Two parts:
   calendar entries is fed one day at a time, one agent session per day. Afterwards a fixed reader answers
   60 probe questions from the memory store alone, so the score is about what the agent wrote, not about
   how well it retrieves. Spec: `t4/task.yaml`.
+- **localmelo's native T4 probe and D11** (`native_t4_and_d11.md`): T4 with localmelo's own long-term
+  memory instead of pab's tools, and a cross-task A/B of `--admit-on-outcome`. Designed; they run after
+  localmelo's R6-lite merges.
 - **R3, offline retrieval** (planned here; built in personal-agent-bench): recall@k and latency of
   localmelo's retrievers on recorded agent runs. No agent loop.
 
