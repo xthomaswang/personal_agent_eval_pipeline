@@ -1,0 +1,24 @@
+# Environments and caches
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# Run records stay local; only allowlisted exports go under docs/benchmark/
+runs/
+*.log
+
+# Secrets and private data never go into this repo
+.env
+.envrc.local
+*.key
+private/
+snapshots/
+
+# Never commit weights or checkpoints
+*.safetensors
+*.gguf
+models/
+
+.DS_Store
