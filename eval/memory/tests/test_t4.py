@@ -77,6 +77,8 @@ def test_gold_answers_pass_their_own_normalization(fx: Fixtures) -> None:
     ("ku12", 2095, True), ("ku12", "$2,095.00", True), ("ku12", 2150, False), ("ku08", "9:00 PM", True),
     ("cs08", ["Dev Kapoor", "Priya"], True), ("cs08", ["Priya Raman"], False), ("ku02", "Harbor Room", False),
     ("ab03", None, True), ("ab03", "NOT_FOUND", True), ("ab03", "Imani Cole", False), ("ex01", None, False),
+    ("ab02", "a drain cartridge", False), ("ab05", "next week", False), ("ab10", "sometime in May", False),
+    ("ab07", "nobody else", False), ("ab09", 0, False),
 ])
 def test_answers(fx: Fixtures, probe_id: str, answer: Any, ok: bool) -> None:
     probe = next(p for p in fx.probes if p["id"] == probe_id)

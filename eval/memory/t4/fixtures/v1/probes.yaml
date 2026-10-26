@@ -374,7 +374,7 @@ probes:
 - id: ab04
   category: abstention
   type: entity
-  question: 'What is the door code for Cedar Ridge Cabin #3?'
+  question: Who is Jamie's contact person at Cedar Ridge Rentals?
   answer: null
   support: []
 - id: ab05
@@ -392,13 +392,13 @@ probes:
 - id: ab07
   category: abstention
   type: entity
-  question: How old is Lena turning on her birthday?
+  question: Besides Omar and Jamie, who is coming to Lena's birthday dinner?
   answer: null
   support: []
 - id: ab08
   category: abstention
-  type: entity
-  question: What is the order number of Jamie's standing desk order?
+  type: money
+  question: How much did Jamie pay for the standing desk?
   answer: null
   support: []
 - id: ab09
@@ -409,8 +409,8 @@ probes:
   support: []
 - id: ab10
   category: abstention
-  type: entity
-  question: What is Kenji's home address?
+  type: date
+  question: On what date does Kenji fly back from the Seattle conference?
   answer: null
   support: []
 - id: ab11

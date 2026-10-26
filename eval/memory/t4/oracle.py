@@ -30,7 +30,7 @@ from typing import Any
 import yaml
 
 from memory.t4 import store as st
-from memory.t4.values import Entities, canonical_text, expected, key_values, normalize
+from memory.t4.values import Entities, canonical_text, expected, is_null, key_values, normalize
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures" / "v1"
 ANSWERABLE = ("extraction", "cross_session", "temporal", "knowledge_update")
@@ -72,9 +72,9 @@ class Fixtures:
         return None
 
     def correct(self, probe: dict[str, Any], answer: Any) -> bool:
+        if probe["answer"] is None:  # abstention: only an explicit null counts, never an answer that fails to parse
+            return is_null(answer)
         got = normalize(answer, probe["type"], self.ents, self.year, self.tz, self.entity_type(probe))
-        if probe["answer"] is None:
-            return got is None and (answer is None or isinstance(answer, str))
         return got is not None and got == expected(probe["answer"], probe["type"], self.tz)
 
 

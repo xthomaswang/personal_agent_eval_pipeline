@@ -80,7 +80,10 @@ extraction and on cross_session (means of 3 trials), at least 1 probe higher on 
 `memory_tokens`, and a lower `duplicate_ratio`; no `fabricated_source`.
 
 **Cost.** About 1-2 h of oQ5 per arm at k = 3 (10 sessions of a few calls each, thinking off), plus
-about 3 min of reader calls per store (2.9 s per probe on the 1.4K-token gold store).
+the reader: 2.9 s per probe on the 1.4K-token gold store, about 3 min per store. oMLX reported no cached
+prompt tokens on these calls although every probe shares the store prefix, so a larger store costs its
+full prefill on every probe: a 15K-token store-everything export would take about 15-20 s per probe, or
+15-20 min per store. Why the prefix cache misses is to be checked before the probe runs.
 
 ## 2. D11: the cross-task protocol
 
@@ -108,8 +111,9 @@ over.
 admitted, by signal (`admitted_by` in the decision log); long-store entries written per run; recall
 hits split into same-exercise and cross-exercise, from R5's recall records (each pass is a new task, and
 `exclude_task` does not hide earlier passes of the same exercise, so same-exercise hits are reported
-apart). bench.harness's per-run `history.db` step count reads `<run>/mem`, which the shared memory
-directory replaces, so step counts come from the proxy.
+apart; R5/R6-lite's recall records carry each recalled entry's origin task id for this). bench.harness's per-run `history.db` step count reads `<run>/mem`, which the shared memory
+directory replaces. Step counts come from the proxy, or from the shared `history.db`: R1's
+`llm_calls` rows carry the task id, so a run's model calls are its task's rows.
 
 **Decision rule** (D2), on passes 2-5, all must hold for `on`:
 - pass rate no more than 10 points below `off` (non-inferiority);

@@ -43,7 +43,8 @@ flowchart LR
   model time the same way for all three harnesses and enforces the sampling and thinking settings.
 - Results are comparable only on the same machine and under the same protocol (tasks, budgets,
   sampling, thinking, server settings). Each result records both, and no table mixes them.
-- Timed work waits for a quiet machine (no other GPU or heavy CPU load) and for enough battery.
+- backend's timed units wait for a quiet machine (no other GPU or heavy CPU load) and enough battery;
+  the untimed suites need only the model server.
 
 ## Layout
 
@@ -83,8 +84,8 @@ python3 scripts/build_docs.py                          # rebuild docs/index.html
 
 Only synthetic or public task data and allowlisted result fields are committed. Run records, harness
 homes and transcripts stay in `runs/`, and tasks on your own accounts, messages or mail go in
-`eval/customize/`; both are gitignored. The pre-commit check refuses home paths, host names, private
-addresses and machine ids.
+`eval/customize/`; both are gitignored. Before anything is pushed, `eval/backend/scripts/redact.py --check`
+must pass on the changed files: it refuses home paths, host names, private addresses and machine ids.
 
 ## Status (2026-10-26)
 
@@ -105,6 +106,13 @@ machine-independent paths for backend, its results under `docs/benchmark/`, and 
 | [Qwen3.8-27B oQ6 + MTP](docs/benchmark/m5max-40c-128gb/qwen3.8_27b/oq6/backend/2026-10-21-quant-compare/) | 0.043 | 97.3% | 0.002 | 98.4% | 56/60 | 2026-10-22 |
 | [Qwen3.8-27B oQ8 + MTP](docs/benchmark/m5max-40c-128gb/qwen3.8_27b/oq8/backend/2026-10-21-quant-compare/) | 0.013 | 98.5% | 0.001 | 99.2% | 54/60 | 2026-10-21 |
 
+**Backend, `m5max-40c-128gb`: Speed on oMLX 0.7.1rc1 (M5 Max): text-only, agent sampling, thinking off** (`speed-1`)
+
+| Model | 64K cold TTFT | Cached-prefix TTFT | Decode 16K | Decode 32K | Decode 64K | Decode 110K | 20-step agent trajectory | Peak server memory | Date |
+|---|---|---|---|---|---|---|---|---|---|
+| [Qwen3.8-27B oQ5 + MTP (reference)](docs/benchmark/m5max-40c-128gb/qwen3.8_27b/oq5/backend/20261026-062952/) | 111.4 s | 3.20 s | 55.1 tok/s | 51.0 tok/s | 41.9 tok/s | 36.9 tok/s | 133.4 s | 58.0 GiB | 2026-10-26 |
+| [Nanbeige4.3-33B oQ5](docs/benchmark/m5max-40c-128gb/nanbeige4.3_33b/oq5/backend/20261026-104645/) | 210.6 s | 5.05 s | 15.9 tok/s | 13.5 tok/s | 10.5 tok/s | 9.0 tok/s | 328.5 s | 74.0 GiB | 2026-10-26 |
+
 **Agent ability, `m5max-40c-128gb`: Aider, 12 Python exercises x 3 harnesses, one run each (thinking off)** (`aider12-v0`)
 
 | Model | Total | Claude Code | Hermes | localmelo | Date |
@@ -113,5 +121,12 @@ machine-independent paths for backend, its results under `docs/benchmark/`, and 
 | [Qwen3.8-27B oQ5 + MTP](docs/benchmark/m5max-40c-128gb/qwen3.8_27b/oq5/agent_ability/2026-10-21-quant-compare/) | 32/36 | 9/12 | 12/12 | 11/12 | 2026-10-22 |
 | [Qwen3.8-27B oQ6 + MTP](docs/benchmark/m5max-40c-128gb/qwen3.8_27b/oq6/agent_ability/2026-10-21-quant-compare/) | 31/36 | 9/12 | 11/12 | 11/12 | 2026-10-22 |
 | [Qwen3.8-27B oQ8 + MTP](docs/benchmark/m5max-40c-128gb/qwen3.8_27b/oq8/agent_ability/2026-10-21-quant-compare/) | 33/36 | 10/12 | 11/12 | 12/12 | 2026-10-21 |
+
+**Agent ability, `m5max-40c-128gb`: Claude Code, Hermes, localmelo on Aider 12 + MCPMark easy 10 (gate set) and Aider 22 (ranking set); thinking off** (`capability-1`)
+
+| Model | Claude Code (gate) | Hermes (gate) | localmelo (gate) | Gate set | Ranking set | M7 tool-call cases | Date |
+|---|---|---|---|---|---|---|---|
+| [Qwen3.8-27B oQ5 + MTP (reference)](docs/benchmark/m5max-40c-128gb/qwen3.8_27b/oq5/agent_ability/20261026-062952/) | 21/22 | 20/22 | 22/22 | 63/66 | 61/66 | 21/22 | 2026-10-26 |
+| [Nanbeige4.3-33B oQ5](docs/benchmark/m5max-40c-128gb/nanbeige4.3_33b/oq5/agent_ability/20261026-104645/) | 16/22 | 15/18 (partial) | — | 31/40 (partial) | — | 17/22 | 2026-10-26 |
 
 <!-- results:end -->
