@@ -115,7 +115,9 @@ def system_info() -> dict[str, str | None]:
             return None
 
     xcode = run(["xcodebuild", "-version"])
-    return {"macos_build": run(["sw_vers", "-buildVersion"]),
+    repo = os.environ.get("OMLX_REPO")
+    return {"server": f"oMLX {run(['git', '-C', repo, 'describe', '--tags', '--always'])}" if repo else None,
+            "macos_build": run(["sw_vers", "-buildVersion"]),
             "xcode_build": xcode.splitlines()[-1].split()[-1] if xcode else None}
 
 

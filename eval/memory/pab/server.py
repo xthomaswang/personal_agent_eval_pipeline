@@ -1,10 +1,12 @@
 """pab: the bench's own MCP server. For T4 it feeds one day of the timeline and holds the memory store.
 
     python -m memory.pab --run-dir <run> --session <1-10> [--fixtures memory/t4/fixtures/v1]
+    python -m memory.pab --run-dir <run> --session <n> --task t4-native   # feed_day and submit only
     python -m memory.pab --run-dir <run> --task submit          # only the submit tool
 
 One process serves one ingestion session (one harness process, one day). The memory store persists
-across sessions in <run>/t4/store.json. Every call appends one line to <run>/events/pab.jsonl with the
+across sessions in <run>/t4/store.json. The t4-native task (a harness's own memory does the
+remembering, as in localmelo's native T4 probe) offers no memory tools. Every call appends one line to <run>/events/pab.jsonl with the
 session and both clocks; the oracle reads the feed_day lines to check that every cited source_id had
 been fed by the time it was cited. The timeline is synthetic, so the arguments are logged in full.
 """
@@ -168,12 +170,15 @@ class Pab:
                       {"type": "object", "properties": {"status": {"type": "string", "enum": list(STATUSES)},
                                                         "note": string}, "required": ["status"]},
                       self.wrap("submit", self.submit))
+        feed = Tool("feed_day", "Return today's records (messages, emails and calendar entries) as JSON. Every "
+                    "record has a record_id. Only today's records are available.",
+                    {"type": "object", "properties": {}}, self.wrap("feed_day", self.feed_day))
         if task == "submit":
             return [submit]
+        if task == "t4-native":
+            return [feed, submit]
         return [
-            Tool("feed_day", "Return today's records (messages, emails and calendar entries) as JSON. Every "
-                 "record has a record_id. Only today's records are available.",
-                 {"type": "object", "properties": {}}, self.wrap("feed_day", self.feed_day)),
+            feed,
             Tool("memory_write", "Add one entry to the user's memory store and return its id. key: a short topic "
                  "label; value: the facts, with absolute dates; source_ids: the record_ids it comes from.",
                  {"type": "object", "properties": {"key": string, "value": string, "source_ids": ids},
@@ -199,7 +204,7 @@ def main() -> None:
     ap = argparse.ArgumentParser(description="pab MCP server (stdio)")
     ap.add_argument("--run-dir", type=Path, required=True)
     ap.add_argument("--session", type=int, default=1, help="the ingestion session, which is also the day (1-10)")
-    ap.add_argument("--task", choices=("t4", "submit"), default="t4")
+    ap.add_argument("--task", choices=("t4", "t4-native", "submit"), default="t4")
     ap.add_argument("--fixtures", type=Path, default=FIXTURES)
     args = ap.parse_args()
     pab = Pab(args.run_dir, args.session, args.fixtures)

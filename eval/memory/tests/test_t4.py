@@ -98,9 +98,9 @@ def test_abstention_probes_are_never_dropped(fx: Fixtures) -> None:
 # ---- pab over stdio: the scripted agent and a fabricating one ----
 
 class Client:
-    def __init__(self, run_dir: Path, session: int) -> None:
+    def __init__(self, run_dir: Path, session: int, task: str = "t4") -> None:
         self.proc = subprocess.Popen([sys.executable, "-m", "memory.pab", "--run-dir", str(run_dir), "--session",
-                                      str(session)], cwd=ROOT, stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
+                                      str(session), "--task", task], cwd=ROOT, stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
         self.n = 0
         self.rpc("initialize", {"protocolVersion": "2025-06-18", "capabilities": {}, "clientInfo": {"name": "t"}})
         self.proc.stdin.write(json.dumps({"jsonrpc": "2.0", "method": "notifications/initialized"}) + "\n")
@@ -158,6 +158,22 @@ def test_citing_a_record_before_it_is_fed_is_a_violation(fx: Fixtures, tmp_path:
     c.close()
     bad = fabricated(fx, st.load(tmp_path / "t4" / "store.json"), tmp_path / "events" / "pab.jsonl")
     assert bad == [{"session": 1, "tool": "memory_write", "id": "m001", "ids": [later]}]
+
+
+def test_native_mode_feeds_without_memory_tools_and_checks_exported_ids(fx: Fixtures, tmp_path: Path) -> None:
+    c = Client(tmp_path, 1, "t4-native")
+    names = [t["name"] for t in c.rpc("tools/list", {})["result"]["tools"]]
+    fed, _ = c.call("feed_day")
+    c.close()
+    assert names == ["feed_day", "submit"]
+    seen = fed["results"][0]["record_id"]
+    unseen = next(rid for rid, r in fx.facts["records"].items() if r["day"] == 2)
+    export = [{"text": "a", "provenance": {"source_ids": [seen]}}, {"text": "b", "source_ids": [unseen, "r0"]}]
+    (tmp_path / "export.json").write_text(json.dumps(export))
+    entries = st.load(tmp_path / "export.json")
+    events = tmp_path / "events" / "pab.jsonl"
+    assert fabricated(fx, entries, events, exported=True) == [{"entry": "2", "ids": [unseen, "r0"]}]
+    assert fabricated(fx, entries, None, exported=True) == [{"entry": "2", "ids": ["r0"]}]
 
 
 def test_mcp_protocol_edges() -> None:

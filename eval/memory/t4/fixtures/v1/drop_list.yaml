@@ -1,0 +1,27 @@
+version: 1
+rule: an answerable probe answered right at least once in 3 reps from an empty store is dropped; abstention probes are never
+  dropped
+reader:
+  model: Qwen3.8-27B-oQ5-mtp
+  thinking: 'off'
+  temperature: 0
+  max_tokens: 200
+  reps: 3
+  date: '2026-10-26'
+  macos_build: 26B5101f
+  xcode_build: 27A9275
+errors: 0
+dropped: []
+right_from_empty:
+  ab01: 3
+  ab02: 3
+  ab03: 3
+  ab04: 3
+  ab05: 3
+  ab06: 3
+  ab07: 3
+  ab08: 3
+  ab09: 3
+  ab10: 3
+  ab11: 3
+  ab12: 3

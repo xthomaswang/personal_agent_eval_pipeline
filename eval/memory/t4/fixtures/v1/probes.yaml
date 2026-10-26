@@ -422,6 +422,6 @@ probes:
 - id: ab12
   category: abstention
   type: entity
-  question: Who will present at the next reading group?
+  question: Who will present at the reading group on April 23?
   answer: null
   support: []

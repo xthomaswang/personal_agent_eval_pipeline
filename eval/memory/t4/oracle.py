@@ -78,21 +78,26 @@ class Fixtures:
         return got is not None and got == expected(probe["answer"], probe["type"], self.tz)
 
 
-def fabricated(fx: Fixtures, entries: list[dict[str, Any]], events: Path | None) -> list[dict[str, Any]]:
+def fabricated(fx: Fixtures, entries: list[dict[str, Any]], events: Path | None, exported: bool = False) -> list[dict[str, Any]]:
+    """Writes through pab are checked call by call against what feed_day had returned by then. An exported
+    store (no memory calls to check) is checked against every id fed in the run, or, without pab's
+    events, against the timeline's records."""
     out = []
-    if events is not None and events.exists():
-        fed: set[str] = set()
-        for line in events.read_text().splitlines():
-            ev = json.loads(line)
-            if ev["tool"] == "feed_day" and ev.get("ok"):
-                fed |= set(ev["fed_ids"])
-            if ev["tool"] in ("memory_write", "memory_update") and ev.get("ok"):
-                bad = [i for i in ev["args"].get("source_ids", []) if i not in fed]
-                if bad:
-                    out.append({"session": ev["session"], "tool": ev["tool"], "id": ev.get("id"), "ids": bad})
+    fed: set[str] = set()
+    lines = events.read_text().splitlines() if events is not None and events.exists() else []
+    for line in lines:
+        ev = json.loads(line)
+        if ev["tool"] == "feed_day" and ev.get("ok"):
+            fed |= set(ev["fed_ids"])
+        if not exported and ev["tool"] in ("memory_write", "memory_update") and ev.get("ok"):
+            bad = [i for i in ev["args"].get("source_ids", []) if i not in fed]
+            if bad:
+                out.append({"session": ev["session"], "tool": ev["tool"], "id": ev.get("id"), "ids": bad})
+    if lines and not exported:
         return out
+    known = fed if lines else set(fx.records)
     for e in entries:
-        bad = [i for i in e["source_ids"] if i not in fx.records]
+        bad = [i for i in e["source_ids"] if i not in known]
         if bad:
             out.append({"entry": e["id"], "ids": bad})
     return out
@@ -164,7 +169,7 @@ def main() -> int:
         "fixtures": "v1",
         "drop_list": bool(fx.drop_info),
         "probes": score(fx, answers) if answers else None,
-        "fabricated_source": fabricated(fx, entries, None if args.store else args.run_dir / "events" / "pab.jsonl"),
+        "fabricated_source": fabricated(fx, entries, args.run_dir / "events" / "pab.jsonl", exported=bool(args.store)),
         **store_checks(fx, entries),
         "memory_tokens": memory_tokens(entries, args.tokenizer),
     }
