@@ -13,7 +13,8 @@ next to the ones already measured with one command, and anyone can rerun it on t
   is fed one day at a time; then a fixed reader answers probe questions from the memory store alone
   (T4).
 
-Results: [docs/index.html](docs/index.html) (GitHub Pages) and the tables below, per machine.
+Results: the [results page](https://xthomaswang.github.io/personal_agent_eval_pipeline/) (GitHub Pages,
+from `docs/index.html`) and the tables below, per machine.
 
 ## Architecture
 
