@@ -1,11 +1,12 @@
 {
   "schema": 1,
-  "model": "Qwen3.8-27B oQ6 + MTP",
+  "model": "Qwen3.8-27B oQ8 + MTP",
   "family": "qwen3.8_27b",
-  "quant": "oq6",
+  "quant": "oq8",
   "run_id": "2026-10-21-quant-compare",
-  "date": "2026-10-22",
+  "date": "2026-10-21",
   "system": {
+    "machine": "m5max-40c-128gb",
     "macos_build": "26B5101f",
     "xcode_build": "27A9275",
     "server": "oMLX 0.7.1rc1 + G2b patch (57620a3f), MTP on"
@@ -16,11 +17,11 @@
   "metrics": [
     {
       "name": "Total",
-      "value": "31/36"
+      "value": "33/36"
     },
     {
       "name": "Claude Code",
-      "value": "9/12"
+      "value": "10/12"
     },
     {
       "name": "Hermes",
@@ -28,7 +29,7 @@
     },
     {
       "name": "localmelo",
-      "value": "11/12"
+      "value": "12/12"
     }
   ]
 }

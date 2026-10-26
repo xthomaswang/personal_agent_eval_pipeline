@@ -6,6 +6,7 @@
   "run_id": "2026-10-21-quant-compare",
   "date": "2026-10-21",
   "system": {
+    "machine": "m5max-40c-128gb",
     "macos_build": "26B5101f",
     "xcode_build": "27A9275",
     "server": "oMLX 0.7.1rc1 + G2b patch (57620a3f), MTP on"
