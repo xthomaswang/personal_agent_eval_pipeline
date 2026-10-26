@@ -73,6 +73,29 @@ def test_speed_leg_with_the_real_speed_module(sandbox, capsys):
     assert str(Path.home()) not in text
 
 
+def test_minor_flags_keep_units_end_to_end(sandbox, capsys):
+    """DESIGN §5.4: with a minor condition through the whole quiet window, every unit is kept once with
+    verdict "minor" (never repeated), the run is complete, and report.py marks the cells."""
+    sandbox.minor.touch()
+    try:
+        assert _run(sandbox, legs=("speed",)) == 0
+    finally:
+        sandbox.minor.unlink(missing_ok=True)
+    out = capsys.readouterr().out
+    res = _only_run(sandbox.results / "mock-1b")
+    doc = json.loads((res / "speed/units.json").read_text())
+    for unit in speed.timed_units(sandbox.model):
+        rec = doc["units"][unit]
+        (att,) = rec["attempts"]
+        assert rec["verdict"] == att["verdict"] == "minor" and att["kept"] and att["minor_reasons"], (unit, att)
+        assert (res / att["raw_file"]).exists()
+    assert out.count("verdict=minor") == len(speed.timed_units(sandbox.model))
+    assert json.loads((res / "manifest.json").read_text())["status"] == "complete"
+    text = report.build_report(sandbox.results)
+    assert report.MINOR_MARK in text and "Units kept with a minor flag: Mock 1B: " in text, text[:3000]
+    _assert_released(sandbox)
+
+
 def test_unverified_speed_leg_goes_to_unverified(sandbox):
     assert _run(sandbox, legs=("speed",), unverified=True) == 0
     res = _only_run(paths.UNVERIFIED / "mock-1b")
@@ -124,7 +147,9 @@ def test_capability_leg_spec_env_and_flags(sandbox, monkeypatch):
     (row,) = doc["rows"]
     (warm,) = doc["warmups"]
     assert row["flags"]["disturbed"] is True and row["flags"]["disturbed_samples"] >= 1, row["flags"]
+    assert row["flags"]["severity"] == "major" and row["flags"]["major_samples"] >= 1, row["flags"]
     assert warm["flags"]["disturbed"] is False and warm["flags"]["battery_min"] == 95, warm["flags"]
+    assert warm["flags"]["severity"] == "clean" and warm["flags"]["major_samples"] == warm["flags"]["minor_samples"] == 0
     state = json.loads((sandbox.runs / "mock-1b" / res.name / "capability/state.json").read_text())
     assert all(r["flags"] is not None for r in state["records"])   # the runner's rewrites keep them
     assert str(Path.home()) not in (res / "capability/results.json").read_text()

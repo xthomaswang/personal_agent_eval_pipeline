@@ -1,9 +1,10 @@
 """Fake modeleval.speed with the docs/CONTRACTS.md interface, steered by a JSON control file.
 
 $FAKE_SPEED_CONTROL (JSON): {"functional_pass": true, "units": [...], "disturb": {"m3-16k": 1},
-  "invalid": {"m1": 1}, "incomplete": {"m4-1": 1}, "functional_kill": 1, "sleep": 0.4}
+  "minor": {"m1": 1}, "invalid": {"m1": 1}, "incomplete": {"m4-1": 1}, "functional_kill": 1, "sleep": 0.4}
   disturb[u] = n: the first n attempts of u (in this process) touch $FAKE_QUIET_DISTURB while they
-  run, so the fake monitor marks their window DISTURBED; invalid[u] = n: the first n attempts report
+  run, so the fake monitor marks their window DISTURBED (major); minor[u] = n: the same with
+  $FAKE_QUIET_MINOR, so their window is MINOR; invalid[u] = n: the first n attempts report
   cold_cached_tokens 4096; incomplete[u] = n: the first n attempts miss a latency sample (valid
   false, invalid_kind "incomplete"); functional_kill = n: the first n functional blocks SIGKILL the
   server and fail with a ConnectError, as a server lost mid-block. Every call is appended to
@@ -105,12 +106,18 @@ async def run_unit(ctx: SpeedContext, unit: str, attempt: int) -> UnitResult:
     ctl = _control()
     n = _seen[unit] = _seen.get(unit, 0) + 1
     disturb = n <= ctl.get("disturb", {}).get(unit, 0)
+    minor = n <= ctl.get("minor", {}).get(unit, 0)
     flag = Path(os.environ["FAKE_QUIET_DISTURB"])
+    minor_flag = Path(os.environ["FAKE_QUIET_MINOR"]) if os.environ.get("FAKE_QUIET_MINOR") else None
     t0 = time.time()
     if disturb:
         flag.touch()
+    if minor and minor_flag is not None:
+        minor_flag.touch()
     await asyncio.sleep(ctl.get("sleep", 0.4))
     flag.unlink(missing_ok=True)
+    if minor_flag is not None:
+        minor_flag.unlink(missing_ok=True)
     t1 = time.time()
     raw = Path(ctx.run_dir) / "speed" / f"{unit}-{attempt}.jsonl"
     raw.parent.mkdir(parents=True, exist_ok=True)

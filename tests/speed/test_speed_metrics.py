@@ -275,6 +275,25 @@ def test_verdicts_mark_invalid_and_disturbed_units(tmp_path):
     assert rec["verdict"] == "disturbed x3" and speed.kept_attempt(rec, ctx.run_dir) is None
 
 
+def test_minor_verdicts_keep_the_attempt(tmp_path):
+    """DESIGN §5.4: a minor verdict keeps the attempt with its flags; a major one is retried."""
+    ctx = ctx_for(tmp_path)
+    speed.record_unit(ctx, unit_result(ctx, "m1", 1, True, 1, 2, {}))
+    speed.record_verdict(ctx.run_dir, "m1", 1, {"clean": False, "severity": "major", "reasons": ["lock"],
+                                                "major_reasons": ["lock"]})
+    speed.record_unit(ctx, unit_result(ctx, "m1", 2, True, 3, 4, {}))
+    speed.record_verdict(ctx.run_dir, "m1", 2, {"clean": False, "severity": "minor", "reasons": ["busy"],
+                                                "minor_reasons": ["busy"], "minor_samples": 1})
+    rec = speed.load_units(ctx.run_dir)["units"]["m1"]
+    assert [a["verdict"] for a in rec["attempts"]] == ["disturbed", "minor"]
+    assert [a["kept"] for a in rec["attempts"]] == [False, True]
+    assert rec["verdict"] == "minor" and rec["attempts"][1]["minor_reasons"] == ["busy"]
+    assert speed.kept_attempt(rec, ctx.run_dir)["attempt"] == 2
+    assert speed.kept_attempt({"attempts": [{"attempt": 1, "verdict": "minor", "valid": True}]})["attempt"] == 1
+    assert speed.kept_attempt({"attempts": [{"attempt": 1, "valid": True,
+                                             "verdict": {"clean": False, "severity": "minor"}}]})["attempt"] == 1
+
+
 def test_kept_attempt_reads_run_py_records(tmp_path):
     """run.py's own attempt records: verdict strings, `kept`, raw_file as a ~ path."""
     rec = {"verdict": "clean", "attempts": [

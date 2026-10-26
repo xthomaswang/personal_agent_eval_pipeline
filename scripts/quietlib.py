@@ -4,25 +4,32 @@
 Stdlib only, Python 3.9+: quiet_check.sh runs it with /usr/bin/python3 -I -B (3.9 on this Mac),
 and modeleval.quiet imports it from the project venv (3.12). A modified copy of the Qwen3.8-27B
 campaign's quietlib (that repo's METHODOLOGY section 3): the sampler and the CPU, lock, port,
-power and battery thresholds are unchanged; the monitor samples every 5 s and logs four more
-columns; units are judged per window from the logged columns instead of per raw file.
+power and battery thresholds are kept; the monitor samples every 5 s and logs four more columns;
+units are judged per window from the logged columns instead of per raw file; and every flag has
+a severity, major or minor (the two-level policy below).
 Subcommands:
 
   check   [--allow-pid PID]... [--settle S] [--max-gpu-gb G] [--min-battery PCT] [--allow NAME[,NAME]]
+          [--major-only]
           One-shot pre-flight, run while the server under test is idle. Prints a provenance
           block; exit 1 when the machine is not quiet. With --settle, soft failures (load, GPU
           busy, busy processes, build tools, thermal) are re-checked every 5 s for up to S
           seconds. Hard failures (lock, a foreign server port, power) fail at once.
           --max-gpu-gb (used before a server starts) also fails while more than G GB of GPU
           memory is in use, i.e. while another model is resident. --min-battery fails while the
-          battery is below PCT %.
+          battery is below PCT %. --major-only (the pre-unit check) waits only for what would make
+          a unit's verdict major: minor conditions (busy processes, foreign CPU below
+          QUIET_MAJOR_FOREIGN_CPU, build/convert/download tools, the 1-min load, which lags a
+          minute and whose cause the foreign CPU total measures directly) are printed on a
+          "minor:" line and do not fail the check. GPU busy while our server is idle stays
+          blocking: QUIET_MAX_GPU (10 %) is the same share as the major foreign GPU rule.
   monitor --log FILE [--interval S] [--allow-pid PID]... [--until-pid PID] [--count N] [--allow NAME[,NAME]]
           Samples for the whole launch (default every 5 s). Every sample is a TSV row in FILE
           with the columns of MONITOR_COLUMNS; the header line is "# " + those names, after one
           "# quietlib monitor v4 ..." line with the interval and thresholds. stdout gets one line
-          per state change. The state column is informational (DISTURBED, SPIKE, QUIET, from
-          row_flags); judge_window re-judges from the logged columns. --count stops after N
-          samples (tests and short traces).
+          per state change. The state column is informational (DISTURBED for a major flag, MINOR
+          for minor flags only, SPIKE, QUIET; from row_flags); judge_window re-judges from the
+          logged columns. --count stops after N samples (tests and short traces).
   battery --min PCT [--wait S]
           Waits up to S seconds (default 0) for the battery to reach PCT %, printing the level
           every 5 min. Exit 1 if it does not. Machines without a battery always pass.
@@ -33,16 +40,34 @@ Importable (stdlib only, no side effects at import):
   window_flags(tsv, t_start, t_end)  a capability task's flags over the same kind of window
   read_monitor(tsv)                  the parsed rows of a monitor TSV
 
-The quiet rule (DESIGN section 5.4). A sample inside the window is disturbed by:
+The quiet rule (DESIGN section 5.4) has two levels. The user's instruction of 2026-10-26: small
+disturbances have little effect, skip them and do not re-run. So only a MAJOR flag repeats a
+timed unit; a MINOR flag keeps the result and records the flag. A sample inside the window is
+flagged by:
+  MAJOR
   - a lock event (our lock missing), a foreign server port (8500 or 8600-8699 listening; 8703 is
-    the server under test), power (not AC + High Power), the battery below QUIET_MIN_BATTERY_RUN,
-    or a build/convert/download tool (BUILD_NAMES, BUILD_ARGS): at once;
-  - the same foreign process above QUIET_MAX_PROC_CPU in this and the previous sample;
-  - foreign CPU in total above QUIET_MAX_FOREIGN_CPU in this and the previous sample;
-  - foreign GPU time above GPU_FLOOR_MS in this and the previous sample;
+    the server under test), power (not AC + High Power), the battery below QUIET_MIN_BATTERY_RUN:
+    at once;
+  - foreign CPU in total at or above QUIET_MAJOR_FOREIGN_CPU (300 %) in this and the previous sample;
+  - foreign GPU time at or above QUIET_MAJOR_GPU_MS (500 ms per 5 s sample, 10 % of GPU time) in
+    this and the previous sample;
   - memory pressure >= 2 or a swap-out burst (SWAP_BURST_MB in one sample), but only when the
     foreign RSS total grew by more than FOREIGN_RSS_GROWTH_MB in the window up to that sample:
-    pressure the server causes itself is a result (DESIGN section 5.2), not a disturbance.
+    pressure the server causes itself is a result (DESIGN section 5.2), not a disturbance;
+  - a monitor coverage problem (no samples in the window, or a gap; see judge_window).
+  MINOR (flag only)
+  - the same foreign process above QUIET_MAX_PROC_CPU (25 %) in this and the previous sample;
+  - foreign CPU in total above QUIET_MAX_FOREIGN_CPU (150 %), below the major line, in this and
+    the previous sample;
+  - foreign GPU time above GPU_FLOOR_MS (250 ms), below the major line, in this and the previous
+    sample;
+  - a build/convert/download tool (BUILD_NAMES, BUILD_ARGS) running: at once (what it costs the
+    server is its CPU, which the CPU rules judge).
+Why the lines sit there: the user accepts ~10 % cross-run error. The campaign's M8 on oMLX
+measured one busy core at +2.9 % M1 / -0.9 % M3 / +2.0 % M4 against block 1 (about +8.5 % on M1
+against the stable baselines) and eight busy threads at +27 % / +17.5 % / +9.4 %, so about three
+busy cores is where M1 reaches ~10 %. Foreign GPU time takes GPU time slices from the server
+directly, so a 10 % share costs up to ~10 %.
 pmset thermal warnings and the thermal pressure level are logged, never judged by the monitor.
 The previous sample may lie just before the window; a sample after it never counts.
 
@@ -64,12 +89,13 @@ session's arguments can carry a token or a private repo name, so the full comman
 only in the check report, which goes to gitignored logs.
 
 Thresholds (environment; a protocol run uses the defaults): QUIET_MAX_LOAD (1-min load, check
-only, default 2.5), QUIET_MAX_PROC_CPU (any single foreign process, default 25 %),
-QUIET_MAX_FOREIGN_CPU (sum over foreign processes, default 150 %), QUIET_MAX_GPU (GPU "Device
-Utilization %" while our server is idle, check only, default 10 %), QUIET_MIN_BATTERY_RUN
-(default 20 %: the 96 W adapter cannot supply this machine under sustained load, and below ~7 %
-the system caps power), QUIET_GPU_FLOOR_MS, QUIET_SWAP_BURST_MB, QUIET_FOREIGN_RSS_GROWTH_MB
-(see their comments). GPU_LOCK_PATH overrides the lock path (tests).
+only, default 2.5), QUIET_MAX_PROC_CPU (any single foreign process, default 25 %, minor),
+QUIET_MAX_FOREIGN_CPU (sum over foreign processes, default 150 %, minor), QUIET_MAJOR_FOREIGN_CPU
+(the same sum, default 300 %, major), QUIET_MAX_GPU (GPU "Device Utilization %" while our server
+is idle, check only, default 10 %), QUIET_MIN_BATTERY_RUN (default 20 %: the 96 W adapter cannot
+supply this machine under sustained load, and below ~7 % the system caps power),
+QUIET_GPU_FLOOR_MS (minor), QUIET_MAJOR_GPU_MS (major), QUIET_SWAP_BURST_MB,
+QUIET_FOREIGN_RSS_GROWTH_MB (see their comments). GPU_LOCK_PATH overrides the lock path (tests).
 """
 from __future__ import annotations
 
@@ -91,8 +117,13 @@ LOCK_HOLDER = "local_ai-benchmark session"
 PEER_PORT = 8500                      # the agent-benchmark session's oMLX
 FOREIGN_PORTS = "8500,8600-8699"      # lsof syntax; the agent benchmark's ports. 8703 is ours
 MAX_LOAD = float(os.environ.get("QUIET_MAX_LOAD", "2.5"))
-MAX_PROC_CPU = float(os.environ.get("QUIET_MAX_PROC_CPU", "25"))
-MAX_FOREIGN_CPU = float(os.environ.get("QUIET_MAX_FOREIGN_CPU", "150"))
+MAX_PROC_CPU = float(os.environ.get("QUIET_MAX_PROC_CPU", "25"))         # minor (one process, 2 samples)
+MAX_FOREIGN_CPU = float(os.environ.get("QUIET_MAX_FOREIGN_CPU", "150"))  # minor (total, 2 samples)
+# Major foreign CPU (total, two consecutive samples): the campaign's M8 on oMLX put one busy core at
+# +2.9 % M1 / -0.9 % M3 / +2.0 % M4 against block 1 (about +8.5 % on M1 against the stable
+# baselines) and eight busy threads at +27 % / +17.5 % / +9.4 %, so about three busy cores is where
+# M1 reaches the ~10 % cross-run error the user accepts. Below it a unit is kept with a minor flag.
+MAJOR_FOREIGN_CPU = float(os.environ.get("QUIET_MAJOR_FOREIGN_CPU", "300"))
 MAX_GPU = float(os.environ.get("QUIET_MAX_GPU", "10"))
 MIN_BATTERY_RUN = float(os.environ.get("QUIET_MIN_BATTERY_RUN", "20"))
 # Foreign GPU time per 5 s sample (the sum over foreign processes of their accumulatedGPUTime
@@ -102,7 +133,16 @@ MIN_BATTERY_RUN = float(os.environ.get("QUIET_MIN_BATTERY_RUN", "20"))
 # (ControlCenter about once a minute); never above 11 ms in two consecutive samples. 100 ms per
 # 5 s (2 % of wall time) is about twice the largest idle spike and ~9x the largest persistent
 # idle level, and far below any process doing real GPU work. The value assumes the 5 s interval.
-GPU_FLOOR_MS = float(os.environ.get("QUIET_GPU_FLOOR_MS", "100"))
+# Raised to 250 ms after the first live run (2026-10-26 05:37, Qwen3.8-27B 110K cell): with agent
+# sessions printing to it, Terminal.app alone rendered 75-142 ms per sample for minutes, which the
+# 100 ms floor counted as a disturbance. Foreign GPU time takes GPU time slices from the server, so a
+# sustained 5 % share (250 ms per 5 s) costs at most about 5 % of throughput, half the ~10 % cross-run
+# error the user accepts; a video, a browser animation or another model is far above it.
+# Above the floor and below MAJOR_GPU_MS the flag is minor (the unit is kept).
+GPU_FLOOR_MS = float(os.environ.get("QUIET_GPU_FLOOR_MS", "250"))
+# Major foreign GPU time per 5 s sample, in two consecutive samples: 500 ms is a 10 % share of GPU
+# time, which costs the server up to ~10 %, the cross-run error the user accepts.
+MAJOR_GPU_MS = float(os.environ.get("QUIET_MAJOR_GPU_MS", "500"))
 # Swap-out burst: MB written to swap in one sample. Uncalibrated: the idle trace above swapped out
 # nothing (0 pages in all 36 samples, with 2 GB of swap in use and pressure level 1), so any burst
 # is a sign of tight memory; 64 MB keeps single pages from counting.
@@ -134,9 +174,19 @@ MONITOR_COLUMNS = ("iso", "epoch", "state", "load1", "foreign_cpu", "gpu_util", 
                    "reasons")   # reasons stays last: free text never shifts the other columns
 _FLOAT = {"epoch", "load1", "foreign_cpu", "gpu_mem_gb", "foreign_gpu_ms", "foreign_rss_delta_mb"}
 _INT = {"gpu_util", "battery", "thermal_pressure", "pressure", "swapouts_delta"}
-# Reasons that disturb a sample at once (thermal is logged only; "allowed ..." never counts).
-_INSTANT = ("lock not held", "port ", "power:", "battery:", "tools:")
+# Reasons that flag a sample at once (thermal is logged only; "allowed ..." never counts).
+_MAJOR_INSTANT = ("lock not held", "port ", "power:", "battery:")
+_MINOR_INSTANT = ("tools:",)
 _BUSY = re.compile(r"([^\s,;]+)\((\d+)\) [\d.]+%")
+MAJOR, MINOR = "major", "minor"
+# check --major-only: soft reasons that never fail it (see the module docstring)
+_CHECK_MINOR = ("busy: ", "tools: ", "load1 ")
+
+
+class Flag(NamedTuple):
+    """One reason a monitor sample is flagged: severity MAJOR (the unit is repeated) or MINOR (kept)."""
+    severity: str
+    text: str
 
 
 class Proc(NamedTuple):
@@ -519,7 +569,8 @@ def memory_events(row: dict, page_size: int) -> list[str]:
     return out
 
 
-def report(s: dict, settle_note: str | None, verdict: bool, allow: frozenset = frozenset()) -> str:
+def report(s: dict, settle_note: str | None, verdict: bool, allow: frozenset = frozenset(),
+           minor: list[str] | None = None) -> str:
     stamp = dt.datetime.fromtimestamp(s["t"]).astimezone().strftime("%Y-%m-%d %H:%M:%S %z")
 
     def tag(name: str) -> str:
@@ -534,7 +585,8 @@ def report(s: dict, settle_note: str | None, verdict: bool, allow: frozenset = f
                                     else "none listening"),
              f"load1: {s['load1']:.2f} (max {MAX_LOAD}){tag('load')}",
              f"gpu: {s['gpu_util']}% busy (max {MAX_GPU:.0f}){tag('gpu')}, {s['gpu_mem_gb']} GB in use",
-             f"foreign CPU: {s['foreign_cpu']:.1f}% total (max {MAX_FOREIGN_CPU:.0f}); top: "
+             f"foreign CPU: {s['foreign_cpu']:.1f}% total (max {MAX_FOREIGN_CPU:.0f}, major "
+             f"{MAJOR_FOREIGN_CPU:.0f}); top: "
              + ", ".join(f"{name(c)} {cpu:.1f}" for _, cpu, c in s["top"])]
     if s["busy"]:
         lines.append(f"busy foreign processes (>{MAX_PROC_CPU:.0f}% CPU):")
@@ -555,10 +607,32 @@ def report(s: dict, settle_note: str | None, verdict: bool, allow: frozenset = f
     if allow:
         lines.append(f"allowances: {', '.join(sorted(allow))} (an interference load's own side effects; "
                      "foreign processes are judged as always)")
+    if minor:
+        lines.append(f"minor: {'; '.join(minor)} (flag only: --major-only does not wait for it)")
     if settle_note:
         lines.append(settle_note)
     lines.append("verdict: QUIET" if verdict else "verdict: NOT QUIET")
     return "\n".join(lines)
+
+
+def major_only(s: dict, soft: list[str]) -> tuple[list[str], list[str]]:
+    """check --major-only: (the soft reasons that still fail the check, the minor ones that are
+    only printed). Minor: busy processes, build/convert/download tools, the 1-min load and foreign
+    CPU below MAJOR_FOREIGN_CPU. Everything else stays blocking: GPU busy while our server is idle
+    (QUIET_MAX_GPU, the same 10 % share as MAJOR_GPU_MS), a resident model (--max-gpu-gb), the
+    --min-battery guard and thermal warnings that no --allow accepts."""
+    blocking, minor = [], []
+    for x in soft:
+        if x.startswith(_CHECK_MINOR):
+            minor.append(x)
+        elif x.startswith("foreign CPU "):
+            if s["foreign_cpu"] >= MAJOR_FOREIGN_CPU:
+                blocking.append(f"foreign CPU {s['foreign_cpu']:.0f}% >= {MAJOR_FOREIGN_CPU:.0f}%")
+            else:
+                minor.append(x)
+        else:
+            blocking.append(x)
+    return blocking, minor
 
 
 def cmd_check(a: argparse.Namespace) -> int:
@@ -568,6 +642,9 @@ def cmd_check(a: argparse.Namespace) -> int:
     while True:
         s = sampler.sample()
         hard, soft, _ = problems(s, judge_load=True, max_gpu_gb=a.max_gpu_gb, min_battery=a.min_battery, allow=allow)
+        minor: list[str] = []
+        if a.major_only:
+            soft, minor = major_only(s, soft)
         waited = time.time() - t0
         if hard or not soft or waited + SETTLE_STEP > a.settle:
             break
@@ -581,7 +658,7 @@ def cmd_check(a: argparse.Namespace) -> int:
             note = f"settle: not attempted (hard failure: {'; '.join(hard)})"
         else:
             note = f"settle: still not quiet after {waited:.0f} s (limit {a.settle:.0f} s): {'; '.join(soft)}"
-    print(report(s, note, ok, allow))
+    print(report(s, note, ok, allow, minor))
     return 0 if ok else 1
 
 
@@ -600,31 +677,57 @@ def _over(row: dict | None, col: str, limit: float) -> bool:
     return v is not None and v > limit
 
 
-def row_flags(row: dict, prev: dict | None, gpu_floor_ms: float = GPU_FLOOR_MS) -> list[str]:
-    """Why a sample is disturbed, given the sample before it (None at the start of a monitor
-    session); empty when it is not. Memory is judged per window (judge_window), not here."""
+def _at_least(row: dict | None, col: str, limit: float) -> bool:
+    v = row.get(col) if row is not None else None
+    return v is not None and v >= limit
+
+
+def row_flags(row: dict, prev: dict | None, gpu_floor_ms: float = GPU_FLOOR_MS,
+              major_gpu_ms: float = MAJOR_GPU_MS) -> list[Flag]:
+    """Why a sample is flagged, given the sample before it (None at the start of a monitor
+    session), each reason with its severity (the module docstring); empty when it is not. A level
+    that persists counts as major only when both samples reach the major line, otherwise as minor.
+    Memory is judged per window (judge_window), not here."""
     segs = _segments(row.get("reasons") or "")
-    flags = [x for x in segs if x.startswith(_INSTANT)]
+    flags = [Flag(MAJOR, x) for x in segs if x.startswith(_MAJOR_INSTANT)]
     b = row.get("battery")
-    if b is not None and 0 <= b < MIN_BATTERY_RUN and not any(x.startswith("battery:") for x in flags):
-        flags.append(f"battery: {b}% < {MIN_BATTERY_RUN:.0f}%")
+    if b is not None and 0 <= b < MIN_BATTERY_RUN and not any(f.text.startswith("battery:") for f in flags):
+        flags.append(Flag(MAJOR, f"battery: {b}% < {MIN_BATTERY_RUN:.0f}%"))
+    flags += [Flag(MINOR, x) for x in segs if x.startswith(_MINOR_INSTANT)]
     if prev is not None:
         prev_busy = _busy(_segments(prev.get("reasons") or ""))
         both = [v for k, v in _busy(segs).items() if k in prev_busy]
         if both:
-            flags.append(f"busy in 2 consecutive samples: {', '.join(both)}")
-        if _over(row, "foreign_cpu", MAX_FOREIGN_CPU) and _over(prev, "foreign_cpu", MAX_FOREIGN_CPU):
-            flags.append(f"foreign CPU {row['foreign_cpu']:.0f}% > {MAX_FOREIGN_CPU:.0f}% in 2 consecutive samples")
-        if _over(row, "foreign_gpu_ms", gpu_floor_ms) and _over(prev, "foreign_gpu_ms", gpu_floor_ms):
-            flags.append(f"foreign GPU {row['foreign_gpu_ms']:.0f} ms > {gpu_floor_ms:.0f} ms "
-                         "in 2 consecutive samples")
+            flags.append(Flag(MINOR, f"busy in 2 consecutive samples: {', '.join(both)}"))
+        if _at_least(row, "foreign_cpu", MAJOR_FOREIGN_CPU) and _at_least(prev, "foreign_cpu", MAJOR_FOREIGN_CPU):
+            flags.append(Flag(MAJOR, f"foreign CPU {row['foreign_cpu']:.0f}% >= {MAJOR_FOREIGN_CPU:.0f}% "
+                                     "in 2 consecutive samples"))
+        elif _over(row, "foreign_cpu", MAX_FOREIGN_CPU) and _over(prev, "foreign_cpu", MAX_FOREIGN_CPU):
+            flags.append(Flag(MINOR, f"foreign CPU {row['foreign_cpu']:.0f}% > {MAX_FOREIGN_CPU:.0f}% "
+                                     "in 2 consecutive samples"))
+        if _at_least(row, "foreign_gpu_ms", major_gpu_ms) and _at_least(prev, "foreign_gpu_ms", major_gpu_ms):
+            flags.append(Flag(MAJOR, f"foreign GPU {row['foreign_gpu_ms']:.0f} ms >= {major_gpu_ms:.0f} ms "
+                                     "in 2 consecutive samples"))
+        elif _over(row, "foreign_gpu_ms", gpu_floor_ms) and _over(prev, "foreign_gpu_ms", gpu_floor_ms):
+            flags.append(Flag(MINOR, f"foreign GPU {row['foreign_gpu_ms']:.0f} ms > {gpu_floor_ms:.0f} ms "
+                                     "in 2 consecutive samples"))
     return flags
 
 
-def row_state(row: dict, prev: dict | None, gpu_floor_ms: float = GPU_FLOOR_MS) -> str:
-    """DISTURBED (row_flags), SPIKE (a one-sample CPU or GPU excess) or QUIET."""
-    if row_flags(row, prev, gpu_floor_ms):
-        return "DISTURBED"
+def severity(flags: list[Flag]) -> str:
+    """"major" when any flag is major, "minor" when there are only minor ones, else "clean"."""
+    if any(f.severity == MAJOR for f in flags):
+        return MAJOR
+    return MINOR if flags else "clean"
+
+
+def row_state(row: dict, prev: dict | None, gpu_floor_ms: float = GPU_FLOOR_MS,
+              major_gpu_ms: float = MAJOR_GPU_MS) -> str:
+    """DISTURBED (a major flag), MINOR (minor flags only), SPIKE (a one-sample CPU or GPU excess)
+    or QUIET."""
+    level = severity(row_flags(row, prev, gpu_floor_ms, major_gpu_ms))
+    if level != "clean":
+        return "DISTURBED" if level == MAJOR else "MINOR"
     single = (_busy(_segments(row.get("reasons") or "")) or _over(row, "foreign_cpu", MAX_FOREIGN_CPU)
               or _over(row, "foreign_gpu_ms", gpu_floor_ms))
     return "SPIKE" if single else "QUIET"
@@ -669,7 +772,8 @@ def format_row(row: dict) -> str:
 
 def monitor_header(interval: float, allow_pids: list[int], allow: frozenset, page_size: int) -> str:
     return (f"# quietlib monitor v4 interval={interval} max_proc_cpu={MAX_PROC_CPU} "
-            f"max_foreign_cpu={MAX_FOREIGN_CPU} min_battery_run={MIN_BATTERY_RUN} gpu_floor_ms={GPU_FLOOR_MS} "
+            f"max_foreign_cpu={MAX_FOREIGN_CPU} major_foreign_cpu={MAJOR_FOREIGN_CPU} "
+            f"min_battery_run={MIN_BATTERY_RUN} gpu_floor_ms={GPU_FLOOR_MS} major_gpu_ms={MAJOR_GPU_MS} "
             f"swap_burst_mb={SWAP_BURST_MB} foreign_rss_growth_mb={FOREIGN_RSS_GROWTH_MB} page_size={page_size} "
             f"allow={','.join(map(str, allow_pids))}"
             + (f" allowances={','.join(sorted(allow))}" if allow else "") + "\n"
@@ -762,29 +866,29 @@ def read_monitor(path: Path | str) -> list[dict]:
     return rows
 
 
-def _window(tsv_path: Path | str, t_start: float, t_end: float, pad_s: float,
-            gpu_floor_ms: float) -> tuple[list[tuple[dict, list[str]]], str | None]:
-    """The samples inside [t_start - pad, t_end + pad] with their disturbance flags, and a
-    coverage problem (no samples, or a gap of more than 3 intervals, at least 15 s) or None."""
+def _window(tsv_path: Path | str, t_start: float, t_end: float, pad_s: float, gpu_floor_ms: float,
+            major_gpu_ms: float) -> tuple[list[tuple[dict, list[Flag]]], str | None]:
+    """The samples inside [t_start - pad, t_end + pad] with their flags, and a coverage problem
+    (no samples, or a gap of more than 3 intervals, at least 15 s; always major) or None."""
     try:
         rows = read_monitor(tsv_path)
     except OSError as e:
         return [], f"monitor log unreadable: {type(e).__name__}"
     lo, hi = t_start - pad_s, t_end + pad_s
-    judged: list[tuple[dict, list[str]]] = []
+    judged: list[tuple[dict, list[Flag]]] = []
     prev = None
     for r in rows:
         if prev is not None and prev["_session"] != r["_session"]:
             prev = None
         if lo <= r["epoch"] <= hi:
-            judged.append((r, row_flags(r, prev, gpu_floor_ms)))
+            judged.append((r, row_flags(r, prev, gpu_floor_ms, major_gpu_ms)))
         prev = r
     growth = 0.0
     for r, flags in judged:
         growth += r.get("foreign_rss_delta_mb") or 0.0
         mem = memory_events(r, r["_meta"]["page_size"])
         if mem and growth > FOREIGN_RSS_GROWTH_MB:
-            flags.append(f"{'; '.join(mem)} while foreign RSS grew {growth:+.0f} MB in the window")
+            flags.append(Flag(MAJOR, f"{'; '.join(mem)} while foreign RSS grew {growth:+.0f} MB in the window"))
     if not judged:
         return judged, "no monitor samples in the window"
     interval = max(r["_meta"]["interval"] for r, _ in judged)
@@ -799,37 +903,66 @@ def _hms(t: float) -> str:
     return dt.datetime.fromtimestamp(t).strftime("%H:%M:%S")
 
 
-def _peak_cpu(judged: list[tuple[dict, list[str]]]) -> float:
+def _peak_cpu(judged: list[tuple[dict, list[Flag]]]) -> float:
     return max((r["foreign_cpu"] for r, _ in judged if r.get("foreign_cpu") is not None), default=0.0)
 
 
+def _sample_lines(judged: list[tuple[dict, list[Flag]]], level: str | None = None) -> list[str]:
+    """One "HH:MM:SS reason; reason" line per flagged sample (only the flags of `level` when given),
+    at most MAX_REASONS of them."""
+    picked = [(r, [f.text for f in flags if level is None or f.severity == level]) for r, flags in judged]
+    picked = [(r, texts) for r, texts in picked if texts]
+    out = [f"{_hms(r['epoch'])} {'; '.join(texts)}" for r, texts in picked[:MAX_REASONS]]
+    if len(picked) > MAX_REASONS:
+        out.append(f"... and {len(picked) - MAX_REASONS} more")
+    return out
+
+
+def _counts(judged: list[tuple[dict, list[Flag]]]) -> dict:
+    """Flagged samples: any flag, a major flag, a minor flag (a sample with both counts in both)."""
+    return {"disturbed_samples": sum(1 for _, f in judged if f),
+            "major_samples": sum(1 for _, f in judged if any(x.severity == MAJOR for x in f)),
+            "minor_samples": sum(1 for _, f in judged if any(x.severity == MINOR for x in f))}
+
+
 def judge_window(tsv_path: Path | str, t_start: float, t_end: float, pad_s: float = PAD_S,
-                 gpu_floor_ms: float = GPU_FLOOR_MS) -> dict:
+                 gpu_floor_ms: float = GPU_FLOOR_MS, major_gpu_ms: float = MAJOR_GPU_MS) -> dict:
     """A timed unit's verdict (DESIGN 5.4) from the monitor log and the orchestrator's own epoch
-    timestamps: {"clean", "reasons", "peak_foreign_cpu", "samples", "disturbed_samples"}. Not
-    clean when a sample inside [t_start - pad_s, t_end + pad_s] is disturbed (see the module
-    docstring), or when the monitor did not cover the window: no samples in it, or a gap of more
-    than 3 intervals and 15 s (call it once the monitor has written a sample after t_end + pad_s)."""
-    judged, coverage = _window(tsv_path, t_start, t_end, pad_s, gpu_floor_ms)
-    bad = [(r, f) for r, f in judged if f]
+    timestamps: {"clean", "severity", "reasons", "major_reasons", "minor_reasons",
+    "peak_foreign_cpu", "samples", "disturbed_samples", "major_samples", "minor_samples"}.
+
+    "severity" is "major" when a sample inside [t_start - pad_s, t_end + pad_s] has a major flag
+    (see the module docstring) or the monitor did not cover the window (no samples in it, or a gap
+    of more than 3 intervals and 15 s; call this once the monitor has written a sample after
+    t_end + pad_s); "minor" when samples have minor flags only; else "clean". "clean" stays what it
+    always meant, no flag at all (severity "clean"); "reasons" and "disturbed_samples" cover every
+    flag, "major_reasons" / "minor_reasons" and the counts one level each."""
+    judged, coverage = _window(tsv_path, t_start, t_end, pad_s, gpu_floor_ms, major_gpu_ms)
+    n = _counts(judged)
     reasons = [coverage] if coverage else []
-    if bad:
-        reasons.append(f"{len(bad)} disturbed sample(s) of {len(judged)}")
-        reasons += [f"{_hms(r['epoch'])} {'; '.join(f)}" for r, f in bad[:MAX_REASONS]]
-        if len(bad) > MAX_REASONS:
-            reasons.append(f"... and {len(bad) - MAX_REASONS} more")
-    return {"clean": not reasons, "reasons": reasons, "peak_foreign_cpu": _peak_cpu(judged),
-            "samples": len(judged), "disturbed_samples": len(bad)}
+    if n["disturbed_samples"]:
+        reasons.append(f"{n['disturbed_samples']} flagged sample(s) of {len(judged)} "
+                       f"({n['major_samples']} major, {n['minor_samples']} minor)")
+        reasons += _sample_lines(judged)
+    major = [coverage] if coverage else []
+    if n["major_samples"]:
+        major += [f"{n['major_samples']} sample(s) of {len(judged)} with a major flag"] + _sample_lines(judged, MAJOR)
+    minor = []
+    if n["minor_samples"]:
+        minor += [f"{n['minor_samples']} sample(s) of {len(judged)} with a minor flag"] + _sample_lines(judged, MINOR)
+    level = MAJOR if major else MINOR if minor else "clean"
+    return {"clean": not reasons, "severity": level, "reasons": reasons, "major_reasons": major,
+            "minor_reasons": minor, "peak_foreign_cpu": _peak_cpu(judged), "samples": len(judged), **n}
 
 
 def window_flags(tsv_path: Path | str, t_start: float, t_end: float, pad_s: float = PAD_S,
-                 gpu_floor_ms: float = GPU_FLOOR_MS) -> dict:
-    """A capability task's flags (DESIGN 6.4; never a re-run): {"disturbed_samples",
-    "peak_foreign_cpu", "battery_min" (None without battery readings), "samples"}, judged with
-    the same rule as judge_window."""
-    judged, _ = _window(tsv_path, t_start, t_end, pad_s, gpu_floor_ms)
+                 gpu_floor_ms: float = GPU_FLOOR_MS, major_gpu_ms: float = MAJOR_GPU_MS) -> dict:
+    """A capability task's flags (DESIGN 6.4; never a re-run): {"disturbed_samples" (any flag),
+    "major_samples", "minor_samples", "peak_foreign_cpu", "battery_min" (None without battery
+    readings), "samples"}, judged with the same rule as judge_window."""
+    judged, _ = _window(tsv_path, t_start, t_end, pad_s, gpu_floor_ms, major_gpu_ms)
     batt = [r["battery"] for r, _ in judged if r.get("battery") is not None and r["battery"] >= 0]
-    return {"disturbed_samples": sum(1 for _, f in judged if f), "peak_foreign_cpu": _peak_cpu(judged),
+    return {**_counts(judged), "peak_foreign_cpu": _peak_cpu(judged),
             "battery_min": min(batt) if batt else None, "samples": len(judged)}
 
 
@@ -859,6 +992,8 @@ def main(argv: list[str] | None = None) -> int:
     c.add_argument("--max-gpu-gb", type=float)
     c.add_argument("--min-battery", type=float)
     c.add_argument("--allow", type=allow_names, action="append", default=[], help="allowances: " + ", ".join(ALLOWANCES))
+    c.add_argument("--major-only", action="store_true",
+                   help="fail only on major conditions; print minor ones (the pre-unit check)")
     m = sub.add_parser("monitor")
     m.add_argument("--log", required=True)
     m.add_argument("--interval", type=float, default=MONITOR_INTERVAL)

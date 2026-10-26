@@ -18,7 +18,8 @@ HARNESSES = ("claude_code", "hermes", "localmelo")
 
 def speed_run(root: Path, run_id: str, decode: float = 30.0, m1_warm: float = 0.30, m4_ttft: float = 1.0,
               build: str = "26B5101f", protocol: int = 1, epoch: str = "e1", skip: tuple[str, ...] = (),
-              disturbed: tuple[str, ...] = (), stop: str | None = None, **model_kw) -> speed.SpeedContext:
+              disturbed: tuple[str, ...] = (), minor: tuple[str, ...] = (), stop: str | None = None,
+              **model_kw) -> speed.SpeedContext:
     model = make_model(**model_kw)
     run_dir = root / model.key / run_id
     ctx = speed.SpeedContext(model, "http://127.0.0.1:8790/v1", 1, run_dir, root / "tok", root / "_unverified")
@@ -50,7 +51,11 @@ def speed_run(root: Path, run_id: str, decode: float = 30.0, m1_warm: float = 0.
             raw.write_text("{}\n")
             speed.record_unit(ctx, speed.UnitResult(unit, attempt, t, t + 60, raw, metrics, valid, ""))
             clean = unit not in disturbed
-            speed.record_verdict(run_dir, unit, attempt, {"clean": clean, "reasons": [] if clean else ["mds"]})
+            verdict = {"clean": clean, "reasons": [] if clean else ["mds"]}
+            if unit in minor:   # kept with its flag (DESIGN §5.4), never repeated
+                verdict = {"clean": False, "severity": "minor", "reasons": ["busy: mds(1) 40%"],
+                           "minor_reasons": ["busy: mds(1) 40%"], "major_reasons": []}
+            speed.record_verdict(run_dir, unit, attempt, verdict)
             t += 70
     (run_dir / "speed" / "memory.tsv").write_text(
         "t\ttree_bytes\tsys_delta_bytes\tpressure\tswapouts_delta\n"
@@ -103,6 +108,22 @@ def test_speed_table_with_reference_ratios_and_bands(tmp_path):
     assert "m7-18-parallel" in md and "21/22" in md
     assert "vision: none" in md
     assert "/Users/" not in md and str(tmp_path) not in md
+    assert report.MINOR_MARK not in md and "minor disturbance flag" not in md   # nothing was kept with a flag
+
+
+def test_units_kept_with_a_minor_flag_are_marked(tmp_path):
+    root = tmp_path / "results"
+    speed_run(root, "20261027-010000", decode=30.0)
+    speed_run(root, "20261027-030000", decode=20.0, minor=("m3-16k", "m1", "m4-2"), **NANBEIGE)
+    md = report.build_report(root)
+    assert "| Nanbeige4.3-33B oQ5 | 20.0‡ (0.67x) | 18.0 (0.67x) | 16.0 (0.67x) | 12.0 (0.67x) | = 16K (no spec) |" in md
+    assert "0.330‡" not in md and "0.300‡ (1.00x ≈)" in md          # M1 warm TTFT
+    assert "| 3/3‡ |" in md and md.count("| 3/3 |") == 1               # M4 runs kept; the reference has no flag
+    assert md.count(report.MINOR_NOTE) == 1
+    assert "Units kept with a minor flag: Nanbeige4.3-33B oQ5: m3-16k, m1, m4-2." in md
+    nan = next(r for r in report.discover(root) if not r.is_reference)
+    assert report.minor_kept(nan, "m1") and not report.minor_kept(nan, "m3-32k")
+    assert report.unit_state(nan, "m3-16k")[1] == "ok"
 
 
 def test_m4_headline_median_and_ratio(tmp_path):

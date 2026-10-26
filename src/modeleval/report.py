@@ -25,6 +25,15 @@ SETS = ("gate", "ranking")
 SET_TASKS = {"gate": 22, "ranking": 22}  # DESIGN §6.3: tasks per set, each run through the three harnesses
 CONTEXTS = (("m3-16k", "16K"), ("m3-32k", "32K"), ("g5+m3-64k", "64K"), ("m3-110k", "110K"))
 GIB = 2**30
+MINOR_MARK = "‡"   # a unit kept with a minor disturbance flag (DESIGN §5.4); "†" is the TTFT-includes-decode mark
+MINOR_NOTE = (
+    "‡ Kept with a minor disturbance flag (DESIGN §5.4). Following the project owner's instruction of 2026-10-26 "
+    "(small disturbances have little effect: skip them, no re-run), only a major disturbance repeats a unit: foreign CPU "
+    ">= 300 % or foreign GPU time >= 500 ms per 5 s sample (10 %) in two consecutive samples, the lock, a peer's "
+    "server port, power, a battery below 20 %, memory pressure from foreign growth, or a gap in the monitor. A minor "
+    "flag (one foreign process above 25 % CPU, foreign CPU 150-300 % or foreign GPU time 250-500 ms in two "
+    "consecutive samples, a build or download tool) keeps the result: in the old campaign's M8 one busy core moved "
+    "M1 / M3 / M4 by +2.9 % / -0.9 % / +2.0 %, inside the ~10 % cross-run error the owner accepts.")
 
 
 # ======================================================================= discovery
@@ -172,14 +181,15 @@ def discover(results_root: Path) -> list[Run]:
 
 # ======================================================================= completeness and selection
 def unit_state(run: Run, unit: str) -> tuple[dict | None, str]:
-    """(kept attempt, state): "ok"; "disturbed xN" (every allowed attempt was disturbed) or "invalid"
-    (a cold request hit the cache), where the metric stays empty; or "missing" (not finished)."""
+    """(kept attempt, state): "ok" (clean, or kept with a minor flag: `minor_kept`); "disturbed xN"
+    (every allowed attempt had a major disturbance) or "invalid" (a cold request hit the cache), where
+    the metric stays empty; or "missing" (not finished)."""
     rec = speed.unit_record({"units": dict(((run.units or {}).get("units") or {}))}, unit)
     kept = speed.kept_attempt(rec, run.run_dir)
     if kept:
         return kept, "ok"
     v = rec.get("verdict")
-    if isinstance(v, str) and v != "clean":
+    if isinstance(v, str) and v not in speed.KEPT_VERDICTS:
         return None, v
     if len(rec["attempts"]) >= 3:
         return None, f"disturbed x{len(rec['attempts'])}"
@@ -292,11 +302,21 @@ def _metric(run: Run, unit: str, *path: str) -> tuple[Any, str]:
     return _dig(kept.get("metrics"), *path), state
 
 
+def minor_kept(run: Run, unit: str) -> bool:
+    """The unit's kept attempt was judged minor: kept with its flags, not repeated (DESIGN §5.4)."""
+    kept, _ = unit_state(run, unit)
+    return bool(kept) and (kept.get("verdict") == "minor" or kept.get("severity") == "minor")
+
+
+def _minor_mark(run: Run, *units: str) -> str:
+    return MINOR_MARK if any(minor_kept(run, u) for u in units) else ""
+
+
 def _cell(run: Run, unit: str, path: tuple[str, ...], nd: int = 1, ref: Run | None = None, band: float = 0.0) -> str:
     v, state = _metric(run, unit, *path)
     if v is None:
         return state if state != "missing" else "-"  # "disturbed xN" or "invalid" (a cold request hit the cache)
-    out = _f(v, nd)
+    out = _f(v, nd) + _minor_mark(run, unit)
     if ref is not None and ref is not run:
         rv, _ = _metric(ref, unit, *path)
         out += _ratio(v, rv, band)
@@ -422,11 +442,18 @@ def speed_section(key: tuple, rows: list[Run]) -> str:
         if mark:
             notes.append(f"{r.name}: † some steps opened with a tool call and the server reported no time to first "
                          "token; their TTFT includes the call's decode.")
-        mrows.append([_row_name(r), f"{s['runs']}/3" + (f" ({', '.join(disturbed)})" if disturbed else ""), head_cell + mark,
+        mrows.append([_row_name(r), f"{s['runs']}/3" + _minor_mark(r, "m4-1", "m4-2", "m4-3")
+                      + (f" ({', '.join(disturbed)})" if disturbed else ""), head_cell + mark,
                       _f(s["ttft_sum_s"], 1) + mark, _f(s["raw_total_s"], 1), _f(s["mean_completion_tokens"], 1), caps])
     out.append("### M4 20-step trajectory (median of the kept runs)\n\n" + table(
         ["Model", "Runs kept", "Headline s", "TTFT sum s", "Raw total s", "Mean completion tok/step", "Cap hits"], mrows)
         + ("\n\n" + "\n".join(f"- {n}" for n in notes) if notes else ""))
+    flagged = [(r, [u for u in speed.timed_units(SimpleNamespace(spec=r.model.get("spec", "mtp"))) if minor_kept(r, u)])
+               for r in ok_rows]
+    flagged = [(r, units) for r, units in flagged if units]
+    if flagged:
+        out.append(MINOR_NOTE + " Units kept with a minor flag: "
+                   + "; ".join(f"{r.name}: {', '.join(units)}" for r, units in flagged) + ".")
     return "\n\n".join(out)
 
 

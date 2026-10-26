@@ -95,7 +95,8 @@ def sandbox(tmp_path, monkeypatch, mini_fixtures) -> SimpleNamespace:
     (root / "pins.toml").write_text('[epoch]\nid = "test-epoch"\n')
     for k, v in {"GPU_LOCK_PATH": root / "gpu-lock", "FAKE_LOCK_LOG": root / "lock.log",
                  "FAKE_QUIET_LOG": root / "quiet.log", "FAKE_QUIET_CHECKS": root / "quiet-checks",
-                 "FAKE_QUIET_DISTURB": root / "disturb", "MOCK_FIXTURES": mini_fixtures,
+                 "FAKE_QUIET_DISTURB": root / "disturb", "FAKE_QUIET_MINOR": root / "minor",
+                 "MOCK_FIXTURES": mini_fixtures,
                  "MOCK_SPEED_TESTS": HERE.parent / "speed",
                  "BENCH_FAKE_RUNNER_LOG": root / "runner.log"}.items():
         monkeypatch.setenv(k, str(v))
@@ -116,7 +117,8 @@ def sandbox(tmp_path, monkeypatch, mini_fixtures) -> SimpleNamespace:
                         lambda tok, msgs, tools, kw: {"ids": fake_ids(msgs, tools, kw), "transformers": "fake"})
     models = parse_models({"models": {"mock-1b": model_table(ckpt)}})
     return SimpleNamespace(root=root, port=port, models=models, model=models["mock-1b"], results=results,
-                           runs=root / "runs", lock=root / "gpu-lock", disturb=root / "disturb")
+                           runs=root / "runs", lock=root / "gpu-lock", disturb=root / "disturb",
+                           minor=root / "minor")
 
 
 @pytest.fixture(autouse=True)

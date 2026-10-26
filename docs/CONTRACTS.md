@@ -64,14 +64,19 @@ Stdlib only (the capability runner imports `battery`, `boundary` and `hold_reque
 class QuietGuard:
     def __init__(self, run_dir: Path, allow_pids: list[int], pidfile=None): ...   # always exempts its own PID
     def start_monitor(self) -> None                      # scripts/quietlib.py monitor, 5 s, log run_dir/speed/monitor.tsv
-    def wait_quiet(self, unit: str, settle_s: int = 600) -> bool   # quietlib check; emits UNIT-WAIT; False = give up
+    def wait_quiet(self, unit: str, settle_s: int = 600) -> bool   # quietlib check --major-only; emits UNIT-WAIT;
+                                                                     # False = give up
     def judge(self, t_start: float, t_end: float) -> UnitVerdict    # epoch seconds; waits until the monitor covers t_end+5
     def flags(self, t_start: float, t_end: float) -> dict
-        # for capability tasks: {"disturbed", "disturbed_samples", "reasons", "peak_foreign_cpu", "samples", "battery_min"}
+        # for capability tasks: {"disturbed" (any flag), "severity", "disturbed_samples", "major_samples",
+        #                        "minor_samples", "reasons", "peak_foreign_cpu", "samples", "battery_min"}
     def stop_monitor(self) -> None
 @dataclass
 class UnitVerdict: clean: bool; reasons: list[str]; peak_foreign_cpu: float; samples: int
                    disturbed_samples: int = 0; battery_min: int | None = None
+                   severity: "clean" | "minor" | "major" = "clean"   # not clean without a severity -> "major"
+                   major_reasons: list[str]; minor_reasons: list[str]; major_samples: int; minor_samples: int
+                   major: bool                                       # property: severity == "major"
 def battery() -> tuple[int, bool]                         # percent (-1 without a battery), on_ac
 def boundary(kind: Literal["unit", "long-unit", "harness-block", "task"]) -> Literal["go", "pause", "stop"]
     # the user's rule: pause below 50 % (60 % for long-unit / harness-block), stop below 20 % for tasks
@@ -83,15 +88,22 @@ PAUSE_PCT = {"unit": 50, "long-unit": 60, "harness-block": 60, "task": 50}; STOP
 ```
 
 `scripts/quietlib.py` (modified copy, owned by scripts; stdlib only, run as `/usr/bin/python3 -I -B`) keeps its
-CLI `check` and `monitor` (+ `--count N`) and `battery`; the old `verify` is gone. The monitor adds the columns
+CLI `check` (+ `--major-only`: fail only on major conditions, print minor ones on a `minor:` line; the default is
+the full rule) and `monitor` (+ `--count N`) and `battery`; the old `verify` is gone. The monitor adds the columns
 `pressure`, `swapouts_delta`, `foreign_gpu_ms`, `foreign_rss_delta_mb`; the column list is in `MONITOR_COLUMNS`
-and in the TSV header line. Importable:
+and in the TSV header line; the state column is DISTURBED (a major flag), MINOR, SPIKE or QUIET. Every flag has
+a severity (DESIGN §5.4): major (the unit is repeated) or minor (kept with the flag). Importable:
 
 ```python
-judge_window(tsv, t_start, t_end, pad_s=5.0, gpu_floor_ms=GPU_FLOOR_MS) -> dict
-    # {"clean", "reasons", "peak_foreign_cpu", "samples", "disturbed_samples"}; also not clean when the monitor
-    # did not cover the window (no samples, or a gap longer than both 3 intervals and 15 s)
-window_flags(tsv, t_start, t_end, ...) -> dict; read_monitor(tsv) -> rows
+judge_window(tsv, t_start, t_end, pad_s=5.0, gpu_floor_ms=GPU_FLOOR_MS, major_gpu_ms=MAJOR_GPU_MS) -> dict
+    # {"clean", "severity" ("clean" | "minor" | "major"), "reasons", "major_reasons", "minor_reasons",
+    #  "peak_foreign_cpu", "samples", "disturbed_samples", "major_samples", "minor_samples"}; "clean" = no flag at
+    # all; "reasons" / "disturbed_samples" cover both levels; a coverage problem (no samples, or a gap longer than
+    # both 3 intervals and 15 s) is major
+window_flags(tsv, t_start, t_end, ...) -> dict    # {"disturbed_samples", "major_samples", "minor_samples",
+                                                  #  "peak_foreign_cpu", "battery_min", "samples"}
+read_monitor(tsv) -> rows; row_flags(row, prev, ...) -> list[Flag(severity, text)]
+MAJOR_FOREIGN_CPU = 300 ($QUIET_MAJOR_FOREIGN_CPU); MAJOR_GPU_MS = 500 ($QUIET_MAJOR_GPU_MS); GPU_FLOOR_MS = 250
 ```
 
 ## Server (`server.py`, owned by core)
@@ -147,17 +159,19 @@ class FunctionalResult: ok: bool; stop_reason: str | None; items: dict; m7: dict
 - The functional block refuses with `ok=False` when a generated prompt is missing; run.py's preflight finds the
   same thing before the lock (`run.missing_prompts`).
 
-`run.py` owns the retry loop: `wait_quiet` -> `run_unit` -> `judge` -> keep (move nothing) or move the raw file
-into `RESULTS/_unverified/<model>/<run-id>/speed/` and retry (at most 2 retries). An attempt that is invalid
-(a cold request hit the cache, missing samples, an error) is kept out of the table and not retried, since
-repeating cannot fix it; `--unverified` keeps every attempt and never retries.
+`run.py` owns the retry loop: `wait_quiet` -> `run_unit` -> `judge` -> keep a clean or minor attempt (move nothing)
+or, for a major verdict, move the raw file into `RESULTS/_unverified/<model>/<run-id>/speed/` and retry (at most 2
+retries). An attempt that is invalid (a cold request hit the cache, missing samples, an error) is kept out of the
+table and not retried, since repeating cannot fix it; `--unverified` keeps every attempt and never retries.
 
 `speed/units.json` has two writers, in one process and never concurrently. speed records each attempt as soon
 as it ends (`{"attempt", "t_start", "t_end", "raw_file", "valid", "note", "metrics", "verdict": null, "kept":
 false}`) and the functional block (`{"passed", "time", "result"}`); run.py then merges, by attempt number and
-always as a read-modify-write of the file, the quiet verdict (`clean | disturbed | invalid`), `kept`, the
-launch, the quiet reasons and the unit verdict (`clean`, `invalid`, `disturbed x3`), and calls `finalize` after
-its last write. An attempt left without a verdict (a crash) makes `--resume` run the unit again.
+always as a read-modify-write of the file, the quiet verdict (`clean | minor | disturbed | incomplete | invalid`;
+`minor` is kept, `disturbed` means major), `kept`, the launch, the quiet reasons (`severity`, `reasons`,
+`major_reasons`, `minor_reasons` and the sample counts) and the unit verdict (`clean`, `minor`, `invalid`,
+`disturbed x3`), and calls `finalize` after its last write. An attempt left without a verdict (a crash) makes
+`--resume` run the unit again; a unit whose verdict is `clean` or `minor` is done.
 
 ## Capability (`capability/`, owned by capability)
 
@@ -234,7 +248,7 @@ results/<model>/<run-id>/manifest.json, speed/units.json, speed/<unit>-<attempt>
                          speed/m7-<n>.jsonl, speed/monitor.tsv, speed/memory.tsv,
                          capability/results.json, capability/<harness>/<run>/{calls.jsonl, summary.json, check.txt}
                          (speed/*.log are gitignored)
-results/_unverified/<model>/<run-id>/speed/...   disturbed and invalid attempts; --unverified runs
+results/_unverified/<model>/<run-id>/speed/...   major-disturbed, incomplete and invalid attempts; --unverified runs
 runs/<model>/<run-id>/   server.log, pidfile, orchestrator.pid, lock.log, quiet-checks.log, speed-stdout.log,
                          ssd-cache/, manifest.json (refused runs only), capability/{spec.json, state.json,
                          yield.json, selftest.json, scratch/, <harness>/<run>/...} (raw)

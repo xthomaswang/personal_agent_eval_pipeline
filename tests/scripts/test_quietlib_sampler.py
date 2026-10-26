@@ -137,7 +137,8 @@ def test_monitor_command_writes_header_and_rows(quietlib, machine, tmp_path, cap
     assert quietlib.main(["monitor", "--log", str(log), "--interval", "0.01", "--count", "3",
                           "--allow-pid", "100"]) == 0
     lines = log.read_text(encoding="utf-8").splitlines()
-    assert lines[0].startswith("# quietlib monitor v4 interval=0.01 ") and "gpu_floor_ms=100.0" in lines[0]
+    assert lines[0].startswith("# quietlib monitor v4 interval=0.01 ") and "gpu_floor_ms=250.0" in lines[0]
+    assert "major_gpu_ms=500.0" in lines[0] and "major_foreign_cpu=300.0" in lines[0]
     assert "page_size=16384" in lines[0] and lines[0].endswith("allow=100")
     assert lines[1] == "# " + "\t".join(quietlib.MONITOR_COLUMNS)
     rows = quietlib.read_monitor(log)
@@ -155,6 +156,16 @@ def test_monitor_marks_lost_lock_at_once(quietlib, machine, tmp_path, capsys):
     (row,) = quietlib.read_monitor(log)
     assert row["state"] == "DISTURBED" and row["reasons"] == "lock not held by us"
     assert "DISTURBED: lock not held by us" in capsys.readouterr().out
+
+
+def test_monitor_marks_a_build_tool_minor(quietlib, machine, tmp_path, capsys):
+    machine.procs.append((400, 1, 1.0, 1000, "/usr/bin/git"))
+    machine.cmdlines = {400: "git fetch origin"}
+    log = tmp_path / "monitor.tsv"
+    quietlib.main(["monitor", "--log", str(log), "--interval", "0.01", "--count", "1", "--allow-pid", "100"])
+    (row,) = quietlib.read_monitor(log)
+    assert row["state"] == "MINOR" and row["reasons"] == "tools: git fetch (pid 400)"
+    assert "MINOR: tools: git fetch (pid 400)" in capsys.readouterr().out
 
 
 def test_check_quiet_prints_provenance(quietlib, machine, capsys):
@@ -184,6 +195,52 @@ def test_check_soft_failures(quietlib, machine, capsys):
     s = quietlib.Sampler([100]).sample()
     _, soft, _ = quietlib.problems(s, judge_load=True, max_gpu_gb=6)
     assert any(x.startswith("GPU busy 30%") for x in soft) and any(x.startswith("GPU memory in use 40.0 GB") for x in soft)
+
+
+def test_check_major_only_waits_for_major_conditions_only(quietlib, machine, capsys):
+    """The pre-unit check (--major-only): a busy process, build tools, the load and foreign CPU below
+    300 % are printed on a "minor:" line and pass; the default check still fails on them."""
+    machine.procs += [(500, 1, 60.0, 1000, "/usr/libexec/mediaanalysisd"), (400, 1, 1.0, 1000, "/usr/bin/git")]
+    machine.cmdlines = {400: "git fetch origin"}
+    machine.load = 4.0
+    args = ["check", "--allow-pid", "100", "--settle", "1"]
+    assert quietlib.main(args) == 1
+    out = capsys.readouterr().out
+    assert "verdict: NOT QUIET" in out and "minor:" not in out
+    assert quietlib.main(args + ["--major-only"]) == 0
+    out = capsys.readouterr().out
+    assert "verdict: QUIET" in out and "settle: quiet after" in out
+    minor = next(x for x in out.splitlines() if x.startswith("minor: "))
+    assert "load1 4.00 > 2.5" in minor and "busy: mediaanalysisd(500) 60%" in minor
+    assert "tools: git fetch (pid 400)" in minor and minor.endswith("(flag only: --major-only does not wait for it)")
+    assert "foreign CPU" not in minor                         # 66 % in total is below even the minor line
+
+
+@pytest.mark.parametrize("procs, util, blocking", [
+    ([(500, 1, 160.0, 1000, "/usr/bin/a"), (501, 1, 160.0, 1000, "/usr/bin/b")], 0, "foreign CPU 325% >= 300%"),
+    ([(500, 1, 100.0, 1000, "/usr/bin/a"), (501, 1, 90.0, 1000, "/usr/bin/b")], 0, None),   # 195 %: minor
+    ([], 30, "GPU busy 30% > 10%"),                           # the same 10 % share as the major GPU rule
+])
+def test_check_major_only_blocking_reasons(quietlib, machine, capsys, procs, util, blocking):
+    machine.procs += procs
+    machine.util = util
+    rc = quietlib.main(["check", "--allow-pid", "100", "--settle", "1", "--major-only"])
+    out = capsys.readouterr().out
+    if blocking is None:
+        assert rc == 0 and "foreign CPU 195% > 150%" in next(x for x in out.splitlines() if x.startswith("minor: "))
+    else:
+        settle = next(x for x in out.splitlines() if x.startswith("settle: "))
+        assert rc == 1 and settle.startswith("settle: still not quiet") and settle.endswith(blocking)
+
+
+def test_check_major_only_keeps_hard_failures_and_the_battery_guard(quietlib, machine, tmp_path, capsys):
+    machine.battery = 35
+    assert quietlib.main(["check", "--allow-pid", "100", "--settle", "1", "--min-battery", "40", "--major-only"]) == 1
+    assert "battery 35% < 40% (charging)" in capsys.readouterr().out
+    machine.battery = 100
+    (tmp_path / ".gpu-lock").unlink()
+    assert quietlib.main(["check", "--allow-pid", "100", "--settle", "1", "--major-only"]) == 1
+    assert "settle: not attempted (hard failure: lock not held by us)" in capsys.readouterr().out
 
 
 def test_battery_command(quietlib, machine, capsys):

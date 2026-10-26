@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 """Fake scripts/quietlib.py with the interface docs/CONTRACTS.md and quiet.py expect.
 
-  check    pops the first line of $FAKE_QUIET_CHECKS (quiet | busy | hard); quiet when the file is
-           empty or unset. Logs each call's argv to $FAKE_QUIET_LOG.
-  monitor  writes the v4 header and one row per --interval; a row is DISTURBED while the file
-           $FAKE_QUIET_DISTURB exists. Battery comes from $FAKE_QUIET_BATTERY (default 95).
-  judge_window(log, t_start, t_end, margin)  clean iff no DISTURBED row in the window.
+  check    pops the first line of $FAKE_QUIET_CHECKS (quiet | busy | hard | minor); quiet when the
+           file is empty or unset. "minor" fails like "busy" unless --major-only is given, which
+           prints it on a "minor:" line and passes. Logs each call's argv to $FAKE_QUIET_LOG.
+  monitor  writes the v4 header and one row per --interval; a row is DISTURBED (major) while the
+           file $FAKE_QUIET_DISTURB exists, else MINOR while $FAKE_QUIET_MINOR exists. Battery
+           comes from $FAKE_QUIET_BATTERY (default 95).
+  judge_window(log, t_start, t_end, margin)  severity major with a DISTURBED row in the window,
+           minor with MINOR rows only, else clean (clean iff severity clean).
 """
 from __future__ import annotations
 
@@ -37,6 +40,9 @@ def cmd_check(a: argparse.Namespace) -> int:
             state, rest = lines[0].strip(), lines[1:]
             Path(path).write_text("".join(x + "\n" for x in rest))
     print("quiet_check: fake")
+    if state == "minor" and a.major_only:
+        print("minor: busy: fakeproc(4242) 30% (flag only: --major-only does not wait for it)")
+        state = "quiet"
     if state == "quiet":
         print("verdict: QUIET")
         return 0
@@ -52,6 +58,7 @@ def cmd_monitor(a: argparse.Namespace) -> int:
     log = Path(a.log)
     log.parent.mkdir(parents=True, exist_ok=True)
     disturb = os.environ.get("FAKE_QUIET_DISTURB", "")
+    minor = os.environ.get("FAKE_QUIET_MINOR", "")
     with log.open("a") as f:
         f.write(f"# quietlib monitor v4 interval={a.interval} allow={','.join(map(str, a.allow_pid))}\n")
         f.write("# " + "\t".join(MONITOR_COLUMNS) + "\n")
@@ -59,11 +66,14 @@ def cmd_monitor(a: argparse.Namespace) -> int:
         while True:
             t = time.time()
             bad = bool(disturb) and Path(disturb).exists()
+            small = not bad and bool(minor) and Path(minor).exists()
             row = {"iso": dt.datetime.fromtimestamp(t).isoformat(timespec="seconds"), "epoch": f"{t:.2f}",
-                   "state": "DISTURBED" if bad else "QUIET", "load1": "1.0", "foreign_cpu": "200" if bad else "5",
+                   "state": "DISTURBED" if bad else "MINOR" if small else "QUIET", "load1": "1.0",
+                   "foreign_cpu": "400" if bad else "60" if small else "5",
                    "gpu_util": "0", "gpu_mem_gb": "1.0", "battery": os.environ.get("FAKE_QUIET_BATTERY", "95"),
                    "thermal_pressure": "0", "pressure": "1", "swapouts_delta": "0", "foreign_gpu_ms": "0",
-                   "foreign_rss_delta_mb": "0", "reasons": "busy: fakeproc(4242) 90%" if bad else ""}
+                   "foreign_rss_delta_mb": "0",
+                   "reasons": "busy: fakeproc(4242) 90%" if bad else "busy: smallproc(4343) 30%" if small else ""}
             f.write("\t".join(row[c] for c in MONITOR_COLUMNS) + "\n")
             f.flush()
             time.sleep(a.interval)
@@ -82,9 +92,14 @@ def judge_window(log, t_start: float, t_end: float, margin: float = 5.0) -> dict
         if t_start - margin <= float(r["epoch"]) <= t_end + margin:
             rows.append(r)
     bad = [r for r in rows if r["state"] == "DISTURBED"]
-    return {"clean": not bad, "reasons": sorted({r["reasons"] for r in bad}),
+    small = [r for r in rows if r["state"] == "MINOR"]
+    major = sorted({r["reasons"] for r in bad})
+    minor = sorted({r["reasons"] for r in small})
+    return {"clean": not bad and not small, "severity": "major" if bad else "minor" if small else "clean",
+            "reasons": major + minor, "major_reasons": major, "minor_reasons": minor,
             "peak_foreign_cpu": max((float(r["foreign_cpu"]) for r in rows), default=0.0),
-            "samples": len(rows), "disturbed_samples": len(bad)}
+            "samples": len(rows), "disturbed_samples": len(bad) + len(small), "major_samples": len(bad),
+            "minor_samples": len(small)}
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -98,6 +113,7 @@ def main(argv: list[str] | None = None) -> int:
     c.add_argument("--max-gpu-gb", type=float)
     c.add_argument("--min-battery", type=float)
     c.add_argument("--allow", action="append", default=[])
+    c.add_argument("--major-only", action="store_true")
     m = sub.add_parser("monitor")
     m.add_argument("--log", required=True)
     m.add_argument("--interval", type=float, default=5.0)

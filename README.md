@@ -58,8 +58,8 @@ uv run modeleval run <model> [--legs speed,capability] [--capability gate|full|f
 - `--unverified` is a mechanics run. Everything goes under `results/_unverified/` (gitignored):
   the run never waits for quiet, every unit runs once, and verdicts are recorded but never
   retried. The lock is taken with an untimed purpose.
-- `--resume <run-id>` continues a stopped or interrupted run. It skips speed units with a clean
-  result and capability pairs with a valid verdict, stops the orphans of a crashed attempt
+- `--resume <run-id>` continues a stopped or interrupted run. It skips speed units with a kept
+  result (clean, or minor flags only) and capability pairs with a valid verdict, stops the orphans of a crashed attempt
   (from the run's pidfile), and numbers its launch after the previous ones. It is refused while
   another orchestrator of the same run id lives (an flock on `runs/<model>/<run-id>/orchestrator.pid`),
   when the macOS or Xcode build changed since the speed leg ran (start a new run, or resume with
@@ -79,7 +79,7 @@ Each progress line is `<HH:MM:SS> <TAG> key=value ...` on stdout.
 |---|---|
 | `LOCK-NOTICE` | The run will take the GPU lock at `start` (after `--notice-wait` seconds). Timed work ends around `eta` and lasts `timed_minutes`; `purpose` is the lock purpose. Relay it to the peers |
 | `UNIT-WAIT` | A pre-unit check (or `unit=lock`, or `unit=launch`) is waiting for quiet; `reason` says why. A repeat appears only when the reason changes |
-| `UNIT-START` / `UNIT-DONE` | One attempt of a timed unit, with its launch number. `verdict` is `clean`, `disturbed` (repeated after the next passing check), `incomplete` (a missing latency sample or an error; repeated the same way) or `invalid` (a cold request hit the cache; not repeated). After 3 attempts without a clean one the unit is `disturbed x3`, `incomplete x3` or `disturbed/incomplete x3` |
+| `UNIT-START` / `UNIT-DONE` | One attempt of a timed unit, with its launch number. `verdict` is `clean`, `minor` (only minor disturbance flags; kept with them, not repeated, DESIGN §5.4), `disturbed` (a major disturbance; repeated after the next passing check), `incomplete` (a missing latency sample or an error; repeated the same way) or `invalid` (a cold request hit the cache; not repeated). `reason` names the flags. After 3 attempts without a kept one the unit is `disturbed x3`, `incomplete x3` or `disturbed/incomplete x3` |
 | `QUIET-WINDOW-END` | Timed work is over, and the lock purpose now says `accuracy only (untimed)`. Peers may resume light work |
 | `TASK-START` / `TASK-DONE` | One capability task (printed by the capability runner) |
 | `GATE-DECISION` | After the gate set: `decision` (DESIGN §6.6 against the reference, or `-` with `why`), `action` (`ranking` or `skip`), wins, losses, the reference run and the number of excluded pairs |
@@ -96,10 +96,10 @@ and releases the lock.
 
 | Code | Status | Meaning |
 |---|---|---|
-| 0 | `complete` | Both legs finished and every speed unit has a clean result |
+| 0 | `complete` | Both legs finished and every speed unit has a kept result (clean, or kept with minor flags) |
 | 1 | `error` | An unexpected error (see `ERROR`) |
 | 3 | `gate-fail` | The functional block failed on a live server (G0, G1, G3 tool use or G4); nothing timed ran. A server that died or failed in transport during the block is relaunched and the block repeated once; a second loss is `stopped` |
-| 4 | `stopped` / `incomplete` | The run can be resumed. For example, the machine never settled, a unit stayed disturbed, incomplete or invalid, the capability runner yielded on epoch drift (`ERROR` names the reason from its `yield.json`), the server was lost repeatedly, or the lock could not be retaken after a battery pause |
+| 4 | `stopped` / `incomplete` | The run can be resumed. For example, the machine never settled, a unit stayed disturbed (major), incomplete or invalid, the capability runner yielded on epoch drift (`ERROR` names the reason from its `yield.json`), the server was lost repeatedly, or the lock could not be retaken after a battery pause |
 | 5 | `refused` | Nothing was measured: the lock was held elsewhere, port 8500 was up, the model is not prepared or registered, less than 148 GB is free under `runs/` (the SSD cache's 128 GB cap + 20 GB), the generated fixtures are missing (speed leg), the runner interpreter or the harness epoch is not ready (capability leg), or a resume would mix builds or epochs. All but the lock are checked before `LOCK-NOTICE`; `plan` shows them as `ready` lines, and lists SSD caches that crashed runs left behind |
 | 130 | `interrupted` | A signal arrived. Children were stopped and the lock released after port 8703 was free |
 
@@ -112,7 +112,7 @@ results/<model>/<run-id>/       committed (after scripts/redact.py --check passe
   speed/<unit>-<n>.jsonl        raw files of the kept attempts
   speed/monitor.tsv, memory.tsv quiet monitor (5 s) and memory sampler (2 s)
   capability/results.json       per (harness, task) verdicts, exported from the allowlist
-results/_unverified/            gitignored: disturbed attempts, --unverified runs
+results/_unverified/            gitignored: attempts with a major disturbance, --unverified runs
 runs/<model>/<run-id>/          gitignored: server.log, pidfile, orchestrator.pid, lock.log, progress.log,
                                 speed-stdout.log (the harness's tables), ssd-cache/ (deleted at the end of
                                 every invocation, whatever its status), capability spec, state and raw runs

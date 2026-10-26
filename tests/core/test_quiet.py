@@ -67,7 +67,36 @@ def test_wait_quiet_emits_unit_wait_then_passes(env, capsys):
     assert out.count("UNIT-WAIT") == 1 and "unit=m3-16k" in out and "fakeproc(4242)" in out
     calls = (env.root / "quiet.log").read_text().splitlines()
     assert len(calls) == 3 and "--allow-pid 1234" in calls[0] and f"--allow-pid {os.getpid()}" in calls[0]
-    assert "--settle 1" in calls[0]
+    assert "--settle 1" in calls[0] and all("--major-only" in c for c in calls)
+
+
+def test_wait_quiet_does_not_wait_for_minor_conditions(env, capsys):
+    """DESIGN §5.4: the pre-unit check waits for major conditions only; the full rule stays the default."""
+    _checks(env, "minor")
+    assert QuietGuard(env.results / "r", [1]).wait_quiet("m1", settle_s=60)
+    assert "UNIT-WAIT" not in capsys.readouterr().out
+    _checks(env, "minor", "quiet")
+    assert quiet.wait_check("launch", [1], 60).ok
+    assert "UNIT-WAIT" in capsys.readouterr().out                    # without --major-only it waited
+    calls = (env.root / "quiet.log").read_text().splitlines()
+    assert "--major-only" in calls[0] and not any("--major-only" in c for c in calls[1:])
+    _checks(env, "minor")
+    assert quiet.prelaunch_check(timed=True, settle_s=60).ok          # the pre-launch check: major rule too
+    assert "UNIT-WAIT" not in capsys.readouterr().out
+    assert all("--major-only" in c for c in (env.root / "quiet.log").read_text().splitlines()[3:])
+
+
+def test_unit_verdict_severity():
+    v = quiet.UnitVerdict(False, ["no monitor log"], 0.0, 0)          # built without a severity: major
+    assert v.severity == "major" and v.major and v.major_reasons == ["no monitor log"]
+    v = quiet.UnitVerdict(True, [], 0.0, 3)
+    assert v.severity == "clean" and not v.major
+    v = quiet._as_verdict({"clean": False, "severity": "minor", "reasons": ["a"], "minor_reasons": ["a"],
+                           "major_reasons": [], "samples": 4, "disturbed_samples": 1, "minor_samples": 1})
+    assert v.severity == "minor" and not v.major and v.minor_reasons == ["a"] and v.major_reasons == []
+    assert v.minor_samples == 1 and v.major_samples == 0
+    v = quiet._as_verdict({"clean": False, "reasons": ["b"], "samples": 4})   # an old one-level judge
+    assert v.severity == "major" and v.major_reasons == ["b"]
 
 
 def test_wait_quiet_gives_up_on_hard_failure_at_once(env, capsys):
@@ -97,9 +126,19 @@ def test_monitor_and_judge(env):
         time.sleep(0.5)
         (env.root / "disturb").unlink()
         v = g.judge(t1, time.time())
-        assert not v.clean and v.disturbed_samples >= 1 and "fakeproc" in v.reasons[0]
+        assert not v.clean and v.disturbed_samples >= 1 and "fakeproc" in v.reasons[0] and v.major
         f = g.flags(t1, time.time())
         assert f["disturbed"] is True and f["battery_min"] == 95
+        assert f["severity"] == "major" and f["major_samples"] >= 1 and f["minor_samples"] == 0
+        time.sleep(0.5)
+        (env.root / "minor").touch()
+        t2 = time.time()
+        time.sleep(0.5)
+        (env.root / "minor").unlink()
+        v = g.judge(t2, time.time())
+        assert v.severity == "minor" and not v.clean and not v.major and "smallproc" in v.minor_reasons[0]
+        f = g.flags(t2, time.time())
+        assert f["disturbed"] is True and f["severity"] == "minor" and f["minor_samples"] >= 1
     finally:
         g.stop_monitor()
     assert not g.monitor_alive()
@@ -151,3 +190,4 @@ def test_judge_with_the_real_quietlib_copy(env):
     assert v.clean and v.samples >= 6 and v.battery_min == 90, v
     v = g.judge(t0 + 10, t0 + 14)
     assert not v.clean and v.disturbed_samples >= 1 and any("tools" in r for r in v.reasons), v
+    assert v.severity == "minor" and not v.major and any("tools" in r for r in v.minor_reasons), v

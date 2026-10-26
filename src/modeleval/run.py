@@ -2,8 +2,9 @@
 
 Order: LOCK-NOTICE and a 10-minute wait, the GPU lock (purpose `... speed (timed)`), the
 pre-launch check, one oMLX launch with memory sampler and quiet monitor, the functional block
-(stops the run on a gate FAIL), the timed units (wait for quiet, run, judge, keep or move to
-results/_unverified and repeat, at most 3 attempts), QUIET-WINDOW-END (lock purpose rewritten to
+(stops the run on a gate FAIL), the timed units (wait until no major condition holds, run, judge:
+keep a clean or minor attempt, move a major one to results/_unverified and repeat, at most 3
+attempts; DESIGN §5.4), QUIET-WINDOW-END (lock purpose rewritten to
 untimed), then the capability runner as a subprocess on the same launch: the gate set first, then
 the ranking set unless the gate set is "worse" than the reference's in the same harness epoch
 (DESIGN §6.3, §6.6; `--capability full-force` runs it anyway).
@@ -45,7 +46,10 @@ from modeleval.server import (
 )
 
 CAP_PYTHON = paths.REPO / "envs/capability/.venv/bin/python"   # the pipeline's Python 3.13 environment
-MAX_ATTEMPTS = 3              # a disturbed unit is repeated at most twice (DESIGN §5.4)
+MAX_ATTEMPTS = 3              # a unit with a major disturbance is repeated at most twice (DESIGN §5.4)
+# Attempt and unit verdicts that keep the result (DESIGN §5.4, the user's instruction of 2026-10-26:
+# small disturbances have little effect, skip them, no re-run): "minor" keeps it with its flags.
+KEPT = ("clean", "minor")
 MAX_SERVER_LOST = 3           # relaunches after a lost server (any leg) before the run gives up
 COLD_CACHE_LIMIT = 256        # one cache block: a cold request must not reuse more (DESIGN §5.1)
 SSD_CACHE_BYTES = 128e9       # cache.ssd_cache_max_size (DESIGN §2): free disk a launch needs, + prepare.DISK_MARGIN
@@ -206,8 +210,17 @@ def cold_ok(res) -> tuple[bool, str, str | None]:
     return True, res.note or "", None
 
 
+def attempt_verdict(v: quiet.UnitVerdict, valid: bool, why: str | None) -> str:
+    """One attempt's verdict: "invalid" (a cold request hit the cache) or "incomplete" when the
+    attempt itself is not valid; else "disturbed" for a major quiet verdict (repeated), "minor" for
+    minor flags only (kept with them) or "clean"."""
+    if not valid:
+        return "invalid" if why == "cache-hit" else "incomplete"
+    return "disturbed" if v.major else "minor" if v.severity == "minor" else "clean"
+
+
 def final_verdict(verdicts: list[str]) -> str:
-    """A unit's verdict after MAX_ATTEMPTS attempts without a clean one."""
+    """A unit's verdict after MAX_ATTEMPTS attempts without a kept (clean or minor) one."""
     kinds = set(verdicts)
     what = "disturbed" if kinds == {"disturbed"} else "incomplete" if kinds == {"incomplete"} else "disturbed/incomplete"
     return f"{what} x{len(verdicts)}"
@@ -293,13 +306,13 @@ def model_factor(model: Model) -> float:
 
 
 def measured_quiet_minutes(model: Model) -> float | None:
-    """Quiet-window minutes from the newest run with every unit clean (+15 % for checks and gaps)."""
+    """Quiet-window minutes from the newest run with every unit kept (+15 % for checks and gaps)."""
     for units_json in sorted(paths.RESULTS.glob(f"{model.key}/*/speed/units.json"), reverse=True):
         try:
             units = json.loads(units_json.read_text())["units"]
         except (OSError, ValueError, KeyError):
             continue
-        kept = [a for u in units.values() if isinstance(u, dict) and u.get("verdict") == "clean"
+        kept = [a for u in units.values() if isinstance(u, dict) and u.get("verdict") in KEPT
                 for a in u["attempts"] if a.get("kept")]
         if kept and len(kept) == len(units):
             return round(sum(a["t_end"] - a["t_start"] for a in kept) / 60 * 1.15, 1)
@@ -696,7 +709,7 @@ class Run:
 
     def unit_done(self, unit: str) -> bool:
         v = self.unit_rec(self.read_units(), unit)["verdict"]
-        return v == "clean" or (self.opts.unverified and v is not None)
+        return v in KEPT or (self.opts.unverified and v is not None)
 
     def functional(self, speed) -> None:
         """The functional block (DESIGN §5 step 4). A failure that came from the server is not the
@@ -777,7 +790,9 @@ class Run:
     def timed_unit(self, speed, unit: str, kind: quiet.Boundary = "unit") -> bool:
         """Up to MAX_ATTEMPTS attempts in this invocation (numbering continues across resumes). Before
         every attempt: the battery and hold rule (DESIGN §5.5), the monitor and the server's health,
-        then the quiet check. A disturbed or incomplete attempt is repeated; a cache hit is final."""
+        then the pre-unit check (major conditions only). An attempt with a major disturbance or an
+        incomplete one is repeated; a minor one is kept with its flags (DESIGN §5.4); a cache hit is
+        final."""
         self.update_unit(unit, verdict=None)
         verdicts: list[str] = []
         for _ in range(MAX_ATTEMPTS):
@@ -796,20 +811,24 @@ class Run:
             self.mark("idle")
             v = self.guard.judge(res.t_start, res.t_end)
             valid, note, why = cold_ok(res)
-            verdict = "clean" if (v.clean and valid) else ("disturbed" if valid else
-                                                           "invalid" if why == "cache-hit" else "incomplete")
+            verdict = attempt_verdict(v, valid, why)
             verdicts.append(verdict)
-            keep = verdict == "clean" or self.opts.unverified
+            keep = verdict in KEPT or self.opts.unverified
             raw = Path(res.raw_file) if keep else self.move_unverified(Path(res.raw_file))
             att = {"attempt": attempt, "launch": self.server.launch_no, "t_start": res.t_start, "t_end": res.t_end,
-                   "verdict": verdict, "reasons": v.reasons, "peak_foreign_cpu": v.peak_foreign_cpu,
-                   "samples": v.samples, "disturbed_samples": v.disturbed_samples, "battery_min": v.battery_min,
+                   "verdict": verdict, "severity": v.severity, "reasons": v.reasons,
+                   "major_reasons": v.major_reasons, "minor_reasons": v.minor_reasons,
+                   "peak_foreign_cpu": v.peak_foreign_cpu, "samples": v.samples,
+                   "disturbed_samples": v.disturbed_samples, "major_samples": v.major_samples,
+                   "minor_samples": v.minor_samples, "battery_min": v.battery_min,
                    "valid": valid, "note": note, "raw_file": self.rel(raw), "kept": keep}
             doc_att = next((a for a in self.unit_rec(self.read_units(), unit)["attempts"] if a.get("attempt") == attempt), None)
             if doc_att is None:                     # speed did not record it: keep its metrics here
                 att["metrics"] = _plain(res.metrics)
+            why_text = (v.minor_reasons if verdict == "minor" else v.major_reasons if verdict == "disturbed"
+                        else v.reasons) + ([note] if not valid else [])
             progress.emit("UNIT-DONE", unit=unit, attempt=attempt, verdict=verdict,
-                          **({"reason": "; ".join(v.reasons + ([note] if not valid else []))[:160]} if verdict != "clean" else {}))
+                          **({"reason": "; ".join(why_text)[:160]} if verdict != "clean" else {}))
             if keep:
                 self.update_unit(unit, att, verdict)
                 return True
@@ -960,8 +979,9 @@ class Run:
         return y if isinstance(y, dict) else {}
 
     def flag_tasks(self) -> None:
-        """DESIGN §6.4: every capability task records the disturbed samples, peak foreign CPU and battery
-        minimum that overlapped it (flags only; nothing is repeated). The runner leaves `flags` null,
+        """DESIGN §6.4: every capability task records the flagged samples (severity and major/minor counts,
+        §5.4), peak foreign CPU and battery minimum that overlapped it (flags only; nothing is repeated,
+        whatever the severity). The runner leaves `flags` null,
         since the monitor belongs to this process. They go into the runner's state.json, so that its
         later rewrites of results.json keep them, and into results.json now (through the exporter)."""
         try:
@@ -1082,7 +1102,7 @@ class Run:
         if "capability" in self.opts.legs:
             self.capability_leg()
         self.status = "complete" if self.all_units_clean() else "incomplete"
-        self.reason = "" if self.status == "complete" else "some speed units have no clean result; --resume repeats them"
+        self.reason = "" if self.status == "complete" else "some speed units have no kept result; --resume repeats them"
 
     def resume_phase(self) -> None:
         """--resume after a finished speed leg: only untimed work is left, so the lock purpose, the
@@ -1095,13 +1115,14 @@ class Run:
             self.phase = "capability"
 
     def all_units_clean(self) -> bool:
+        """Every timed unit kept: clean, or with a minor flag only (DESIGN §5.4)."""
         if "speed" not in self.opts.legs:
             return True
         if not self.speed_complete:
             return False
         doc = self.read_units()
         verdicts = [self.unit_rec(doc, u)["verdict"] for u in list(doc["units"])]
-        return all(v == "clean" or (self.opts.unverified and v is not None) for v in verdicts)
+        return all(v in KEPT or (self.opts.unverified and v is not None) for v in verdicts)
 
     def cleanup(self) -> None:
         """Idempotent; every step on its own, so one failure never leaves the lock or a server behind.
@@ -1229,7 +1250,7 @@ def plan_lines(opts: Options, models: dict[str, Model] | None = None) -> list[st
         for u in units:
             rec = done.get(u)
             v = rec.get("verdict") if isinstance(rec, dict) else None
-            lines.append(f"unit        {u:14s} {'done (' + v + ')' if v == 'clean' else 'to run' + (f' (was {v})' if v else '')}")
+            lines.append(f"unit        {u:14s} {'done (' + v + ')' if v in KEPT else 'to run' + (f' (was {v})' if v else '')}")
     if "capability" in opts.legs:
         epoch = registry.epoch_id(registry.load_pins())
         lines.append(f"capability  sets {'gate' if opts.capability == 'gate' else 'gate, then ranking' + (' (always)' if opts.capability == 'full-force' else ' unless the gate decision is worse')}; "

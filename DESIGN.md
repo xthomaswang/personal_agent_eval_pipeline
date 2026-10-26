@@ -113,7 +113,7 @@ One server launch per model per run (§6.7 covers relaunches). Order:
 1. **Before the lock**: print `LOCK-NOTICE start=<t> eta=<t> timed_minutes=<n>` and wait 10 minutes (the
    driving session relays it to the peers with the rules below). Then acquire the lock with purpose
    `modeleval <model> speed (timed)`.
-2. **Pre-launch check**: `quietlib check --max-gpu-gb 6 --settle 600` (no foreign model resident,
+2. **Pre-launch check**: `quietlib check --major-only --max-gpu-gb 6 --settle 600` (no foreign model resident,
    lock ours, no build/convert/download tools, AC, High Power), battery >= 60 %.
 3. Launch, warm-up (8 tokens), check the server log against `server_log_expect`.
 4. **Functional block** (not timed, no quiet requirement, fails fast): G0, G1, G3 text + tool_use,
@@ -178,27 +178,41 @@ means 16,000 Qwen3.8 tokens); every result records the server's own `prompt_toke
 
 ### 5.4 Quiet rule (per unit)
 
-The disturbance rule is the old campaign's, unchanged in its thresholds (METHODOLOGY section 3): a
-foreign process above 25 % CPU in two consecutive samples, foreign CPU in total above 150 % in two
-consecutive samples, a lock/port/power/battery (< 20 %) event, or a build/convert/download tool. Two
-additions: foreign GPU time (per-process `accumulatedGPUTime` from `ioreg`, outside the server tree,
-WindowServer and kernel_task, above a floor taken from an idle trace) in two consecutive samples; and
-memory pressure >= 2 or swap-out **only when foreign RSS also grew** in that window (pressure the server
-causes itself is a result, §5.2). pmset thermal warnings and thermal pressure are logged, not judged.
-The thresholds could be relaxed only after a calibration run on the reference (`B cpu2 B cpu4 B` with
-`interference.py`, ~30 min), which is not part of this protocol version.
+Two levels, after the user's instruction of 2026-10-26: small disturbances have little effect, skip them
+and do not re-run. A **major** flag repeats a timed unit; a **minor** flag keeps the
+result and records the flag. Judged per 5 s monitor sample, with the old campaign's persistence (two
+consecutive samples) where its rule had it:
 
-What changes is the unit and the order:
+| Level | A sample is flagged by |
+|---|---|
+| Major | our lock missing; a foreign server port (8500, 8600-8699) listening; not on AC power or not High Power; battery below 20 %; foreign CPU in total >= 300 % in two consecutive samples; foreign GPU time >= 500 ms per 5 s sample (10 % of GPU time) in two consecutive samples; memory pressure >= 2 or a swap-out burst **only when foreign RSS also grew** in the window (pressure the server causes itself is a result, §5.2); a monitor coverage gap (no samples in the window, or a gap) |
+| Minor | one foreign process above 25 % CPU in two consecutive samples; foreign CPU in total above 150 % and below 300 % in two consecutive samples; foreign GPU time above the 250 ms floor and below 500 ms in two consecutive samples; a build, convert or download tool running (what it costs the server is its CPU, which the CPU rules judge) |
 
-1. Before every timed unit and before every retry: `quietlib check --allow-pid <server> --allow-pid
-   <orchestrator> --settle 600`. While it settles, print `UNIT-WAIT <reason>`. If it does not settle,
-   stop the speed leg cleanly (`--resume` continues later) instead of burning attempts.
+Why there: the user accepts ~10 % cross-run error. The old campaign's M8 on oMLX measured one busy core
+at +2.9 % M1 / -0.9 % M3 / +2.0 % M4 against block 1 (about +8.5 % on M1 against the stable baselines)
+and eight busy threads at +27 % / +17.5 % / +9.4 %, so about three busy cores is where M1 reaches
+~10 %. Foreign GPU time (per-process `accumulatedGPUTime` from `ioreg`, outside the server tree,
+WindowServer and kernel_task) takes GPU time slices from the server directly, so a 10 % share costs up
+to ~10 %; the 250 ms floor sits above Terminal.app rendering agent output (75-142 ms per sample in the
+first live run). pmset thermal warnings and thermal pressure are logged, not judged. The thresholds are
+environment variables of `scripts/quietlib.py` (`QUIET_MAJOR_FOREIGN_CPU`, `QUIET_MAJOR_GPU_MS`,
+`QUIET_GPU_FLOOR_MS`, ...); a protocol run uses the defaults.
+
+Per unit:
+
+1. Before every timed unit and before every retry: `quietlib check --major-only --allow-pid <server>
+   --allow-pid <orchestrator> --settle 600`. It waits for major conditions only; minor ones are printed
+   on a `minor:` line of the check log. While it settles, print `UNIT-WAIT <reason>`. If it does not
+   settle, stop the speed leg cleanly (`--resume` continues later) instead of burning attempts. The
+   pre-launch check (§5 step 2) keeps the full rule.
 2. The monitor (a modified copy of quietlib's sampler, 5 s interval, extra columns: pressure level,
-   swap-out delta, foreign GPU time, foreign RSS delta) runs for the whole launch.
-3. A unit is disturbed if a disturbed sample falls in `[t_start - 5 s, t_end + 5 s]`, judged from the
-   orchestrator's own timestamps and the logged columns (not the old `verify`, which judged whole files).
-   A disturbed unit goes to `results/_unverified/` and is repeated after the next passing check, at most
-   twice. A unit still disturbed leaves its metric empty ("disturbed x3").
+   swap-out delta, foreign GPU time, foreign RSS delta) runs for the whole launch; its state column says
+   DISTURBED (major), MINOR, SPIKE or QUIET.
+3. A unit is judged from the samples in `[t_start - 5 s, t_end + 5 s]`, from the orchestrator's own
+   timestamps and the logged columns (not the old `verify`, which judged whole files). Major: the
+   attempt goes to `results/_unverified/` and the unit is repeated after the next passing check, at most
+   twice; a unit still major leaves its metric empty ("disturbed x3"). Minor: the attempt is kept with
+   verdict `minor` and its reasons in `units.json`, and RESULTS.md marks its cells with a footnote.
 
 No downloads, builds, conversions or test suites by the driving session or its subagents during a quiet
 window.
@@ -219,7 +233,8 @@ A `hold` file makes the run wait at the next boundary while keeping the lock (th
 
 Runs on the same launch after `QUIET-WINDOW-END`, under an `accuracy only (untimed)` lock purpose, so the
 peers' light work continues. It needs the GPU but no quiet machine. Nothing is repeated because of a
-disturbance: every task is flagged with the disturbed samples and battery minimum that overlapped it.
+disturbance: every task is flagged with the flagged samples (major and minor counts, §5.4) and battery
+minimum that overlapped it.
 
 ### 6.1 How the harnesses are driven
 
@@ -309,8 +324,8 @@ The three harnesses come from personal-agent-bench's `bench.harness` (and its pr
   `served_id`, `sampling_forwarded` or `thinking_forwarded` differs from the registry. A 5xx, a reasoning
   leak while thinking is off, or a template fallback in the server log is attributed to the model: the
   verdict still comes from the checker, the run is flagged, and the report shows a per-model anomaly count.
-- Every task records the disturbed samples, peak foreign CPU and battery minimum that overlapped it
-  (flags only).
+- Every task records the flagged samples (with the §5.4 severity and the major and minor counts), peak
+  foreign CPU and battery minimum that overlapped it (flags only).
 
 ### 6.5 Harness epoch
 
@@ -339,10 +354,10 @@ wall time and of model time, and steps per pair.
 
 ### 6.7 Resume and relaunch
 
-`--resume <run-id>` skips speed units with a clean result and (harness, task) pairs with a valid verdict,
-removes a stale workspace lock of our own, and merges the chunk records. Every child process group
-(oMLX, proxies, harness PGIDs) is recorded in a run pidfile and killed on exit or signal; the lock is
-released only after nothing listens on 8703; the lock carries the run id, and release checks it.
+`--resume <run-id>` skips speed units with a kept result (clean or minor, §5.4) and (harness, task) pairs
+with a valid verdict, removes a stale workspace lock of our own, and merges the chunk records. Every child
+process group (oMLX, proxies, harness PGIDs) is recorded in a run pidfile and killed on exit or signal; the
+lock is released only after nothing listens on 8703; the lock carries the run id, and release checks it.
 
 ### 6.8 Optional arms (off by default; not implemented in protocol version 1)
 
@@ -370,11 +385,11 @@ results/<model>/<run-id>/              committed after the export and the redact
   manifest.json                        model entry, protocol version, epoch, server version and effective
                                        settings, launches, pins, sw_vers/xcodebuild, repo SHA; ~ paths only
   speed/units.json                     verdict per unit and attempt, peak foreign CPU, memory peaks
-  speed/<unit>-<attempt>.jsonl         agentbench raw files of clean attempts
+  speed/<unit>-<attempt>.jsonl         agentbench raw files of kept attempts (clean or minor)
   speed/monitor.tsv, speed/memory.tsv
   capability/results.json              per (harness, task): verdict, check, steps, turns, wall and model
                                        time, call checks, flags, prompt_sha256, launch
-results/_unverified/                   gitignored: disturbed units, mechanics checks
+results/_unverified/                   gitignored: attempts with a major disturbance, mechanics checks
 runs/<model>/<run-id>/                 gitignored: raw harness run dirs (transcripts, homes, workspaces,
                                        proxy logs), per-run config copies, ssd-cache, pidfile
 RESULTS.md                             generated

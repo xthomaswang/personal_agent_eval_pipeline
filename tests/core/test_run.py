@@ -184,6 +184,46 @@ def test_verified_speed_leg_retries_disturbed_and_keeps_invalid_out(orch, capsys
     _assert_clean_exit(o)
 
 
+def test_minor_disturbance_keeps_the_unit_and_major_repeats_it(orch, capsys):
+    """DESIGN §5.4, the user's instruction of 2026-10-26 (small disturbances: skip them, no re-run): a
+    minor flag keeps the attempt with its reasons; a major one repeats the unit."""
+    o = orch
+    o.control(units=["m3-16k", "m4-1", "m1"], minor={"m3-16k": 1}, disturb={"m4-1": 1}, invalid={"m1": 1})
+    assert o.go(legs=("speed",)) == 4                            # m1 invalid: incomplete, resumable
+    out = capsys.readouterr().out
+    res = _only_dir(paths.RESULTS / "fake-1b")
+    units = json.loads((res / "speed/units.json").read_text())["units"]
+    m3 = units["m3-16k"]
+    (a,) = m3["attempts"]
+    assert m3["verdict"] == "minor" and a["verdict"] == "minor" and a["kept"] is True and a["severity"] == "minor"
+    assert a["major_reasons"] == [] and "smallproc" in a["minor_reasons"][0] and a["minor_samples"] >= 1
+    assert a["major_samples"] == 0 and "smallproc" in a["reasons"][0]
+    assert (res / "speed/m3-16k-1.jsonl").exists()               # kept in results/, not moved
+    m4 = units["m4-1"]
+    assert m4["verdict"] == "clean" and [x["verdict"] for x in m4["attempts"]] == ["disturbed", "clean"]
+    assert m4["attempts"][0]["severity"] == "major" and "fakeproc" in m4["attempts"][0]["major_reasons"][0]
+    done = [ln for ln in out.splitlines() if " UNIT-DONE " in ln]
+    assert any("unit=m3-16k" in ln and "verdict=minor" in ln and "smallproc" in ln for ln in done), done
+    assert any("unit=m4-1" in ln and "verdict=disturbed" in ln and "fakeproc" in ln for ln in done), done
+    checks = o.lines("quiet.log")
+    unit_checks = [c for c in checks if "--min-battery 40" in c]
+    assert len(unit_checks) == 4 and all("--major-only" in c for c in unit_checks)   # 3 units + 1 retry
+    assert all("--major-only" in c for c in checks if "--max-gpu-gb 6" in c)         # pre-launch: major rule too
+    _assert_clean_exit(o)
+
+    # --resume repeats only m1; the unit kept with a minor flag is done
+    capsys.readouterr()
+    o.control(units=["m3-16k", "m4-1", "m1"])
+    o.state.fake.__dict__["_seen"].clear()
+    before = o.lines("speed.log")
+    assert o.go(legs=("speed",), resume=res.name) == 0
+    assert [x.split()[:2] for x in o.lines("speed.log")[len(before):]] == [["unit", "m1"]]
+    man = json.loads((res / "manifest.json").read_text())
+    assert man["status"] == "complete"
+    assert json.loads((res / "speed/units.json").read_text())["units"]["m3-16k"]["verdict"] == "minor"
+    _assert_clean_exit(o)
+
+
 def test_battery_pause_gives_the_machine_back_and_relaunches(orch, capsys):
     o = orch
     o.control(units=["g5+m3-64k", "m3-16k", "m4-1"])

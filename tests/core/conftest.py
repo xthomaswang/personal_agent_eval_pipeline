@@ -88,6 +88,7 @@ def env(tmp_path, monkeypatch) -> SimpleNamespace:
     monkeypatch.setenv("FAKE_QUIET_LOG", str(root / "quiet.log"))
     monkeypatch.setenv("FAKE_QUIET_CHECKS", str(root / "quiet-checks"))
     monkeypatch.setenv("FAKE_QUIET_DISTURB", str(root / "disturb"))
+    monkeypatch.setenv("FAKE_QUIET_MINOR", str(root / "minor"))
     monkeypatch.setenv("FAKE_OMLX_STATE", str(root / "omlx-requests"))
     monkeypatch.setenv("FAKE_OMLX_LINES", "Speculative backend selected for /x/Fake-1B-mtp: Lightning MTP "
                        "(model_type=qwen3_5, active)\nMTP path activated for uid=0 (batch=1)")

@@ -52,28 +52,38 @@ The timed units, in this order:
 | M1 | TTFT on a ~15K-token agent prefix, warm (5 trials) and cold (1 trial) |
 | M4 x 3 | a 20-step agent trajectory (cap 150 tokens per step), run 3 times; the median run is reported |
 
-**Quiet rule, per unit.** Before every unit and every retry, the pre-unit check must pass. It
-waits up to 10 minutes for the machine to settle, and if it does not, the speed leg stops and
-`--resume` continues it later. A monitor takes a sample every 5 s. A unit is disturbed when any
-sample in `[start - 5 s, end + 5 s]` is disturbed. A sample is disturbed when one of these holds:
+**Quiet rule, per unit: two levels.** Following the project owner's instruction of 2026-10-26 (small
+disturbances have little effect: skip them, no re-run), only a major disturbance repeats a unit; a
+minor one keeps the result and records the flag. A monitor takes a sample every 5 s, and a unit is
+judged from the samples in `[start - 5 s, end + 5 s]`.
 
-- one foreign process is above 25 % CPU in two consecutive samples;
-- foreign CPU in total is above 150 % in two consecutive samples;
-- foreign GPU time stays above its floor in two consecutive samples;
-- the lock, a port, the power source or the battery (< 20 %) has an event;
-- a build, convert or download tool is running;
-- memory pressure reaches level 2 or the system swaps out while foreign memory is growing.
+- **Major** (the unit is repeated): our lock is missing; a peer's server port (8500, 8600-8699)
+  listens; the machine is not on AC power in High Power mode; the battery is below 20 %; foreign CPU
+  in total is at or above 300 % in two consecutive samples; foreign GPU time is at or above 500 ms
+  per 5 s sample (10 % of GPU time) in two consecutive samples; memory pressure reaches level 2, or
+  the system swaps out, while foreign memory is growing; the monitor has a gap in the window.
+- **Minor** (kept, flagged): one foreign process is above 25 % CPU in two consecutive samples;
+  foreign CPU in total is above 150 % but below 300 % in two consecutive samples; foreign GPU time is
+  above 250 ms but below 500 ms in two consecutive samples; a build, convert or download tool is
+  running.
 
-Pressure and swapping that the server causes itself are results, not disturbances. Thermal
-warnings are logged and not judged.
+Why there: the owner accepts ~10 % error between runs. In the old campaign's M8 on oMLX, one busy
+core moved M1 / M3 / M4 by +2.9 % / -0.9 % / +2.0 % against block 1 (about +8.5 % on M1 against
+the stable baselines), and eight busy threads by +27 % / +17.5 % / +9.4 %, so M1 reaches ~10 % at
+about three busy cores. Foreign GPU time takes time slices from the server directly, so a 10 % share
+costs up to ~10 %. Pressure and swapping that the server causes itself are results, not
+disturbances. Thermal warnings are logged and not judged.
 
-A disturbed unit is moved out of the results and repeated, at most 3 attempts in total. So is an
-incomplete one (a missing latency sample, an error, a lost server, which is relaunched first). A
-unit that stays disturbed or incomplete has no value; the table shows "disturbed x3" or
-"incomplete x3". A cold request that reuses 256 or more cached tokens makes its unit invalid,
-which a repeat cannot fix. A response that opens with a tool call takes the server's own time to
-first token: oMLX streams a tool call in one piece after generating it, so the client would see
-its first token only after the whole call.
+Before every unit and every retry, the pre-unit check waits up to 10 minutes for the major
+conditions to clear (minor ones are only logged); if they do not, the speed leg stops and
+`--resume` continues it later. A unit with a major disturbance is moved out of the results and
+repeated, at most 3 attempts in total. So is an incomplete one (a missing latency sample, an error,
+a lost server, which is relaunched first). A unit that stays disturbed or incomplete has no value;
+the table shows "disturbed x3" or "incomplete x3". A unit kept with a minor flag records its
+reasons, and its cells in `RESULTS.md` carry a ‡ footnote. A cold request that reuses 256 or more
+cached tokens makes its unit invalid, which a repeat cannot fix. A response that opens with a tool
+call takes the server's own time to first token: oMLX streams a tool call in one piece after
+generating it, so the client would see its first token only after the whole call.
 
 **Reported.** Decode speed in tok/s at 16K, 32K, 64K and 110K, as a curve, with the ratio to the
 reference at each context and the time per 100 output tokens. TTFT and memory: after load, peak
@@ -111,7 +121,8 @@ The analysis is per task: a model's score on a task is the number of harnesses t
 (0 to 3), counted over the harnesses that have a valid result for both models. A (harness, task)
 pair excluded on either side (invalid twice) is listed and scored on neither side; a decision with
 excluded pairs is marked provisional. Disturbances never repeat a capability task. They only add
-flags: disturbed samples, peak foreign CPU and the battery minimum during the task.
+flags: the flagged samples (major and minor counts), peak foreign CPU and the battery minimum
+during the task.
 
 ## Comparability
 

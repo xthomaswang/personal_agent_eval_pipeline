@@ -13,7 +13,8 @@ prompts, the cold-nonce rule `system+tool`, fallback token counts with the model
 Files: `<run_dir>/speed/<unit>-<attempt>.jsonl` (agentbench raw format), `gate-<n>.jsonl` and
 `m7-<n>.jsonl` for the functional block, and `units.json`, which this module merges across attempts.
 `run.py` owns waiting, judging and retries; it moves a raw file to `_unverified` when the unit
-was disturbed or `UnitResult.valid` is false, and records the verdict with `record_verdict()`.
+had a major disturbance or `UnitResult.valid` is false (a minor flag keeps it, DESIGN §5.4), and
+records the verdict with `record_verdict()`.
 """
 
 from __future__ import annotations
@@ -766,7 +767,11 @@ def _unit_metrics(unit: str, lines: list[dict]) -> tuple[dict[str, Any], bool, l
 # "functional": {"passed", "time", "result": FunctionalResult}, "units": {unit: {"verdict", "attempts":
 # [{"attempt", "t_start", "t_end", "raw_file", "valid", "note", "metrics", "verdict", "kept", ...}]}}}.
 # This module records each attempt as soon as it ends (so a crash keeps its metrics); run.py adds the
-# quiet verdict ("clean" | "disturbed" | "invalid") and "kept", and the unit-level verdict.
+# quiet verdict ("clean" | "minor" | "disturbed" | "incomplete" | "invalid"; "minor" is kept with its
+# flags, "disturbed" means a major disturbance) and "kept", and the unit-level verdict.
+KEPT_VERDICTS = ("clean", "minor")   # run.KEPT: verdicts whose attempt the tables use
+
+
 def units_path(run_dir: Path) -> Path:
     return speed_dir(run_dir) / "units.json"
 
@@ -886,7 +891,8 @@ def record_unit(ctx: SpeedContext, res: UnitResult, system: dict[str, Any] | Non
 def record_verdict(run_dir: Path, unit: str, attempt: int, verdict: Any, raw_file: Path | None = None,
                    max_attempts: int = 3) -> None:
     """Store a quiet verdict the way run.py does (for callers other than run.py, and tests): a
-    `QuietGuard.UnitVerdict`, a dict with `clean`, or a verdict string; a moved raw file's new place."""
+    `QuietGuard.UnitVerdict`, a dict with `clean` (and `severity`: a minor one is kept, DESIGN §5.4;
+    without it, not clean means major), or a verdict string; a moved raw file's new place."""
     doc = load_units(run_dir)
     rec = unit_record(doc, unit)
     a = next((x for x in rec["attempts"] if x.get("attempt") == attempt), None)
@@ -896,13 +902,17 @@ def record_verdict(run_dir: Path, unit: str, attempt: int, verdict: Any, raw_fil
         v, extra = verdict, {}
     else:
         d = _plain(verdict) if not isinstance(verdict, dict) else dict(verdict)
-        v = "clean" if d.get("clean") and a.get("valid") else ("invalid" if not a.get("valid") else "disturbed")
-        extra = {k: d[k] for k in ("reasons", "peak_foreign_cpu", "samples", "battery_min") if k in d}
-    a.update(extra, verdict=v, kept=v == "clean")
+        level = d.get("severity") or ("clean" if d.get("clean") else "major")
+        v = ("invalid" if not a.get("valid") else "clean" if d.get("clean") else
+             "minor" if level == "minor" else "disturbed")
+        extra = {k: d[k] for k in ("severity", "reasons", "major_reasons", "minor_reasons", "peak_foreign_cpu",
+                                   "samples", "disturbed_samples", "major_samples", "minor_samples", "battery_min")
+                 if k in d}
+    a.update(extra, verdict=v, kept=v in KEPT_VERDICTS)
     if raw_file is not None:
         a["raw_file"] = _rel(run_dir, raw_file)
     if a["kept"]:
-        rec["verdict"] = "clean"
+        rec["verdict"] = v
     elif len(rec["attempts"]) >= max_attempts and not any(x.get("kept") for x in rec["attempts"]):
         rec["verdict"] = f"disturbed x{len(rec['attempts'])}"
     save_units(run_dir, doc)
@@ -917,9 +927,9 @@ def _in_speed_dir(run_dir: Path, raw: Any) -> bool:
 
 
 def kept_attempt(rec: dict | list, run_dir: Path | None = None) -> dict | None:
-    """The attempt a table uses (the last one that qualifies): `kept`, or valid and judged clean, or,
-    without a recorded verdict, valid with its raw file still under speed/ (run.py moves every other
-    one to _unverified)."""
+    """The attempt a table uses (the last one that qualifies): `kept`, or valid and judged clean or
+    minor, or, without a recorded verdict, valid with its raw file still under speed/ (run.py moves
+    every other one to _unverified)."""
     attempts = rec.get("attempts", []) if isinstance(rec, dict) else (rec or [])
     kept = None
     for a in attempts:
@@ -929,9 +939,9 @@ def kept_attempt(rec: dict | list, run_dir: Path | None = None) -> dict | None:
         elif not a.get("valid") or a.get("kept") is False and v is not None:
             continue
         elif isinstance(v, str):
-            kept = a if v == "clean" else kept
+            kept = a if v in KEPT_VERDICTS else kept
         elif isinstance(v, dict):
-            kept = a if v.get("clean") else kept
+            kept = a if v.get("clean") or v.get("severity") == "minor" else kept
         elif run_dir is not None and _in_speed_dir(run_dir, a.get("raw_file")):
             kept = a
     return kept
