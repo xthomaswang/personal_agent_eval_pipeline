@@ -130,6 +130,15 @@ class Options:
     notice_wait: int = 600
     settle_s: int = 600
     dry_run: bool = False
+    # Exploratory capability arms (DESIGN §6.8): thinking on, and a task/harness subset. Any of these
+    # makes a run exploratory: its results stay in results/_unverified and out of RESULTS.md.
+    thinking: str = "off"                 # "off" | "on"
+    only: tuple[str, ...] = ()            # fnmatch patterns on task ids, e.g. "aider/transpose"
+    harnesses: tuple[str, ...] = ()       # subset of claude_code, hermes, localmelo
+
+    @property
+    def exploratory(self) -> bool:
+        return self.thinking != "off" or bool(self.only) or bool(self.harnesses)
 
 
 # ---------------------------------------------------------------- small helpers
@@ -475,6 +484,7 @@ class Run:
             "protocol_version": paths.PROTOCOL_VERSION, "run_id": self.run_id, "status": self.status,
             "reason": self.reason, "started": self.started, "ended": None if self.status == "running" else _iso(),
             "model": self.model.to_dict(), "unverified": self.opts.unverified,
+            "arm": {"thinking": self.opts.thinking, "only": list(self.opts.only), "harnesses": list(self.opts.harnesses)},
             "options": {"legs": list(self.opts.legs), "capability": self.opts.capability,
                         "resumed": self.opts.resume is not None, "notice_wait_s": self.opts.notice_wait},
             "estimate": self.est,
@@ -863,9 +873,13 @@ class Run:
                 "server_pid": self.server.pid, "launch": self.server.launch_no, "sets": sets,
                 "run_root": str(self.runs / "capability"), "results": str(self.results / "capability" / "results.json"),
                 "ws_root": str(paths.WS_ROOT), "epoch": epoch, "vendor": str(paths.VENDOR / str(epoch)),
-                "wall_s": 3600, "max_steps": 30, "max_turns": 40, "thinking": "off", "resume": resume,
+                "wall_s": 3600, "max_steps": 30, "max_turns": 40, "thinking": self.opts.thinking, "resume": resume,
                 "pidfile": str(self.pidfile.path), "monitor": str(self.results / "speed" / "monitor.tsv"),
                 "server_log": str(self.server.log_path)}
+        if self.opts.only:
+            spec["only"] = list(self.opts.only)
+        if self.opts.harnesses:
+            spec["harnesses"] = list(self.opts.harnesses)
         p = self.runs / "capability" / "spec.json"
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(json.dumps(spec, indent=2) + "\n", encoding="utf-8")

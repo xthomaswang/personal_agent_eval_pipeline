@@ -61,8 +61,15 @@ def cmd_register(a: argparse.Namespace) -> int:
 
 def _options(a: argparse.Namespace, dry: bool) -> run.Options:
     legs = tuple(x.strip() for x in a.legs.split(",") if x.strip())
-    return run.Options(model=a.model, legs=legs, capability=a.capability, unverified=a.unverified, resume=a.resume,
-                       notice_wait=getattr(a, "notice_wait", 600), settle_s=getattr(a, "settle", 600), dry_run=dry)
+    only = tuple(x.strip() for x in (a.only or "").split(",") if x.strip())
+    harnesses = tuple(x.strip() for x in (a.harnesses or "").split(",") if x.strip())
+    opts = run.Options(model=a.model, legs=legs, capability=a.capability, unverified=a.unverified, resume=a.resume,
+                       notice_wait=getattr(a, "notice_wait", 600), settle_s=getattr(a, "settle", 600), dry_run=dry,
+                       thinking=a.thinking, only=only, harnesses=harnesses)
+    if opts.exploratory and (not opts.unverified or opts.legs != ("capability",)):
+        raise SystemExit("--thinking on, --only and --harnesses are exploratory arms: "
+                         "use them with --legs capability --unverified")
+    return opts
 
 
 def cmd_plan(a: argparse.Namespace) -> int:
@@ -214,6 +221,10 @@ def parser() -> argparse.ArgumentParser:
                        "worse; full-force: the ranking set in any case")
         x.add_argument("--unverified", action="store_true", help="mechanics run: results/_unverified, no retries")
         x.add_argument("--resume", metavar="RUN_ID")
+        x.add_argument("--thinking", choices=("off", "on"), default="off",
+                       help="capability with thinking on (exploratory; needs --legs capability --unverified)")
+        x.add_argument("--only", metavar="PATTERNS", help="comma-separated task-id patterns, e.g. aider/transpose")
+        x.add_argument("--harnesses", metavar="LIST", help="comma-separated subset of claude_code,hermes,localmelo")
         if name == "run":
             x.add_argument("--notice-wait", type=int, default=600, help="seconds between LOCK-NOTICE and the lock")
             x.add_argument("--settle", type=int, default=600, help="seconds a pre-unit check may wait for quiet")
