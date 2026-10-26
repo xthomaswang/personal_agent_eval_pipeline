@@ -1,0 +1,38 @@
+{
+  "schema": 1,
+  "model": "Qwen3.8-27B oQ5 + MTP",
+  "family": "qwen3.8_27b",
+  "quant": "oq5",
+  "run_id": "2026-10-21-quant-compare",
+  "date": "2026-10-22",
+  "system": {
+    "macos_build": "26B5101f",
+    "xcode_build": "27A9275",
+    "server": "oMLX 0.7.1rc1 + G2b patch (57620a3f), MTP on"
+  },
+  "suite": "backend",
+  "protocol": "quant-fidelity-v0",
+  "title": "Quantization fidelity against BF16, and screenshot reading",
+  "metrics": [
+    {
+      "name": "KL, all stable positions",
+      "value": "0.093"
+    },
+    {
+      "name": "Top-1 agreement",
+      "value": "95.4%"
+    },
+    {
+      "name": "KL, agent assistant turns",
+      "value": "0.005"
+    },
+    {
+      "name": "Top-1, agent turns",
+      "value": "97.9%"
+    },
+    {
+      "name": "Screenshot codes read",
+      "value": "54/60"
+    }
+  ]
+}

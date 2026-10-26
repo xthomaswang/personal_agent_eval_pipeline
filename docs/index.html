@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Personal agent eval</title>
+<style>
+:root { --bg: #ffffff; --fg: #1f2328; --muted: #59636e; --line: #d1d9e0; --head: #f6f8fa; --tag: #ddf4ff; --link: #0969da; }
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #0d1117; --fg: #e6edf3; --muted: #9198a1; --line: #3d444d; --head: #151b23; --tag: #12263f; --link: #4493f8; }
+}
+body { background: var(--bg); color: var(--fg); font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+       max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
+a { color: var(--link); }
+h1 { margin: 0 0 4px; font-size: 26px; }
+h2 { margin-top: 36px; border-bottom: 1px solid var(--line); padding-bottom: 4px; }
+h3 { font-size: 16px; margin: 20px 0 8px; }
+code { font-size: 13px; color: var(--muted); }
+.scroll { overflow-x: auto; }
+table { border-collapse: collapse; font-size: 14px; }
+th, td { border: 1px solid var(--line); padding: 5px 10px; text-align: left; white-space: nowrap; }
+th { background: var(--head); }
+tr.notes td { border-top: 0; color: var(--muted); font-size: 13px; white-space: normal; }
+.tag { background: var(--tag); border-radius: 4px; padding: 0 5px; font-size: 12px; }
+.note { color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+<h1>Personal agent eval</h1>
+<p class=note>Local models as the backend of a personal agent on one Mac (M5 Max, 128 GB): serving speed, agent ability
+through three harnesses, and memory. Generated from <code>docs/benchmark</code> by <code>scripts/build_docs.py</code>;
+how it works is in the repository README.</p>
+<h2>Backend</h2>
+<h3>Quantization fidelity against BF16, and screenshot reading <code>quant-fidelity-v0</code></h3><div class=scroll><table><thead><tr><th>Model</th><th>KL, all stable positions</th><th>Top-1 agreement</th><th>KL, agent assistant turns</th><th>Top-1, agent turns</th><th>Screenshot codes read</th><th>Date</th><th>Run</th></tr></thead><tbody><tr><td>Qwen3.8-27B oQ4 + MTP</td><td>0.216</td><td>91.7%</td><td>0.016</td><td>96.2%</td><td>54/60</td><td>2026-10-21</td><td><a href="benchmark/qwen3.8_27b/oq4/backend/2026-10-21-quant-compare/summary.json">2026-10-21-quant-compare</a></td></tr><tr><td>Qwen3.8-27B oQ5 + MTP</td><td>0.093</td><td>95.4%</td><td>0.005</td><td>97.9%</td><td>54/60</td><td>2026-10-22</td><td><a href="benchmark/qwen3.8_27b/oq5/backend/2026-10-21-quant-compare/summary.json">2026-10-21-quant-compare</a></td></tr><tr><td>Qwen3.8-27B oQ6 + MTP</td><td>0.043</td><td>97.3%</td><td>0.002</td><td>98.4%</td><td>56/60</td><td>2026-10-22</td><td><a href="benchmark/qwen3.8_27b/oq6/backend/2026-10-21-quant-compare/summary.json">2026-10-21-quant-compare</a></td></tr><tr><td>Qwen3.8-27B oQ8 + MTP</td><td>0.013</td><td>98.5%</td><td>0.001</td><td>99.2%</td><td>54/60</td><td>2026-10-21</td><td><a href="benchmark/qwen3.8_27b/oq8/backend/2026-10-21-quant-compare/summary.json">2026-10-21-quant-compare</a></td></tr></tbody></table></div><p class=note>macos build 26B5101f, xcode build 27A9275, server oMLX 0.7.1rc1 + G2b patch (57620a3f), MTP on</p>
+<h2>Agent ability</h2>
+<h3>Aider, 12 Python exercises x 3 harnesses, one run each (thinking off) <code>aider12-v0</code></h3><div class=scroll><table><thead><tr><th>Model</th><th>Total</th><th>Claude Code</th><th>Hermes</th><th>localmelo</th><th>Date</th><th>Run</th></tr></thead><tbody><tr><td>Qwen3.8-27B oQ4 + MTP</td><td>27/36</td><td>7/12</td><td>11/12</td><td>9/12</td><td>2026-10-21</td><td><a href="benchmark/qwen3.8_27b/oq4/agent_ability/2026-10-21-quant-compare/summary.json">2026-10-21-quant-compare</a></td></tr><tr><td>Qwen3.8-27B oQ5 + MTP</td><td>32/36</td><td>9/12</td><td>12/12</td><td>11/12</td><td>2026-10-22</td><td><a href="benchmark/qwen3.8_27b/oq5/agent_ability/2026-10-21-quant-compare/summary.json">2026-10-21-quant-compare</a></td></tr><tr><td>Qwen3.8-27B oQ6 + MTP</td><td>31/36</td><td>9/12</td><td>11/12</td><td>11/12</td><td>2026-10-22</td><td><a href="benchmark/qwen3.8_27b/oq6/agent_ability/2026-10-21-quant-compare/summary.json">2026-10-21-quant-compare</a></td></tr><tr><td>Qwen3.8-27B oQ8 + MTP</td><td>33/36</td><td>10/12</td><td>11/12</td><td>12/12</td><td>2026-10-21</td><td><a href="benchmark/qwen3.8_27b/oq8/agent_ability/2026-10-21-quant-compare/summary.json">2026-10-21-quant-compare</a></td></tr></tbody></table></div><p class=note>macos build 26B5101f, xcode build 27A9275, server oMLX 0.7.1rc1 + G2b patch (57620a3f), MTP on</p>
+<h2>Memory</h2>
+<p class=note>No results yet.</p>
+</body>
+</html>

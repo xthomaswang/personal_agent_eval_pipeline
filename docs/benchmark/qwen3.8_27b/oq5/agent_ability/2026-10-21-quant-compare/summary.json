@@ -1,0 +1,34 @@
+{
+  "schema": 1,
+  "model": "Qwen3.8-27B oQ5 + MTP",
+  "family": "qwen3.8_27b",
+  "quant": "oq5",
+  "run_id": "2026-10-21-quant-compare",
+  "date": "2026-10-22",
+  "system": {
+    "macos_build": "26B5101f",
+    "xcode_build": "27A9275",
+    "server": "oMLX 0.7.1rc1 + G2b patch (57620a3f), MTP on"
+  },
+  "suite": "agent_ability",
+  "protocol": "aider12-v0",
+  "title": "Aider, 12 Python exercises x 3 harnesses, one run each (thinking off)",
+  "metrics": [
+    {
+      "name": "Total",
+      "value": "32/36"
+    },
+    {
+      "name": "Claude Code",
+      "value": "9/12"
+    },
+    {
+      "name": "Hermes",
+      "value": "12/12"
+    },
+    {
+      "name": "localmelo",
+      "value": "11/12"
+    }
+  ]
+}
