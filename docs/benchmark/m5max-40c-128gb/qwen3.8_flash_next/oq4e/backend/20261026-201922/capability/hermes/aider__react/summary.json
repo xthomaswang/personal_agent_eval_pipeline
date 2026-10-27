@@ -1,0 +1,23 @@
+{
+  "run_id": "aider__react",
+  "harness": "hermes",
+  "workspace": "ws/aider__react",
+  "started_at": 1793062620.862039,
+  "exit_code": 0,
+  "timed_out": false,
+  "wall_s": 34.332,
+  "harness_args": [],
+  "steps": {
+    "n_llm": 8,
+    "n_llm_aux": 0,
+    "n_llm_err": 0,
+    "n_llm_post_submit": 0,
+    "n_tool": 10,
+    "images_new_sum": 0
+  },
+  "harness_report": {
+    "tool_use_events": 10,
+    "api_call_count": 8,
+    "exit_code": 0
+  }
+}

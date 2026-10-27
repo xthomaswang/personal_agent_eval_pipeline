@@ -1,0 +1,25 @@
+{
+  "run_id": "aider__beer-song",
+  "harness": "claude_code",
+  "workspace": "ws/aider__beer-song",
+  "started_at": 1793063018.001657,
+  "exit_code": 0,
+  "timed_out": false,
+  "wall_s": 30.147,
+  "harness_args": [],
+  "steps": {
+    "n_llm": 6,
+    "n_llm_aux": 0,
+    "n_llm_err": 0,
+    "n_llm_post_submit": 0,
+    "n_tool": 6,
+    "images_new_sum": 0
+  },
+  "harness_report": {
+    "num_turns": 7,
+    "subtype": "success",
+    "is_error": false,
+    "permission_denials": 0,
+    "duration_ms": 29965
+  }
+}

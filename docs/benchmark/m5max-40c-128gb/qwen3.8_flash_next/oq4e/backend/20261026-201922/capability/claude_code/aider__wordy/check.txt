@@ -1,0 +1,19 @@
+.................F.......                                                [100%]
+=================================== FAILURES ===================================
+____________________ WordyTest.test_reject_prefix_notation _____________________
+
+self = <wordy_test.WordyTest testMethod=test_reject_prefix_notation>
+
+    def test_reject_prefix_notation(self):
+        with self.assertRaises(ValueError) as err:
+            answer("What is plus 1 2?")
+        self.assertEqual(type(err.exception), ValueError)
+>       self.assertEqual(err.exception.args[0], "syntax error")
+E       AssertionError: 'unknown operation' != 'syntax error'
+E       - unknown operation
+E       + syntax error
+
+wordy_test.py:104: AssertionError
+=========================== short test summary info ============================
+FAILED wordy_test.py::WordyTest::test_reject_prefix_notation - AssertionError...
+1 failed, 24 passed in 0.01s

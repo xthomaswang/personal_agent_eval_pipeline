@@ -1,0 +1,25 @@
+{
+  "run_id": "aider__transpose",
+  "harness": "claude_code",
+  "workspace": "ws/aider__transpose",
+  "started_at": 1793061880.963698,
+  "exit_code": 0,
+  "timed_out": false,
+  "wall_s": 17.748,
+  "harness_args": [],
+  "steps": {
+    "n_llm": 6,
+    "n_llm_aux": 0,
+    "n_llm_err": 0,
+    "n_llm_post_submit": 0,
+    "n_tool": 5,
+    "images_new_sum": 0
+  },
+  "harness_report": {
+    "num_turns": 6,
+    "subtype": "success",
+    "is_error": false,
+    "permission_denials": 0,
+    "duration_ms": 17570
+  }
+}

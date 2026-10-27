@@ -1,0 +1,25 @@
+{
+  "run_id": "aider__dot-dsl",
+  "harness": "claude_code",
+  "workspace": "ws/aider__dot-dsl",
+  "started_at": 1793063192.262177,
+  "exit_code": 0,
+  "timed_out": false,
+  "wall_s": 31.177,
+  "harness_args": [],
+  "steps": {
+    "n_llm": 8,
+    "n_llm_aux": 0,
+    "n_llm_err": 0,
+    "n_llm_post_submit": 0,
+    "n_tool": 8,
+    "images_new_sum": 0
+  },
+  "harness_report": {
+    "num_turns": 9,
+    "subtype": "success",
+    "is_error": false,
+    "permission_denials": 0,
+    "duration_ms": 30950
+  }
+}

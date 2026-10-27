@@ -1,0 +1,25 @@
+{
+  "run_id": "aider__book-store",
+  "harness": "claude_code",
+  "workspace": "ws/aider__book-store",
+  "started_at": 1793063049.003985,
+  "exit_code": 0,
+  "timed_out": false,
+  "wall_s": 16.765,
+  "harness_args": [],
+  "steps": {
+    "n_llm": 5,
+    "n_llm_aux": 0,
+    "n_llm_err": 0,
+    "n_llm_post_submit": 0,
+    "n_tool": 5,
+    "images_new_sum": 0
+  },
+  "harness_report": {
+    "num_turns": 6,
+    "subtype": "success",
+    "is_error": false,
+    "permission_denials": 0,
+    "duration_ms": 16579
+  }
+}

@@ -1,0 +1,1029 @@
+{
+ "units": {
+  "g5+m3-64k": {
+   "verdict": "minor",
+   "attempts": [
+    {
+     "attempt": 1,
+     "t_start": 1793061186.9274082,
+     "t_end": 1793061226.553922,
+     "raw_file": "speed/g5+m3-64k-1.jsonl",
+     "valid": true,
+     "note": "",
+     "metrics": {
+      "g5": {
+       "ok": true,
+       "ttft_s": 31.53137941705063,
+       "e2e_s": 31.662019584095106,
+       "prompt_tokens": 64000,
+       "cached_tokens": 0,
+       "error": null,
+       "t_start": 1793061186.9713411,
+       "t_end": 1793061218.6333606
+      },
+      "m3": {
+       "ctx": 64000,
+       "cap": 150,
+       "thinking": false,
+       "decode_tps": {
+        "median": 74.48259126555578,
+        "min": 69.90652523657711,
+        "max": 76.31513479618586,
+        "n": 3
+       },
+       "s_per_100": 1.342595609267486,
+       "ttft_s": {
+        "median": 0.5299224168993533,
+        "min": 0.4953044159337878,
+        "max": 0.6888996250927448,
+        "n": 3
+       },
+       "completion_tokens": {
+        "median": 150,
+        "min": 150,
+        "max": 150,
+        "n": 3
+       },
+       "prompt_tokens": 64000,
+       "warmup": "reused",
+       "trial0_cached_tokens": 63993,
+       "reasoning_chars": 0,
+       "hit_cap": 3,
+       "trials": 3,
+       "errors": 0
+      },
+      "cold_cached_tokens": [
+       0
+      ]
+     },
+     "verdict": "minor",
+     "kept": true,
+     "launch": 1,
+     "severity": "minor",
+     "reasons": [
+      "5 flagged sample(s) of 10 (0 major, 5 minor)",
+      "20:33:06 busy in 2 consecutive samples: com.apple.WebKit.WebContent(35353)",
+      "20:33:11 busy in 2 consecutive samples: com.apple.WebKit.WebContent(35353)",
+      "20:33:26 busy in 2 consecutive samples: com.apple.WebKit.WebContent(35353)",
+      "20:33:31 busy in 2 consecutive samples: com.apple.WebKit.WebContent(35353)",
+      "20:33:46 busy in 2 consecutive samples: com.apple.WebKit.WebContent(35353)"
+     ],
+     "major_reasons": [],
+     "minor_reasons": [
+      "5 sample(s) of 10 with a minor flag",
+      "20:33:06 busy in 2 consecutive samples: com.apple.WebKit.WebContent(35353)",
+      "20:33:11 busy in 2 consecutive samples: com.apple.WebKit.WebContent(35353)",
+      "20:33:26 busy in 2 consecutive samples: com.apple.WebKit.WebContent(35353)",
+      "20:33:31 busy in 2 consecutive samples: com.apple.WebKit.WebContent(35353)",
+      "20:33:46 busy in 2 consecutive samples: com.apple.WebKit.WebContent(35353)"
+     ],
+     "peak_foreign_cpu": 114.3,
+     "samples": 10,
+     "disturbed_samples": 5,
+     "major_samples": 0,
+     "minor_samples": 5,
+     "battery_min": 100
+    }
+   ]
+  },
+  "m3-16k": {
+   "verdict": "minor",
+   "attempts": [
+    {
+     "attempt": 1,
+     "t_start": 1793061236.9510798,
+     "t_end": 1793061250.815891,
+     "raw_file": "speed/m3-16k-1.jsonl",
+     "valid": true,
+     "note": "",
+     "metrics": {
+      "m3": {
+       "ctx": 16000,
+       "cap": 150,
+       "thinking": false,
+       "decode_tps": {
+        "median": 85.63502610135072,
+        "min": 79.89605829183594,
+        "max": 86.66953057355148,
+        "n": 3
+       },
+       "s_per_100": 1.167746476560281,
+       "ttft_s": {
+        "median": 0.211013708030805,
+        "min": 0.20767137501388788,
+        "max": 0.24536733306013048,
+        "n": 3
+       },
+       "completion_tokens": {
+        "median": 150,
+        "min": 150,
+        "max": 150,
+        "n": 3
+       },
+       "prompt_tokens": 16000,
+       "warmup": "normal",
+       "trial0_cached_tokens": 15993,
+       "reasoning_chars": 0,
+       "hit_cap": 3,
+       "trials": 3,
+       "errors": 0
+      }
+     },
+     "verdict": "minor",
+     "kept": true,
+     "launch": 1,
+     "severity": "minor",
+     "reasons": [
+      "3 flagged sample(s) of 4 (0 major, 3 minor)",
+      "20:34:01 busy in 2 consecutive samples: com.apple.WebKit.WebContent(35353)",
+      "20:34:06 busy in 2 consecutive samples: com.apple.WebKit.WebContent(35353)",
+      "20:34:11 busy in 2 consecutive samples: com.apple.WebKit.WebContent(35353)"
+     ],
+     "major_reasons": [],
+     "minor_reasons": [
+      "3 sample(s) of 4 with a minor flag",
+      "20:34:01 busy in 2 consecutive samples: com.apple.WebKit.WebContent(35353)",
+      "20:34:06 busy in 2 consecutive samples: com.apple.WebKit.WebContent(35353)",
+      "20:34:11 busy in 2 consecutive samples: com.apple.WebKit.WebContent(35353)"
+     ],
+     "peak_foreign_cpu": 133.2,
+     "samples": 4,
+     "disturbed_samples": 3,
+     "major_samples": 0,
+     "minor_samples": 3,
+     "battery_min": 100
+    }
+   ]
+  },
+  "m3-32k": {
+   "verdict": "minor",
+   "attempts": [
+    {
+     "attempt": 1,
+     "t_start": 1793061257.199664,
+     "t_end": 1793061279.496108,
+     "raw_file": "speed/m3-32k-1.jsonl",
+     "valid": true,
+     "note": "",
+     "metrics": {
+      "m3": {
+       "ctx": 32000,
+       "cap": 150,
+       "thinking": false,
+       "decode_tps": {
+        "median": 78.16325959316927,
+        "min": 73.89286848129835,
+        "max": 83.00608676256222,
+        "n": 3
+       },
+       "s_per_100": 1.2793734616556223,
+       "ttft_s": {
+        "median": 0.30850624991580844,
+        "min": 0.30803774995729327,
+        "max": 0.4009240421000868,
+        "n": 3
+       },
+       "completion_tokens": {
+        "median": 150,
+        "min": 150,
+        "max": 150,
+        "n": 3
+       },
+       "prompt_tokens": 32000,
+       "warmup": "normal",
+       "trial0_cached_tokens": 31993,
+       "reasoning_chars": 0,
+       "hit_cap": 3,
+       "trials": 3,
+       "errors": 0
+      }
+     },
+     "verdict": "minor",
+     "kept": true,
+     "launch": 1,
+     "severity": "minor",
+     "reasons": [
+      "2 flagged sample(s) of 6 (0 major, 2 minor)",
+      "20:34:16 busy in 2 consecutive samples: com.apple.WebKit.WebContent(35353)",
+      "20:34:31 busy in 2 consecutive samples: com.apple.WebKit.WebContent(35353)"
+     ],
+     "major_reasons": [],
+     "minor_reasons": [
+      "2 sample(s) of 6 with a minor flag",
+      "20:34:16 busy in 2 consecutive samples: com.apple.WebKit.WebContent(35353)",
+      "20:34:31 busy in 2 consecutive samples: com.apple.WebKit.WebContent(35353)"
+     ],
+     "peak_foreign_cpu": 110.4,
+     "samples": 6,
+     "disturbed_samples": 2,
+     "major_samples": 0,
+     "minor_samples": 2,
+     "battery_min": 100
+    }
+   ]
+  },
+  "m3-110k": {
+   "verdict": "minor",
+   "attempts": [
+    {
+     "attempt": 1,
+     "t_start": 1793061286.888671,
+     "t_end": 1793061351.3078241,
+     "raw_file": "speed/m3-110k-1.jsonl",
+     "valid": true,
+     "note": "",
+     "metrics": {
+      "m3": {
+       "ctx": 110000,
+       "cap": 150,
+       "thinking": false,
+       "decode_tps": {
+        "median": 80.08040463753613,
+        "min": 77.09709597314907,
+        "max": 80.3569051205692,
+        "n": 3
+       },
+       "s_per_100": 1.2487449389476104,
+       "ttft_s": {
+        "median": 0.9468408329412341,
+        "min": 0.8852582501713187,
+        "max": 1.5526115410029888,
+        "n": 3
+       },
+       "completion_tokens": {
+        "median": 150,
+        "min": 150,
+        "max": 150,
+        "n": 3
+       },
+       "prompt_tokens": 110000,
+       "warmup": "normal",
+       "trial0_cached_tokens": 109993,
+       "reasoning_chars": 0,
+       "hit_cap": 3,
+       "trials": 3,
+       "errors": 0
+      }
+     },
+     "verdict": "minor",
+     "kept": true,
+     "launch": 1,
+     "severity": "minor",
+     "reasons": [
+      "4 flagged sample(s) of 14 (0 major, 4 minor)",
+      "20:34:46 busy in 2 consecutive samples: com.apple.WebKit.WebContent(35353)",
+      "20:34:51 busy in 2 consecutive samples: com.apple.WebKit.WebContent(35353)",
+      "20:34:56 busy in 2 consecutive samples: com.apple.WebKit.WebContent(35353)",
+      "20:35:46 busy in 2 consecutive samples: com.apple.WebKit.WebContent(35353)"
+     ],
+     "major_reasons": [],
+     "minor_reasons": [
+      "4 sample(s) of 14 with a minor flag",
+      "20:34:46 busy in 2 consecutive samples: com.apple.WebKit.WebContent(35353)",
+      "20:34:51 busy in 2 consecutive samples: com.apple.WebKit.WebContent(35353)",
+      "20:34:56 busy in 2 consecutive samples: com.apple.WebKit.WebContent(35353)",
+      "20:35:46 busy in 2 consecutive samples: com.apple.WebKit.WebContent(35353)"
+     ],
+     "peak_foreign_cpu": 111.8,
+     "samples": 14,
+     "disturbed_samples": 4,
+     "major_samples": 0,
+     "minor_samples": 4,
+     "battery_min": 100
+    }
+   ]
+  },
+  "m3-think-16k": {
+   "verdict": "minor",
+   "attempts": [
+    {
+     "attempt": 1,
+     "t_start": 1793061357.216734,
+     "t_end": 1793061406.273669,
+     "raw_file": "speed/m3-think-16k-1.jsonl",
+     "valid": true,
+     "note": "",
+     "metrics": {
+      "m3": {
+       "ctx": 16000,
+       "cap": 1000,
+       "thinking": true,
+       "decode_tps": {
+        "median": 73.58505704604231,
+        "min": 71.31722876963481,
+        "max": 75.95258122183179,
+        "n": 3
+       },
+       "s_per_100": 1.3589715631725312,
+       "ttft_s": {
+        "median": 0.20884424983523786,
+        "min": 0.20758704212494195,
+        "max": 0.24111125012859702,
+        "n": 3
+       },
+       "completion_tokens": {
+        "median": 1000,
+        "min": 1000,
+        "max": 1000,
+        "n": 3
+       },
+       "prompt_tokens": 16000,
+       "warmup": "normal",
+       "trial0_cached_tokens": 15995,
+       "reasoning_chars": 4302,
+       "hit_cap": 3,
+       "trials": 3,
+       "errors": 0
+      }
+     },
+     "verdict": "minor",
+     "kept": true,
+     "launch": 1,
+     "severity": "minor",
+     "reasons": [
+      "1 flagged sample(s) of 11 (0 major, 1 minor)",
+      "20:36:16 busy in 2 consecutive samples: com.apple.WebKit.WebContent(35353)"
+     ],
+     "major_reasons": [],
+     "minor_reasons": [
+      "1 sample(s) of 11 with a minor flag",
+      "20:36:16 busy in 2 consecutive samples: com.apple.WebKit.WebContent(35353)"
+     ],
+     "peak_foreign_cpu": 109.4,
+     "samples": 11,
+     "disturbed_samples": 1,
+     "major_samples": 0,
+     "minor_samples": 1,
+     "battery_min": 100
+    }
+   ]
+  },
+  "m1": {
+   "verdict": "clean",
+   "attempts": [
+    {
+     "attempt": 1,
+     "t_start": 1793061412.166712,
+     "t_end": 1793061434.867031,
+     "raw_file": "speed/m1-1.jsonl",
+     "valid": true,
+     "note": "",
+     "metrics": {
+      "m1": {
+       "warm_ttft_s": {
+        "median": 1.27,
+        "min": 1.21,
+        "max": 1.3146426249295473,
+        "n": 5
+       },
+       "cold_ttft_s": {
+        "median": 8.427665499970317,
+        "min": 8.427665499970317,
+        "max": 8.427665499970317,
+        "n": 1
+       },
+       "warm_e2e_s": {
+        "median": 1.8849626670125872,
+        "min": 1.741890500066802,
+        "max": 2.0546318339183927,
+        "n": 5
+       },
+       "warm_cached_tokens": 14996,
+       "warm_prompt_tokens": 16644,
+       "ttft_sources": {
+        "client": 3,
+        "server": 3
+       },
+       "ttft_includes_decode": 0,
+       "cold_cached_tokens": 0,
+       "errors": 0
+      },
+      "cold_cached_tokens": [
+       0
+      ]
+     },
+     "verdict": "clean",
+     "kept": true,
+     "launch": 1,
+     "severity": "clean",
+     "reasons": [],
+     "major_reasons": [],
+     "minor_reasons": [],
+     "peak_foreign_cpu": 30.7,
+     "samples": 6,
+     "disturbed_samples": 0,
+     "major_samples": 0,
+     "minor_samples": 0,
+     "battery_min": 100
+    }
+   ]
+  },
+  "m4-1": {
+   "verdict": "clean",
+   "attempts": [
+    {
+     "attempt": 1,
+     "t_start": 1793061442.280936,
+     "t_end": 1793061510.020111,
+     "raw_file": "speed/m4-1-1.jsonl",
+     "valid": true,
+     "note": "",
+     "metrics": {
+      "m4": {
+       "steps": 21,
+       "headline_s": 60.344712477572386,
+       "ttft_sum_s": 34.36519000062719,
+       "decode_rate_tps": 80.83289451773358,
+       "rate_steps": 14,
+       "raw_total_s": 67.19378879014403,
+       "mean_completion_tokens": 98.9047619047619,
+       "cap_hits": 8,
+       "cap_hits_by_kind": {
+        "length": 1,
+        "incomplete_tool_call": 7
+       },
+       "step0_cached_tokens": 0,
+       "direct_calls": 1,
+       "ttft_includes_decode": 0,
+       "fixed_tokens": 100,
+       "hard_errors": 0
+      },
+      "cold_cached_tokens": [
+       0
+      ]
+     },
+     "verdict": "clean",
+     "kept": true,
+     "launch": 1,
+     "severity": "clean",
+     "reasons": [],
+     "major_reasons": [],
+     "minor_reasons": [],
+     "peak_foreign_cpu": 36.3,
+     "samples": 15,
+     "disturbed_samples": 0,
+     "major_samples": 0,
+     "minor_samples": 0,
+     "battery_min": 100
+    }
+   ]
+  },
+  "m4-2": {
+   "verdict": "clean",
+   "attempts": [
+    {
+     "attempt": 1,
+     "t_start": 1793061517.4153988,
+     "t_end": 1793061581.28431,
+     "raw_file": "speed/m4-2-1.jsonl",
+     "valid": true,
+     "note": "",
+     "metrics": {
+      "m4": {
+       "steps": 21,
+       "headline_s": 61.82885843611953,
+       "ttft_sum_s": 34.400151415672156,
+       "decode_rate_tps": 76.56212151868863,
+       "rate_steps": 17,
+       "raw_total_s": 63.323102622060105,
+       "mean_completion_tokens": 89.9047619047619,
+       "cap_hits": 6,
+       "cap_hits_by_kind": {
+        "length": 2,
+        "incomplete_tool_call": 4
+       },
+       "step0_cached_tokens": 0,
+       "direct_calls": 1,
+       "ttft_includes_decode": 0,
+       "fixed_tokens": 100,
+       "hard_errors": 0
+      },
+      "cold_cached_tokens": [
+       0
+      ]
+     },
+     "verdict": "clean",
+     "kept": true,
+     "launch": 1,
+     "severity": "clean",
+     "reasons": [],
+     "major_reasons": [],
+     "minor_reasons": [],
+     "peak_foreign_cpu": 32.0,
+     "samples": 14,
+     "disturbed_samples": 0,
+     "major_samples": 0,
+     "minor_samples": 0,
+     "battery_min": 100
+    }
+   ]
+  },
+  "m4-3": {
+   "verdict": "clean",
+   "attempts": [
+    {
+     "attempt": 1,
+     "t_start": 1793061587.157343,
+     "t_end": 1793061654.299924,
+     "raw_file": "speed/m4-3-1.jsonl",
+     "valid": true,
+     "note": "",
+     "metrics": {
+      "m4": {
+       "steps": 21,
+       "headline_s": 62.63781599030849,
+       "ttft_sum_s": 34.93781000414863,
+       "decode_rate_tps": 75.81225798468247,
+       "rate_steps": 17,
+       "raw_total_s": 66.59237366821617,
+       "mean_completion_tokens": 97.85714285714286,
+       "cap_hits": 5,
+       "cap_hits_by_kind": {
+        "length": 1,
+        "incomplete_tool_call": 4
+       },
+       "step0_cached_tokens": 0,
+       "direct_calls": 1,
+       "ttft_includes_decode": 0,
+       "fixed_tokens": 100,
+       "hard_errors": 0
+      },
+      "cold_cached_tokens": [
+       0
+      ]
+     },
+     "verdict": "clean",
+     "kept": true,
+     "launch": 1,
+     "severity": "clean",
+     "reasons": [],
+     "major_reasons": [],
+     "minor_reasons": [],
+     "peak_foreign_cpu": 20.2,
+     "samples": 15,
+     "disturbed_samples": 0,
+     "major_samples": 0,
+     "minor_samples": 0,
+     "battery_min": 100
+    }
+   ]
+  }
+ },
+ "functional": {
+  "passed": true,
+  "time": "2026-10-26T20:33:06-0400",
+  "result": {
+   "ok": true,
+   "stop_reason": null,
+   "items": {
+    "G0": {
+     "id": "G0",
+     "result": "PASS",
+     "detail": "no_tools 5729 ids; tools 14985 ids; history 16644 ids; all checks pass",
+     "checks": [
+      {
+       "request": "no_tools",
+       "check": "independent render",
+       "ok": true,
+       "detail": "5729 ids identical",
+       "first_difference": null,
+       "transformers": "5.17.0"
+      },
+      {
+       "request": "tools",
+       "check": "single BOS",
+       "ok": true,
+       "detail": "ids[0:2]=[248045, 8678]"
+      },
+      {
+       "request": "tools",
+       "check": "system prompt verbatim",
+       "ok": true,
+       "detail": "verbatim"
+      },
+      {
+       "request": "tools",
+       "check": "thinking-off suffix",
+       "ok": true,
+       "detail": "prompt ends in an empty think block (thinking off)"
+      },
+      {
+       "request": "history",
+       "check": "single BOS",
+       "ok": true,
+       "detail": "ids[0:2]=[248045, 8678]"
+      },
+      {
+       "request": "history",
+       "check": "system prompt verbatim",
+       "ok": true,
+       "detail": "verbatim"
+      },
+      {
+       "request": "history",
+       "check": "thinking-off suffix",
+       "ok": true,
+       "detail": "prompt ends in an empty think block (thinking off)"
+      },
+      {
+       "request": "history",
+       "check": "tool-call turn rendered",
+       "ok": true,
+       "detail": "computer_click ['button', 'clicks', 'x', 'y'] after the task"
+      },
+      {
+       "request": "history",
+       "check": "tool-response turn rendered",
+       "ok": true,
+       "detail": "tool result after the call"
+      },
+      {
+       "request": "tools",
+       "check": "G1 usage",
+       "ok": true,
+       "detail": "usage.prompt_tokens 14985 == tokenize 14985"
+      }
+     ]
+    },
+    "G1": {
+     "id": "G1",
+     "result": "PASS",
+     "detail": "fs_read_file {\"path\": \"docs/setup.md\"}; one delta; first call chunk at 7.10 s, e2e 7.10 s; finish=tool_calls",
+     "sub": [
+      {
+       "probe": "G1.hermes",
+       "ok": true,
+       "outcome": "fs_read_file {\"path\": \"docs/setup.md\"}"
+      }
+     ]
+    },
+    "G3": {
+     "id": "G3",
+     "result": "PASS",
+     "detail": "text ok, tool_use ok, image ok, tool_result image ok; text ok ('ready'); reasoning 101 chars in thinking_block / text ok ('ready'); reasoning 120 chars in thinking_block",
+     "sub": [
+      {
+       "probe": "G3.text-adaptive",
+       "ok": true,
+       "outcome": "text ok ('ready'); reasoning 101 chars in thinking_block"
+      },
+      {
+       "probe": "G3.text-nothinking",
+       "ok": true,
+       "outcome": "text ok ('ready'); reasoning 120 chars in thinking_block"
+      },
+      {
+       "probe": "G3.tool_use",
+       "ok": true,
+       "outcome": "tool_use fs_read_file {'path': 'docs/setup.md'}; one delta; first call chunk at 7.40 s, e2e 7.40 s"
+      },
+      {
+       "probe": "G3.image",
+       "ok": true,
+       "outcome": "read Y3N-9JT"
+      },
+      {
+       "probe": "G3.tool_result-image",
+       "ok": true,
+       "outcome": "read Y3N-9JT; input_tokens=0+cache_creation 1969 (sum 1969)"
+      },
+      {
+       "probe": "G3.tool_result-control",
+       "ok": true,
+       "outcome": "read Y3N-9JT; input_tokens=0+cache_creation 1979 (sum 1979)"
+      }
+     ]
+    },
+    "G4": {
+     "id": "G4",
+     "result": "PASS",
+     "detail": "Hermes off: no reasoning; Hermes on: reasoning 117 chars in reasoning_content; note: reasoning_effort=none alone does not disable thinking (top-level effort ignored) | G4.effort-none-only: accepted; reasoning 117 chars in reasoning_content | G4.effort-high: accepted; reasoning 157 chars in reasoning_content | G4.effort-minimal: accepted; reasoning 117 chars in reasoning_content | G4.default: accepted; reasoning 124 chars in reasoning_content",
+     "sub": [
+      {
+       "probe": "G4.hermes-off",
+       "ok": true,
+       "outcome": "no reasoning"
+      },
+      {
+       "probe": "G4.hermes-on",
+       "ok": true,
+       "outcome": "reasoning 117 chars in reasoning_content"
+      },
+      {
+       "probe": "G4.kwargs-off",
+       "ok": true,
+       "outcome": "no reasoning"
+      },
+      {
+       "probe": "G4.kwargs-on",
+       "ok": true,
+       "outcome": "reasoning 108 chars in reasoning_content"
+      },
+      {
+       "probe": "G4.effort-none-only",
+       "ok": null,
+       "outcome": "accepted; reasoning 117 chars in reasoning_content"
+      },
+      {
+       "probe": "G4.effort-high",
+       "ok": null,
+       "outcome": "accepted; reasoning 157 chars in reasoning_content"
+      },
+      {
+       "probe": "G4.effort-minimal",
+       "ok": null,
+       "outcome": "accepted; reasoning 117 chars in reasoning_content"
+      },
+      {
+       "probe": "G4.default",
+       "ok": null,
+       "outcome": "accepted; reasoning 124 chars in reasoning_content"
+      }
+     ]
+    },
+    "G2": {
+     "id": "G2",
+     "result": "PASS",
+     "detail": "read Y3N-9JT correctly; prompt_tokens=1319",
+     "sub": []
+    },
+    "G2b": {
+     "id": "G2b",
+     "result": "FAIL",
+     "detail": "tool-message image: code not read (answer 'Q', expected Y3N-9JT); prompt_tokens=639; image dropped: 1297 fewer prompt tokens than the control; control (user message): read Y3N-9JT; prompt_tokens=1936",
+     "sub": [
+      {
+       "probe": "G2b.tool-image",
+       "ok": false,
+       "outcome": "code not read (answer 'Q', expected Y3N-9JT); prompt_tokens=639; image dropped: 1297 fewer prompt tokens than the control"
+      },
+      {
+       "probe": "G2b.user-control",
+       "ok": true,
+       "outcome": "read Y3N-9JT; prompt_tokens=1936"
+      }
+     ]
+    }
+   },
+   "m7": {
+    "scored_cases": 22,
+    "passed_cases": 20,
+    "failing": [
+     "m7-05-array-strings",
+     "m7-16-commit-message"
+    ],
+    "incomplete": [],
+    "na": [
+     "m7-22-image-read",
+     "m7-23-image-click"
+    ],
+    "trials": 110,
+    "misses": 9,
+    "cases": {
+     "m7-01-single": {
+      "category": "single call",
+      "trials": 5,
+      "misses": 0,
+      "reasons": [],
+      "pass": true,
+      "incomplete": false
+     },
+     "m7-02-multi-args": {
+      "category": "multiple args",
+      "trials": 5,
+      "misses": 1,
+      "reasons": [
+       "fs_grep.case_insensitive: missing"
+      ],
+      "pass": true,
+      "incomplete": false
+     },
+     "m7-03-nested-object": {
+      "category": "nested objects",
+      "trials": 5,
+      "misses": 0,
+      "reasons": [],
+      "pass": true,
+      "incomplete": false
+     },
+     "m7-04-array-of-objects": {
+      "category": "nested objects (array of objects, multi-turn)",
+      "trials": 5,
+      "misses": 0,
+      "reasons": [],
+      "pass": true,
+      "incomplete": false
+     },
+     "m7-05-array-strings": {
+      "category": "arrays",
+      "trials": 5,
+      "misses": 5,
+      "reasons": [
+       "called 'fs_list_dir' instead of 'fs_delete'"
+      ],
+      "pass": false,
+      "incomplete": false
+     },
+     "m7-06-array-integers": {
+      "category": "arrays",
+      "trials": 5,
+      "misses": 0,
+      "reasons": [],
+      "pass": true,
+      "incomplete": false
+     },
+     "m7-07-enum": {
+      "category": "enums",
+      "trials": 5,
+      "misses": 0,
+      "reasons": [],
+      "pass": true,
+      "incomplete": false
+     },
+     "m7-08-key-combo": {
+      "category": "enums / arrays",
+      "trials": 5,
+      "misses": 0,
+      "reasons": [],
+      "pass": true,
+      "incomplete": false
+     },
+     "m7-09-numbers": {
+      "category": "numbers",
+      "trials": 5,
+      "misses": 0,
+      "reasons": [],
+      "pass": true,
+      "incomplete": false
+     },
+     "m7-10-float-bool": {
+      "category": "numbers and booleans",
+      "trials": 5,
+      "misses": 0,
+      "reasons": [],
+      "pass": true,
+      "incomplete": false
+     },
+     "m7-11-booleans": {
+      "category": "numbers and booleans",
+      "trials": 5,
+      "misses": 0,
+      "reasons": [],
+      "pass": true,
+      "incomplete": false
+     },
+     "m7-12-chinese-args": {
+      "category": "Unicode / Chinese args",
+      "trials": 5,
+      "misses": 0,
+      "reasons": [],
+      "pass": true,
+      "incomplete": false
+     },
+     "m7-13-chinese-instruction": {
+      "category": "Unicode / Chinese args",
+      "trials": 5,
+      "misses": 0,
+      "reasons": [],
+      "pass": true,
+      "incomplete": false
+     },
+     "m7-14-unicode-text": {
+      "category": "Unicode / Chinese args",
+      "trials": 5,
+      "misses": 0,
+      "reasons": [],
+      "pass": true,
+      "incomplete": false
+     },
+     "m7-15-quotes-newlines": {
+      "category": "quotes and newlines in strings",
+      "trials": 5,
+      "misses": 0,
+      "reasons": [],
+      "pass": true,
+      "incomplete": false
+     },
+     "m7-16-commit-message": {
+      "category": "quotes and newlines in strings (multi-turn)",
+      "trials": 5,
+      "misses": 3,
+      "reasons": [
+       "called 'git_diff' instead of 'git_commit'"
+      ],
+      "pass": false,
+      "incomplete": false
+     },
+     "m7-17-long-string": {
+      "category": "long string args",
+      "trials": 5,
+      "misses": 0,
+      "reasons": [],
+      "pass": true,
+      "incomplete": false
+     },
+     "m7-18-parallel": {
+      "category": "two parallel calls",
+      "trials": 5,
+      "misses": 0,
+      "reasons": [],
+      "pass": true,
+      "incomplete": false
+     },
+     "m7-19-similar-tools-glob": {
+      "category": "choosing between similar tools",
+      "trials": 5,
+      "misses": 0,
+      "reasons": [],
+      "pass": true,
+      "incomplete": false
+     },
+     "m7-20-similar-tools-http": {
+      "category": "choosing between similar tools",
+      "trials": 5,
+      "misses": 0,
+      "reasons": [],
+      "pass": true,
+      "incomplete": false
+     },
+     "m7-21-no-call": {
+      "category": "no call needed",
+      "trials": 5,
+      "misses": 0,
+      "reasons": [],
+      "pass": true,
+      "incomplete": false
+     },
+     "m7-24-calendar": {
+      "category": "nested objects",
+      "trials": 5,
+      "misses": 0,
+      "reasons": [],
+      "pass": true,
+      "incomplete": false
+     }
+    }
+   },
+   "files": [
+    "speed/gate-1.jsonl",
+    "speed/m7-1.jsonl"
+   ],
+   "t_start": 1793060981.069298,
+   "t_end": 1793061186.3477619,
+   "server_error": null
+  },
+  "launch": 1
+ },
+ "run_id": "20261026-201922",
+ "model": "qwen3-8-flash-next-oq4e",
+ "protocol_version": 1,
+ "model_info": {
+  "key": "qwen3-8-flash-next-oq4e",
+  "display": "Qwen3.8-Flash-Next oQ4e + MTP",
+  "served_id": "Qwen3.8-Flash-Next-oQ4e-mtp",
+  "quant": "oQ4e",
+  "spec": "mtp",
+  "vision": true,
+  "reference": false,
+  "sampling": {
+   "temperature": 1.0,
+   "top_p": 0.95,
+   "top_k": 20
+  },
+  "proxy_sampling": "inject:qwen3.8-gen-config",
+  "source": {
+   "hf_repo": "Jundot/Qwen3.8-Flash-Next-oQ4e-mtp",
+   "revision": "e878710debbe7b31b9cd5a5756af629c903eb91d",
+   "made_by": "published oQ4e build (oMLX 0.7.3.dev1, Better Low-Bit oQ), base Qwen/Qwen3.8-Flash-Next"
+  },
+  "notes": [
+   "Read only: downloaded by another session into ~/.omlx-0.7/models; models/hf-bench links to it.",
+   "Closest published build (its BF16 is ~250 GB): oQ4e, not oQ5; disclosed in every table.",
+   "Its 29.8 GiB PLE table is mmapped and file-backed, so the server footprint excludes it; the system-wide memory delta includes it."
+  ],
+  "path": "~/.omlx-0.7/models/Qwen3.8-Flash-Next-oQ4e-mtp"
+ },
+ "system": {
+  "macos": "27.2",
+  "macos_build": "26B5101f",
+  "xcode": "Xcode 27.1",
+  "xcode_build": "27A9275",
+  "harness": {
+   "commit": "f60a4f1685cb7bf81b6634e844b7bb5dc8e692be",
+   "dirty": false
+  }
+ },
+ "memory": {
+  "after_load": 79456894976.0,
+  "after_load_system": 71897563136.0,
+  "peak": 104152956928.0,
+  "peak_system": 81391812608.0,
+  "max_pressure": 1.0,
+  "swapouts": 164.0,
+  "samples": 340,
+  "g5_peak": 91268055040.0,
+  "g5_peak_system": 65722793984.0,
+  "m3_110k_peak": 97710505984.0,
+  "m3_110k_peak_system": 77342310400.0
+ }
+}

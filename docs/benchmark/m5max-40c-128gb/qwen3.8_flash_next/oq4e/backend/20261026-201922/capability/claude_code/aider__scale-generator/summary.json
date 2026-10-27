@@ -1,0 +1,25 @@
+{
+  "run_id": "aider__scale-generator",
+  "harness": "claude_code",
+  "workspace": "ws/aider__scale-generator",
+  "started_at": 1793062028.445041,
+  "exit_code": 0,
+  "timed_out": false,
+  "wall_s": 37.29,
+  "harness_args": [],
+  "steps": {
+    "n_llm": 14,
+    "n_llm_aux": 0,
+    "n_llm_err": 0,
+    "n_llm_post_submit": 0,
+    "n_tool": 16,
+    "images_new_sum": 0
+  },
+  "harness_report": {
+    "num_turns": 17,
+    "subtype": "success",
+    "is_error": false,
+    "permission_denials": 0,
+    "duration_ms": 37101
+  }
+}

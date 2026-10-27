@@ -1,0 +1,23 @@
+{
+  "run_id": "aider__bowling",
+  "harness": "hermes",
+  "workspace": "ws/aider__bowling",
+  "started_at": 1793064318.249624,
+  "exit_code": 0,
+  "timed_out": false,
+  "wall_s": 60.332,
+  "harness_args": [],
+  "steps": {
+    "n_llm": 17,
+    "n_llm_aux": 0,
+    "n_llm_err": 0,
+    "n_llm_post_submit": 0,
+    "n_tool": 17,
+    "images_new_sum": 0
+  },
+  "harness_report": {
+    "tool_use_events": 17,
+    "api_call_count": 17,
+    "exit_code": 0
+  }
+}

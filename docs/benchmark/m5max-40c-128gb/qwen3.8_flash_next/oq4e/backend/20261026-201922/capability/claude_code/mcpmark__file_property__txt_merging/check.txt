@@ -1,0 +1,9 @@
+🔍 Verifying text file merging in: ws/mcpmark__file_property__txt_merging
+
+📋 Checking: Merge file existence
+❌ merge.txt not found
+
+📋 Checking: Merge file contents
+❌ Failed to read merge.txt: [Errno 2] No such file or directory: 'ws/mcpmark__file_property__txt_merging/merge.txt'
+
+❌ Some verification checks failed!

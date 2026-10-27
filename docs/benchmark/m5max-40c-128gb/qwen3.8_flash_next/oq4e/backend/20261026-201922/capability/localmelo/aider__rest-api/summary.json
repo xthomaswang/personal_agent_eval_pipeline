@@ -1,0 +1,71 @@
+{
+  "run_id": "aider__rest-api",
+  "harness": "localmelo",
+  "workspace": "ws/aider__rest-api",
+  "started_at": 1793065364.401619,
+  "exit_code": 0,
+  "timed_out": false,
+  "wall_s": 16.597,
+  "harness_args": [
+    "--request-timeout",
+    "1800",
+    "--timeout",
+    "3540",
+    "--output-format",
+    "json"
+  ],
+  "steps": {
+    "n_llm": 5,
+    "n_llm_aux": 0,
+    "n_llm_err": 0,
+    "n_llm_post_submit": 0,
+    "n_tool": 4,
+    "images_new_sum": 0
+  },
+  "harness_report": {
+    "steps": 4,
+    "task_status": "completed",
+    "run_record": {
+      "task_id": "23d8ebba105c44118862af91488065a4",
+      "status": "completed",
+      "error": "",
+      "steps": 5,
+      "attempts": 1,
+      "n_llm": 5,
+      "n_main": 5,
+      "n_aux": 0,
+      "n_tool": 4,
+      "llm_errors": 0,
+      "usage": {
+        "prompt_tokens": 16374,
+        "completion_tokens": 1155,
+        "total_tokens": 17529
+      },
+      "duration_s": 16.395075083943084,
+      "config": {
+        "max_steps": 30,
+        "attempt_policy": "reflect",
+        "steps_per_attempt": 10,
+        "max_attempts": 5,
+        "reflection_gate": "flags",
+        "tool_exposure": "retrieve",
+        "builtins": [
+          "file_read",
+          "file_write",
+          "python_exec",
+          "shell_exec"
+        ],
+        "memory": true,
+        "memory_dir": "eval/backend/runs/qwen3-8-flash-next-oq4e/20261026-201922/capability/localmelo/aider__rest-api/mem",
+        "timeout_s": 3540.0,
+        "tools": [
+          "file_read",
+          "file_write",
+          "python_exec",
+          "shell_exec"
+        ]
+      },
+      "localmelo_version": "3b8f310"
+    }
+  }
+}
