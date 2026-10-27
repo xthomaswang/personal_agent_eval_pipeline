@@ -35,5 +35,6 @@
       "name": "Screenshot codes read",
       "value": "56/60"
     }
-  ]
+  ],
+  "notes": "From the 2026-10-21/22 quantization comparison: KL divergence and top-1 agreement of each quantization's next-token distribution against BF16, and screenshot codes read out of 60. It ran with earlier scripts, not in this repository, on a patched oMLX build, so this table is a record rather than a protocol you can rerun from here."
 }

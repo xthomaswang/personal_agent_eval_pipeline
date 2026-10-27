@@ -31,5 +31,6 @@
       "name": "localmelo",
       "value": "11/12"
     }
-  ]
+  ],
+  "notes": "From the 2026-10-21/22 quantization comparison: the capability leg's 12 Aider gate exercises, once per harness, run with the harness-smoke suite (now eval/agent_ability) at its defaults of 600 s, 30 steps and 40 turns per task (capability-1 allows 3600 s), on a patched oMLX build (G2b, 57620a3f). The patched server makes this table a record rather than a protocol you can rerun from here."
 }
