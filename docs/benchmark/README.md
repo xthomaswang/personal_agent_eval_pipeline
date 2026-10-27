@@ -18,7 +18,9 @@ docs/benchmark/<machine>/<family>/<quant>/<suite>/<run-id>/
 
 `scripts/build_docs.py` reads the `summary.json` directly inside each `<run-id>/` directory (a run's own
 files may hold more of them deeper down; a shallower one is an error), checks it, and writes the site,
-`docs/index.html` (served by GitHub Pages). Run it after adding a run, and commit its output with the run.
+four pages and their assets under `docs/` (served by GitHub Pages). Run it after adding a run, and
+commit the generated output with the run. Source lives in `site/`; `--check` verifies every generated
+page and asset, including the data file.
 
 ## summary.json
 
@@ -46,16 +48,29 @@ files may hold more of them deeper down; a shallower one is an error), checks it
   fixed setting (tasks, budgets, sampling rule, thinking, server settings); a change to any of them is a new
   protocol id, and its rows start a new table. Results from different protocols are never compared in one table.
 - Within a protocol, every row has the same `title` and the same metric names in the same order.
-- `value` is the display string. Keep raw numbers in the suite's own files next to it. The site draws a
-  bar under a pass count (`a/b`), and, in a table with a `reference` row, shows a number's ratio to the
-  reference's value when both have the same unit.
-- `reference` (optional) is true on the reference model's rows. The site lists the newest such row of a
-  table first, tags it, and shows the other rows' ratios to its values.
-- `notes` is shown under the table (once when every row has the same note); `details` must be a file
-  under docs/benchmark, and the site links it next to the run.
+- `value` is the display string. Keep raw numbers in the suite's own files next to it. Pass counts
+  (`a/b`) are shown as a percentage with the original count; partial counts stay visibly partial.
+- `reference` (optional) is true on reference-model rows; it is displayed as a reference tag.
+- `notes` and full metrics appear in result details; `details` must be a file under docs/benchmark,
+  and the site links that report alongside the summary and run evidence.
 - All fields are strings, except `schema` (1), `system` (an object), `metrics` (a list of `name`/`value`
   strings) and `reference` (a boolean).
 - The directory path must match `system.machine`, `family`, `quant`, `suite` and `run_id`.
 - Nothing personal goes here: no absolute home paths, account names, message or mail content. The
   capability leg exports only allowlisted files (no request or response bodies); a backend run also
   publishes its manifest and raw speed records, whose prompts are synthetic.
+
+## Additional public evidence
+
+For `capability-1`, the site derives per-harness pass counts and median model time/calls from the
+published `backend/<run-id>/capability/results.json`. It uses the runner's final-record and solved
+accessors, excludes warm-ups, and verifies that totals match these summary rows.
+
+For `ui-real-1`, the report's sibling `results.json` holds item-sample counts. The site reads
+`gold.audited`, verifies the seven summary values, and exposes screenshot, screenshot + OCR, AX-list,
+and read-only original-capture arms. Strict and lenient reads remain separate. Pages, questions,
+profiles, captures and responses from the private set are not part of the generated website.
+
+New machine/protocol groups are discovered automatically. A changed machine never shares a primary
+table with another machine; a changed protocol never shares a table with another protocol. Generated
+data includes an evidence fingerprint that is independent of the build time and Git commit.

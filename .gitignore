@@ -24,3 +24,6 @@ snapshots/
 models/
 
 .DS_Store
+
+# Local preview mirror and review screenshots; canonical website source is in site/.
+/website-demo/

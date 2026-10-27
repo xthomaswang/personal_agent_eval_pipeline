@@ -1,274 +1,33 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Personal agent eval</title>
-<meta name="description" content="Local models as the backend of a personal agent on Apple-silicon Macs: serving speed, agent ability through three harnesses, and memory.">
-<style>
-:root {
-  color-scheme: light;
-  --bg: #ffffff; --bg2: #f6f8fa; --fg: #1f2328; --muted: #59636e; --line: #d1d9e0; --card: #ffffff;
-  --link: #0969da; --tag: #ddf4ff; --tagfg: #0550ae; --bar: #2da44e; --barbg: #e8ecef; --shadow: 0 1px 2px rgba(31,35,40,.06);
-  --c-backend: #0969da; --c-ability: #8250df; --c-memory: #bf3989; --c-harness: #6e40c9; --c-tools: #57606a;
-  --c-proxy: #9a6700; --c-server: #1a7f37; --c-results: #57606a; --c-page: #0969da;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
-    --bg: #0d1117; --bg2: #151b23; --fg: #e6edf3; --muted: #9198a1; --line: #3d444d; --card: #151b23;
-    --link: #4493f8; --tag: #12263f; --tagfg: #79c0ff; --bar: #3fb950; --barbg: #262c36; --shadow: none;
-    --c-backend: #4493f8; --c-ability: #ab7df8; --c-memory: #f778ba; --c-harness: #a371f7; --c-tools: #9198a1;
-    --c-proxy: #d29922; --c-server: #3fb950; --c-results: #9198a1; --c-page: #4493f8;
-  }
-}
-:root[data-theme="dark"] {
-  color-scheme: dark;
-  --bg: #0d1117; --bg2: #151b23; --fg: #e6edf3; --muted: #9198a1; --line: #3d444d; --card: #151b23;
-  --link: #4493f8; --tag: #12263f; --tagfg: #79c0ff; --bar: #3fb950; --barbg: #262c36; --shadow: none;
-  --c-backend: #4493f8; --c-ability: #ab7df8; --c-memory: #f778ba; --c-harness: #a371f7; --c-tools: #9198a1;
-  --c-proxy: #d29922; --c-server: #3fb950; --c-results: #9198a1; --c-page: #4493f8;
-}
-* { box-sizing: border-box; }
-@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
-body { margin: 0; background: var(--bg); color: var(--fg);
-       font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
-a { color: var(--link); text-decoration: none; }
-a:hover, a:focus-visible { text-decoration: underline; }
-.intro a, footer a { text-decoration: underline; text-underline-offset: 2px; }
-code { font: 0.86em ui-monospace, SFMono-Regular, Menlo, monospace; }
-p code, dd code, li code { overflow-wrap: anywhere; }
-.wrap { max-width: 1120px; margin: 0 auto; padding: 0 16px; }
-header.top { position: sticky; top: 0; z-index: 2; background: var(--bg); border-bottom: 1px solid var(--line); }
-header.top .wrap { display: flex; align-items: center; gap: 18px; height: 52px; overflow-x: auto; white-space: nowrap; }
-header.top .brand { font-weight: 650; color: var(--fg); margin-right: auto; }
-header.top nav a { color: var(--muted); font-size: 14px; margin-left: 14px; }
-header.top nav a:hover { color: var(--fg); }
-.hero { padding: 48px 0 24px; }
-.hero h1 { font-size: clamp(30px, 5vw, 44px); line-height: 1.15; margin: 0 0 12px; letter-spacing: -0.02em; }
-.hero .lead { font-size: 18px; color: var(--muted); max-width: 760px; margin: 0; }
-.stats { color: var(--muted); font-size: 14px; margin: 16px 0 0; }
-.stats b { color: var(--fg); }
-.cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin: 28px 0 8px; }
-.card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px; box-shadow: var(--shadow); }
-.card h2 { margin: 0 0 6px; font-size: 17px; display: flex; align-items: center; gap: 8px; }
-.card p { margin: 0; color: var(--muted); font-size: 15px; }
-.dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; flex: none; }
-.dot.backend { background: var(--c-backend); } .dot.agent_ability { background: var(--c-ability); }
-.dot.memory { background: var(--c-memory); }
-section { padding: 28px 0; border-top: 1px solid var(--line); scroll-margin-top: 52px; }
-section > .wrap > h2 { font-size: 26px; margin: 8px 0 8px; letter-spacing: -0.01em; }
-.intro { color: var(--muted); max-width: 800px; margin: 0 0 8px; }
-h3.machine { font-size: 18px; margin: 28px 0 4px; }
-h3.machine code { font-size: 15px; background: var(--bg2); padding: 2px 6px; border-radius: 6px; }
-h4.suite-head { display: flex; align-items: center; gap: 8px; font-size: 16px; margin: 22px 0 6px; }
-figure.result { margin: 10px 0 22px; }
-figcaption { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin-bottom: 8px; font-weight: 600; }
-figcaption .proto { font-weight: 400; color: var(--muted); background: var(--bg2); padding: 1px 6px; border-radius: 6px; }
-.scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; }
-table { border-collapse: collapse; width: 100%; font-size: 14px; }
-th, td { padding: 8px 10px; text-align: left; white-space: nowrap; border-bottom: 1px solid var(--line); vertical-align: top; }
-thead th { background: var(--bg2); font-weight: 600; color: var(--muted); font-size: 13px; white-space: normal; min-width: 72px; vertical-align: bottom; }
-tbody tr:last-child th, tbody tr:last-child td { border-bottom: 0; }
-tbody th { font-weight: 600; }
-td.num .v { font-variant-numeric: tabular-nums; }
-.bar { display: block; height: 4px; margin-top: 5px; min-width: 56px; background: var(--barbg); border-radius: 2px; overflow: hidden; }
-.bar i { display: block; height: 100%; background: var(--bar); }
-.ratio { display: block; font-size: 12px; color: var(--muted); }
-tbody th, thead th:first-child { position: sticky; left: 0; z-index: 1; }
-tbody th { background: var(--bg); }
-.tag { font-size: 11px; font-weight: 600; background: var(--tag); color: var(--tagfg); border-radius: 999px; padding: 1px 7px; margin-left: 4px; }
-.muted { color: var(--muted); font-size: 13px; margin: 6px 0 0; }
-.diagram { width: 100%; height: auto; margin: 12px 0 4px; }
-.diagram.narrow { display: none; max-width: 420px; }
-.dwide { overflow-x: auto; }
-svg.defs { position: absolute; }
-.diagram .group { fill: var(--bg2); stroke: var(--line); }
-.diagram .gl { fill: var(--muted); font-size: 12px; font-weight: 600; }
-.diagram .node rect { fill: var(--card); stroke-width: 1.6; }
-.diagram .node .t { font-size: 15px; font-weight: 650; text-anchor: middle; fill: var(--fg); }
-.diagram .node .s { font-size: 12.5px; text-anchor: middle; fill: var(--muted); }
-.diagram .edge { fill: none; stroke: var(--muted); stroke-width: 1.4; }
-.ah { fill: var(--muted); }
-.diagram .el { font-size: 11.5px; fill: var(--muted); text-anchor: middle; }
-.diagram .el.l { text-anchor: start; }
-.diagram .edge.planned { stroke-dasharray: 5 4; }
-.c-backend rect { stroke: var(--c-backend); } .c-ability rect { stroke: var(--c-ability); }
-.c-memory rect { stroke: var(--c-memory); } .c-harness rect { stroke: var(--c-harness); }
-.c-tools rect { stroke: var(--c-tools); } .c-proxy rect { stroke: var(--c-proxy); }
-.c-server rect { stroke: var(--c-server); } .c-results rect { stroke: var(--c-results); }
-.c-page rect { stroke: var(--c-page); }
-.points { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 28px; margin: 18px 0 0; padding: 0; list-style: none; }
-.points li { padding-left: 14px; border-left: 3px solid var(--line); }
-.points b { display: block; margin-bottom: 2px; }
-.points span { color: var(--muted); font-size: 15px; }
-.suite { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 8px 28px; padding: 18px 0; border-bottom: 1px solid var(--line); }
-.suite:last-child { border-bottom: 0; }
-.suite h3 { margin: 0; font-size: 18px; display: flex; align-items: center; gap: 8px; }
-.suite .where { color: var(--muted); font-size: 13px; margin-top: 4px; }
-.suite dl { margin: 0; display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 6px 16px; }
-.suite dt { color: var(--muted); font-size: 14px; }
-.suite dd { margin: 0; font-size: 15px; }
-pre { background: var(--bg2); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; overflow-x: auto;
-      font: 13px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; }
-pre .c { color: var(--muted); }
-ul.todo { color: var(--muted); max-width: 800px; margin: 0 0 8px; padding-left: 20px; }
-ul.todo li { margin: 4px 0; }
-footer { border-top: 1px solid var(--line); padding: 24px 0 40px; color: var(--muted); font-size: 14px; }
-@media (max-width: 860px) {
-  .cards { grid-template-columns: 1fr; }
-  .points { grid-template-columns: 1fr; }
-  .suite { grid-template-columns: 1fr; }
-  .suite dl { grid-template-columns: 1fr; gap: 2px 0; }
-  .suite dd { margin-bottom: 8px; }
-}
-@media (min-width: 641px) and (max-width: 960px) {
-  .diagram.wide { min-width: 900px; }
-}
-@media (max-width: 640px) {
-  .dwide, .diagram.wide { display: none; }
-  .diagram.narrow { display: block; margin: 12px auto 4px; }
-  header.top nav a { margin-left: 10px; }
-  .hero { padding-top: 32px; }
-  tbody th { white-space: normal; min-width: 136px; }
-}
-@media (max-width: 520px) {
-  header.top .brand { display: none; }
-  header.top nav a { margin-left: 0; margin-right: 14px; }
-}
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Compare local models for personal AI agents on Apple silicon. Explore agent ability, serving performance, and a reproducible evaluation pipeline.">
+  <meta name="theme-color" content="#f6f1e7">
+  <title>Personal Agent Bench</title>
+  <link rel="stylesheet" href="assets/site.css?v=64796754cc17">
+  <link rel="icon" type="image/png" href="assets/akita-avatar-chibi.png?v=64796754cc17">
+  <script src="assets/data.js?v=64796754cc17" defer></script>
+  <script src="assets/architecture.js?v=64796754cc17" defer></script>
+  <script src="assets/app.js?v=64796754cc17" defer></script>
 </head>
-<body>
-<header class=top><div class=wrap>
-<a class=brand href="#">Personal agent eval</a>
-<nav><a href="#results">Results</a><a href="#how">How it works</a><a href="#suites">Suites</a><a href="#run">Run it</a><a href="https://github.com/xthomaswang/personal_agent_eval_pipeline">GitHub</a></nav>
-</div></header>
-
-<main>
-<div class=hero><div class=wrap>
-<h1>Local models as a personal agent's backend</h1>
-<p class=lead>How well does a local model serve a personal agent on a Mac? Three suites measure it under fixed,
-versioned settings (the memory suite is still being built), so a new model or quantization lands next to the ones
-already measured, and anyone with an Apple-silicon Mac can rerun the backend's speed and capability legs.</p>
-<p class=stats><b>6</b> model builds · <b>16</b> results · <b>1</b> machine · latest 2026-10-27</p>
-<div class=cards>
-<div class=card><h2><span class="dot backend"></span>Backend</h2><p>What an agent waits for: time to first token with a
-cached or a cold prompt, decode speed from 16K to 110K tokens of context, a 20-step agent trajectory, and the
-server's memory. Plus a functional gate, and tool-call accuracy (shown with agent ability).</p></div>
-<div class=card><h2><span class="dot agent_ability"></span>Agent ability</h2><p>Whether agents built on the model get
-work done. The same tasks, with byte-identical prompts, run through Claude Code, Hermes Agent and localmelo, and
-objective checkers score them. A UI probe checks clicking, form filling and reading on web pages.</p></div>
-<div class=card><h2><span class="dot memory"></span>Memory</h2><p>Whether an agent keeps a correct, current and compact
-memory. A synthetic 10-day timeline is fed to the agent one session a day, and a fixed reader then answers 60
-questions from the memory store alone. The reader and the scoring are built; the session runner is next.</p></div>
-</div>
-</div></div>
-
-<section id=results><div class=wrap>
-<h2>Results</h2>
-<p class=intro>Rows share a table only when they come from the same machine and the same protocol. A protocol fixes
-the tasks, budgets, sampling rule (each model's recommended sampling), thinking setting and server settings; a
-change to any of them starts a new table.
-A bar shows a pass count; "&times; ref" compares a value with the reference model's in the same table.</p>
-<h3 class=machine>Machine <code>m5max-40c-128gb</code></h3>
-<h4 class=suite-head><span class="dot backend"></span>Backend</h4>
-<figure class=result><figcaption><span class=title>Quantization fidelity against BF16, and screenshot reading</span><code class=proto>quant-fidelity-v0</code></figcaption><div class=scroll><table><thead><tr><th scope=col>Model</th><th scope=col>KL, all stable positions</th><th scope=col>Top-1 agreement</th><th scope=col>KL, agent assistant turns</th><th scope=col>Top-1, agent turns</th><th scope=col>Screenshot codes read</th><th scope=col>Date</th><th scope=col>Run</th></tr></thead><tbody><tr><th scope=row>Qwen3.8-27B oQ4 + MTP</th><td class=num><span class=v>0.216</span></td><td class=num><span class=v>91.7%</span></td><td class=num><span class=v>0.016</span></td><td class=num><span class=v>96.2%</span></td><td class=num><span class=v>54/60</span><span class=bar><i style="width:90.0%"></i></span></td><td>2026-10-21</td><td><a href="https://github.com/xthomaswang/personal_agent_eval_pipeline/tree/main/docs/benchmark/m5max-40c-128gb/qwen3.8_27b/oq4/backend/2026-10-21-quant-compare">2026-10-21-quant-compare</a></td></tr><tr><th scope=row>Qwen3.8-27B oQ5 + MTP</th><td class=num><span class=v>0.093</span></td><td class=num><span class=v>95.4%</span></td><td class=num><span class=v>0.005</span></td><td class=num><span class=v>97.9%</span></td><td class=num><span class=v>54/60</span><span class=bar><i style="width:90.0%"></i></span></td><td>2026-10-22</td><td><a href="https://github.com/xthomaswang/personal_agent_eval_pipeline/tree/main/docs/benchmark/m5max-40c-128gb/qwen3.8_27b/oq5/backend/2026-10-21-quant-compare">2026-10-21-quant-compare</a></td></tr><tr><th scope=row>Qwen3.8-27B oQ6 + MTP</th><td class=num><span class=v>0.043</span></td><td class=num><span class=v>97.3%</span></td><td class=num><span class=v>0.002</span></td><td class=num><span class=v>98.4%</span></td><td class=num><span class=v>56/60</span><span class=bar><i style="width:93.3%"></i></span></td><td>2026-10-22</td><td><a href="https://github.com/xthomaswang/personal_agent_eval_pipeline/tree/main/docs/benchmark/m5max-40c-128gb/qwen3.8_27b/oq6/backend/2026-10-21-quant-compare">2026-10-21-quant-compare</a></td></tr><tr><th scope=row>Qwen3.8-27B oQ8 + MTP</th><td class=num><span class=v>0.013</span></td><td class=num><span class=v>98.5%</span></td><td class=num><span class=v>0.001</span></td><td class=num><span class=v>99.2%</span></td><td class=num><span class=v>54/60</span><span class=bar><i style="width:90.0%"></i></span></td><td>2026-10-21</td><td><a href="https://github.com/xthomaswang/personal_agent_eval_pipeline/tree/main/docs/benchmark/m5max-40c-128gb/qwen3.8_27b/oq8/backend/2026-10-21-quant-compare">2026-10-21-quant-compare</a></td></tr></tbody></table></div><p class=muted>From the 2026-10-21/22 quantization comparison: KL divergence and top-1 agreement of each quantization&#x27;s next-token distribution against BF16, and screenshot codes read out of 60. It ran with earlier scripts, not in this repository, on a patched oMLX build, so this table is a record rather than a protocol you can rerun from here.</p><p class=muted>macOS 26B5101f, Xcode 27A9275, server oMLX 0.7.1rc1 + G2b patch (57620a3f), MTP on</p></figure>
-<figure class=result><figcaption><span class=title>Speed on oMLX 0.7.1rc1 (M5 Max): text-only, agent sampling, thinking off</span><code class=proto>speed-1</code></figcaption><div class=scroll><table><thead><tr><th scope=col>Model</th><th scope=col>64K cold TTFT</th><th scope=col>Cached-prefix TTFT</th><th scope=col>Decode 16K</th><th scope=col>Decode 32K</th><th scope=col>Decode 64K</th><th scope=col>Decode 110K</th><th scope=col>20-step agent trajectory</th><th scope=col>Peak server memory</th><th scope=col>Date</th><th scope=col>Run</th></tr></thead><tbody><tr><th scope=row>Qwen3.8-27B oQ5 + MTP <span class=tag>reference</span></th><td class=num><span class=v>111.4 s</span></td><td class=num><span class=v>3.20 s</span></td><td class=num><span class=v>55.1 tok/s</span></td><td class=num><span class=v>51.0 tok/s</span></td><td class=num><span class=v>41.9 tok/s</span></td><td class=num><span class=v>36.9 tok/s</span></td><td class=num><span class=v>133.4 s</span></td><td class=num><span class=v>58.0 GiB</span></td><td>2026-10-26</td><td><a href="https://github.com/xthomaswang/personal_agent_eval_pipeline/tree/main/docs/benchmark/m5max-40c-128gb/qwen3.8_27b/oq5/backend/20261026-062952">20261026-062952</a> · <a href="https://github.com/xthomaswang/personal_agent_eval_pipeline/blob/main/docs/benchmark/m5max-40c-128gb/qwen3.8_27b/oq5/backend/20261026-062952/speed/units.json">details</a></td></tr><tr><th scope=row>Nanbeige4.3-33B oQ5</th><td class=num><span class=v>210.6 s</span><span class=ratio>1.89&times; ref</span></td><td class=num><span class=v>5.05 s</span><span class=ratio>1.58&times; ref</span></td><td class=num><span class=v>15.9 tok/s</span><span class=ratio>0.29&times; ref</span></td><td class=num><span class=v>13.5 tok/s</span><span class=ratio>0.26&times; ref</span></td><td class=num><span class=v>10.5 tok/s</span><span class=ratio>0.25&times; ref</span></td><td class=num><span class=v>9.0 tok/s</span><span class=ratio>0.24&times; ref</span></td><td class=num><span class=v>328.5 s</span><span class=ratio>2.46&times; ref</span></td><td class=num><span class=v>74.0 GiB</span><span class=ratio>1.28&times; ref</span></td><td>2026-10-26</td><td><a href="https://github.com/xthomaswang/personal_agent_eval_pipeline/tree/main/docs/benchmark/m5max-40c-128gb/nanbeige4.3_33b/oq5/backend/20261026-104645">20261026-104645</a> · <a href="https://github.com/xthomaswang/personal_agent_eval_pipeline/blob/main/docs/benchmark/m5max-40c-128gb/nanbeige4.3_33b/oq5/backend/20261026-104645/README.md">details</a></td></tr><tr><th scope=row>Qwen3.8-Flash-Next oQ4e + MTP</th><td class=num><span class=v>31.5 s</span><span class=ratio>0.28&times; ref</span></td><td class=num><span class=v>1.27 s</span><span class=ratio>0.40&times; ref</span></td><td class=num><span class=v>85.6 tok/s</span><span class=ratio>1.55&times; ref</span></td><td class=num><span class=v>78.2 tok/s</span><span class=ratio>1.53&times; ref</span></td><td class=num><span class=v>74.5 tok/s</span><span class=ratio>1.78&times; ref</span></td><td class=num><span class=v>80.1 tok/s</span><span class=ratio>2.17&times; ref</span></td><td class=num><span class=v>61.8 s</span><span class=ratio>0.46&times; ref</span></td><td class=num><span class=v>97.0 GiB</span><span class=ratio>1.67&times; ref</span></td><td>2026-10-26</td><td><a href="https://github.com/xthomaswang/personal_agent_eval_pipeline/tree/main/docs/benchmark/m5max-40c-128gb/qwen3.8_flash_next/oq4e/backend/20261026-201922">20261026-201922</a> · <a href="https://github.com/xthomaswang/personal_agent_eval_pipeline/blob/main/docs/benchmark/m5max-40c-128gb/qwen3.8_flash_next/oq4e/backend/20261026-201922/README.md">details</a></td></tr></tbody></table></div><p class=muted>Nanbeige4.3-33B oQ5: Kept with a minor disturbance flag (eval/backend/DESIGN.md §5.4): Cached-prefix TTFT. Some trajectory steps opened with a tool call, so their TTFT includes its decode.</p><p class=muted>Qwen3.8-Flash-Next oQ4e + MTP: Kept with a minor disturbance flag (eval/backend/DESIGN.md §5.4): 64K cold TTFT, Decode 16K, Decode 32K, Decode 64K, Decode 110K, Decode 16K with thinking on (in RESULTS.md, not in this table).</p><p class=muted>macOS 26B5101f, Xcode 27A9275, server oMLX 0.7.1rc1 (7a5a3d75)</p></figure>
-<h4 class=suite-head><span class="dot agent_ability"></span>Agent ability</h4>
-<figure class=result><figcaption><span class=title>Aider, 12 Python exercises x 3 harnesses, one run each (thinking off)</span><code class=proto>aider12-v0</code></figcaption><div class=scroll><table><thead><tr><th scope=col>Model</th><th scope=col>Total</th><th scope=col>Claude Code</th><th scope=col>Hermes</th><th scope=col>localmelo</th><th scope=col>Date</th><th scope=col>Run</th></tr></thead><tbody><tr><th scope=row>Qwen3.8-27B oQ4 + MTP</th><td class=num><span class=v>27/36</span><span class=bar><i style="width:75.0%"></i></span></td><td class=num><span class=v>7/12</span><span class=bar><i style="width:58.3%"></i></span></td><td class=num><span class=v>11/12</span><span class=bar><i style="width:91.7%"></i></span></td><td class=num><span class=v>9/12</span><span class=bar><i style="width:75.0%"></i></span></td><td>2026-10-21</td><td><a href="https://github.com/xthomaswang/personal_agent_eval_pipeline/tree/main/docs/benchmark/m5max-40c-128gb/qwen3.8_27b/oq4/agent_ability/2026-10-21-quant-compare">2026-10-21-quant-compare</a></td></tr><tr><th scope=row>Qwen3.8-27B oQ5 + MTP</th><td class=num><span class=v>32/36</span><span class=bar><i style="width:88.9%"></i></span></td><td class=num><span class=v>9/12</span><span class=bar><i style="width:75.0%"></i></span></td><td class=num><span class=v>12/12</span><span class=bar><i style="width:100.0%"></i></span></td><td class=num><span class=v>11/12</span><span class=bar><i style="width:91.7%"></i></span></td><td>2026-10-22</td><td><a href="https://github.com/xthomaswang/personal_agent_eval_pipeline/tree/main/docs/benchmark/m5max-40c-128gb/qwen3.8_27b/oq5/agent_ability/2026-10-21-quant-compare">2026-10-21-quant-compare</a></td></tr><tr><th scope=row>Qwen3.8-27B oQ6 + MTP</th><td class=num><span class=v>31/36</span><span class=bar><i style="width:86.1%"></i></span></td><td class=num><span class=v>9/12</span><span class=bar><i style="width:75.0%"></i></span></td><td class=num><span class=v>11/12</span><span class=bar><i style="width:91.7%"></i></span></td><td class=num><span class=v>11/12</span><span class=bar><i style="width:91.7%"></i></span></td><td>2026-10-22</td><td><a href="https://github.com/xthomaswang/personal_agent_eval_pipeline/tree/main/docs/benchmark/m5max-40c-128gb/qwen3.8_27b/oq6/agent_ability/2026-10-21-quant-compare">2026-10-21-quant-compare</a></td></tr><tr><th scope=row>Qwen3.8-27B oQ8 + MTP</th><td class=num><span class=v>33/36</span><span class=bar><i style="width:91.7%"></i></span></td><td class=num><span class=v>10/12</span><span class=bar><i style="width:83.3%"></i></span></td><td class=num><span class=v>11/12</span><span class=bar><i style="width:91.7%"></i></span></td><td class=num><span class=v>12/12</span><span class=bar><i style="width:100.0%"></i></span></td><td>2026-10-21</td><td><a href="https://github.com/xthomaswang/personal_agent_eval_pipeline/tree/main/docs/benchmark/m5max-40c-128gb/qwen3.8_27b/oq8/agent_ability/2026-10-21-quant-compare">2026-10-21-quant-compare</a></td></tr></tbody></table></div><p class=muted>From the 2026-10-21/22 quantization comparison: the capability leg&#x27;s 12 Aider gate exercises, once per harness, run with the harness-smoke suite (now eval/agent_ability) at its defaults of 600 s, 30 steps and 40 turns per task (capability-1 allows 3600 s), on a patched oMLX build (G2b, 57620a3f). The patched server makes this table a record rather than a protocol you can rerun from here.</p><p class=muted>macOS 26B5101f, Xcode 27A9275, server oMLX 0.7.1rc1 + G2b patch (57620a3f), MTP on</p></figure>
-<figure class=result><figcaption><span class=title>Claude Code, Hermes, localmelo on Aider 12 + MCPMark easy 10 (gate set) and Aider 22 (ranking set); thinking off</span><code class=proto>capability-1</code></figcaption><div class=scroll><table><thead><tr><th scope=col>Model</th><th scope=col>Claude Code (gate)</th><th scope=col>Hermes (gate)</th><th scope=col>localmelo (gate)</th><th scope=col>Gate set</th><th scope=col>Ranking set</th><th scope=col>M7 tool-call cases</th><th scope=col>Date</th><th scope=col>Run</th></tr></thead><tbody><tr><th scope=row>Qwen3.8-27B oQ5 + MTP <span class=tag>reference</span></th><td class=num><span class=v>21/22</span><span class=bar><i style="width:95.5%"></i></span></td><td class=num><span class=v>20/22</span><span class=bar><i style="width:90.9%"></i></span></td><td class=num><span class=v>22/22</span><span class=bar><i style="width:100.0%"></i></span></td><td class=num><span class=v>63/66</span><span class=bar><i style="width:95.5%"></i></span></td><td class=num><span class=v>61/66</span><span class=bar><i style="width:92.4%"></i></span></td><td class=num><span class=v>21/22</span><span class=bar><i style="width:95.5%"></i></span></td><td>2026-10-26</td><td><a href="https://github.com/xthomaswang/personal_agent_eval_pipeline/tree/main/docs/benchmark/m5max-40c-128gb/qwen3.8_27b/oq5/agent_ability/20261026-062952">20261026-062952</a> · <a href="https://github.com/xthomaswang/personal_agent_eval_pipeline/blob/main/docs/benchmark/m5max-40c-128gb/qwen3.8_27b/oq5/backend/20261026-062952/capability/results.json">details</a></td></tr><tr><th scope=row>Nanbeige4.3-33B oQ5</th><td class=num><span class=v>16/22</span><span class=bar><i style="width:72.7%"></i></span></td><td class=num><span class=v>15/18 (partial)</span><span class=bar><i style="width:83.3%"></i></span></td><td class=num><span class=v>—</span></td><td class=num><span class=v>31/40 (partial)</span><span class=bar><i style="width:77.5%"></i></span></td><td class=num><span class=v>—</span></td><td class=num><span class=v>17/22</span><span class=bar><i style="width:77.3%"></i></span></td><td>2026-10-26</td><td><a href="https://github.com/xthomaswang/personal_agent_eval_pipeline/tree/main/docs/benchmark/m5max-40c-128gb/nanbeige4.3_33b/oq5/agent_ability/20261026-104645">20261026-104645</a> · <a href="https://github.com/xthomaswang/personal_agent_eval_pipeline/blob/main/docs/benchmark/m5max-40c-128gb/nanbeige4.3_33b/oq5/backend/20261026-104645/README.md">details</a></td></tr><tr><th scope=row>Qwen3.8-Flash-Next oQ4e + MTP</th><td class=num><span class=v>20/22</span><span class=bar><i style="width:90.9%"></i></span></td><td class=num><span class=v>22/22</span><span class=bar><i style="width:100.0%"></i></span></td><td class=num><span class=v>22/22</span><span class=bar><i style="width:100.0%"></i></span></td><td class=num><span class=v>64/66</span><span class=bar><i style="width:97.0%"></i></span></td><td class=num><span class=v>63/66</span><span class=bar><i style="width:95.5%"></i></span></td><td class=num><span class=v>20/22</span><span class=bar><i style="width:90.9%"></i></span></td><td>2026-10-26</td><td><a href="https://github.com/xthomaswang/personal_agent_eval_pipeline/tree/main/docs/benchmark/m5max-40c-128gb/qwen3.8_flash_next/oq4e/agent_ability/20261026-201922">20261026-201922</a> · <a href="https://github.com/xthomaswang/personal_agent_eval_pipeline/blob/main/docs/benchmark/m5max-40c-128gb/qwen3.8_flash_next/oq4e/backend/20261026-201922/README.md">details</a></td></tr></tbody></table></div><p class=muted>Nanbeige4.3-33B oQ5: Capability leg stopped (interrupted) after 40 of 66 gate-set runs. Not run: localmelo, the ranking set.</p><p class=muted>macOS 26B5101f, Xcode 27A9275, server oMLX 0.7.1rc1 (7a5a3d75)</p></figure>
-<figure class=result><figcaption><span class=title>UI on real web pages: 75 pages, 430 items x 3 samples; click, fill a form, read; from the screenshot or the accessibility list</span><code class=proto>ui-real-1</code></figcaption><div class=scroll><table><thead><tr><th scope=col>Model</th><th scope=col>Click, screenshot</th><th scope=col>Click, AX list</th><th scope=col>Fill, screenshot</th><th scope=col>Fill, AX list</th><th scope=col>Read, screenshot</th><th scope=col>Read, AX list</th><th scope=col>Read, original capture</th><th scope=col>Date</th><th scope=col>Run</th></tr></thead><tbody><tr><th scope=row>Qwen3.8-27B oQ5 + MTP <span class=tag>reference</span></th><td class=num><span class=v>582/594</span><span class=bar><i style="width:98.0%"></i></span></td><td class=num><span class=v>585/594</span><span class=bar><i style="width:98.5%"></i></span></td><td class=num><span class=v>46/72</span><span class=bar><i style="width:63.9%"></i></span></td><td class=num><span class=v>47/72</span><span class=bar><i style="width:65.3%"></i></span></td><td class=num><span class=v>563/624</span><span class=bar><i style="width:90.2%"></i></span></td><td class=num><span class=v>574/624</span><span class=bar><i style="width:92.0%"></i></span></td><td class=num><span class=v>559/624</span><span class=bar><i style="width:89.6%"></i></span></td><td>2026-10-27</td><td><a href="https://github.com/xthomaswang/personal_agent_eval_pipeline/tree/main/docs/benchmark/m5max-40c-128gb/qwen3.8_27b/oq5/agent_ability/20261027-ui-real">20261027-ui-real</a> · <a href="https://github.com/xthomaswang/personal_agent_eval_pipeline/blob/main/docs/benchmark/m5max-40c-128gb/qwen3.8_27b/oq5/agent_ability/20261027-ui-real/README.md">details</a></td></tr><tr><th scope=row>Qwen3.8-Flash-Next oQ4e + MTP</th><td class=num><span class=v>545/594</span><span class=bar><i style="width:91.8%"></i></span></td><td class=num><span class=v>586/594</span><span class=bar><i style="width:98.7%"></i></span></td><td class=num><span class=v>36/72</span><span class=bar><i style="width:50.0%"></i></span></td><td class=num><span class=v>45/72</span><span class=bar><i style="width:62.5%"></i></span></td><td class=num><span class=v>541/624</span><span class=bar><i style="width:86.7%"></i></span></td><td class=num><span class=v>550/624</span><span class=bar><i style="width:88.1%"></i></span></td><td class=num><span class=v>534/624</span><span class=bar><i style="width:85.6%"></i></span></td><td>2026-10-27</td><td><a href="https://github.com/xthomaswang/personal_agent_eval_pipeline/tree/main/docs/benchmark/m5max-40c-128gb/qwen3.8_flash_next/oq4e/agent_ability/20261027-ui-real">20261027-ui-real</a> · <a href="https://github.com/xthomaswang/personal_agent_eval_pipeline/blob/main/docs/benchmark/m5max-40c-128gb/qwen3.8_27b/oq5/agent_ability/20261027-ui-real/README.md">details</a></td></tr></tbody></table></div><p class=muted>Private set of replica pages, audited gold; reads by exact match. Screenshot + OCR, lenient reads and the failure analysis are in details.</p><p class=muted>macOS 26B5101f, Xcode 27A9275, server oMLX 0.7.1rc1 (57620a3f)</p></figure>
-</div></section>
-
-<section id=how><div class=wrap>
-<h2>How it works</h2>
-<p class=intro>Each suite drives a model through the same pieces. The arrows follow the model calls and, at the
-bottom, the results.</p>
-<svg class=defs width=0 height=0 aria-hidden=true focusable=false><defs><marker id=arrowhead viewBox="0 0 10 10" refX=9 refY=5 markerWidth=7 markerHeight=7 orient=auto-start-reverse><path d="M0,0 L10,5 L0,10 z" class=ah></path></marker></defs></svg><div class=dwide><svg class="diagram wide" viewBox="0 0 1080 490" role=img aria-labelledby=dgw aria-describedby=dgw-d><title id=dgw>How the pipeline fits together</title><desc id=dgw-d>The backend runs the speed leg and, as its capability leg, the agent_ability tasks. Those tasks, with the same prompts, go to three agent harnesses (Claude Code, Hermes Agent, localmelo), which use their built-in tools; the memory suite will drive the harnesses one session a day (planned) with the pab MCP server. Every model call from a harness goes through the recorder proxy to the oMLX server, and so do the memory suite&#x27;s T4 reader calls, while the backend&#x27;s speed probes go straight to the server. The backend&#x27;s modeleval publish writes one summary.json row per suite and run to docs/benchmark, and scripts/build_docs.py builds this page from them.</desc><rect x=10 y=52 width=250 height=330 rx=14 class=group></rect><text x=24 y=74 class=gl>eval/ suites</text><g class="node c-backend"><rect x=26 y=86 width=218 height=84 rx=10></rect><text x=135 y=110 class=t>backend</text><text x=135 y=130 class=s>one command per model:</text><text x=135 y=147 class=s>speed leg + capability leg</text></g><g class="node c-ability"><rect x=26 y=186 width=218 height=70 rx=10></rect><text x=135 y=210 class=t>agent_ability</text><text x=135 y=230 class=s>MCPMark + Aider tasks,</text><text x=135 y=247 class=s>objective checkers</text></g><g class="node c-memory"><rect x=26 y=272 width=218 height=96 rx=10></rect><text x=135 y=296 class=t>memory</text><text x=135 y=316 class=s>T4: a 10-day timeline,</text><text x=135 y=333 class=s>pab MCP server,</text><text x=135 y=350 class=s>fixed reader + oracle</text></g><g class="node c-tools"><rect x=350 y=52 width=210 height=82 rx=10></rect><text x=455 y=76 class=t>Tools</text><text x=455 y=96 class=s>built-in; MCP: pab (T4, planned),</text><text x=455 y=113 class=s>filesystem (optional arm)</text></g><g class="node c-harness"><rect x=350 y=166 width=210 height=112 rx=10></rect><text x=455 y=190 class=t>Agent harnesses</text><text x=455 y=210 class=s>Claude Code · Hermes Agent</text><text x=455 y=227 class=s>· localmelo</text><text x=455 y=244 class=s>driven by bench/harness</text></g><g class="node c-proxy"><rect x=620 y=166 width=200 height=112 rx=10></rect><text x=720 y=190 class=t>Recorder proxy</text><text x=720 y=210 class=s>bench/proxy: counts steps</text><text x=720 y=227 class=s>and model time; sets</text><text x=720 y=244 class=s>sampling and thinking</text></g><g class="node c-server"><rect x=875 y=166 width=195 height=112 rx=10></rect><text x=972.5 y=190 class=t>oMLX server</text><text x=972.5 y=210 class=s>one model, fixed settings,</text><text x=972.5 y=227 class=s>on an Apple-silicon Mac</text></g><g class="node c-results"><rect x=350 y=410 width=470 height=62 rx=10></rect><text x=585 y=434 class=t>docs/benchmark/&lt;machine&gt;/&lt;family&gt;/&lt;quant&gt;/…</text><text x=585 y=454 class=s>one summary.json row per suite and run</text></g><g class="node c-page"><rect x=875 y=410 width=195 height=62 rx=10></rect><text x=972.5 y=434 class=t>This page</text><text x=972.5 y=454 class=s>scripts/build_docs.py</text></g><polyline class="edge " points="135,86 135,30 972,30 972,162" marker-end="url(#arrowhead)"></polyline><text x=560 y=24 class="el ">speed probes</text><polyline class="edge " points="135,170 135,182" marker-end="url(#arrowhead)"></polyline><polyline class="edge " points="244,221 346,221" marker-end="url(#arrowhead)"></polyline><text x=304 y=212 class="el ">same prompts</text><polyline class="edge planned" points="244,300 310,300 310,252 346,252" marker-end="url(#arrowhead)"></polyline><text x=330 y=318 class="el ">a session a day (planned)</text><polyline class="edge " points="455,166 455,138" marker-end="url(#arrowhead)"></polyline><text x=497 y=156 class="el ">tool calls</text><polyline class="edge " points="560,222 616,222" marker-end="url(#arrowhead)"></polyline><text x=588 y=212 class="el ">every call</text><polyline class="edge " points="820,222 871,222" marker-end="url(#arrowhead)"></polyline><polyline class="edge " points="244,350 720,350 720,282" marker-end="url(#arrowhead)"></polyline><text x=500 y=342 class="el ">reader calls (T4)</text><polyline class="edge " points="26,128 18,128 18,441 346,441" marker-end="url(#arrowhead)"></polyline><text x=190 y=432 class="el ">modeleval publish</text><polyline class="edge " points="820,441 871,441" marker-end="url(#arrowhead)"></polyline></svg></div><svg class="diagram narrow" viewBox="0 0 360 852" role=img aria-labelledby=dgn aria-describedby=dgn-d><title id=dgn>How the pipeline fits together</title><desc id=dgn-d>The backend runs the speed leg and, as its capability leg, the agent_ability tasks. Those tasks, with the same prompts, go to three agent harnesses (Claude Code, Hermes Agent, localmelo), which use their built-in tools; the memory suite will drive the harnesses one session a day (planned) with the pab MCP server. Every model call from a harness goes through the recorder proxy to the oMLX server, and so do the memory suite&#x27;s T4 reader calls, while the backend&#x27;s speed probes go straight to the server. The backend&#x27;s modeleval publish writes one summary.json row per suite and run to docs/benchmark, and scripts/build_docs.py builds this page from them.</desc><rect x=30 y=8 width=300 height=276 rx=14 class=group></rect><text x=44 y=30 class=gl>eval/ suites</text><g class="node c-backend"><rect x=44 y=42 width=272 height=72 rx=10></rect><text x=180 y=66 class=t>backend</text><text x=180 y=86 class=s>one command per model:</text><text x=180 y=103 class=s>speed leg + capability leg</text></g><g class="node c-ability"><rect x=44 y=124 width=272 height=70 rx=10></rect><text x=180 y=148 class=t>agent_ability</text><text x=180 y=168 class=s>MCPMark + Aider, checkers</text></g><g class="node c-memory"><rect x=44 y=204 width=272 height=70 rx=10></rect><text x=180 y=228 class=t>memory</text><text x=180 y=248 class=s>T4 timeline, pab, reader, oracle</text></g><polyline class="edge " points="180,284 180,318" marker-end="url(#arrowhead)"></polyline><text x=190 y=305 class="el l">tasks; T4 sessions planned</text><g class="node c-harness"><rect x=44 y=322 width=272 height=88 rx=10></rect><text x=180 y=346 class=t>Agent harnesses</text><text x=180 y=366 class=s>Claude Code · Hermes · localmelo</text><text x=180 y=383 class=s>built-in tools; MCP: pab (T4, planned),</text><text x=180 y=400 class=s>filesystem (optional arm)</text></g><polyline class="edge " points="180,410 180,444" marker-end="url(#arrowhead)"></polyline><text x=190 y=431 class="el l">every model call</text><g class="node c-proxy"><rect x=44 y=448 width=272 height=72 rx=10></rect><text x=180 y=472 class=t>Recorder proxy</text><text x=180 y=492 class=s>counts steps and time,</text><text x=180 y=509 class=s>sets sampling and thinking</text></g><polyline class="edge " points="180,520 180,554" marker-end="url(#arrowhead)"></polyline><g class="node c-server"><rect x=44 y=558 width=272 height=72 rx=10></rect><text x=180 y=582 class=t>oMLX server</text><text x=180 y=602 class=s>one model, fixed settings</text></g><polyline class="edge " points="316,78 346,78 346,594 320,594" marker-end="url(#arrowhead)"></polyline><text x=334 y=340 class=el transform="rotate(90 334 340)">speed probes</text><g class="node c-results"><rect x=44 y=672 width=272 height=72 rx=10></rect><text x=180 y=696 class=t>docs/benchmark/…/summary.json</text><text x=180 y=716 class=s>one row per suite and run</text></g><polyline class="edge " points="44,78 14,78 14,708 40,708" marker-end="url(#arrowhead)"></polyline><text x=24 y=480 class=el transform="rotate(-90 24 480)">modeleval publish</text><polyline class="edge " points="180,744 180,778" marker-end="url(#arrowhead)"></polyline><g class="node c-page"><rect x=44 y=782 width=272 height=60 rx=10></rect><text x=180 y=806 class=t>This page</text><text x=180 y=826 class=s>scripts/build_docs.py</text></g></svg>
-<ul class=points>
-<li><b>One recorder proxy for every harness</b><span>Every model call of an agent harness, and every T4 reader call,
-goes through bench/proxy. It counts agent steps and model time the same way for Claude Code, Hermes Agent and
-localmelo, sets the thinking setting, and gives the harnesses' requests the model's recommended sampling. The
-backend's speed probes call the server directly, with the same sampling, so their timings carry no proxy
-overhead.</span></li>
-<li><b>Fixed, versioned protocols</b><span>Tasks, budgets, the sampling rule, thinking (off in the main arm) and
-server settings are fixed per protocol. Every result names its protocol and machine, and no table mixes
-them.</span></li>
-<li><b>Quiet machine for timed work</b><span>The backend's timed units wait until other processes' CPU and GPU load is
-below fixed thresholds and the battery is high enough. A unit with a major disturbance is repeated, up to 3
-attempts; a minor one is kept and flagged.</span></li>
-<li><b>Recorded results</b><span>Each result records the macOS and Xcode builds, the server version and the machine.
-A backend run publishes its manifest and the speed leg's raw records (timings, machine samples, and the model's
-output on synthetic prompts); the capability leg publishes only allowlisted files (per-call metrics and checker
-output, no request or response bodies). Agent transcripts, harness homes and server logs stay on the
-machine.</span></li>
-</ul>
-</div></section>
-
-<section id=suites><div class=wrap>
-<h2>Suites</h2>
-<div class=suite><div><h3><span class="dot backend"></span>Backend</h3><div class=where><a href="https://github.com/xthomaswang/personal_agent_eval_pipeline/tree/main/eval/backend">eval/backend</a></div></div>
-<dl>
-<dt>One run</dt><dd>Once the checkpoint is prepared (download, convert, register), one command per model starts the server with the fixed settings and runs the speed leg, then the capability leg on the same server launch. <code>modeleval publish</code> writes the rows.</dd>
-<dt>Speed leg</dt><dd>Time to first token on a cached ~15K-token agent prefix and on a cold 64K-token prompt; decode speed at 16K, 32K, 64K and 110K tokens of context; a 20-step agent trajectory; peak server memory. Before the timed units, an untimed functional gate and 22 tool-call cases (shown in the Agent ability table).</dd>
-<dt>Capability leg</dt><dd>The agent_ability tasks through all three harnesses, one run each, with a budget of 30 agent steps (successful model calls that carry tools), 40 harness turns and 3600 s per task. A gate set first (12 Aider exercises and 10 MCPMark tasks); the ranking set (the other 22 Aider Python exercises) runs unless the gate finds the model worse than the reference. The decision rules are fixed in advance: the gate calls a model worse only when it loses at least 5 more tasks than it wins, consistently in at least two harnesses; the ranking set calls it better or worse only at sign-test p &lt; 0.05 over tasks.</dd>
-</dl></div>
-<div class=suite><div><h3><span class="dot agent_ability"></span>Agent ability</h3><div class=where><a href="https://github.com/xthomaswang/personal_agent_eval_pipeline/tree/main/eval/agent_ability">eval/agent_ability</a></div></div>
-<dl>
-<dt>Tasks</dt><dd>MCPMark filesystem tasks (easy) and Aider polyglot Python exercises, at pinned commits.</dd>
-<dt>Harnesses</dt><dd>Claude Code, Hermes Agent and localmelo, each run headless on the same prompts, through the recorder proxy.</dd>
-<dt>Scoring</dt><dd>The benchmark's own checkers, run outside the agent's workspace: MCPMark's verifiers, and the Aider unit tests restored to their original form.</dd>
-<dt>UI probe</dt><dd>The model alone, with no harness: click an element, fill a form from a fictional applicant's profile, or read an answer off a web page, from a screenshot, a screenshot with OCR lines, or an accessibility-style list. Click and fill answers are replayed on the page in WebKit and the page's own record is scored. Five synthetic pages are in <a href="https://github.com/xthomaswang/personal_agent_eval_pipeline/tree/main/eval/agent_ability/ui_vision">eval/agent_ability/ui_vision</a>; the set of 75 real pages (offline replicas of public sites) is private, and only its results are published.</dd>
-</dl></div>
-<div class=suite><div><h3><span class="dot memory"></span>Memory</h3><div class=where><a href="https://github.com/xthomaswang/personal_agent_eval_pipeline/tree/main/eval/memory">eval/memory</a></div></div>
-<dl>
-<dt>T4 timeline</dt><dd>86 synthetic messages, emails and calendar entries over 10 days, with updates, relative dates, facts that only combine across days, and distractors.</dd>
-<dt>Probes</dt><dd>60 questions, 12 each: extraction, cross-session, temporal, knowledge update, abstention. A fixed reader answers them from the memory store alone, with thinking off and temperature 0.</dd>
-<dt>Store checks</dt><dd>Fabricated sources, source precision, duplicates and the store's size in tokens.</dd>
-<dt>Status</dt><dd>Fixtures, the pab MCP server, the reader and the oracle are built; the reader answers 48/48 answerable and 12/12 abstention probes from the ideal store. The runner that drives the harnesses through the 10 days comes next.</dd>
-</dl></div>
-</div></section>
-
-<section id=run><div class=wrap>
-<h2>Run it on your Mac</h2>
-<p class=intro>You need an Apple-silicon Mac, <a href="https://docs.astral.sh/uv/">uv</a>, and an
-<a href="https://github.com/jundot/omlx">oMLX</a> 0.7.1rc1 checkout (commit 7a5a3d75) with its own .venv, the
-protocol's server. The capability leg also needs the three harnesses, at the versions in
-<a href="https://github.com/xthomaswang/personal_agent_eval_pipeline/blob/main/eval/backend/pins.toml">eval/backend/pins.toml</a>, and the pinned task data
-(<a href="https://github.com/xthomaswang/personal_agent_eval_pipeline/tree/main/eval/agent_ability#data">eval/agent_ability</a>).
-<a href="https://github.com/xthomaswang/personal_agent_eval_pipeline/tree/main/eval/backend#on-another-mac">eval/backend/README.md</a> has the details.</p>
-<pre><code>git clone https://github.com/xthomaswang/personal_agent_eval_pipeline.git
-cd personal_agent_eval_pipeline/eval/backend
-<span class=c># once per Mac: put the paths that differ from config.defaults.toml in config.toml</span>
-uv sync
-uv sync --project envs/capability &amp;&amp; uv sync --project envs/agent-tools
-uv run modeleval selftest       <span class=c># offline; prints the resolved paths, a FAIL names what is missing</span>
-<span class=c># once per model: add it to models.toml, then prepare its checkpoint</span>
-uv run modeleval download &lt;model&gt; &amp;&amp; uv run modeleval convert &lt;model&gt;   <span class=c># it has a prepare entry</span>
-uv run modeleval register &lt;model&gt;   <span class=c># or: its checkpoint is already at its models.toml path</span>
-(cd harness &amp;&amp; uv run agentbench fixtures build)   <span class=c># once: the speed prompts (Qwen3.8 tokenizer)</span>
-uv run modeleval plan &lt;model&gt;
-uv run modeleval run &lt;model&gt;    <span class=c># speed leg + capability leg</span>
-uv run modeleval publish        <span class=c># rows under docs/benchmark/&lt;machine&gt;/...</span>
-cd ../.. &amp;&amp; python3 scripts/build_docs.py   <span class=c># rebuild this page</span></code></pre>
-<p class=intro>On a new machine, run the reference model (Qwen3.8-27B oQ5 + MTP) first, so that every other model
-has something to be compared with. Three steps are not in these commands:</p>
-<ul class=todo>
-<li>The reference model has no prepare entry: download <code>Qwen/Qwen3.8-27B</code> at the revision in models.toml,
-convert it at oQ level 5 with <code>eval/backend/scripts/oq_convert.py</code> (its docstring has the command), then
-register it. The fixture build reads its tokenizer: set <code>AGENTBENCH_TOKENIZER_DIR</code> to the checkpoint
-unless it is under <code>~/Developer/mlsys/models/oq/</code>.</li>
-<li>The capability leg's harness epoch includes the workspace path and the agent configs under
-<code>[paths] agent_root</code>, so on another Mac <code>run</code> refuses with the epoch id your inputs hash to.
-Check the difference, then write that id into <code>eval/backend/pins.toml</code> (its header explains epochs).</li>
-<li><code>publish</code> writes rows only under a known protocol: a different macOS or Xcode build, or a different
-harness epoch, first needs its own protocol id in <code>eval/backend/src/modeleval/publish.py</code>; otherwise the
-run is skipped.</li>
-</ul>
-</div></section>
-</main>
-
-<footer><div class=wrap>Generated by <code>scripts/build_docs.py</code> from <code>docs/benchmark</code>.
-Source and documentation on <a href="https://github.com/xthomaswang/personal_agent_eval_pipeline">GitHub</a>.</div></footer>
+<body data-page="benchmark">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="index.html" aria-label="Personal Agent Bench home"><img class="brand-avatar" src="assets/akita-avatar-chibi.png?v=64796754cc17" width="34" height="34" alt=""><span>Personal Agent <strong>Bench</strong></span></a>
+      <nav aria-label="Main navigation">
+        <a href="index.html" data-nav="benchmark" aria-current="page">Benchmark</a>
+        <a href="pipeline.html" data-nav="pipeline">Pipeline</a>
+        <a href="methodology.html" data-nav="methodology">Methodology</a>
+        <a href="reproduce.html" data-nav="reproduce">Reproduce</a>
+      </nav>
+      <a class="github-link" href="https://github.com/xthomaswang/personal_agent_eval_pipeline" target="_blank" rel="noreferrer">GitHub <span aria-hidden="true">↗</span></a>
+    </div>
+  </header>
+  <main id="main" tabindex="-1"><noscript><div class="container noscript">This site needs JavaScript to show the results. The published data is on <a href="https://github.com/xthomaswang/personal_agent_eval_pipeline/tree/main/docs/benchmark">GitHub</a>.</div></noscript></main>
+  <footer class="site-footer"><div class="container footer-inner"><a class="brand" href="index.html"><img class="brand-avatar" src="assets/akita-avatar-chibi.png?v=64796754cc17" width="28" height="28" alt="">Personal Agent Bench</a><a href="https://github.com/xthomaswang/personal_agent_eval_pipeline/tree/main/docs/benchmark" target="_blank" rel="noreferrer">Published data ↗</a></div></footer>
+  <dialog id="result-dialog" aria-labelledby="dialog-title"><div id="dialog-content"></div><form method="dialog"><button class="dialog-close" aria-label="Close result details">×</button></form></dialog>
 </body>
 </html>

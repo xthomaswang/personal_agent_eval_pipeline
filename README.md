@@ -11,10 +11,12 @@ serving speed and tool use (backend), agent ability through three harnesses (age
 ```
 eval/backend           per-model runs: speed leg + capability leg (start here)
 eval/agent_ability     the harness task suite and its checkers
+eval/agent_ability/ui_vision  synthetic and real-web UI probes
 eval/memory            T4: memory consolidation over a synthetic 10-day timeline
 eval/bench             shared: the recorder proxy and the harness adapters
 eval/customize         your own private tasks (gitignored, never pushed)
-docs/                  the site (index.html) and the results (benchmark/)
+site/                  website source: shared shell, styles, scripts and avatar
+docs/                  generated pages/assets and published results (benchmark/)
 scripts/build_docs.py  rebuilds the site from docs/benchmark
 ```
 
@@ -41,11 +43,22 @@ python3 ../../scripts/build_docs.py      # rebuild the site
 ```
 
 On a new machine, three steps are not in these commands (the site's
-[Run it](https://xthomaswang.github.io/personal_agent_eval_pipeline/#run) section has them): preparing the
+[Reproduce](https://xthomaswang.github.io/personal_agent_eval_pipeline/reproduce.html) page has them): preparing the
 reference model by hand (it has no prepare entry), writing the harness epoch your Mac hashes to into
 `eval/backend/pins.toml`, and adding protocol ids for your macOS/Xcode build and epoch to
 `eval/backend/src/modeleval/publish.py`. [eval/backend/README.md](eval/backend/README.md#on-another-mac) has the
 details; each suite's README has its own.
+
+## Website
+
+Edit `site/`, then run `python3 -B scripts/build_docs.py` to regenerate the benchmark, pipeline,
+methodology and reproduction pages in `docs/`. `python3 -B scripts/build_docs.py --check` checks every
+generated page, stylesheet, script, data file and avatar. Website-only checks are
+`python3 -B -m unittest discover -s scripts/tests`; see [site/README.md](site/README.md).
+
+The site includes the 2026-10-27 real-web UI results (`ui-real-1`), with screenshot, OCR, AX-list and
+original-capture inputs and separate strict/lenient reading scores. The private task set stays local;
+only audited counts and the write-up are published.
 
 ## Privacy
 
