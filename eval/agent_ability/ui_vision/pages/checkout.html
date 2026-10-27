@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1280">
+<title>Shipping - Kestrelmoor Outfitters - Checkout</title>
+<style>
+  :root {
+    --ink: #1c1d1f;
+    --muted: #6e7073;
+    --faint: #8d9094;
+    --line: #d5d7da;
+    --accent: #2b5d4c;
+    --accent-dark: #224b3d;
+    --panel: #f6f6f3;
+    --panel-line: #e2e2dd;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { background: #fff; }
+  body {
+    font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.4;
+    color: var(--ink);
+    min-height: 1024px;
+    background: linear-gradient(to right, #fff 720px, var(--panel-line) 720px, var(--panel-line) 721px, var(--panel) 721px);
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  button { font-family: inherit; cursor: pointer; }
+
+  /* Header */
+  .top { background: #fff; border-bottom: 1px solid #e6e7e9; height: 64px; }
+  .top-inner { display: flex; align-items: center; justify-content: space-between; height: 64px; padding: 0 104px 0 108px; }
+  .brand { display: flex; align-items: center; gap: 10px; color: var(--ink); }
+  .brand-word { font-size: 17px; font-weight: 700; letter-spacing: 0.16em; }
+  .brand-sub { font-size: 10.5px; font-weight: 600; letter-spacing: 0.22em; color: var(--muted); margin-top: 1px; }
+  .bag { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 8px; color: var(--accent); }
+
+  /* Columns */
+  .split { display: grid; grid-template-columns: 720px 560px; }
+  .form-col { padding: 20px 40px 0 108px; }
+  .summary-col { padding: 34px 104px 0 40px; }
+
+  .crumbs { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--faint); margin-bottom: 20px; }
+  .crumbs .sep { color: #b4b6b9; display: inline-flex; }
+  .crumbs .active { color: var(--ink); font-weight: 600; }
+
+  h2 { font-size: 17px; font-weight: 650; letter-spacing: -0.005em; }
+  .sec-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 10px; }
+  .sec-head .link { font-size: 13px; text-decoration: underline; text-underline-offset: 2px; }
+  .section { margin-bottom: 22px; }
+
+  /* Fields */
+  input[type=text], input[type=email], input[type=tel], select {
+    display: block; width: 100%; height: 42px; border: 1px solid var(--line); border-radius: 6px;
+    background: #fff; padding: 0 12px; font: inherit; font-size: 14px; color: var(--ink); outline: none;
+  }
+  input::placeholder { color: #85878b; }
+  .stack > * + * { margin-top: 10px; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+  .float { position: relative; }
+  .float > label { position: absolute; left: 13px; top: 5px; font-size: 11.5px; color: var(--muted); pointer-events: none; }
+  select {
+    -webkit-appearance: none; appearance: none; padding-top: 15px; padding-right: 34px;
+    background: #fff url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 6l4 4 4-4' fill='none' stroke='%23575a5e' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") right 12px center / 14px no-repeat;
+  }
+  .with-icon { position: relative; }
+  .with-icon input { padding-right: 42px; }
+  .with-icon .icon { position: absolute; right: 8px; top: 7px; width: 28px; height: 28px; display: grid; place-items: center; color: var(--muted); background: none; border: 0; border-radius: 50%; }
+
+  /* Checkbox and radio */
+  input[type=checkbox], input[type=radio] {
+    -webkit-appearance: none; appearance: none; flex: none; width: 18px; height: 18px; margin: 0;
+    border: 1px solid #b9bcc0; background: #fff;
+  }
+  input[type=checkbox] { border-radius: 4px; }
+  input[type=checkbox]:checked {
+    border-color: var(--accent);
+    background: var(--accent) url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.6 8.4l2.9 2.9 5.9-6.6' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 14px no-repeat;
+  }
+  input[type=radio] { border-radius: 50%; }
+  input[type=radio]:checked { border: 6px solid var(--accent); }
+  .check { display: inline-flex; align-items: center; gap: 10px; font-size: 14px; color: #34363a; }
+
+  .rates { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .rate { display: flex; align-items: center; gap: 12px; padding: 0 16px; height: 50px; }
+  .rate + .rate { border-top: 1px solid var(--line); }
+  .rate.on { background: #f1f6f3; box-shadow: inset 0 0 0 1px var(--accent); border-top-color: transparent; }
+  .rate .r-text { flex: 1; display: flex; flex-direction: column; line-height: 1.3; }
+  .rate .r-name { font-weight: 600; }
+  .rate .r-note { font-size: 12.5px; color: var(--muted); }
+  .rate .r-price { font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  .actions { display: flex; align-items: center; justify-content: space-between; margin-top: 4px; }
+  .back { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; }
+  .primary {
+    height: 52px; padding: 0 26px; border: 0; border-radius: 6px; background: var(--accent); color: #fff;
+    font-size: 15px; font-weight: 600; letter-spacing: 0.005em;
+  }
+  .foot { display: flex; gap: 18px; margin-top: 22px; padding-top: 14px; border-top: 1px solid #e6e7e9; font-size: 12px; }
+  .foot a { color: var(--accent); }
+
+  /* Summary */
+  table { border-collapse: collapse; width: 100%; }
+  .lines td { vertical-align: middle; padding: 0; }
+  .lines tr + tr td { padding-top: 16px; }
+  .lines .t-thumb { width: 78px; }
+  .lines .t-price { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .thumb { position: relative; width: 64px; height: 64px; flex: none; border: 1px solid #dcdcd6; border-radius: 8px; background: #fff; display: grid; place-items: center; }
+  .qty {
+    position: absolute; top: -9px; right: -9px; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 11px;
+    background: #5f6266; color: #fff; font-size: 12px; font-weight: 700; display: grid; place-items: center;
+    box-shadow: 0 0 0 2px var(--panel);
+  }
+  .pname { font-weight: 600; }
+  .pvar { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+
+  .discount { display: flex; gap: 10px; margin: 24px 0; padding: 22px 0; border-top: 1px solid var(--panel-line); border-bottom: 1px solid var(--panel-line); }
+  .discount input { flex: 1; }
+  .apply {
+    height: 42px; padding: 0 18px; border: 1px solid #d6d7d2; border-radius: 6px; background: #ececE8; color: #54575b;
+    font-size: 14px; font-weight: 600;
+  }
+  .totals { font-variant-numeric: tabular-nums; }
+  .totals th { text-align: left; font-weight: 400; color: #3c3e42; padding: 0; }
+  .totals td { text-align: right; font-weight: 500; padding: 0; }
+  .totals tr + tr th, .totals tr + tr td { padding-top: 10px; }
+  .totals th small { color: var(--muted); font-size: 12.5px; margin-left: 2px; }
+  .totals th .info { vertical-align: -2px; margin-left: 4px; }
+  .totals tr.grand th, .totals tr.grand td { padding-top: 18px; }
+  .totals tr.grand th { font-size: 18px; font-weight: 650; color: var(--ink); }
+  .totals tr.grand td { font-size: 20px; font-weight: 700; }
+  .totals tr.grand td small { font-size: 12px; font-weight: 500; color: var(--muted); margin-right: 2px; vertical-align: 2px; }
+  .info { width: 15px; height: 15px; color: var(--faint); }
+  .assure { display: flex; gap: 10px; align-items: flex-start; margin-top: 26px; padding: 14px 16px; border: 1px solid var(--panel-line); border-radius: 8px; background: #fbfbf9; font-size: 12.5px; color: var(--muted); }
+  .assure b { color: #3c3e42; font-weight: 600; }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="top-inner">
+    <a class="brand" href="#" data-qa="logo" aria-label="Kestrelmoor Outfitters home">
+      <svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true">
+        <circle cx="16" cy="16" r="15" fill="#2b5d4c"/>
+        <path d="M6 22l6.5-8 4 5 3-3.5L26 22z" fill="#e9efe9"/>
+        <path d="M10.5 11.2c2.2-1.6 4.4-1.6 6 .2 1.5-1.4 3.4-1.6 5.3-.6-1.9.1-3.5.9-4.6 2.3-1.8-1.4-4.1-1.9-6.7-1.9z" fill="#e9efe9"/>
+      </svg>
+      <span>
+        <div class="brand-word">KESTRELMOOR</div>
+        <div class="brand-sub">OUTFITTERS</div>
+      </span>
+    </a>
+    <a class="bag" href="#" data-qa="header-cart" aria-label="Cart">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M5 8h14l-1.2 12.1a1 1 0 0 1-1 .9H7.2a1 1 0 0 1-1-.9z"/>
+        <path d="M9 10V6.5a3 3 0 0 1 6 0V10"/>
+      </svg>
+    </a>
+  </div>
+</header>
+
+<main class="split">
+  <section class="form-col">
+    <nav class="crumbs" aria-label="Checkout steps">
+      <a href="#" data-qa="crumb-cart">Cart</a>
+      <span class="sep"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M3.5 1.5L7 5l-3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      <span class="active" data-qa="crumb-shipping" aria-current="step">Shipping</span>
+      <span class="sep"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M3.5 1.5L7 5l-3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      <span data-qa="crumb-payment">Payment</span>
+      <span class="sep"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M3.5 1.5L7 5l-3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      <span data-qa="crumb-review">Review</span>
+    </nav>
+
+    <div class="section">
+      <div class="sec-head">
+        <h2>Contact</h2>
+        <a class="link" href="#" data-qa="sign-in">Sign in</a>
+      </div>
+      <div class="stack">
+        <input type="email" data-qa="email" placeholder="Email" autocomplete="email">
+        <label class="check" data-qa="news-label"><input type="checkbox" data-qa="news" checked><span>Email me with news and offers</span></label>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="sec-head"><h2>Shipping address</h2></div>
+      <div class="stack">
+        <div class="float">
+          <label for="country">Country/region</label>
+          <select id="country" data-qa="country">
+            <option selected>United States</option>
+            <option>Canada</option>
+          </select>
+        </div>
+        <div class="row2">
+          <input type="text" data-qa="first-name" placeholder="First name" autocomplete="given-name">
+          <input type="text" data-qa="last-name" placeholder="Last name" autocomplete="family-name">
+        </div>
+        <input type="text" data-qa="company" placeholder="Company (optional)" autocomplete="organization">
+        <div class="with-icon">
+          <input type="text" data-qa="address" placeholder="Address" autocomplete="address-line1">
+          <span class="icon" aria-hidden="true">
+            <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"/><path d="M13 13l4 4"/></svg>
+          </span>
+        </div>
+        <input type="text" data-qa="address2" placeholder="Apartment, suite, etc. (optional)" autocomplete="address-line2">
+        <div class="row3">
+          <input type="text" data-qa="city" placeholder="City" autocomplete="address-level2">
+          <div class="float">
+            <label for="state">State</label>
+            <select id="state" data-qa="state">
+              <option value="" selected disabled>Select…</option>
+              <option>Alabama</option><option>Alaska</option><option>Arizona</option><option>Arkansas</option>
+              <option>California</option><option>Colorado</option><option>Connecticut</option><option>Delaware</option>
+              <option>District of Columbia</option><option>Florida</option><option>Georgia</option><option>Hawaii</option>
+              <option>Idaho</option><option>Illinois</option><option>Indiana</option><option>Iowa</option>
+              <option>Kansas</option><option>Kentucky</option><option>Louisiana</option><option>Maine</option>
+              <option>Maryland</option><option>Massachusetts</option><option>Michigan</option><option>Minnesota</option>
+              <option>Mississippi</option><option>Missouri</option><option>Montana</option><option>Nebraska</option>
+              <option>Nevada</option><option>New Hampshire</option><option>New Jersey</option><option>New Mexico</option>
+              <option>New York</option><option>North Carolina</option><option>North Dakota</option><option>Ohio</option>
+              <option>Oklahoma</option><option>Oregon</option><option>Pennsylvania</option><option>Rhode Island</option>
+              <option>South Carolina</option><option>South Dakota</option><option>Tennessee</option><option>Texas</option>
+              <option>Utah</option><option>Vermont</option><option>Virginia</option><option>Washington</option>
+              <option>West Virginia</option><option>Wisconsin</option><option>Wyoming</option>
+            </select>
+          </div>
+          <input type="text" data-qa="zip" placeholder="ZIP code" autocomplete="postal-code" inputmode="numeric">
+        </div>
+        <div class="with-icon">
+          <input type="tel" data-qa="phone" placeholder="Phone" autocomplete="tel">
+          <button type="button" class="icon" data-qa="phone-help" aria-label="Why we ask for a phone number" title="In case we need to contact you about your order">
+            <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="10" cy="10" r="7.5"/><path d="M7.9 7.8a2.2 2.2 0 1 1 3 2.1c-.6.3-.9.7-.9 1.3v.4"/><circle cx="10" cy="14.2" r=".4" fill="currentColor"/></svg>
+          </button>
+        </div>
+        <label class="check" data-qa="billing-same-label"><input type="checkbox" data-qa="billing-same" checked><span>Billing address same as shipping</span></label>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="sec-head"><h2>Delivery method</h2></div>
+      <div class="rates" role="radiogroup" aria-label="Delivery method">
+        <label class="rate on" data-qa="ship-standard-row">
+          <input type="radio" name="rate" data-qa="ship-standard" checked>
+          <span class="r-text"><span class="r-name">Standard</span><span class="r-note">5–7 business days</span></span>
+          <span class="r-price">$5.99</span>
+        </label>
+        <label class="rate" data-qa="ship-express-row">
+          <input type="radio" name="rate" data-qa="ship-express">
+          <span class="r-text"><span class="r-name">Express</span><span class="r-note">2 business days</span></span>
+          <span class="r-price">$14.99</span>
+        </label>
+        <label class="rate" data-qa="ship-overnight-row">
+          <input type="radio" name="rate" data-qa="ship-overnight">
+          <span class="r-text"><span class="r-name">Overnight</span><span class="r-note">Next business day</span></span>
+          <span class="r-price">$29.99</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="actions">
+      <a class="back" href="#" data-qa="return-cart">
+        <svg width="12" height="12" viewBox="0 0 10 10" aria-hidden="true"><path d="M6.5 1.5L3 5l3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Return to cart
+      </a>
+      <button type="submit" class="primary" data-qa="continue">Continue to payment</button>
+    </div>
+
+    <nav class="foot" aria-label="Policies">
+      <a href="#">Refund policy</a>
+      <a href="#">Shipping policy</a>
+      <a href="#">Privacy policy</a>
+      <a href="#">Terms of service</a>
+    </nav>
+  </section>
+
+  <aside class="summary-col" aria-label="Order summary">
+    <table class="lines">
+      <tbody>
+        <tr data-qa="item-socks">
+          <td class="t-thumb" aria-label="Quantity 2">
+            <div class="thumb">
+              <svg width="40" height="40" viewBox="0 0 40 40" aria-hidden="true">
+            <path d="M15 5h11v16c0 1.2.5 2.3 1.4 3.1l2.2 2a5 5 0 0 1-6.6 7.5l-8.5-7.6A6 6 0 0 1 12.5 21V5z" fill="#4a4e54"/>
+            <rect x="12.5" y="5" width="13.5" height="5" rx="1" fill="#6c7178"/>
+            <path d="M14 13h11M14 16h11" stroke="#6c7178" stroke-width="1.2"/>
+          </svg>
+              <span class="qty" data-qa="qty-socks">2</span>
+            </div>
+          </td>
+          <td class="t-desc">
+            <div class="pname" data-qa="name-socks">Merino Trail Socks, 3-pack</div>
+            <div class="pvar">Charcoal / M</div>
+          </td>
+          <td class="t-price" data-qa="price-socks">$38.00</td>
+        </tr>
+        <tr data-qa="item-tote">
+          <td class="t-thumb" aria-label="Quantity 1">
+            <div class="thumb">
+              <svg width="40" height="40" viewBox="0 0 40 40" aria-hidden="true">
+            <path d="M14 13V10a6 6 0 0 1 12 0v3" fill="none" stroke="#5b5a3e" stroke-width="2"/>
+            <path d="M8 13h24l-2 21H10z" fill="#6f7048"/>
+            <path d="M8 13h24v4H8z" fill="#5b5a3e"/>
+          </svg>
+              <span class="qty" data-qa="qty-tote">1</span>
+            </div>
+          </td>
+          <td class="t-desc">
+            <div class="pname" data-qa="name-tote">Waxed Canvas Field Tote</div>
+            <div class="pvar">Olive</div>
+          </td>
+          <td class="t-price" data-qa="price-tote">$64.00</td>
+        </tr>
+        <tr data-qa="item-bottle">
+          <td class="t-thumb" aria-label="Quantity 3">
+            <div class="thumb">
+              <svg width="40" height="40" viewBox="0 0 40 40" aria-hidden="true">
+            <rect x="16" y="3" width="8" height="5" rx="1.2" fill="#3f4a55"/>
+            <path d="M15 8h10l2 4v22a3 3 0 0 1-3 3h-8a3 3 0 0 1-3-3V12z" fill="#5c6b7a"/>
+            <rect x="13" y="18" width="14" height="9" fill="#73828f"/>
+          </svg>
+              <span class="qty" data-qa="qty-bottle">3</span>
+            </div>
+          </td>
+          <td class="t-desc">
+            <div class="pname" data-qa="name-bottle">Insulated Trail Bottle</div>
+            <div class="pvar">Slate</div>
+          </td>
+          <td class="t-price" data-qa="price-bottle">$87.00</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="discount">
+      <input type="text" data-qa="discount" placeholder="Discount code or gift card">
+      <button type="button" class="apply" data-qa="apply">Apply</button>
+    </div>
+
+    <table class="totals">
+      <tbody>
+        <tr><th scope="row" role="rowheader">Subtotal</th><td data-qa="subtotal">$189.00</td></tr>
+        <tr><th scope="row" role="rowheader">Shipping <small>Standard</small></th><td data-qa="shipping">$5.99</td></tr>
+        <tr><th scope="row" role="rowheader">Estimated tax<svg class="info" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="10" cy="10" r="7.5"/><path d="M10 9v5" stroke-linecap="round"/><circle cx="10" cy="6.3" r=".5" fill="currentColor"/></svg></th><td data-qa="tax">$15.59</td></tr>
+        <tr class="grand"><th scope="row" role="rowheader">Total</th><td data-qa="total"><small>USD</small> $210.58</td></tr>
+      </tbody>
+    </table>
+
+    <div class="assure">
+      <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none;margin-top:1px"><rect x="4" y="9" width="12" height="8" rx="1.5"/><path d="M7 9V6.5a3 3 0 0 1 6 0V9"/></svg>
+      <span><b>Secure checkout.</b> Free returns within 30 days on unworn items. Questions? Write to support@example.com.</span>
+    </div>
+  </aside>
+</main>
+</body>
+</html>

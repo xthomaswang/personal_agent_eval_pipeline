@@ -1,0 +1,412 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1280">
+<title>Notifications - Settings - Taskmere</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+    font-size: 14px; line-height: 20px; color: #101828; background: #f5f6f8;
+    -webkit-font-smoothing: antialiased;
+  }
+  button, input, select { font: inherit; color: inherit; }
+  a { color: #4338ca; text-decoration: none; }
+  svg { display: block; }
+
+  .shell { height: 100%; display: grid; grid-template-rows: 56px 1fr; }
+
+  /* Top bar */
+  .topbar {
+    display: flex; align-items: center; gap: 16px; padding: 0 20px;
+    background: #fff; border-bottom: 1px solid #e4e7ec;
+  }
+  .brand { display: flex; align-items: center; gap: 9px; font-weight: 650; font-size: 16px; letter-spacing: -0.2px; width: 212px; }
+  .brand-mark { width: 28px; height: 28px; border-radius: 7px; background: #4f46e5; display: grid; place-items: center; }
+  .workspace {
+    display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 10px; border: 1px solid #e4e7ec;
+    border-radius: 8px; background: #fff; font-weight: 550; color: #344054;
+  }
+  .ws-dot { width: 20px; height: 20px; border-radius: 5px; background: #0e9384; color: #fff; font-size: 11px; font-weight: 700; display: grid; place-items: center; }
+  .search {
+    flex: 0 1 420px; margin-left: 8px; display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 10px 0 12px;
+    background: #f2f4f7; border: 1px solid transparent; border-radius: 8px; color: #667085;
+  }
+  .search input { border: 0; background: transparent; outline: none; flex: 1; font-size: 14px; color: #101828; }
+  .search input::placeholder { color: #98a2b3; }
+  .kbd { font-size: 11px; line-height: 16px; padding: 1px 6px; border: 1px solid #d0d5dd; border-radius: 5px; color: #667085; background: #fff; }
+  .top-right { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+  .icon-btn {
+    width: 36px; height: 36px; border-radius: 8px; border: 0; background: transparent; display: grid; place-items: center;
+    color: #475467; cursor: pointer; padding: 0;
+  }
+  .icon-btn.bordered { border: 1px solid #d0d5dd; background: #fff; width: 34px; height: 34px; }
+  .avatar { width: 32px; height: 32px; border-radius: 50%; background: #fde7d9; color: #b54708; font-weight: 650; font-size: 12px; display: grid; place-items: center; margin-left: 6px; }
+
+  /* Body */
+  .body { display: grid; grid-template-columns: 248px 1fr; min-height: 0; }
+  .sidebar { background: #fff; border-right: 1px solid #e4e7ec; padding: 20px 14px; display: flex; flex-direction: column; }
+  .back { display: flex; align-items: center; gap: 6px; color: #475467; font-size: 13px; padding: 4px 8px; margin-bottom: 14px; }
+  .side-title { font-size: 18px; font-weight: 650; padding: 0 8px; margin: 0 0 18px; letter-spacing: -0.2px; }
+  .nav-group { font-size: 11px; font-weight: 650; letter-spacing: 0.6px; text-transform: uppercase; color: #98a2b3; padding: 0 10px; margin: 6px 0 6px; }
+  .nav { list-style: none; margin: 0 0 14px; padding: 0; }
+  .nav a {
+    display: flex; align-items: center; gap: 10px; height: 38px; padding: 0 10px; border-radius: 8px;
+    color: #344054; font-weight: 500;
+  }
+  .nav a svg { color: #667085; }
+  .nav a.active { background: #eef2ff; color: #3730a3; font-weight: 600; }
+  .nav a.active svg { color: #4f46e5; }
+  .nav .count { margin-left: auto; font-size: 12px; color: #667085; background: #f2f4f7; border-radius: 10px; padding: 0 7px; line-height: 18px; font-weight: 500; }
+  .side-foot { margin-top: auto; padding: 12px 10px 0; border-top: 1px solid #f2f4f7; font-size: 12px; color: #98a2b3; line-height: 18px; }
+
+  .main { display: grid; grid-template-rows: 1fr 68px; min-height: 0; }
+  .content { padding: 24px 32px 0; min-height: 0; }
+  .page-head { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; }
+  .crumbs { font-size: 13px; color: #667085; margin-bottom: 4px; }
+  .crumbs span { color: #98a2b3; margin: 0 6px; }
+  h1 { font-size: 24px; line-height: 32px; margin: 0; font-weight: 650; letter-spacing: -0.3px; }
+  .subtitle { color: #475467; margin: 2px 0 0; }
+  .head-actions { display: flex; gap: 8px; margin-top: 6px; }
+
+  .grid { display: grid; grid-template-columns: 1.32fr 1fr; gap: 20px; align-items: start; }
+  .col { display: flex; flex-direction: column; gap: 16px; }
+  .card { background: #fff; border: 1px solid #e4e7ec; border-radius: 12px; box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04); }
+  .card-head { display: flex; align-items: flex-start; gap: 12px; padding: 14px 20px 12px; border-bottom: 1px solid #f2f4f7; }
+  .card-icon { width: 32px; height: 32px; border-radius: 8px; background: #f2f4f7; color: #475467; display: grid; place-items: center; flex: none; }
+  h2 { font-size: 15px; line-height: 22px; margin: 0; font-weight: 650; }
+  .card-desc { font-size: 13px; color: #667085; margin: 0; line-height: 18px; }
+
+  .row { display: flex; align-items: center; gap: 16px; padding: 10px 20px; }
+  .row + .row { border-top: 1px solid #f2f4f7; }
+  .row-text { flex: 1; min-width: 0; }
+  .row-title { display: inline-block; font-weight: 550; color: #101828; cursor: pointer; }
+  .row-desc { font-size: 13px; color: #667085; line-height: 18px; margin: 1px 0 0; }
+
+  .switch {
+    position: relative; flex: none; width: 40px; height: 24px; border-radius: 12px; border: 0; padding: 0;
+    background: #d0d5dd; cursor: pointer; transition: none;
+  }
+  .switch::after {
+    content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%;
+    background: #fff; box-shadow: 0 1px 3px rgba(16, 24, 40, 0.25);
+  }
+  .switch[aria-checked="true"] { background: #4f46e5; }
+  .switch[aria-checked="true"]::after { left: 19px; }
+
+  .phone {
+    display: flex; align-items: center; gap: 10px; margin: 0 20px 14px; padding: 9px 12px; border-radius: 8px;
+    background: #f9fafb; border: 1px solid #eaecf0; font-size: 13px; color: #475467;
+  }
+  .phone-num { font-weight: 600; color: #101828; letter-spacing: 0.3px; font-variant-numeric: tabular-nums; }
+  .badge { font-size: 12px; line-height: 18px; padding: 0 8px; border-radius: 9px; background: #ecfdf3; color: #067647; font-weight: 550; }
+  .phone a { margin-left: auto; font-weight: 550; }
+
+  .field { padding: 12px 20px 2px; }
+  .field:last-child { padding-bottom: 16px; }
+  .field-label { display: block; font-weight: 550; margin-bottom: 6px; color: #344054; }
+  .hint { font-size: 12.5px; color: #667085; line-height: 17px; margin: 6px 0 0; }
+  select, .input {
+    width: 100%; height: 38px; border: 1px solid #d0d5dd; border-radius: 8px; background-color: #fff;
+    padding: 0 12px; font-size: 14px; color: #101828; box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05); outline: none;
+  }
+  select {
+    -webkit-appearance: none; appearance: none; padding-right: 36px; cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23667085' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 12px center;
+  }
+  .time-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .sub-label { display: block; font-size: 12.5px; color: #667085; margin-bottom: 4px; }
+  .time-wrap { position: relative; }
+  .time-wrap svg { position: absolute; right: 11px; top: 11px; color: #98a2b3; pointer-events: none; }
+  .input { font-variant-numeric: tabular-nums; }
+  .input::placeholder { color: #98a2b3; }
+
+  .danger { border-color: #fecdca; }
+  .danger .card-head { border-bottom: 0; padding-bottom: 6px; }
+  .danger h2 { color: #b42318; }
+  .danger .card-icon { background: #fef3f2; color: #d92d20; }
+  .danger-body { padding: 0 20px 16px 64px; }
+  .danger-body p { margin: 0 0 12px; font-size: 13px; color: #475467; line-height: 18px; }
+
+  .btn {
+    height: 38px; padding: 0 16px; border-radius: 8px; border: 1px solid #d0d5dd; background: #fff; color: #344054;
+    font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; white-space: nowrap;
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
+  }
+  .btn-primary { background: #4f46e5; border-color: #4f46e5; color: #fff; }
+  .btn-danger { color: #b42318; border-color: #fda29b; }
+  .btn-ghost { border-color: transparent; background: transparent; box-shadow: none; color: #475467; padding: 0 10px; }
+
+  .footer {
+    display: flex; align-items: center; gap: 12px; padding: 0 32px; background: #fff; border-top: 1px solid #e4e7ec;
+  }
+  .footer .note { color: #667085; font-size: 13px; margin-left: 8px; }
+  .footer .right { margin-left: auto; display: flex; gap: 10px; }
+</style>
+</head>
+<body>
+<div class="shell">
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5 10 17l9-10"/></svg>
+      </span>
+      Taskmere
+    </div>
+    <button class="workspace" type="button" data-qa="workspace-switcher">
+      <span class="ws-dot">ES</span> Ellery Studio
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#667085" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+    </button>
+    <label class="search">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input type="text" aria-label="Search" placeholder="Search tasks, projects and people" data-qa="search">
+      <span class="kbd">&#8984;K</span>
+    </label>
+    <div class="top-right">
+      <button class="icon-btn" type="button" aria-label="Inbox" data-qa="top-inbox">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.5 5.1 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.5-6.9A2 2 0 0 0 16.7 4H7.3a2 2 0 0 0-1.8 1.1z"/></svg>
+      </button>
+      <button class="icon-btn" type="button" aria-label="What's new" data-qa="top-whats-new">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 9.5 9.5 3 12l6.5 2.5L12 21l2.5-6.5L21 12l-6.5-2.5z"/></svg>
+      </button>
+      <span class="avatar" role="img" aria-label="Jordan Ellery">JE</span>
+    </div>
+  </header>
+
+  <div class="body">
+    <aside class="sidebar">
+      <a class="back" href="#" data-qa="back-to-workspace">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>
+        Back to workspace
+      </a>
+      <p class="side-title">Settings</p>
+      <div class="nav-group">Account</div>
+      <ul class="nav">
+        <li><a href="#" data-qa="nav-profile">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
+          Profile</a></li>
+        <li><a href="#" class="active" aria-current="page" data-qa="nav-notifications">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+          Notifications</a></li>
+        <li><a href="#" data-qa="nav-security">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          Security</a></li>
+      </ul>
+      <div class="nav-group">Workspace</div>
+      <ul class="nav">
+        <li><a href="#" data-qa="nav-billing">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+          Billing</a></li>
+        <li><a href="#" data-qa="nav-integrations">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2v6"/><path d="M15 2v6"/><path d="M6 8h12v4a6 6 0 0 1-12 0z"/><path d="M12 18v4"/></svg>
+          Integrations <span class="count">3</span></a></li>
+      </ul>
+      <div class="side-foot">Signed in as jordan.ellery@example.com<br>Taskmere 4.12.0</div>
+    </aside>
+
+    <main class="main">
+      <div class="content">
+        <div class="page-head">
+          <div>
+            <div class="crumbs">Settings<span>/</span>Account<span>/</span>Notifications</div>
+            <h1 data-qa="page-title">Notifications</h1>
+            <p class="subtitle">Choose how and when Taskmere gets in touch with you.</p>
+          </div>
+          <div class="head-actions">
+            <button class="icon-btn bordered" type="button" aria-label="Help with notification settings" data-qa="btn-help">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"/><path d="M9.2 9.2a2.9 2.9 0 0 1 5.6 1c0 1.9-2.8 2.6-2.8 2.6"/><path d="M12 17h.01"/></svg>
+            </button>
+            <button class="icon-btn bordered" type="button" aria-label="Close settings" data-qa="btn-close">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="grid">
+          <div class="col">
+            <section class="card" aria-labelledby="h-email">
+              <div class="card-head">
+                <span class="card-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg></span>
+                <div>
+                  <h2 id="h-email">Email</h2>
+                  <p class="card-desc">Sent to jordan.ellery@example.com</p>
+                </div>
+              </div>
+              <div class="row">
+                <div class="row-text">
+                  <label class="row-title" id="t-product-updates" for="sw-product-updates">Product updates</label>
+                  <p class="row-desc">News about new features and improvements</p>
+                </div>
+                <button type="button" class="switch" role="switch" aria-checked="true" id="sw-product-updates" aria-labelledby="t-product-updates" data-qa="sw-product-updates"></button>
+              </div>
+              <div class="row">
+                <div class="row-text">
+                  <label class="row-title" id="t-weekly-digest" for="sw-weekly-digest">Weekly digest</label>
+                  <p class="row-desc">A Monday recap of your team's progress and upcoming deadlines</p>
+                </div>
+                <button type="button" class="switch" role="switch" aria-checked="false" id="sw-weekly-digest" aria-labelledby="t-weekly-digest" data-qa="sw-weekly-digest"></button>
+              </div>
+              <div class="row">
+                <div class="row-text">
+                  <label class="row-title" id="t-comments" for="sw-comments">Comments</label>
+                  <p class="row-desc">Replies to your tasks and to comments you follow</p>
+                </div>
+                <button type="button" class="switch" role="switch" aria-checked="true" id="sw-comments" aria-labelledby="t-comments" data-qa="sw-comments"></button>
+              </div>
+              <div class="row">
+                <div class="row-text">
+                  <label class="row-title" id="t-mentions" for="sw-mentions">Mentions</label>
+                  <p class="row-desc">When someone @mentions you in a task or document</p>
+                </div>
+                <button type="button" class="switch" role="switch" aria-checked="true" id="sw-mentions" aria-labelledby="t-mentions" data-qa="sw-mentions"></button>
+              </div>
+            </section>
+
+            <section class="card" aria-labelledby="h-push">
+              <div class="card-head">
+                <span class="card-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg></span>
+                <div>
+                  <h2 id="h-push">Push</h2>
+                  <p class="card-desc">Alerts on this computer and on your phone</p>
+                </div>
+              </div>
+              <div class="row">
+                <div class="row-text">
+                  <label class="row-title" id="t-desktop" for="sw-desktop">Desktop notifications</label>
+                  <p class="row-desc">Show alerts in your browser while Taskmere is open</p>
+                </div>
+                <button type="button" class="switch" role="switch" aria-checked="true" id="sw-desktop" aria-labelledby="t-desktop" data-qa="sw-desktop"></button>
+              </div>
+              <div class="row">
+                <div class="row-text">
+                  <label class="row-title" id="t-mobile-push" for="sw-mobile-push">Mobile push</label>
+                  <p class="row-desc">Requires the Taskmere app on iOS or Android</p>
+                </div>
+                <button type="button" class="switch" role="switch" aria-checked="false" id="sw-mobile-push" aria-labelledby="t-mobile-push" data-qa="sw-mobile-push"></button>
+              </div>
+            </section>
+
+            <section class="card" aria-labelledby="h-sms">
+              <div class="card-head">
+                <span class="card-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
+                <div>
+                  <h2 id="h-sms">SMS</h2>
+                  <p class="card-desc">Text messages for time-sensitive items</p>
+                </div>
+              </div>
+              <div class="row">
+                <div class="row-text">
+                  <label class="row-title" id="t-sms" for="sw-sms">SMS alerts</label>
+                  <p class="row-desc">Tasks due today and urgent mentions. Message rates may apply.</p>
+                </div>
+                <button type="button" class="switch" role="switch" aria-checked="false" id="sw-sms" aria-labelledby="t-sms" data-qa="sw-sms"></button>
+              </div>
+              <div class="phone">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#667085" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="2"/><path d="M11 18h2"/></svg>
+                <span class="phone-num" role="note" data-qa="phone-masked">+1 (&bull;&bull;&bull;) &bull;&bull;&bull;-0147</span>
+                <span class="badge">Verified</span>
+                <a href="#" data-qa="link-change-number">Change number</a>
+              </div>
+            </section>
+          </div>
+
+          <div class="col">
+            <section class="card" aria-labelledby="h-delivery">
+              <div class="card-head">
+                <span class="card-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"/><path d="M12 7v5l3 2"/></svg></span>
+                <div>
+                  <h2 id="h-delivery">Delivery</h2>
+                  <p class="card-desc">Timing and format of what we send</p>
+                </div>
+              </div>
+              <div class="field">
+                <label class="field-label" for="digest-frequency">Digest frequency</label>
+                <select id="digest-frequency" data-qa="digest-frequency">
+                  <option>Daily</option>
+                  <option selected>Weekly</option>
+                  <option>Monthly</option>
+                </select>
+                <p class="hint">How often we email a summary of unread notifications</p>
+              </div>
+              <div class="field">
+                <span class="field-label" id="lbl-quiet">Quiet hours</span>
+                <div class="time-pair">
+                  <div>
+                    <label class="sub-label" id="lbl-quiet-from" for="quiet-from">From</label>
+                    <div class="time-wrap">
+                      <input class="input" type="text" id="quiet-from" aria-labelledby="lbl-quiet lbl-quiet-from" value="21:00" placeholder="HH:MM" data-qa="quiet-from">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+                    </div>
+                  </div>
+                  <div>
+                    <label class="sub-label" id="lbl-quiet-to" for="quiet-to">To</label>
+                    <div class="time-wrap">
+                      <input class="input" type="text" id="quiet-to" aria-labelledby="lbl-quiet lbl-quiet-to" value="08:00" placeholder="HH:MM" data-qa="quiet-to">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+                    </div>
+                  </div>
+                </div>
+                <p class="hint">24-hour time (HH:MM). Push and SMS alerts are paused during quiet hours.</p>
+              </div>
+              <div class="field">
+                <label class="field-label" for="time-zone">Time zone</label>
+                <select id="time-zone" data-qa="time-zone">
+                  <option>(UTC-08:00) Pacific Time (US &amp; Canada)</option>
+                  <option>(UTC-07:00) Mountain Time (US &amp; Canada)</option>
+                  <option>(UTC-06:00) Central Time (US &amp; Canada)</option>
+                  <option selected>(UTC-05:00) Eastern Time (US &amp; Canada)</option>
+                  <option>(UTC+00:00) London</option>
+                  <option>(UTC+01:00) Berlin</option>
+                  <option>(UTC+08:00) Singapore</option>
+                  <option>(UTC+09:00) Tokyo</option>
+                </select>
+              </div>
+              <div class="field">
+                <label class="field-label" for="language">Language</label>
+                <select id="language" data-qa="language">
+                  <option selected>English (US)</option>
+                  <option>English (UK)</option>
+                  <option>French</option>
+                  <option>German</option>
+                  <option>Japanese</option>
+                  <option>Spanish</option>
+                </select>
+                <p class="hint">Used for emails and text messages</p>
+              </div>
+            </section>
+
+            <section class="card danger" aria-labelledby="h-danger">
+              <div class="card-head">
+                <span class="card-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg></span>
+                <div>
+                  <h2 id="h-danger">Danger zone</h2>
+                </div>
+              </div>
+              <div class="danger-body">
+                <p>Delete your account and all of its tasks, projects and files. This can't be undone.</p>
+                <button type="button" class="btn btn-danger" data-qa="btn-delete-account">Delete account</button>
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+
+      <footer class="footer">
+        <button type="button" class="btn btn-ghost" data-qa="btn-reset">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
+          Reset to defaults
+        </button>
+        <span class="note">Last saved Oct 24, 2026 at 4:12 PM</span>
+        <div class="right">
+          <button type="button" class="btn" data-qa="btn-cancel">Cancel</button>
+          <button type="button" class="btn btn-primary" data-qa="btn-save">Save changes</button>
+        </div>
+      </footer>
+    </main>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,157 @@
+{
+  "page": "data_table",
+  "language": "en",
+  "items": [
+    {
+      "id": "click-01",
+      "type": "click",
+      "instruction": "Click the sort arrow in the Amount column header.",
+      "target": [
+        "sort-amount"
+      ]
+    },
+    {
+      "id": "click-02",
+      "type": "click",
+      "instruction": "Click the edit button on the row for the Coastline Rail expense.",
+      "target": [
+        "edit-r9"
+      ]
+    },
+    {
+      "id": "click-03",
+      "type": "click",
+      "instruction": "Click the delete button on the row for Maya Okafor's Copperpot Bistro expense.",
+      "target": [
+        "delete-r5"
+      ]
+    },
+    {
+      "id": "click-04",
+      "type": "click",
+      "instruction": "Go to the next page of rows.",
+      "target": [
+        "next-page"
+      ]
+    },
+    {
+      "id": "click-05",
+      "type": "click",
+      "instruction": "Export this view as a CSV file.",
+      "target": [
+        "export-csv"
+      ]
+    },
+    {
+      "id": "click-06",
+      "type": "click",
+      "instruction": "Open the receipt for the Kestrel Learning expense.",
+      "target": [
+        "receipt-r6"
+      ]
+    },
+    {
+      "id": "click-07",
+      "type": "click",
+      "instruction": "Tick the row checkbox for Daniel Reyes's Software expense.",
+      "target": [
+        "select-r12",
+        "select-r12-cell"
+      ]
+    },
+    {
+      "id": "click-08",
+      "type": "click",
+      "instruction": "Open the filter options for this view.",
+      "target": [
+        "filter"
+      ]
+    },
+    {
+      "id": "click-09",
+      "type": "click",
+      "instruction": "Click the box for searching the expenses.",
+      "target": [
+        "search"
+      ]
+    },
+    {
+      "id": "click-10",
+      "type": "click",
+      "instruction": "Add a new row to the expense table.",
+      "target": [
+        "add-row"
+      ]
+    },
+    {
+      "id": "read-01",
+      "type": "read",
+      "question": "What is the amount of the Pinecrest Suites expense? Answer with just the amount.",
+      "answer": "$2,412.30",
+      "match": "number"
+    },
+    {
+      "id": "read-02",
+      "type": "read",
+      "question": "Among the rows on this page, which employee has the largest single expense (by Amount)? Answer with the name only.",
+      "answer": "Tom Lindqvist",
+      "match": "text"
+    },
+    {
+      "id": "read-03",
+      "type": "read",
+      "question": "How many rows on this page have the status Pending? Answer with just the number.",
+      "answer": "4",
+      "match": "number"
+    },
+    {
+      "id": "read-04",
+      "type": "read",
+      "question": "What is the sum of the Amount of all Travel rows on this page, whatever their status? Answer with just the amount.",
+      "answer": "$1,559.75",
+      "match": "number"
+    },
+    {
+      "id": "read-05",
+      "type": "read",
+      "question": "Among the rows on this page with the status Rejected, what is the earliest date? Give it exactly as shown in the Date column.",
+      "answer": "Jul 19, 2026",
+      "match": "text"
+    },
+    {
+      "id": "read-06",
+      "type": "read",
+      "question": "Which employees have at least one Rejected expense on this page? List their names separated by commas.",
+      "answer": "Daniel Reyes, Maya Okafor, Priya Natarajan",
+      "match": "set"
+    },
+    {
+      "id": "read-07",
+      "type": "read",
+      "question": "What sum does the table footer show for the Amount column? Answer with just the amount.",
+      "answer": "$10,763.68",
+      "match": "number"
+    },
+    {
+      "id": "read-08",
+      "type": "read",
+      "question": "According to the pagination, how many rows does the whole report have? Answer with just the number.",
+      "answer": "37",
+      "match": "number"
+    },
+    {
+      "id": "read-09",
+      "type": "read",
+      "question": "Which merchant is Priya Natarajan's Rejected expense from? Answer with the merchant name only.",
+      "answer": "Paperleaf Supply",
+      "match": "text"
+    },
+    {
+      "id": "read-10",
+      "type": "read",
+      "question": "How many rows on this page have no receipt (a dash in the Receipt column)? Answer with just the number.",
+      "answer": "2",
+      "match": "number"
+    }
+  ]
+}

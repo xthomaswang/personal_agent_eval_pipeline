@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Senior Data Analyst - Quillmont Careers</title>
+<style>
+  :root {
+    --ink: #17202c;
+    --ink-2: #3d4757;
+    --muted: #697386;
+    --line: #dde2e8;
+    --line-2: #c9d0d9;
+    --bg: #f3f5f8;
+    --card: #ffffff;
+    --brand: #2f4bd8;
+    --brand-dark: #243cb3;
+    --brand-tint: #eef1fd;
+    --req: #c43d1b;
+    --focus: rgba(47, 75, 216, 0.18);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.4;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--brand); text-decoration: none; }
+
+  /* Top bar */
+  .topbar { height: 56px; background: #fff; border-bottom: 1px solid var(--line); }
+  .topbar .inner { width: 1136px; margin: 0 auto; height: 100%; display: flex; align-items: center; justify-content: space-between; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 17px; letter-spacing: -0.2px; color: var(--ink); }
+  .brand .sep { width: 1px; height: 18px; background: var(--line-2); margin: 0 2px; }
+  .brand .sub { font-weight: 500; color: var(--muted); font-size: 15px; letter-spacing: 0; }
+  .nav { display: flex; align-items: center; gap: 26px; font-size: 14px; color: var(--ink-2); }
+  .nav a { color: var(--ink-2); }
+  .nav .back { display: inline-flex; align-items: center; gap: 6px; color: var(--brand); font-weight: 500; }
+
+  .container { width: 1136px; margin: 0 auto; }
+
+  /* Job header */
+  .jobhead { display: flex; justify-content: space-between; align-items: flex-end; padding: 18px 0 16px; }
+  .crumbs { font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+  .crumbs a { color: var(--muted); }
+  .crumbs span { margin: 0 6px; color: #a3abb8; }
+  h1 { font-size: 28px; line-height: 34px; margin: 0 0 8px; letter-spacing: -0.4px; font-weight: 700; }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px 18px; color: var(--ink-2); font-size: 13.5px; }
+  .meta .m { display: inline-flex; align-items: center; gap: 6px; }
+  .meta svg { color: #7b8496; flex: none; }
+  .meta .pay { font-weight: 600; color: var(--ink); }
+  .head-actions { display: flex; gap: 10px; align-items: center; }
+
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 40px; padding: 0 18px;
+         border-radius: 8px; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+  .btn-outline { background: #fff; border: 1px solid var(--line-2); color: var(--ink); }
+  .btn-primary { background: var(--brand); border: 1px solid var(--brand); color: #fff; box-shadow: 0 1px 2px rgba(23, 32, 44, 0.12); }
+  .btn-ghost { background: #fff; border: 1px solid var(--line-2); color: var(--ink-2); }
+  .btn-icon { width: 40px; padding: 0; color: var(--ink-2); }
+  .li-badge { width: 18px; height: 18px; border-radius: 4px; background: #1d5fa8; color: #fff; display: inline-flex; align-items: center; justify-content: center; }
+
+  /* Form card */
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 20px 32px 18px;
+          box-shadow: 0 1px 2px rgba(23, 32, 44, 0.04); }
+  .card-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
+  .card-head h2 { font-size: 19px; margin: 0; letter-spacing: -0.2px; }
+  .card-head .req-note { font-size: 12.5px; color: var(--muted); }
+  .req { color: var(--req); margin-left: 2px; }
+
+  .section { padding-top: 12px; }
+  .section + .section { margin-top: 12px; border-top: 1px solid #eceff3; }
+  .section-title { font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; }
+
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); column-gap: 24px; row-gap: 12px; align-items: start; }
+  .span2 { grid-column: span 2; }
+
+  .field label.lbl, .field .lbl { display: flex; align-items: baseline; font-size: 13px; font-weight: 600; color: var(--ink); margin-bottom: 6px; line-height: 18px; height: 18px; }
+  .lbl .hint { margin-left: auto; line-height: 18px; font-weight: 400; color: var(--muted); font-size: 12px; }
+  .helper { font-size: 12px; color: var(--muted); margin-top: 5px; line-height: 16px; }
+
+  input[type=text], input[type=email], input[type=tel], input[type=url], select {
+    width: 100%; height: 38px; border: 1px solid var(--line-2); border-radius: 6px; background: #fff;
+    font: inherit; font-size: 14px; color: var(--ink); padding: 0 12px; outline: none;
+  }
+  input::placeholder { color: #9aa3b1; }
+  select {
+    -webkit-appearance: none; appearance: none; padding-right: 34px; color: var(--ink);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%23697386' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 12px center;
+  }
+  select.placeholder { color: #8c95a3; }
+
+  .phone { display: flex; gap: 8px; }
+  .phone select { width: 84px; flex: none; }
+  .phone input { flex: 1; }
+
+  .upload { height: 38px; display: flex; align-items: center; gap: 10px; }
+  .upload .btn { height: 34px; padding: 0 14px; font-size: 13.5px; }
+  .upload .or { color: var(--muted); font-size: 13px; }
+  .upload a { font-weight: 600; font-size: 13.5px; }
+
+  /* Radios and checkbox: the native input covers its whole option (circle + text), as in many ATS front ends */
+  .q { font-size: 13px; font-weight: 600; line-height: 18px; margin-bottom: 8px; color: var(--ink); }
+  .choices { display: flex; gap: 10px; }
+  .choice { position: relative; display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 16px 0 12px;
+            border: 1px solid var(--line-2); border-radius: 8px; font-size: 14px; color: var(--ink); background: #fff; }
+  .choice input { -webkit-appearance: none; appearance: none; position: absolute; inset: 0; width: 100%; height: 100%;
+                  margin: 0; border: 0; background: transparent; border-radius: 8px; cursor: pointer; }
+  .choice .mark { width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid #8d97a6; background: #fff; flex: none; }
+  .choice input:checked + .mark { border: 5px solid var(--brand); }
+
+  .consent { position: relative; display: inline-flex; align-items: flex-start; gap: 10px; font-size: 13.5px; color: var(--ink-2); line-height: 19px; padding: 2px 0; }
+  .consent input { -webkit-appearance: none; appearance: none; position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; border: 0; background: transparent; cursor: pointer; }
+  .consent .box { width: 17px; height: 17px; border: 1.5px solid #8d97a6; border-radius: 4px; background: #fff; flex: none; margin-top: 1px; }
+  .consent input:checked + .box { background: var(--brand); border-color: var(--brand); }
+
+  .eeo { background: #f7f8fa; border: 1px solid #e8ebf0; border-radius: 10px; padding: 12px 16px; display: grid; grid-template-columns: 2fr 1fr; column-gap: 24px; align-items: center; }
+  .eeo p { margin: 0; font-size: 12.5px; color: var(--muted); line-height: 18px; }
+  .eeo p strong { color: var(--ink-2); font-weight: 600; }
+
+  .footer { display: flex; justify-content: space-between; align-items: center; margin-top: 14px; padding-top: 14px; border-top: 1px solid #eceff3; }
+  .footer .left { display: flex; flex-direction: column; gap: 4px; }
+  .footer .notice-link { font-size: 12.5px; margin-left: 27px; align-self: flex-start; }
+  .footer .actions { display: flex; gap: 12px; }
+  .footer .btn-primary { padding: 0 22px; }
+
+  .powered { text-align: center; font-size: 12px; color: #8c95a3; margin: 12px 0 0; }
+</style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="inner">
+      <div class="brand">
+        <svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true">
+          <rect width="28" height="28" rx="7" fill="#2f4bd8"/>
+          <path d="M8 18.5c0-5 2.6-9 6-9s6 4 6 9" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/>
+          <circle cx="14" cy="18.5" r="2.2" fill="#9fb0ff"/>
+        </svg>
+        <span>Quillmont</span><span class="sep"></span><span class="sub">Careers</span>
+      </div>
+      <nav class="nav">
+        <a href="#">Teams</a>
+        <a href="#">Benefits</a>
+        <a href="#">Life at Quillmont</a>
+        <a href="#" class="back" data-qa="all-jobs">
+          <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3L5 8l5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          All open roles
+        </a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="jobhead">
+      <div>
+        <div class="crumbs"><a href="#">Open roles</a><span>/</span><a href="#">Analytics</a><span>/</span>Senior Data Analyst</div>
+        <h1 data-qa="job-title">Senior Data Analyst</h1>
+        <div class="meta">
+          <span class="m" data-qa="job-location" role="note">
+            <svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 14.5s5-4.6 5-8.3A5 5 0 0 0 3 6.2c0 3.7 5 8.3 5 8.3z" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="8" cy="6.3" r="1.8" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>
+            Chicago, IL &middot; Hybrid
+          </span>
+          <span class="m">
+            <svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="4.5" width="12" height="9" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M5.5 4.5V3.2c0-.6.4-1 1-1h3c.6 0 1 .4 1 1v1.3" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>
+            Full-time
+          </span>
+          <span class="m">
+            <svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 13.5h11M4 13.5V6.5l4-3 4 3v7" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M6.8 13.5v-3h2.4v3" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>
+            Analytics
+          </span>
+          <span class="m pay" data-qa="pay-range" role="note">
+            <svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M9.9 6.1c-.3-.6-1-1-1.9-1-1.1 0-1.9.6-1.9 1.4 0 1.9 3.9.9 3.9 2.9 0 .9-.8 1.5-2 1.5-.9 0-1.7-.4-2-1.1M8 4v1.1M8 10.9V12" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+            $118,000 &ndash; $142,000 per year
+          </span>
+          <span class="m" data-qa="req-id" role="note">
+            <svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8.6V3.2c0-.4.3-.7.7-.7h5.4l5 5-6.1 6.1-5-5z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><circle cx="5.6" cy="5.6" r="1" fill="currentColor"/></svg>
+            Req. ID DA-2047
+          </span>
+        </div>
+      </div>
+      <div class="head-actions">
+        <button type="button" class="btn btn-outline btn-icon" aria-label="Share this job" data-qa="share">
+          <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M9 11.5V2.8M5.8 5.8L9 2.6l3.2 3.2M4 9v5.2c0 .6.4 1 1 1h8c.6 0 1-.4 1-1V9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <button type="button" class="btn btn-outline" data-qa="apply-linkedin">
+          <span class="li-badge"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="4" r="2.2" fill="#fff"/><path d="M1.8 11c.4-2.3 2.1-3.6 4.2-3.6s3.8 1.3 4.2 3.6" fill="#fff"/></svg></span>
+          Apply with LinkedIn
+        </button>
+      </div>
+    </section>
+
+    <form class="card" action="#">
+      <div class="card-head">
+        <h2>Apply for this job</h2>
+        <span class="req-note"><span class="req">*</span> Required</span>
+      </div>
+
+      <div class="section">
+        <h3 class="section-title">Personal information</h3>
+        <div class="grid">
+          <div class="field">
+            <label class="lbl" for="first_name">Legal first name<span class="req">*</span></label>
+            <input type="text" id="first_name" data-qa="first-name">
+          </div>
+          <div class="field">
+            <label class="lbl" for="last_name">Legal last name<span class="req">*</span></label>
+            <input type="text" id="last_name" data-qa="last-name">
+          </div>
+          <div class="field">
+            <label class="lbl" for="preferred_name">Preferred first name <span class="hint">If different from legal name</span></label>
+            <input type="text" id="preferred_name" data-qa="preferred-name">
+          </div>
+
+          <div class="field">
+            <label class="lbl" for="email">Email<span class="req">*</span></label>
+            <input type="email" id="email" data-qa="email">
+          </div>
+          <div class="field">
+            <label class="lbl" for="phone">Phone<span class="req">*</span></label>
+            <div class="phone">
+              <select id="phone_country" aria-label="Country code" data-qa="phone-country">
+                <option selected>+1</option>
+                <option>+44</option>
+                <option>+49</option>
+                <option>+52</option>
+                <option>+61</option>
+                <option>+81</option>
+                <option>+91</option>
+              </select>
+              <input type="tel" id="phone" placeholder="(201) 555-0123" data-qa="phone">
+            </div>
+          </div>
+          <div class="field">
+            <label class="lbl" for="location">Current location (city)</label>
+            <input type="text" id="location" placeholder="City" data-qa="location">
+          </div>
+
+          <div class="field">
+            <label class="lbl" for="linkedin">LinkedIn profile URL</label>
+            <input type="url" id="linkedin" placeholder="https://www.linkedin.com/in/..." data-qa="linkedin">
+          </div>
+          <div class="field">
+            <label class="lbl" for="website">Website / portfolio</label>
+            <input type="url" id="website" placeholder="https://" data-qa="website">
+          </div>
+          <div class="field">
+            <div class="lbl" id="resume_lbl">Resume/CV<span class="req">*</span></div>
+            <div class="upload" role="group" aria-labelledby="resume_lbl">
+              <button type="button" class="btn btn-outline" data-qa="attach-resume">
+                <svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M13.2 7.6l-5.1 5.1a3.3 3.3 0 0 1-4.7-4.7l5.4-5.4a2.2 2.2 0 0 1 3.1 3.1L6.6 11a1.1 1.1 0 0 1-1.6-1.6l4.8-4.8" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+                Attach
+              </button>
+              <span class="or">or</span>
+              <a href="#" data-qa="enter-manually">Enter manually</a>
+            </div>
+            <div class="helper" data-qa="resume-help" role="note">PDF, DOC, DOCX &middot; up to 5 MB</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3 class="section-title">Education</h3>
+        <div class="grid">
+          <div class="field">
+            <label class="lbl" for="school">School</label>
+            <input type="text" id="school" data-qa="school">
+          </div>
+          <div class="field">
+            <label class="lbl" for="degree">Degree</label>
+            <select id="degree" class="placeholder" data-qa="degree">
+              <option selected>Select...</option>
+              <option>Bachelor's</option>
+              <option>Master's</option>
+              <option>PhD</option>
+              <option>Other</option>
+            </select>
+          </div>
+          <div class="field">
+            <label class="lbl" for="grad_date">Graduation date</label>
+            <input type="text" id="grad_date" placeholder="MM/YYYY" data-qa="grad-date">
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3 class="section-title">Work eligibility and other questions</h3>
+        <div class="grid">
+          <div class="field">
+            <div class="q" id="q_auth">Are you legally authorized to work in the United States?<span class="req">*</span></div>
+            <div class="choices" role="radiogroup" aria-labelledby="q_auth">
+              <label class="choice" data-qa="auth-yes-label"><input type="radio" name="authorized" value="yes" data-qa="auth-yes"><span class="mark"></span>Yes</label>
+              <label class="choice" data-qa="auth-no-label"><input type="radio" name="authorized" value="no" data-qa="auth-no"><span class="mark"></span>No</label>
+            </div>
+          </div>
+          <div class="field">
+            <div class="q" id="q_sponsor">Will you now or in the future require sponsorship for employment visa status?<span class="req">*</span></div>
+            <div class="choices" role="radiogroup" aria-labelledby="q_sponsor">
+              <label class="choice" data-qa="sponsor-yes-label"><input type="radio" name="sponsorship" value="yes" data-qa="sponsor-yes"><span class="mark"></span>Yes</label>
+              <label class="choice" data-qa="sponsor-no-label"><input type="radio" name="sponsorship" value="no" data-qa="sponsor-no"><span class="mark"></span>No</label>
+            </div>
+          </div>
+          <div class="field" style="align-self: end">
+            <label class="lbl" for="hear_about">How did you hear about us?</label>
+            <select id="hear_about" class="placeholder" data-qa="hear-about">
+              <option selected>Select...</option>
+              <option>Company website</option>
+              <option>Job board</option>
+              <option>Employee referral</option>
+              <option>University career fair</option>
+              <option>Social media</option>
+              <option>Recruiter outreach</option>
+              <option>Other</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3 class="section-title">Voluntary self-identification</h3>
+        <div class="eeo">
+          <p><strong>Quillmont is an equal opportunity employer.</strong> Answering is optional and will not affect how your application is reviewed. Your answer is stored separately from your application and is used only for anonymous reporting.</p>
+          <div class="field">
+            <label class="lbl" for="gender">Gender</label>
+            <select id="gender" class="placeholder" data-qa="gender">
+              <option selected>Select...</option>
+              <option>Female</option>
+              <option>Male</option>
+              <option>Non-binary</option>
+              <option>Decline to self-identify</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="footer">
+        <div class="left">
+          <label class="consent" data-qa="consent-label"><input type="checkbox" name="consent" data-qa="consent"><span class="box"></span><span>I consent to Quillmont processing my personal data for recruiting purposes.<span class="req">*</span></span></label>
+          <a href="#" class="notice-link" data-qa="privacy-notice">Read the Applicant Privacy Notice</a>
+        </div>
+        <div class="actions">
+          <button type="button" class="btn btn-ghost" data-qa="save-draft">Save draft</button>
+          <button type="submit" class="btn btn-primary" data-qa="submit">Submit application</button>
+        </div>
+      </div>
+    </form>
+    <p class="powered">Powered by Talentrail &middot; Quillmont, 400 Example Plaza, Chicago, IL</p>
+  </main>
+</body>
+</html>

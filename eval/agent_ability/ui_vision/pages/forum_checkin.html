@@ -1,0 +1,529 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>全部帖子 - 远帆留学社区</title>
+<style>
+  :root {
+    --brand: #2f6bff;
+    --brand-d: #1f56e6;
+    --text: #1f2329;
+    --sub: #4e5561;
+    --muted: #6b7280;
+    --line: #e7e9ee;
+    --bg: #f3f4f7;
+    --orange: #ff7a2e;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "PingFang SC", -apple-system, "Helvetica Neue", Arial, sans-serif;
+    font-size: 14px; line-height: 1.45; color: var(--text); background: var(--bg);
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: inherit; text-decoration: none; }
+  button, input, textarea { font: inherit; color: inherit; }
+  .wrap { width: 1200px; margin: 0 auto; }
+
+  /* ---------- top bar ---------- */
+  .top { height: 64px; background: #fff; border-bottom: 1px solid var(--line); }
+  .top-in { height: 64px; display: flex; align-items: center; }
+  .logo { display: flex; align-items: center; gap: 10px; margin-right: 36px; }
+  .logo-mark { width: 36px; height: 36px; border-radius: 9px; background: linear-gradient(135deg, #3f7bff, #1d4fd8);
+    display: flex; align-items: center; justify-content: center; }
+  .logo-txt b { display: block; font-size: 18px; letter-spacing: 1px; line-height: 20px; }
+  .logo-txt small { display: block; font-size: 11px; color: var(--muted); letter-spacing: 2px; line-height: 14px; }
+  .tabs { display: flex; height: 64px; }
+  .tab { display: flex; align-items: center; padding: 0 16px; font-size: 15px; color: var(--sub); position: relative; }
+  .tab.on { color: var(--brand); font-weight: 600; }
+  .tab.on::after { content: ""; position: absolute; left: 16px; right: 16px; bottom: 0; height: 3px; border-radius: 3px 3px 0 0; background: var(--brand); }
+  .search { margin-left: 28px; width: 260px; height: 36px; border-radius: 18px; background: #f2f3f5; border: 1px solid #eceef1;
+    display: flex; align-items: center; padding: 0 14px; gap: 8px; }
+  .search input { border: 0; background: transparent; outline: none; flex: 1; font-size: 13px; }
+  .search input::placeholder { color: #9aa0a8; }
+  .top-right { margin-left: auto; display: flex; align-items: center; gap: 18px; }
+  .icon-btn { width: 36px; height: 36px; border: 0; background: transparent; border-radius: 8px; position: relative;
+    display: flex; align-items: center; justify-content: center; }
+  .icon-btn .badge { position: absolute; top: 3px; right: 2px; min-width: 16px; height: 16px; border-radius: 8px; background: #f5414b;
+    color: #fff; font-size: 11px; line-height: 16px; text-align: center; padding: 0 4px; font-weight: 600; border: 1.5px solid #fff; }
+  .me { display: flex; align-items: center; gap: 10px; }
+  .avatar { width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, #ffcf6b, #ff9a3d); color: #fff;
+    font-weight: 600; font-size: 16px; display: flex; align-items: center; justify-content: center; }
+  .me-name { font-size: 14px; font-weight: 600; line-height: 18px; display: flex; align-items: center; gap: 6px; }
+  .lv { font-size: 10px; font-weight: 600; color: #fff; background: #5b8cff; border-radius: 3px; padding: 0 4px; line-height: 15px; }
+  .me-stats { font-size: 12px; color: var(--sub); line-height: 18px; display: flex; align-items: center; gap: 8px; margin-top: 1px; }
+  .me-stats b { color: var(--text); font-weight: 600; }
+  .me-stats .sep { width: 1px; height: 10px; background: #d5d8de; }
+  .streak { display: inline-flex; align-items: center; gap: 2px; }
+  .streak b { color: var(--orange); }
+
+  /* ---------- layout ---------- */
+  .page { display: flex; gap: 16px; margin-top: 16px; }
+  .main { width: 904px; }
+  .side { width: 280px; }
+  .card { background: #fff; border-radius: 10px; border: 1px solid #eceef2; }
+
+  .board { height: 72px; display: flex; align-items: center; padding: 0 20px; gap: 14px; }
+  .board-icon { width: 42px; height: 42px; border-radius: 10px; background: #eaf1ff; display: flex; align-items: center; justify-content: center; }
+  .board h1 { font-size: 18px; line-height: 24px; }
+  .board p { font-size: 12px; color: var(--muted); line-height: 18px; }
+  .board p b { color: #e5484d; font-weight: 600; }
+  .btn-new { margin-left: auto; height: 36px; padding: 0 18px; border-radius: 8px; background: var(--brand); color: #fff;
+    font-weight: 600; display: flex; align-items: center; gap: 6px; font-size: 14px; }
+
+  .list { margin-top: 12px; overflow: hidden; }
+  .filter { height: 46px; display: flex; align-items: center; padding: 0 20px; border-bottom: 1px solid var(--line); gap: 24px; }
+  .filter a { font-size: 14px; color: var(--sub); height: 46px; display: flex; align-items: center; position: relative; }
+  .filter a.on { color: var(--text); font-weight: 600; }
+  .filter a.on::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--brand); }
+  .filter .sort { margin-left: auto; font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 4px; }
+
+  table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  th { height: 34px; background: #f8f9fb; font-size: 12px; font-weight: 500; color: var(--muted); text-align: left; padding: 0 12px;
+    border-bottom: 1px solid var(--line); }
+  th:first-child, td:first-child { padding-left: 20px; }
+  td { height: 48px; border-bottom: 1px solid #f0f1f4; padding: 0 12px; vertical-align: middle; }
+  tr:last-child td { border-bottom: 0; }
+  .c-author { width: 120px; }
+  .c-num { width: 96px; }
+  .c-last { width: 148px; }
+  .t { display: flex; align-items: center; gap: 8px; white-space: nowrap; overflow: hidden; }
+  .tag { flex: none; font-size: 12px; line-height: 20px; height: 20px; padding: 0 6px; border-radius: 4px; font-weight: 500; }
+  .tag.notice { color: #d4380d; background: #fff1eb; }
+  .tag.job { color: #1f56e6; background: #ebf1ff; }
+  .tag.visa { color: #7a3fd9; background: #f3ecff; }
+  .tag.life { color: #0e8a5f; background: #e7f7ef; }
+  .tag.market { color: #b86e00; background: #fff5e0; }
+  .title { font-size: 15px; color: var(--text); overflow: hidden; text-overflow: ellipsis; }
+  .pinned .title { font-weight: 600; }
+  .mark { flex: none; font-size: 11px; line-height: 16px; height: 16px; padding: 0 4px; border-radius: 3px; color: #fff; font-weight: 600; }
+  .mark.jing { background: #f5a623; }
+  .mark.hot { background: #f5414b; }
+  .mark.new { background: #22b07d; }
+  .ico { flex: none; display: inline-flex; }
+  .who { display: block; font-size: 13px; color: var(--sub); line-height: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .when { display: block; font-size: 12px; color: var(--muted); line-height: 17px; font-style: normal; }
+  .rep { display: block; font-size: 14px; font-weight: 600; color: var(--text); line-height: 18px; }
+  .views { display: block; font-size: 12px; color: var(--muted); line-height: 17px; font-style: normal; }
+
+  .pager { height: 52px; border-top: 1px solid var(--line); display: flex; align-items: center; padding: 0 20px; gap: 6px; font-size: 13px; }
+  .pager .total { color: var(--muted); margin-right: auto; }
+  .pager a { min-width: 30px; height: 30px; border-radius: 6px; border: 1px solid #e3e5ea; display: flex; align-items: center;
+    justify-content: center; padding: 0 8px; color: var(--sub); }
+  .pager a.on { background: var(--brand); border-color: var(--brand); color: #fff; font-weight: 600; }
+  .pager span.dots { color: var(--muted); padding: 0 4px; }
+
+  /* ---------- sidebar ---------- */
+  .side .card { padding: 16px 18px; }
+  .side .card + .card { margin-top: 12px; }
+  .side .nav-card { padding: 16px 12px 12px; }
+  .nav-card h3 { padding: 0 6px; }
+  .boards { list-style: none; margin-top: 8px; }
+  .boards a { display: flex; align-items: center; gap: 10px; height: 38px; padding: 0 8px; border-radius: 8px; font-size: 14px; color: var(--sub); }
+  .boards li.on a { background: #f0f5ff; color: var(--brand); font-weight: 600; }
+  .boards em { margin-left: auto; font-style: normal; font-size: 12px; color: var(--muted); font-weight: 400; }
+  .bi { width: 24px; height: 24px; border-radius: 6px; display: flex; align-items: center; justify-content: center; }
+  .side h3 { font-size: 15px; line-height: 22px; display: flex; align-items: center; justify-content: space-between; }
+  .side h3 small { font-size: 12px; font-weight: 400; color: var(--muted); }
+  .rank { list-style: none; margin-top: 10px; }
+  .rank li { display: flex; align-items: center; height: 34px; font-size: 13px; gap: 10px; }
+  .rank .no { width: 20px; height: 20px; border-radius: 5px; background: #f0f1f4; color: var(--muted); font-size: 12px; font-weight: 600;
+    display: flex; align-items: center; justify-content: center; }
+  .rank li:nth-child(1) .no { background: #ffe9c7; color: #c76a00; }
+  .rank li:nth-child(2) .no { background: #e9edf5; color: #5a6880; }
+  .rank li:nth-child(3) .no { background: #fbe3d4; color: #a6532a; }
+  .rank .nm { flex: 1; color: var(--text); }
+  .rank .tm { color: var(--muted); font-size: 12px; }
+  .side .foot { margin-top: 8px; padding-top: 10px; border-top: 1px dashed #e3e5ea; font-size: 12px; color: var(--muted); }
+  .tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .tags a { font-size: 12px; color: var(--sub); background: #f3f4f7; border-radius: 13px; height: 26px; line-height: 26px; padding: 0 11px; }
+
+  .site-foot { margin-top: 14px; font-size: 12px; color: #9aa0a8; line-height: 18px; display: flex; gap: 16px; }
+  .site-foot span:first-child { margin-right: auto; }
+
+  /* ---------- modal ---------- */
+  .mask { position: fixed; inset: 0; background: rgba(15, 18, 26, 0.42); }
+  .modal { position: fixed; left: 50%; top: 90px; width: 460px; margin-left: -230px; background: #fff; border-radius: 14px; overflow: hidden;
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.28); }
+  .hero { position: relative; height: 104px; padding: 22px 24px 0; color: #fff;
+    background: linear-gradient(120deg, #ff7a2e 0%, #ff9b45 55%, #ffb867 100%); }
+  .hero::after { content: ""; position: absolute; right: -30px; bottom: -60px; width: 180px; height: 180px; border-radius: 50%;
+    background: rgba(255, 255, 255, 0.10); }
+  .hero h2 { font-size: 21px; line-height: 28px; font-weight: 700; letter-spacing: 1px; }
+  .hero p { font-size: 13px; line-height: 20px; margin-top: 4px; opacity: 0.95; }
+  .hero p b { font-weight: 700; }
+  .close { position: absolute; top: 12px; right: 12px; width: 32px; height: 32px; border-radius: 8px; border: 0;
+    background: rgba(255, 255, 255, 0.18); display: flex; align-items: center; justify-content: center; z-index: 2; }
+  .streak-big { position: absolute; right: 64px; top: 20px; text-align: center; z-index: 1; }
+  .streak-big .n { font-size: 36px; font-weight: 700; line-height: 40px; font-family: -apple-system, "Helvetica Neue", Arial, sans-serif; }
+  .streak-big .n small { font-size: 14px; font-weight: 600; margin-left: 2px; }
+  .streak-big .l { font-size: 12px; line-height: 16px; opacity: 0.95; }
+
+  .week { display: flex; gap: 6px; padding: 16px 24px 4px; }
+  .day { flex: 1; height: 58px; border-radius: 8px; background: #fff6ef; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: 3px; }
+  .day .d { font-size: 11px; color: #a16a45; line-height: 14px; }
+  .day .ok { width: 18px; height: 18px; border-radius: 50%; background: #ffb27a; display: flex; align-items: center; justify-content: center; }
+  .day.today { background: #fff; border: 1.5px dashed #ff9a52; }
+  .day.today .d { color: #e8661c; font-weight: 600; }
+  .day.today .pts { font-size: 13px; font-weight: 700; color: #ff7a2e; line-height: 18px; }
+  .week-cap { padding: 0 24px; font-size: 12px; color: var(--muted); line-height: 18px; display: flex; justify-content: space-between; }
+
+  .sec { padding: 14px 24px 0; }
+  .sec-label { font-size: 14px; font-weight: 600; line-height: 20px; display: flex; align-items: baseline; gap: 8px; }
+  .sec-label span { font-size: 12px; font-weight: 400; color: var(--muted); }
+  .moods { display: flex; gap: 10px; margin-top: 10px; }
+  .mood { position: relative; flex: 1; height: 78px; border: 1px solid #e6e8ed; border-radius: 10px; background: #fafbfc;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; font-size: 13px; color: var(--sub); }
+  .mood input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; margin: 0; }
+  .note { display: block; width: 100%; height: 66px; margin-top: 8px; resize: none; border: 1px solid #dcdfe5; border-radius: 8px;
+    padding: 9px 12px; font-size: 14px; line-height: 20px; background: #fff; outline: none; }
+  .note::placeholder { color: #a3a8b0; }
+  .note-meta { display: flex; justify-content: flex-end; font-size: 12px; color: #a3a8b0; line-height: 18px; margin-top: 4px; }
+
+  .mfoot { display: flex; align-items: center; padding: 14px 24px 20px; margin-top: 6px; }
+  .rules { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; color: var(--brand); }
+  .mfoot .btns { margin-left: auto; display: flex; gap: 10px; }
+  .btn { height: 38px; border-radius: 8px; padding: 0 20px; font-size: 14px; border: 1px solid #d9dce2; background: #fff; color: var(--sub); }
+  .btn.primary { border: 0; padding: 0 26px; color: #fff; font-weight: 600; background: linear-gradient(90deg, #ff7a2e, #ff9b45);
+    box-shadow: 0 4px 10px rgba(255, 122, 46, 0.30); }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap top-in">
+    <a class="logo" href="#" data-qa="logo">
+      <span class="logo-mark">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3v14H5z" fill="#fff"/><path d="M13.5 6.5 19 17h-5.5z" fill="#cfe0ff"/><path d="M3 19.5h18" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>
+      </span>
+      <span class="logo-txt"><b>远帆留学</b><small>海外学子社区</small></span>
+    </a>
+    <nav class="tabs" aria-label="主导航">
+      <a class="tab on" href="#" data-qa="tab-home">首页</a>
+      <a class="tab" href="#" data-qa="tab-jobs">求职</a>
+      <a class="tab" href="#" data-qa="tab-visa">签证</a>
+      <a class="tab" href="#" data-qa="tab-life">生活</a>
+      <a class="tab" href="#" data-qa="tab-market">二手</a>
+    </nav>
+    <label class="search">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8a9099" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5" stroke-linecap="round"/></svg>
+      <input type="search" aria-label="搜索" placeholder="搜索帖子、用户或标签" data-qa="search">
+    </label>
+    <div class="top-right">
+      <button class="icon-btn" aria-label="消息通知" data-qa="notifications">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4e5561" stroke-width="1.8" aria-hidden="true"><path d="M6 16V11a6 6 0 1 1 12 0v5l1.5 2h-15z" stroke-linejoin="round"/><path d="M10 20.5a2 2 0 0 0 4 0" stroke-linecap="round"/></svg>
+        <span class="badge">3</span>
+      </button>
+      <a class="me" href="#" data-qa="user-menu">
+        <span class="avatar">柚</span>
+        <div class="me-info">
+          <div class="me-name">阿柚Yuzu <span class="lv">Lv.6</span></div>
+          <div class="me-stats">
+            <span>积分 <b data-qa="user-points">1,284</b></span>
+            <span class="sep"></span>
+            <span class="streak">
+              <svg width="13" height="13" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2c1 4 5 6 5 11a5 5 0 0 1-10 0c0-2.5 1.2-4 2.5-5 0 2 1 3 2 3 0-3-1-6.5.5-9z" fill="#ff7a2e"/></svg>
+              连续签到 <b data-qa="user-streak">12</b> 天
+            </span>
+          </div>
+        </div>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8a9099" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </a>
+    </div>
+  </div>
+</header>
+
+<div class="wrap page">
+  <aside class="side">
+    <section class="card nav-card">
+      <h3>版块导航</h3>
+      <ul class="boards">
+        <li class="on"><a href="#" data-qa="side-all"><span class="bi" style="background:#e6efff"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2f6bff" stroke-width="2.2" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg></span>全部帖子<em>48,912</em></a></li>
+        <li><a href="#" data-qa="side-jobs"><span class="bi" style="background:#ebf1ff"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1f56e6" stroke-width="2.2" aria-hidden="true"><rect x="3.5" y="7.5" width="17" height="12" rx="2"/><path d="M9 7.5V5.5h6v2"/></svg></span>求职<em>12,408</em></a></li>
+        <li><a href="#" data-qa="side-visa"><span class="bi" style="background:#f3ecff"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7a3fd9" stroke-width="2.2" aria-hidden="true"><rect x="5" y="3.5" width="14" height="17" rx="2"/><circle cx="12" cy="10.5" r="3"/><path d="M9 16.5h6" stroke-linecap="round"/></svg></span>签证<em>6,215</em></a></li>
+        <li><a href="#" data-qa="side-life"><span class="bi" style="background:#e7f7ef"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0e8a5f" stroke-width="2.2" aria-hidden="true"><path d="M4 11.5 12 5l8 6.5V20H4z" stroke-linejoin="round"/><path d="M10 20v-5h4v5"/></svg></span>生活<em>17,330</em></a></li>
+        <li><a href="#" data-qa="side-market"><span class="bi" style="background:#fff5e0"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#b86e00" stroke-width="2.2" aria-hidden="true"><path d="M4 8h16l-1.5 11h-13z" stroke-linejoin="round"/><path d="M9 8a3 3 0 0 1 6 0"/></svg></span>二手<em>12,959</em></a></li>
+        <li><a href="#" data-qa="side-best"><span class="bi" style="background:#fff1e0"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#e5850b" stroke-width="2.2" aria-hidden="true"><path d="m12 4 2.4 5 5.3.6-4 3.7 1.1 5.3L12 16l-4.8 2.6 1.1-5.3-4-3.7 5.3-.6z" stroke-linejoin="round"/></svg></span>精华区<em>1,162</em></a></li>
+      </ul>
+    </section>
+    <section class="card">
+      <h3>今日签到 <small>已有 1,893 人签到</small></h3>
+      <ol class="rank">
+        <li><span class="no">1</span><span class="nm">早起的虫</span><span class="tm">06:01</span></li>
+        <li><span class="no">2</span><span class="nm">晨跑的兔子</span><span class="tm">06:14</span></li>
+        <li><span class="no">3</span><span class="nm">不想写论文</span><span class="tm">06:22</span></li>
+        <li><span class="no">4</span><span class="nm">实验室钉子户</span><span class="tm">06:40</span></li>
+        <li><span class="no">5</span><span class="nm">凌晨四点的图书馆</span><span class="tm">06:51</span></li>
+      </ol>
+      <div class="foot">我的状态：今日未签到</div>
+    </section>
+    <section class="card">
+      <h3>热门标签</h3>
+      <div class="tags">
+        <a href="#">#OPT</a><a href="#">#签证</a><a href="#">#租房</a><a href="#">#报税</a>
+        <a href="#">#面经</a><a href="#">#二手家具</a><a href="#">#实习内推</a><a href="#">#感恩节</a><a href="#">#新生报到</a>
+      </div>
+    </section>
+  </aside>
+  <main class="main">
+    <section class="card board">
+      <div class="board-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2f6bff" stroke-width="1.8" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z" stroke-linejoin="round"/><path d="M8 9.5h8M8 12.5h5" stroke-linecap="round"/></svg>
+      </div>
+      <div>
+        <h1>全部帖子</h1>
+        <p>今日 <b>236</b> &nbsp;·&nbsp; 主题 48,912 &nbsp;·&nbsp; 在线 1,057</p>
+      </div>
+      <a class="btn-new" href="#" data-qa="new-thread">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>
+        发新帖
+      </a>
+    </section>
+
+    <section class="card list">
+      <div class="filter">
+        <a href="#" class="on">全部</a>
+        <a href="#">最新回复</a>
+        <a href="#">最新发表</a>
+        <a href="#">热门</a>
+        <a href="#">精华</a>
+        <span class="sort">按最后回复排序
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#8a9099" stroke-width="2.4" aria-hidden="true"><path d="m6 9 6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
+      </div>
+      <table>
+        <thead>
+          <tr><th>主题</th><th class="c-author">作者</th><th class="c-num">回复 / 查看</th><th class="c-last">最后发表</th></tr>
+        </thead>
+        <tbody>
+          <tr class="pinned">
+            <td><div class="t">
+              <span class="ico"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6l-1 6 4 4H6l4-4z" fill="#f5414b"/><path d="M12 13v8" stroke="#f5414b" stroke-width="2" stroke-linecap="round"/></svg></span>
+              <span class="tag notice">公告</span>
+              <a class="title" href="#">【版规】发帖前必读：各版块规则与违规处理说明（2026 修订）</a>
+            </div></td>
+            <td><a class="who" href="#" data-qa="t01-author">版务组</a><em class="when" data-qa="t01-date">2026-01-05</em></td>
+            <td><span class="rep" data-qa="t01-replies">86</span><em class="views">23,410</em></td>
+            <td><span class="who">版务组</span><em class="when">10-20 10:00</em></td>
+          </tr>
+          <tr class="pinned">
+            <td><div class="t">
+              <span class="ico"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6l-1 6 4 4H6l4-4z" fill="#f5414b"/><path d="M12 13v8" stroke="#f5414b" stroke-width="2" stroke-linecap="round"/></svg></span>
+              <span class="tag notice">公告</span>
+              <a class="title" href="#">每日签到与积分规则调整说明（11 月 1 日起生效）</a>
+            </div></td>
+            <td><a class="who" href="#" data-qa="t02-author">版务组</a><em class="when" data-qa="t02-date">2026-10-22</em></td>
+            <td><span class="rep" data-qa="t02-replies">214</span><em class="views">9,876</em></td>
+            <td><span class="who">小鹿乱撞</span><em class="when">1 小时前</em></td>
+          </tr>
+          <tr>
+            <td><div class="t">
+              <span class="tag job">求职</span>
+              <a class="title" href="#">27 届北美 SDE new grad 面经汇总，持续更新中</a>
+              <span class="mark jing">精</span>
+            </div></td>
+            <td><a class="who" href="#" data-qa="t03-author">cs转码er</a><em class="when" data-qa="t03-date">2026-10-12</em></td>
+            <td><span class="rep" data-qa="t03-replies">356</span><em class="views">18,203</em></td>
+            <td><span class="who">东岸小透明</span><em class="when">12 分钟前</em></td>
+          </tr>
+          <tr>
+            <td><div class="t">
+              <span class="tag visa">签证</span>
+              <a class="title" href="#">F-1 续签被 check 47 天终于 clear，时间线分享</a>
+              <span class="mark hot">热</span>
+            </div></td>
+            <td><a class="who" href="#" data-qa="t04-author">北极星Lynn</a><em class="when" data-qa="t04-date">2026-10-18</em></td>
+            <td><span class="rep" data-qa="t04-replies">128</span><em class="views">5,672</em></td>
+            <td><span class="who">柠檬不酸</span><em class="when">25 分钟前</em></td>
+          </tr>
+          <tr>
+            <td><div class="t">
+              <span class="tag life">生活</span>
+              <a class="title" href="#">第一次自己报税，1040-NR 和州税到底怎么填？</a>
+            </div></td>
+            <td><a class="who" href="#" data-qa="t05-author">数据科学打工人</a><em class="when" data-qa="t05-date">2026-10-16</em></td>
+            <td><span class="rep" data-qa="t05-replies">64</span><em class="views">3,105</em></td>
+            <td><span class="who">会计系学姐</span><em class="when">2 小时前</em></td>
+          </tr>
+          <tr>
+            <td><div class="t">
+              <span class="tag market">二手</span>
+              <a class="title" href="#">毕业清仓：27 寸显示器、人体工学椅、电饭煲，自取优先</a>
+              <span class="ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8a9099" stroke-width="1.8" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="m4 17 5-4.5 3.5 3 3-2.5 4.5 4" stroke-linejoin="round"/></svg></span>
+            </div></td>
+            <td><a class="who" href="#" data-qa="t06-author">即将毕业的阿哲</a><em class="when" data-qa="t06-date">2026-10-21</em></td>
+            <td><span class="rep" data-qa="t06-replies">45</span><em class="views">2,880</em></td>
+            <td><span class="who">小鹿乱撞</span><em class="when">3 小时前</em></td>
+          </tr>
+          <tr>
+            <td><div class="t">
+              <span class="tag job">求职</span>
+              <a class="title" href="#">OPT 期间换工作要注意什么？STEM 延期材料清单整理</a>
+            </div></td>
+            <td><a class="who" href="#" data-qa="t07-author">西雅图打工人</a><em class="when" data-qa="t07-date">2026-10-19</em></td>
+            <td><span class="rep" data-qa="t07-replies">97</span><em class="views">6,431</em></td>
+            <td><span class="who">Kevin_Z</span><em class="when">今天 09:12</em></td>
+          </tr>
+          <tr>
+            <td><div class="t">
+              <span class="tag life">生活</span>
+              <a class="title" href="#">冬天到了，求推荐预算 200 刀以内的羽绒服</a>
+            </div></td>
+            <td><a class="who" href="#" data-qa="t08-author">怕冷星人</a><em class="when" data-qa="t08-date">2026-10-25</em></td>
+            <td><span class="rep" data-qa="t08-replies">73</span><em class="views">2,964</em></td>
+            <td><span class="who">东岸小透明</span><em class="when">今天 08:47</em></td>
+          </tr>
+          <tr>
+            <td><div class="t">
+              <span class="tag visa">签证</span>
+              <a class="title" href="#" data-qa="t09-title">F-1 续签面签被 check 了，后续该怎么跟进？</a>
+            </div></td>
+            <td><a class="who" href="#" data-qa="t09-author">柠檬不酸</a><em class="when" data-qa="t09-date">2026-10-24</em></td>
+            <td><span class="rep" data-qa="t09-replies">37</span><em class="views">1,962</em></td>
+            <td><span class="who">北极星Lynn</span><em class="when">昨天 22:41</em></td>
+          </tr>
+          <tr>
+            <td><div class="t">
+              <span class="tag market">二手</span>
+              <a class="title" href="#" data-qa="t10-title">转租：学校东门一室一厅，十二月起可短租，包水电</a>
+            </div></td>
+            <td><a class="who" href="#" data-qa="t10-author">波士顿咸鱼</a><em class="when" data-qa="t10-date">2026-10-23</em></td>
+            <td><span class="rep" data-qa="t10-replies">19</span><em class="views">846</em></td>
+            <td><span class="who">波士顿咸鱼</span><em class="when">昨天 20:15</em></td>
+          </tr>
+          <tr>
+            <td><div class="t">
+              <span class="tag life">生活</span>
+              <a class="title" href="#" data-qa="t11-title">感恩节有没有一起拼车去北边看枫叶的？</a>
+              <span class="ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8a9099" stroke-width="1.8" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="m4 17 5-4.5 3.5 3 3-2.5 4.5 4" stroke-linejoin="round"/></svg></span>
+            </div></td>
+            <td><a class="who" href="#" data-qa="t11-author">枫叶控Mia</a><em class="when" data-qa="t11-date">2026-10-25</em></td>
+            <td><span class="rep" data-qa="t11-replies">52</span><em class="views">2,317</em></td>
+            <td><span class="who">怕冷星人</span><em class="when">昨天 18:03</em></td>
+          </tr>
+          <tr>
+            <td><div class="t">
+              <span class="tag job">求职</span>
+              <a class="title" href="#" data-qa="t12-title">内推帖：中型金融科技公司 2027 暑期实习，可帮改简历</a>
+            </div></td>
+            <td><a class="who" href="#" data-qa="t12-author">大熊不吃鱼</a><em class="when" data-qa="t12-date">2026-10-20</em></td>
+            <td><span class="rep" data-qa="t12-replies">241</span><em class="views">11,085</em></td>
+            <td><span class="who">Kevin_Z</span><em class="when">昨天 16:30</em></td>
+          </tr>
+          <tr>
+            <td><div class="t">
+              <span class="tag life">生活</span>
+              <a class="title" href="#" data-qa="t13-title">新生求助：银行卡、手机卡、社安号先办哪个？</a>
+              <span class="mark new">新</span>
+            </div></td>
+            <td><a class="who" href="#" data-qa="t13-author">刚落地的小王</a><em class="when" data-qa="t13-date">2026-10-25</em></td>
+            <td><span class="rep" data-qa="t13-replies">8</span><em class="views">213</em></td>
+            <td><span class="who">热心学长Leo</span><em class="when">昨天 14:26</em></td>
+          </tr>
+          <tr>
+            <td><div class="t">
+              <span class="tag market">二手</span>
+              <a class="title" href="#" data-qa="t14-title">出一辆九成新通勤自行车，送锁和车灯</a>
+            </div></td>
+            <td><a class="who" href="#" data-qa="t14-author">骑行的猫</a><em class="when" data-qa="t14-date">2026-10-21</em></td>
+            <td><span class="rep" data-qa="t14-replies">11</span><em class="views">590</em></td>
+            <td><span class="who">小鹿乱撞</span><em class="when">昨天 11:58</em></td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="pager">
+        <span class="total">共 48,912 个主题</span>
+        <a href="#">上一页</a>
+        <a href="#" class="on">1</a>
+        <a href="#">2</a>
+        <a href="#">3</a>
+        <a href="#">4</a>
+        <span class="dots">…</span>
+        <a href="#">3494</a>
+        <a href="#">下一页</a>
+      </div>
+    </section>
+  </main>
+
+</div>
+<footer class="wrap site-foot">
+  <span>© 2026 远帆留学社区 · 本站内容均由用户发布，仅供参考</span>
+  <span>关于我们</span><span>社区规范</span><span>隐私政策</span><span>意见反馈</span>
+</footer>
+
+<div class="mask"></div>
+<div class="modal" role="dialog" aria-modal="true" aria-labelledby="checkin-title" data-qa="checkin-dialog">
+  <div class="hero">
+    <h2 id="checkin-title">每日签到</h2>
+    <p>10月26日 星期一 · 今日签到可得 <b>+5</b> 积分</p>
+    <div class="streak-big">
+      <div class="n">12<small>天</small></div>
+      <div class="l">已连续签到</div>
+    </div>
+    <button class="close" type="button" aria-label="关闭" data-qa="modal-close">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke-linecap="round"/></svg>
+    </button>
+  </div>
+
+  <div class="week">
+    <div class="day"><span class="d">10/20</span><span class="ok"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" aria-hidden="true"><path d="m5 12 5 5 9-10" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+    <div class="day"><span class="d">10/21</span><span class="ok"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" aria-hidden="true"><path d="m5 12 5 5 9-10" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+    <div class="day"><span class="d">10/22</span><span class="ok"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" aria-hidden="true"><path d="m5 12 5 5 9-10" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+    <div class="day"><span class="d">10/23</span><span class="ok"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" aria-hidden="true"><path d="m5 12 5 5 9-10" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+    <div class="day"><span class="d">10/24</span><span class="ok"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" aria-hidden="true"><path d="m5 12 5 5 9-10" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+    <div class="day"><span class="d">10/25</span><span class="ok"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" aria-hidden="true"><path d="m5 12 5 5 9-10" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+    <div class="day today"><span class="d">今天</span><span class="pts">+5</span></div>
+  </div>
+  <div class="week-cap"><span>近 7 天签到记录</span><span>累计签到 86 天</span></div>
+
+  <div class="sec">
+    <div class="sec-label">今天的心情 <span>选一个吧</span></div>
+    <div class="moods" role="radiogroup" aria-label="今天的心情">
+      <label class="mood">
+        <input type="radio" name="mood" value="happy" data-qa="mood-happy">
+        <svg width="34" height="34" viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="16" fill="#ffd25c"/><circle cx="12.5" cy="15" r="2" fill="#7a4a10"/><circle cx="23.5" cy="15" r="2" fill="#7a4a10"/><path d="M11 21c2 4.5 12 4.5 14 0" fill="none" stroke="#7a4a10" stroke-width="2.2" stroke-linecap="round"/></svg>
+        开心
+      </label>
+      <label class="mood">
+        <input type="radio" name="mood" value="calm" data-qa="mood-calm">
+        <svg width="34" height="34" viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="16" fill="#8fd9b6"/><path d="M10.5 15.5c1.3 1.3 3.2 1.3 4.5 0M21 15.5c1.3 1.3 3.2 1.3 4.5 0" fill="none" stroke="#1f6b4a" stroke-width="2" stroke-linecap="round"/><path d="M13 23h10" stroke="#1f6b4a" stroke-width="2.2" stroke-linecap="round"/></svg>
+        平静
+      </label>
+      <label class="mood">
+        <input type="radio" name="mood" value="down" data-qa="mood-down">
+        <svg width="34" height="34" viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="16" fill="#a9bde0"/><circle cx="12.5" cy="15.5" r="2" fill="#2f4366"/><circle cx="23.5" cy="15.5" r="2" fill="#2f4366"/><path d="M12 25c2.5-3.5 9.5-3.5 12 0" fill="none" stroke="#2f4366" stroke-width="2.2" stroke-linecap="round"/><path d="M9.5 11.5l4-1.5M26.5 11.5l-4-1.5" stroke="#2f4366" stroke-width="1.8" stroke-linecap="round"/></svg>
+        郁闷
+      </label>
+      <label class="mood">
+        <input type="radio" name="mood" value="strive" data-qa="mood-strive">
+        <svg width="34" height="34" viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="16" fill="#ff9c7a"/><path d="M4 11.5h28" stroke="#e5484d" stroke-width="3.2"/><path d="M10 16.5l4.5 1M26 16.5l-4.5 1" stroke="#6b2414" stroke-width="2.2" stroke-linecap="round"/><path d="M12.5 23.5h11" stroke="#6b2414" stroke-width="2.4" stroke-linecap="round"/><path d="M15 23.5v-1M18 23.5v-1M21 23.5v-1" stroke="#6b2414" stroke-width="1.4"/></svg>
+        奋斗
+      </label>
+      <label class="mood">
+        <input type="radio" name="mood" value="bored" data-qa="mood-bored">
+        <svg width="34" height="34" viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="16" fill="#cbb6f2"/><path d="M10 15.5h5M21 15.5h5" stroke="#4b2d80" stroke-width="2.2" stroke-linecap="round"/><path d="M13.5 23.5c2 1 4 -1 6 0s3 0 3.5-.5" fill="none" stroke="#4b2d80" stroke-width="2" stroke-linecap="round"/></svg>
+        无聊
+      </label>
+    </div>
+  </div>
+
+  <div class="sec">
+    <label class="sec-label" for="checkin-note">今日想说的话（选填）</label>
+    <textarea class="note" id="checkin-note" maxlength="50" placeholder="说点什么吧，比如今天的小目标…" data-qa="checkin-note"></textarea>
+    <div class="note-meta">0 / 50</div>
+  </div>
+
+  <div class="mfoot">
+    <a class="rules" href="#" data-qa="checkin-rules">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2f6bff" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.3a2.5 2.5 0 1 1 3.4 2.4c-.7.3-1 .8-1 1.5v.6" stroke-linecap="round"/><circle cx="12" cy="16.8" r=".6" fill="#2f6bff"/></svg>
+      签到规则
+    </a>
+    <div class="btns">
+      <button class="btn" type="button" data-qa="btn-cancel">取消</button>
+      <button class="btn primary" type="button" data-qa="btn-checkin">立即签到</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
