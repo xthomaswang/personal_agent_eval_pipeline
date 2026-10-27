@@ -1,7 +1,7 @@
 {
   "run_id": "aider__variable-length-quantity",
   "harness": "claude_code",
-  "workspace": "~/Developer/mlsys/experiments/agent-model-eval-ws/aider__variable-length-quantity",
+  "workspace": "ws/aider__variable-length-quantity",
   "started_at": 1793013274.383609,
   "exit_code": 0,
   "timed_out": false,

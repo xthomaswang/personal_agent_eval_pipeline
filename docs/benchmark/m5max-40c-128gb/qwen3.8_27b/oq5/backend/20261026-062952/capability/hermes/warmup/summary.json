@@ -1,7 +1,7 @@
 {
   "run_id": "warmup",
   "harness": "hermes",
-  "workspace": "~/Developer/mlsys/experiments/agent-model-eval-ws/warmup",
+  "workspace": "ws/warmup",
   "started_at": 1793013843.5679832,
   "exit_code": 0,
   "timed_out": false,

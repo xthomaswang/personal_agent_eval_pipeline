@@ -1,7 +1,7 @@
 {
   "run_id": "aider__transpose",
   "harness": "hermes",
-  "workspace": "~/Developer/mlsys/experiments/agent-model-eval-ws/aider__transpose",
+  "workspace": "ws/aider__transpose",
   "started_at": 1793014248.7575092,
   "exit_code": 0,
   "timed_out": false,

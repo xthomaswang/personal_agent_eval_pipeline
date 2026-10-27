@@ -1,7 +1,7 @@
 {
   "run_id": "aider__rest-api",
   "harness": "hermes",
-  "workspace": "~/Developer/mlsys/experiments/agent-model-eval-ws/aider__rest-api",
+  "workspace": "ws/aider__rest-api",
   "started_at": 1793020901.418098,
   "exit_code": 0,
   "timed_out": false,

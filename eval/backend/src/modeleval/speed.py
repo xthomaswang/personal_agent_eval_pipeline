@@ -171,9 +171,26 @@ def capture_writer(cfg: Any, name: str) -> Any:
     return _CAPTURE(cfg, name)
 
 
+def _portable_header(raw: Path) -> None:
+    """The raw file's header (its first line) names the tokenizer directory: rewritten with paths.portable
+    like every committed path. The records after it stay as agentbench wrote them."""
+    try:
+        with raw.open(encoding="utf-8") as f:
+            first = f.readline()
+            if json.loads(first).get("type") != "header" or (new := paths.portable(first)) == first:
+                return
+            rest = f.read()
+    except (OSError, ValueError, AttributeError):
+        return
+    tmp = raw.with_name(raw.name + ".tmp")
+    tmp.write_text(new + rest, encoding="utf-8")
+    os.replace(tmp, raw)
+
+
 def _place(src: Path, dest: Path) -> Path:
     dest.parent.mkdir(parents=True, exist_ok=True)
     os.replace(src, dest)
+    _portable_header(dest)
     for d in (src.parent, src.parent.parent):  # _agentbench/raw, _agentbench
         try:
             d.rmdir()
@@ -788,13 +805,15 @@ def save_units(run_dir: Path, doc: dict[str, Any]) -> None:
     p = units_path(run_dir)
     p.parent.mkdir(parents=True, exist_ok=True)
     tmp = p.with_suffix(".json.tmp")
-    tmp.write_text(json.dumps(doc, indent=1, ensure_ascii=False, default=_json_default) + "\n", encoding="utf-8")
+    # committed: every path relative to its declared root (paths.portable), no machine path
+    text = json.dumps(paths.portable_tree(doc), indent=1, ensure_ascii=False, default=_json_default)
+    tmp.write_text(text + "\n", encoding="utf-8")
     os.replace(tmp, p)
 
 
 def _json_default(o: Any) -> Any:
     if isinstance(o, Path):
-        return paths.tilde(o)
+        return paths.portable(o)
     raise TypeError(type(o).__name__)
 
 
@@ -827,7 +846,7 @@ def model_info(model: Any) -> dict[str, Any]:
     keys = ("key", "display", "served_id", "quant", "family", "quant_dir", "spec", "vision", "reference", "sampling", "proxy_sampling",
             "source", "notes")
     out = {k: getattr(model, k, None) for k in keys}
-    out["path"] = paths.tilde(getattr(model, "path", ""))
+    out["path"] = paths.portable(getattr(model, "path", ""))
     return out
 
 

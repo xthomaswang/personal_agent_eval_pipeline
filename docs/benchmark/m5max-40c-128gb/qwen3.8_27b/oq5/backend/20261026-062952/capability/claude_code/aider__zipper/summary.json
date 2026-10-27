@@ -1,7 +1,7 @@
 {
   "run_id": "aider__zipper",
   "harness": "claude_code",
-  "workspace": "~/Developer/mlsys/experiments/agent-model-eval-ws/aider__zipper",
+  "workspace": "ws/aider__zipper",
   "started_at": 1793019191.418368,
   "exit_code": 0,
   "timed_out": false,

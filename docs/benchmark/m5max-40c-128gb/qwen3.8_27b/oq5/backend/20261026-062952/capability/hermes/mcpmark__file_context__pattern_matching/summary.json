@@ -1,7 +1,7 @@
 {
   "run_id": "mcpmark__file_context__pattern_matching",
   "harness": "hermes",
-  "workspace": "~/Developer/mlsys/experiments/agent-model-eval-ws/mcpmark__file_context__pattern_matching",
+  "workspace": "ws/mcpmark__file_context__pattern_matching",
   "started_at": 1793013880.38337,
   "exit_code": 0,
   "timed_out": false,

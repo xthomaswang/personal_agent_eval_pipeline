@@ -42,7 +42,7 @@
     "solved_within_s": 1200,
     "order": "set-major, then harness-major"
   },
-  "ws_root": "~/Developer/mlsys/experiments/agent-model-eval-ws",
+  "ws_root": "ws",
   "env_names": [
     "GIT_OPTIONAL_LOCKS",
     "HF_HOME",

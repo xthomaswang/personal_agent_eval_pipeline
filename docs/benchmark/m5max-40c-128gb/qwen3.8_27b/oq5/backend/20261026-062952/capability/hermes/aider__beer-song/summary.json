@@ -1,7 +1,7 @@
 {
   "run_id": "aider__beer-song",
   "harness": "hermes",
-  "workspace": "~/Developer/mlsys/experiments/agent-model-eval-ws/aider__beer-song",
+  "workspace": "ws/aider__beer-song",
   "started_at": 1793019240.172259,
   "exit_code": 1,
   "timed_out": false,

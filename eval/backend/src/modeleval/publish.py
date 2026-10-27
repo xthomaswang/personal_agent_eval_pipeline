@@ -10,7 +10,9 @@ shows (report.py's helpers):
 A protocol id names one fixed setting (docs/benchmark/README.md): the protocol version plus the macOS and
 Xcode builds for speed (DESIGN §2, §7) and plus the harness epoch for capability (§6.5). A run whose setting
 has no id below is skipped with a message: a new setting gets a new id (and so a new table), never an old
-one. Afterwards `python3 scripts/build_docs.py` at the repository root rebuilds the page.
+one. Harness epochs are matched by their canonical id (pins.toml `[[epoch.equivalent]]`, DESIGN §6.5): a run
+in a declared-equivalent epoch gets the canonical epoch's protocol id, and its row's notes name the
+equivalence. Afterwards `python3 scripts/build_docs.py` at the repository root rebuilds the page.
 """
 
 from __future__ import annotations
@@ -32,6 +34,7 @@ SPEED_PROTOCOLS: dict[str, dict[str, Any]] = {
                 "title": "Speed on oMLX 0.7.1rc1 (M5 Max): text-only, agent sampling, thinking off"},
 }
 CAP_PROTOCOLS: dict[str, dict[str, Any]] = {
+    # epoch: a canonical id (pins.toml [[epoch.equivalent]]: ce99c7b5d0bd counts as 7582825160ad)
     "capability-1": {"protocol_version": 1, "epoch": "7582825160ad",
                      "title": "Claude Code, Hermes, localmelo on Aider 12 + MCPMark easy 10 (gate set) and "
                               "Aider 22 (ranking set); thinking off"},
@@ -49,9 +52,12 @@ def speed_protocol(run: report.Run) -> str | None:
                                                                 p["xcode_build"]) == (run.protocol, mac, xc)), None)
 
 
-def cap_protocol(run: report.Run) -> str | None:
+def cap_protocol(run: report.Run, mapping: dict[str, str] | None = None) -> str | None:
+    """The capability protocol id of the run's protocol version and canonical harness epoch."""
+    mapping = report.epoch_map() if mapping is None else mapping
+    epoch = report.canonical_epoch(run.epoch, mapping)
     return next((pid for pid, p in CAP_PROTOCOLS.items()
-                 if (p["protocol_version"], p["epoch"]) == (run.protocol, run.epoch)), None)
+                 if (p["protocol_version"], report.canonical_epoch(p["epoch"], mapping)) == (run.protocol, epoch)), None)
 
 
 # ---------------------------------------------------------------- values
@@ -123,10 +129,13 @@ def cap_values(run: report.Run) -> list[str]:
     return cells + [_set_cell(run, gate, "gate"), _set_cell(run, ranking, "ranking"), m7_cell]
 
 
-def cap_notes(run: report.Run) -> str:
+def cap_notes(run: report.Run, mapping: dict[str, str] | None = None) -> str:
     gate = stats.harness_counts(run.records, "gate")
     ranking = stats.harness_counts(run.records, "ranking")
     notes = []
+    canonical = report.canonical_epoch(run.epoch, mapping)
+    if canonical is not None and str(canonical) != str(run.epoch):
+        notes.append(f"Harness epoch {run.epoch}, declared equivalent to {canonical} (DESIGN §6.5).")
     if not report.cap_complete(run, "gate"):
         done = sum(d["runs"] for d in gate.values())
         status = str(run.manifest.get("status") or "stopped")
@@ -187,7 +196,8 @@ def rows(run: report.Run) -> tuple[list[tuple[Path, dict[str, Any]]], list[str]]
             row["details"] = WRITE_UP if write_up else "speed/units.json"
             out.append((run.run_dir / "summary.json", row))
     if run.records:
-        pid = cap_protocol(run)
+        mapping = report.epoch_map()
+        pid = cap_protocol(run, mapping)
         if pid is None:
             msgs.append(f"{family}/{quant}/{run_id}: no capability protocol id for protocol {run.protocol}, harness "
                         f"epoch {run.epoch} (add one to publish.CAP_PROTOCOLS): capability row skipped")
@@ -195,7 +205,7 @@ def rows(run: report.Run) -> tuple[list[tuple[Path, dict[str, Any]]], list[str]]
             row = _base(run, family, quant, CAP_SUITE)
             row.update(protocol=pid, title=CAP_PROTOCOLS[pid]["title"],
                        metrics=[{"name": n, "value": v} for n, v in zip(CAP_METRICS, cap_values(run))])
-            if notes := cap_notes(run):
+            if notes := cap_notes(run, mapping):
                 row["notes"] = notes
             back = f"../../{paths.SUITE}/{run_id}/"
             row["details"] = back + (WRITE_UP if write_up else "capability/results.json")

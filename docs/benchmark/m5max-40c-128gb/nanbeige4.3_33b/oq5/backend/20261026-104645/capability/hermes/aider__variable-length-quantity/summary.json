@@ -1,7 +1,7 @@
 {
   "run_id": "aider__variable-length-quantity",
   "harness": "hermes",
-  "workspace": "~/Developer/mlsys/experiments/agent-model-eval-ws/aider__variable-length-quantity",
+  "workspace": "ws/aider__variable-length-quantity",
   "started_at": 1793039128.584924,
   "exit_code": 130,
   "timed_out": true,

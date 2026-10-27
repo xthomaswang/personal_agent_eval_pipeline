@@ -1,7 +1,7 @@
 {
   "run_id": "mcpmark__legal_document__file_reorganize",
   "harness": "claude_code",
-  "workspace": "~/Developer/mlsys/experiments/agent-model-eval-ws/mcpmark__legal_document__file_reorganize",
+  "workspace": "ws/mcpmark__legal_document__file_reorganize",
   "started_at": 1793012874.546274,
   "exit_code": 0,
   "timed_out": false,

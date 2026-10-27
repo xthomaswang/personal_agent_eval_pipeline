@@ -1,7 +1,7 @@
 {
   "run_id": "aider__robot-name",
   "harness": "hermes",
-  "workspace": "~/Developer/mlsys/experiments/agent-model-eval-ws/aider__robot-name",
+  "workspace": "ws/aider__robot-name",
   "started_at": 1793014669.898793,
   "exit_code": 0,
   "timed_out": false,

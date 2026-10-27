@@ -1,7 +1,7 @@
 {
   "run_id": "mcpmark__file_property__txt_merging",
   "harness": "claude_code",
-  "workspace": "~/Developer/mlsys/experiments/agent-model-eval-ws/mcpmark__file_property__txt_merging",
+  "workspace": "ws/mcpmark__file_property__txt_merging",
   "started_at": 1793031258.764404,
   "exit_code": 0,
   "timed_out": false,

@@ -32,6 +32,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from modeleval import paths, prepare, progress, quiet, registry
+from modeleval.capability import epoch as epochs
 from modeleval.registry import Model
 from modeleval.server import (
     MemorySampler,
@@ -155,23 +156,12 @@ def _iso(t: float | None = None) -> str:
     return time.strftime("%Y-%m-%dT%H:%M:%S%z", time.localtime(time.time() if t is None else t))
 
 
-def _tilde_tree(obj: object) -> object:
-    if isinstance(obj, dict):
-        return {str(k): _tilde_tree(v) for k, v in obj.items()}
-    if isinstance(obj, (list, tuple)):
-        return [_tilde_tree(v) for v in obj]
-    if isinstance(obj, Path):
-        return paths.tilde(obj)
-    if isinstance(obj, str) and str(paths.HOME) in obj:
-        return obj.replace(str(paths.HOME), "~")
-    return obj
-
-
 def write_json(path: Path, data: object) -> None:
-    """Atomic JSON write with every home path as ~ (manifest.json and units.json are committed)."""
+    """Atomic JSON write with every path relative to its declared root (paths.portable: manifest.json and
+    units.json are committed, so they name no machine path)."""
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_name(path.name + ".tmp")
-    tmp.write_text(json.dumps(_tilde_tree(data), indent=2, default=str) + "\n", encoding="utf-8")
+    tmp.write_text(json.dumps(paths.portable_tree(data), indent=2, default=str) + "\n", encoding="utf-8")
     os.replace(tmp, path)
 
 
@@ -437,9 +427,11 @@ class Run:
             raise Stop("refused", f"--resume {self.run_id}: the speed leg ran on macOS {old['macos']} / Xcode "
                        f"{old['xcode']}, this machine is on {now['macos']} / {now['xcode']}; start a new run "
                        "(or resume with --legs capability when only the capability leg is left)")
-        epoch = registry.epoch_id(registry.load_pins())
+        pins = registry.load_pins()
+        epoch = registry.epoch_id(pins)
         state = self.runs / "capability" / "state.json"
-        if ("capability" in self.opts.legs and self.stored_epoch and epoch != self.stored_epoch
+        # declared-equivalent epochs (pins.toml [[epoch.equivalent]], DESIGN §6.5) are the same epoch
+        if ("capability" in self.opts.legs and self.stored_epoch and not epochs.same_epoch(epoch, self.stored_epoch, pins)
                 and state.exists() and json.loads(state.read_text()).get("records")):
             raise Stop("refused", f"--resume {self.run_id}: its capability rows are from harness epoch "
                        f"{self.stored_epoch}, pins.toml now names {epoch}; start a new run")
@@ -588,7 +580,7 @@ class Run:
             if rc == 3:   # lock created, but the agent-benchmark server listens on 8500
                 self.lock_held = True
                 self.release()
-                raise self.refuse("port 8500 is up: the agent-benchmark session must stop its oMLX first")
+                raise self.refuse("port 8500 is up: another session's oMLX must stop first")
             if rc != 2:   # a timeout may leave the lock created with our run id: cleanup releases it
                 raise self.refuse(f"gpu_lock.sh acquire exited {rc}: {out[-200:]}")
             if time.time() - t0 > LOCK_WAIT_S:
@@ -953,8 +945,9 @@ class Run:
 
     def gate_decision(self) -> dict:
         """DESIGN §6.6's gate rule against the reference's newest finished gate set in the same
-        harness epoch (results/ only, never _unverified). No comparison, and so the ranking set,
-        when this model is the reference or that reference run does not exist yet."""
+        harness epoch (results/ only, never _unverified; declared-equivalent epochs are the same epoch,
+        §6.5). No comparison, and so the ranking set, when this model is the reference or that reference
+        run does not exist yet."""
         from modeleval import report, stats
 
         out: dict = {"epoch": self.epoch, "decision": None, "action": "ranking"}
@@ -962,11 +955,16 @@ class Run:
             out["why"] = "reference model"
         else:
             ref_key = registry.reference(self.models).key
+            mapping = report.epoch_map()
+            mine_epoch = str(report.canonical_epoch(self.epoch, mapping))
             refs = [r for r in report.discover(paths.RESULTS) if r.model_key == ref_key
-                    and str(r.epoch) == str(self.epoch) and r.records and report.cap_complete(r, "gate")]
+                    and str(report.canonical_epoch(r.epoch, mapping)) == mine_epoch
+                    and r.records and report.cap_complete(r, "gate")]
             mine = report.cap_records(report._json(self.results / "capability" / "results.json"))
+            if mine_epoch != str(self.epoch):
+                out["canonical_epoch"] = mine_epoch
             if not refs:
-                out["why"] = f"no finished reference gate set in epoch {self.epoch}"
+                out["why"] = f"no finished reference gate set in epoch {mine_epoch}"
             elif not mine:
                 out["why"] = "no gate rows of this run"
             else:
@@ -1294,9 +1292,12 @@ def plan_lines(opts: Options, models: dict[str, Model] | None = None) -> list[st
             v = rec.get("verdict") if isinstance(rec, dict) else None
             lines.append(f"unit        {u:14s} {'done (' + v + ')' if v in KEPT else 'to run' + (f' (was {v})' if v else '')}")
     if "capability" in opts.legs:
-        epoch = registry.epoch_id(registry.load_pins())
+        pins = registry.load_pins()
+        epoch = registry.epoch_id(pins)
+        canon = epochs.canonical(epoch, pins)
+        same = f" (declared equivalent to {canon}, DESIGN §6.5)" if epoch and str(canon) != str(epoch) else ""
         lines.append(f"capability  sets {'gate' if opts.capability == 'gate' else 'gate, then ranking' + (' (always)' if opts.capability == 'full-force' else ' unless the gate decision is worse')}; "
-                     f"epoch {epoch or 'MISSING (pins.toml)'}; runner {paths.tilde(CAP_PYTHON)}")
+                     f"epoch {epoch or 'MISSING (pins.toml)'}{same}; runner {paths.tilde(CAP_PYTHON)}")
     return lines
 
 

@@ -1,4 +1,4 @@
-🔍 Verifying HTML file count in: ~/Developer/mlsys/experiments/agent-model-eval-ws/mcpmark__papers__papers_counting
+🔍 Verifying HTML file count in: ws/mcpmark__papers__papers_counting
 
 --- Count File Exists ---
 ✅ count.txt file found

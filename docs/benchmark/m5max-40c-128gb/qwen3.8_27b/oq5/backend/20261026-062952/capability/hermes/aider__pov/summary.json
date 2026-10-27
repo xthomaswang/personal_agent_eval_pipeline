@@ -1,7 +1,7 @@
 {
   "run_id": "aider__pov",
   "harness": "hermes",
-  "workspace": "~/Developer/mlsys/experiments/agent-model-eval-ws/aider__pov",
+  "workspace": "ws/aider__pov",
   "started_at": 1793020710.680338,
   "exit_code": 0,
   "timed_out": false,

@@ -1,6 +1,7 @@
 """config.defaults.toml + config.toml: where things are on a machine, and the optional GPU-lock protocol."""
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import pytest
@@ -30,6 +31,29 @@ def test_a_local_file_overrides_key_by_key_and_references_resolve(tmp_path, monk
     assert paths.expand("~/z") == Path.home() / "z"
     with pytest.raises(ConfigError, match=r"no \[paths\] nope"):
         paths.expand("${nope}/x")
+
+
+def test_committed_paths_name_their_declared_root_not_the_machine():
+    h = str(Path.home())
+    ws, backend = str(paths.WS_ROOT), str(paths.REPO)
+    cases = {
+        f"{ws}/aider__hangman": "ws/aider__hangman",
+        f"{paths.tilde(ws)}/mcpmark__x/a.txt": "ws/mcpmark__x/a.txt",           # the ~ spelling too
+        f"{paths.LEGACY_BACKEND}/runs/m/r/mem": f"{paths.portable(backend)}/runs/m/r/mem",   # where it lived until 10-26
+        f"{backend}/vendor/localmelo": "eval/backend/vendor/localmelo",
+        str(paths.MONOREPO): ".",
+        f"{paths.MODELS}/oq/Q-oQ5-mtp": "models/oq/Q-oQ5-mtp",
+        f"selected for {os.path.realpath(paths.MODELS)}/hf-bench/Q: ok": "selected for models/hf-bench/Q: ok",
+        f"{paths.OMLX_REPO}/.modeleval-home": "omlx/.modeleval-home",
+        f"{h}/elsewhere/x": "~/elsewhere/x",                                     # no declared root: ~
+        "/tmp/x": "/tmp/x",
+    }
+    for raw, want in cases.items():
+        assert paths.portable(raw) == want, raw
+    # a whole path component only: the workspace root is not the old backend directory plus "-ws"
+    assert paths.portable(f"{paths.LEGACY_BACKEND}-ws/t") == "ws/t" or not str(paths.WS_ROOT).endswith("-ws")
+    tree = paths.portable_tree({f"{ws}/k": [Path(ws) / "t", 3, None]})
+    assert tree == {"ws/k": ["ws/t", 3, None]}
 
 
 def test_lock_modes(tmp_path, monkeypatch):

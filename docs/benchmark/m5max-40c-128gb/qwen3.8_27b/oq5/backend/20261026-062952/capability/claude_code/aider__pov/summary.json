@@ -1,7 +1,7 @@
 {
   "run_id": "aider__pov",
   "harness": "claude_code",
-  "workspace": "~/Developer/mlsys/experiments/agent-model-eval-ws/aider__pov",
+  "workspace": "ws/aider__pov",
   "started_at": 1793017440.573638,
   "exit_code": 0,
   "timed_out": false,

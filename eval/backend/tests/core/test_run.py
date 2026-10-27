@@ -520,6 +520,53 @@ def test_full_force_runs_the_ranking_set_after_a_worse_gate(orch, newmodel, caps
     assert [c["sets"] for c in orch.cap_log()] == [["gate"], ["ranking"]]
 
 
+def _pins_new_epoch(declared: bool) -> None:
+    """pins.toml names new-epoch, declared equivalent to test-epoch (DESIGN §6.5) or not."""
+    trees = '["' + "4" * 40 + '", "' + "5" * 40 + '"]'
+    (paths.REPO / "pins.toml").write_text(
+        '[epoch]\nid = "new-epoch"\n' + ('\n[[epoch.equivalent]]\nnew = "new-epoch"\nsame_as = "test-epoch"\n'
+                                         f'reason = "a comment reworded"\ntrees = {{ bench = {trees} }}\n'
+                                         if declared else ""))
+
+
+@pytest.mark.parametrize("declared", [True, False])
+def test_the_gate_decision_finds_the_reference_in_a_declared_equivalent_epoch(orch, newmodel, capsys, monkeypatch,
+                                                                              declared):
+    """pins.toml now names new-epoch; the reference's gate set is in test-epoch. Declared equivalent
+    (DESIGN §6.5), they are one epoch and the gate rule applies; otherwise there is no reference to compare."""
+    _pins_new_epoch(declared)
+    monkeypatch.setattr(run, "ensure_epoch", lambda: "new-epoch")
+    assert newmodel.go({"gate": _rows("gate", GATE, _worse), "ranking": _rows("ranking", RANK)}) == 0
+    out = capsys.readouterr().out
+    man = json.loads(next(RES("new-1b").glob("*/manifest.json")).read_text())
+    assert man["epoch"] == "new-epoch"
+    if declared:
+        assert "GATE-DECISION decision=worse action=skip" in out
+        assert man["gate_decision"]["reference_run"] == "fake-1b/20261020-000000"
+        assert man["gate_decision"]["canonical_epoch"] == "test-epoch"
+        assert [c["sets"] for c in orch.cap_log()] == [["gate"]]
+    else:
+        assert man["gate_decision"]["why"] == "no finished reference gate set in epoch new-epoch"
+        assert [c["sets"] for c in orch.cap_log()] == [["gate"], ["ranking"]]
+
+
+@pytest.mark.parametrize("declared", [True, False])
+def test_a_resume_across_declared_equivalent_epochs_is_one_epoch(orch, newmodel, declared):
+    """Capability rows recorded under test-epoch, pins.toml now names new-epoch: the resume goes on only
+    when the two are declared equivalent (DESIGN §6.5, §7)."""
+    r = run.Run(run.Options(model="new-1b", legs=("capability",), resume="20261030-000000"), newmodel.models)
+    state = r.runs / "capability" / "state.json"
+    state.parent.mkdir(parents=True)
+    state.write_text(json.dumps({"records": [{"set": "gate", "harness": "hermes", "task": "t"}]}))
+    r.stored_epoch = "test-epoch"
+    _pins_new_epoch(declared)
+    if declared:
+        r.check_resume()
+    else:
+        with pytest.raises(run.Stop, match="harness epoch test-epoch, pins.toml now names new-epoch"):
+            r.check_resume()
+
+
 def test_a_resume_with_ranking_rows_goes_on_without_re_deciding(orch, newmodel, capsys):
     orch.cap_codes(0, 1)                         # the gate set finishes, the ranking runner fails
     assert newmodel.go({"gate": _rows("gate", GATE), "ranking": _rows("ranking", RANK)}) == 1

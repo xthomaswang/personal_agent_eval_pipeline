@@ -129,6 +129,28 @@ def pre_commit_installed() -> bool:
         return False
 
 
+def equivalence_checks() -> list[tuple[str, str, str]]:
+    """pins.toml `[[epoch.equivalent]]` checked against git (DESIGN §6.5): ok when every listed tree pair
+    differs in comments only; WARN (unverified, the recorded reason stands) when a tree object is gone;
+    FAIL otherwise. The details name paths and counts, never a changed line."""
+    from modeleval.capability import epoch as epochs
+
+    try:
+        results = epochs.verify_equivalences(registry.load_pins())
+    except Exception as e:  # noqa: BLE001 - EpochError, or git failing
+        return [("FAIL", "harness epoch equivalences", f"{type(e).__name__}: {e}"[:300])]
+    out = []
+    for r in results:
+        name = f"harness epoch {r['new']} declared equivalent to {r['same_as']}"
+        if r["status"] == "verified":
+            out.append(("ok", name, f"verified: {r['detail']}"))
+        elif r["status"] == "unverified":
+            out.append(("WARN", name, f"unverified ({r['detail']}); recorded reason: {r['reason']}"))
+        else:
+            out.append(("FAIL", name, r["detail"]))
+    return out
+
+
 def hygiene_checks() -> list[tuple[str, str, str]]:
     """(level, check, detail) with level ok | WARN | FAIL. Read-only; peer repos only via rev-parse/status."""
     out: list[tuple[str, str, str]] = []
@@ -171,6 +193,7 @@ def hygiene_checks() -> list[tuple[str, str, str]]:
         f"install it once per clone, at the repository root: ln -s ../../{hook} .git/hooks/pre-commit", warn=True)
     epoch = registry.epoch_id(registry.load_pins())
     add(bool(epoch) and "PLACEHOLDER" not in epoch, "harness epoch in pins.toml", str(epoch), warn=True)
+    out += equivalence_checks()
     add(run.CAP_PYTHON.exists(), "capability interpreter", paths.tilde(run.CAP_PYTHON), warn=True)
     try:
         run.load_allowed_env()

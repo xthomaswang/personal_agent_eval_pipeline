@@ -1,7 +1,7 @@
 {
   "run_id": "aider__zebra-puzzle",
   "harness": "hermes",
-  "workspace": "~/Developer/mlsys/experiments/agent-model-eval-ws/aider__zebra-puzzle",
+  "workspace": "ws/aider__zebra-puzzle",
   "started_at": 1793021259.446767,
   "exit_code": 0,
   "timed_out": false,

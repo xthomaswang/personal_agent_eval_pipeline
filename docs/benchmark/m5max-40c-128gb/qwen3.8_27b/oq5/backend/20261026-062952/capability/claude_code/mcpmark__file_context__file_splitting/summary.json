@@ -1,7 +1,7 @@
 {
   "run_id": "mcpmark__file_context__file_splitting",
   "harness": "claude_code",
-  "workspace": "~/Developer/mlsys/experiments/agent-model-eval-ws/mcpmark__file_context__file_splitting",
+  "workspace": "ws/mcpmark__file_context__file_splitting",
   "started_at": 1793012703.342324,
   "exit_code": 0,
   "timed_out": false,

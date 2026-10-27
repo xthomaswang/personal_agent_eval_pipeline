@@ -1,7 +1,7 @@
 {
   "run_id": "aider__zebra-puzzle",
   "harness": "localmelo",
-  "workspace": "~/Developer/mlsys/experiments/agent-model-eval-ws/aider__zebra-puzzle",
+  "workspace": "ws/aider__zebra-puzzle",
   "started_at": 1793022961.084092,
   "exit_code": 0,
   "timed_out": false,
@@ -56,7 +56,7 @@
           "shell_exec"
         ],
         "memory": true,
-        "memory_dir": "~/Developer/mlsys/experiments/agent-model-eval/runs/qwen3-8-27b-oq5/20261026-062952/capability/localmelo/aider__zebra-puzzle/mem",
+        "memory_dir": "eval/backend/runs/qwen3-8-27b-oq5/20261026-062952/capability/localmelo/aider__zebra-puzzle/mem",
         "timeout_s": 3540.0,
         "tools": [
           "file_read",

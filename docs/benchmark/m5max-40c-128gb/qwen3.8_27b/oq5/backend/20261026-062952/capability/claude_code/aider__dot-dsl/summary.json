@@ -1,7 +1,7 @@
 {
   "run_id": "aider__dot-dsl",
   "harness": "claude_code",
-  "workspace": "~/Developer/mlsys/experiments/agent-model-eval-ws/aider__dot-dsl",
+  "workspace": "ws/aider__dot-dsl",
   "started_at": 1793016688.224871,
   "exit_code": 0,
   "timed_out": false,

@@ -1,4 +1,4 @@
-🔍 Verifying largest file rename in: ~/Developer/mlsys/experiments/agent-model-eval-ws/mcpmark__file_property__largest_rename
+🔍 Verifying largest file rename in: ws/mcpmark__file_property__largest_rename
 
 📋 Checking: sg.jpg does not exist
 ✅ sg.jpg does not exist

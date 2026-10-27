@@ -62,3 +62,25 @@ bench moved its localmelo worktree; the pipeline now uses its own clone `vendor/
 **Coordination:** GPU lock via `scripts/gpu_lock.sh`; purpose "... (timed)" makes localmelo_main's
 agents stop, "... accuracy only (untimed)" lets them continue. 10-min notice before every timed block;
 take/release messages to localmuse_main. Ports: 8703 only.
+## Current state (2026-10-26 21:00)
+
+**Where things are now.** The pipeline lives at `eval/backend` of the public repository
+personal_agent_eval_pipeline (moved from ~/Developer/mlsys/experiments/agent-model-eval with its history).
+Runs are published under `docs/benchmark/<machine>/<family>/<quant>/{backend,agent_ability}/<run-id>/`
+(`modeleval publish`); machine paths come from `config.defaults.toml` plus a local `config.toml`.
+
+**Harness epoch.** `ce99c7b5d0bd` (snapshot of this repository at b999407) is declared equivalent to
+`7582825160ad`: the only difference is one reworded comment in `eval/bench/manifest.py` (history rewrite
+before the repository went public); selftest verifies the diff is comments only.
+
+**Running:** Qwen3.8-Flash-Next oQ4e, started 20:19 from the old checkout (agent-model-eval, epoch
+7582825160ad). Speed leg done (all units clean or minor): 64K cold TTFT 31.5 s, cached TTFT 1.27 s, decode
+85.6 / 78.2 / 74.5 / 80.1 tok/s at 16K / 32K / 64K / 110K, M4 headline 61.8 s, server peak 97 GiB.
+Capability leg running (~3-4 h).
+
+**Next:** import the Flash-Next run into docs/benchmark (m5max-40c-128gb/qwen3.8_flash_next/oq4e) and
+publish; send localmuse_main the 12-exercise per-harness counts; release the GPU for its screenshots;
+then the cleanup list for the owner (old agent-model-eval checkout, the old campaign's 363 GB oMLX SSD
+cache, Nanbeige BF16 and oQ5, the old repo's bench/flash-next branch).
+
+## Previous state (2026-10-26 17:15)

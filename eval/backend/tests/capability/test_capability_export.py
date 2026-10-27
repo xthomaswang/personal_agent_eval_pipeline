@@ -25,7 +25,8 @@ def _run_dir(root: Path) -> Path:
     summary = {"workspace": f"{HOME}/Developer/mlsys/experiments/agent-model-eval-ws/aider__transpose",
                "harness_report": {"run_record": {"config": {"memory_dir": f"{HOME}/runs/x/mem"}}}}  # fmt: skip
     (run / "summary.json").write_text(json.dumps(summary))
-    (run / "check.log").write_text(f"rootdir: {HOME}/runs/x/check\n8 passed\n")
+    (run / "check.log").write_text(f"rootdir: {HOME}/runs/x/check\n8 passed\n"
+                                   f"in: {HOME}/Developer/mlsys/experiments/agent-model-eval-ws/mcpmark__x\n")
     for name in ("prompt.md", "manifest.json", "stdout.log", "stderr.log", "proxy.log", "fake_seen.json"):
         (run / name).write_text(f"{HOME}\n")
     return run
@@ -40,12 +41,13 @@ def test_only_the_allowlist_is_exported_with_home_paths_rewritten(tmp_path: Path
     for path in dest.iterdir():
         assert HOME not in path.read_text()
     summary = json.loads((dest / "summary.json").read_text())
-    assert summary["workspace"] == "~/Developer/mlsys/experiments/agent-model-eval-ws/aider__transpose"
+    assert summary["workspace"] == "ws/aider__transpose"   # relative to its declared root (paths.portable)
     assert summary["harness_report"]["run_record"]["config"]["memory_dir"] == "~/runs/x/mem"
     calls = [json.loads(line) for line in (dest / "calls.jsonl").read_text().splitlines()]
     assert [c["call_index"] for c in calls] == [0, 1]  # the truncated record is dropped
     assert calls[0]["warnings"] == ["read ~/Developer/x"]
     assert (dest / "check.txt").read_text().startswith("rootdir: ~/runs/x/check")
+    assert "in: ws/mcpmark__x\n" in (dest / "check.txt").read_text()
 
 
 def test_bodies_are_refused(tmp_path: Path) -> None:
@@ -72,8 +74,10 @@ def test_rows_keep_only_allowlisted_fields() -> None:
 
 
 def test_write_results(tmp_path: Path) -> None:
-    path = export.write_results(tmp_path / "results.json", {"rows": [], "ws_root": f"{HOME}/ws"})
-    assert json.loads(path.read_text())["ws_root"] == "~/ws"
+    path = export.write_results(tmp_path / "results.json", {"rows": [], "ws_root": f"{HOME}/ws",
+                                                             "snapshot": {"repo": paths.tilde(paths.MONOREPO)}})
+    doc = json.loads(path.read_text())
+    assert doc["ws_root"] == "~/ws" and doc["snapshot"]["repo"] == "."
     with pytest.raises(export.ExportError):
         export.write_results(tmp_path / "other.json", {})
 

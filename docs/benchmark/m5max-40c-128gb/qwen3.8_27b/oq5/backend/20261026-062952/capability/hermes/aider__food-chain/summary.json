@@ -1,7 +1,7 @@
 {
   "run_id": "aider__food-chain",
   "harness": "hermes",
-  "workspace": "~/Developer/mlsys/experiments/agent-model-eval-ws/aider__food-chain",
+  "workspace": "ws/aider__food-chain",
   "started_at": 1793019871.529357,
   "exit_code": 0,
   "timed_out": false,

@@ -1,7 +1,7 @@
 {
   "run_id": "aider__sgf-parsing",
   "harness": "claude_code",
-  "workspace": "~/Developer/mlsys/experiments/agent-model-eval-ws/aider__sgf-parsing",
+  "workspace": "ws/aider__sgf-parsing",
   "started_at": 1793017731.0877519,
   "exit_code": 1,
   "timed_out": false,

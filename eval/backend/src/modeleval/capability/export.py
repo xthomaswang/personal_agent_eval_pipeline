@@ -10,8 +10,9 @@ after the fact is not a safe filter, so this module copies an allowlist instead:
                                      .../summary.json  bench.harness's summary
                                      .../check.txt     the checker's output
 
-Every string is rewritten so the home directory reads `~`; a calls.jsonl written with --log-bodies is
-refused. Never exported: prompt.md (its sha256 is in the row), manifest.json, stdout/stderr,
+Every string is rewritten so a path names its declared root, not this machine (paths.portable: ws/<task>,
+eval/backend/..., models/...), and any other home path reads `~`; a calls.jsonl written with --log-bodies
+is refused. Never exported: prompt.md (its sha256 is in the row), manifest.json, stdout/stderr,
 claude-home/, hermes-home/, mem/, workspace/, check/, the env file.
 """
 
@@ -49,7 +50,9 @@ class ExportError(RuntimeError):
 
 
 def scrub_text(text: str, home: Path = paths.HOME) -> str:
-    """Home paths as `~` (the resolved spelling too, e.g. /private/... variants of the same home)."""
+    """Paths under a declared root relative to it (paths.portable); any other home path as `~` (the resolved
+    spelling too, e.g. /private/... variants of the same home)."""
+    text = paths.portable(text)
     for prefix in {str(home), os.path.realpath(home)}:
         text = text.replace(prefix + "/", "~/").replace(prefix, "~")
     return text
@@ -72,7 +75,7 @@ def _assert_clean(text: str, where: str, home: Path = paths.HOME) -> None:
 
 
 def clean_row(record: dict[str, Any]) -> dict[str, Any]:
-    """A runner record reduced to the allowlisted row fields, paths as `~`."""
+    """A runner record reduced to the allowlisted row fields, paths portable (scrub_text)."""
     row = {key: record.get(key) for key in ROW_FIELDS}
     check = record.get("check") or {}
     row["check"] = {key: check.get(key) for key in CHECK_FIELDS if key in check}

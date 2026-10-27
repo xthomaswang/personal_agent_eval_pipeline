@@ -138,7 +138,7 @@
      "attempt": 1,
      "t_start": 1793027669.842805,
      "t_end": 1793027792.85944,
-     "raw_file": "~/Developer/mlsys/experiments/agent-model-eval/results/_unverified/nanbeige4-3-33b-oq5/20261026-104645/speed/m3-32k-1.jsonl",
+     "raw_file": "eval/backend/results/_unverified/nanbeige4-3-33b-oq5/20261026-104645/speed/m3-32k-1.jsonl",
      "valid": true,
      "note": "",
      "metrics": {
@@ -264,7 +264,7 @@
      "attempt": 1,
      "t_start": 1793027855.616323,
      "t_end": 1793028438.1266072,
-     "raw_file": "~/Developer/mlsys/experiments/agent-model-eval/results/_unverified/nanbeige4-3-33b-oq5/20261026-104645/speed/m3-110k-1.jsonl",
+     "raw_file": "eval/backend/results/_unverified/nanbeige4-3-33b-oq5/20261026-104645/speed/m3-110k-1.jsonl",
      "valid": true,
      "note": "",
      "metrics": {
@@ -458,7 +458,7 @@
      "attempt": 1,
      "t_start": 1793028646.0386932,
      "t_end": 1793029051.652801,
-     "raw_file": "~/Developer/mlsys/experiments/agent-model-eval/results/_unverified/nanbeige4-3-33b-oq5/20261026-104645/speed/m4-1-1.jsonl",
+     "raw_file": "eval/backend/results/_unverified/nanbeige4-3-33b-oq5/20261026-104645/speed/m4-1-1.jsonl",
      "valid": true,
      "note": "m4: step 0 has no usage; cache check not possible",
      "metrics": {
@@ -564,7 +564,7 @@
      "attempt": 1,
      "t_start": 1793029461.807465,
      "t_end": 1793029855.370465,
-     "raw_file": "~/Developer/mlsys/experiments/agent-model-eval/results/_unverified/nanbeige4-3-33b-oq5/20261026-104645/speed/m4-2-1.jsonl",
+     "raw_file": "eval/backend/results/_unverified/nanbeige4-3-33b-oq5/20261026-104645/speed/m4-2-1.jsonl",
      "valid": true,
      "note": "",
      "metrics": {
@@ -1141,7 +1141,7 @@
    "Tokenizer fix drop-bos-post-processor: one <|im_start|> at the start of every prompt, as apply_chat_template and vLLM tokenize it.",
    "Text only (vision: none); dense llama with full attention in all 52 layers (208 KiB of KV per token)."
   ],
-  "path": "~/Developer/mlsys/models/oq/Nanbeige4.3-33B-oQ5"
+  "path": "models/oq/Nanbeige4.3-33B-oQ5"
  },
  "system": {
   "macos": "27.2",

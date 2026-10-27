@@ -892,6 +892,8 @@ def write_results(ctx: SimpleNamespace, *, finished: bool, yielded: dict[str, An
         "warmups": [export.clean_row(r) for r in warmups],
         "anomalies": dict(sorted(anomalies.items())),
         "hygiene": state.meta.get("hygiene", []),
+        # rows before a resume ran under these declared-equivalent epoch ids (DESIGN §6.5)
+        **({"earlier_epochs": list(state.meta["earlier_epochs"])} if state.meta.get("earlier_epochs") else {}),
         "updated_at": dt.datetime.now().astimezone().replace(microsecond=0).isoformat(),
         "finished": finished,
         "yield": yielded,
@@ -1037,9 +1039,18 @@ def main(argv: list[str] | None = None) -> int:
     state = State(run_root / STATE_FILE)
     if state.records and not spec["resume"]:
         return _refuse([f"{paths.tilde(run_root)} already has runs; restart with resume"])
-    if state.records and state.meta.get("epoch", spec["epoch"]) != spec["epoch"]:   # one epoch per run (§7)
+    prior = state.meta.get("epoch", spec["epoch"])
+    try:   # one epoch per run (§7); declared-equivalent ids (pins.toml [[epoch.equivalent]], §6.5) are one epoch
+        same = prior == spec["epoch"] or epochs.same_epoch(prior, spec["epoch"])
+    except epochs.EpochError as exc:
+        return _refuse([str(exc)])
+    if state.records and not same:
         return _refuse([f"{paths.tilde(run_root)} has runs from harness epoch {state.meta['epoch']}, the spec names "
                         f"{spec['epoch']}; start a new run"])
+    if state.records and prior != spec["epoch"]:
+        earlier = state.meta.setdefault("earlier_epochs", [])
+        if prior not in earlier:
+            earlier.append(prior)
     state.meta["epoch"] = spec["epoch"]
     ws_root = Path(spec["ws_root"])
     try:

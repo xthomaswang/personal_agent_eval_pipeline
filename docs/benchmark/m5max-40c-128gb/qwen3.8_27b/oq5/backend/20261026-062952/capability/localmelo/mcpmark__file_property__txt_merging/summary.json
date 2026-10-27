@@ -1,7 +1,7 @@
 {
   "run_id": "mcpmark__file_property__txt_merging",
   "harness": "localmelo",
-  "workspace": "~/Developer/mlsys/experiments/agent-model-eval-ws/mcpmark__file_property__txt_merging",
+  "workspace": "ws/mcpmark__file_property__txt_merging",
   "started_at": 1793015188.8879821,
   "exit_code": 0,
   "timed_out": false,
@@ -56,7 +56,7 @@
           "shell_exec"
         ],
         "memory": true,
-        "memory_dir": "~/Developer/mlsys/experiments/agent-model-eval/runs/qwen3-8-27b-oq5/20261026-062952/capability/localmelo/mcpmark__file_property__txt_merging/mem",
+        "memory_dir": "eval/backend/runs/qwen3-8-27b-oq5/20261026-062952/capability/localmelo/mcpmark__file_property__txt_merging/mem",
         "timeout_s": 3540.0,
         "tools": [
           "file_read",

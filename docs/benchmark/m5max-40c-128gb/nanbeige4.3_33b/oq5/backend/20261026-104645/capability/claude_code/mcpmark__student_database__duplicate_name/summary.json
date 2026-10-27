@@ -1,7 +1,7 @@
 {
   "run_id": "mcpmark__student_database__duplicate_name",
   "harness": "claude_code",
-  "workspace": "~/Developer/mlsys/experiments/agent-model-eval-ws/mcpmark__student_database__duplicate_name",
+  "workspace": "ws/mcpmark__student_database__duplicate_name",
   "started_at": 1793031541.639665,
   "exit_code": 0,
   "timed_out": false,

@@ -954,9 +954,9 @@
   },
   "notes": [
    "Converted 2026-10-21 by the qwen3.8-27b campaign (oMLX 0.7.1rc1 oQ, group 64, full-precision sensitivity, MTP head kept).",
-   "Read only: its files are hard links shared with the agent-benchmark session's models/chat copy."
+   "Read only: its files are hard links shared with another session's models/chat copy."
   ],
-  "path": "~/Developer/mlsys/models/oq/Qwen3.8-27B-oQ5-mtp"
+  "path": "models/oq/Qwen3.8-27B-oQ5-mtp"
  },
  "system": {
   "macos": "27.2",

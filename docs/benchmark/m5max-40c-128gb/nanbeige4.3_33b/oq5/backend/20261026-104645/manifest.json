@@ -9,7 +9,7 @@
     "key": "nanbeige4-3-33b-oq5",
     "display": "Nanbeige4.3-33B oQ5",
     "served_id": "Nanbeige4.3-33B-oQ5",
-    "path": "~/Developer/mlsys/models/oq/Nanbeige4.3-33B-oQ5",
+    "path": "models/oq/Nanbeige4.3-33B-oQ5",
     "quant": "oQ5",
     "spec": "none",
     "vision": false,
@@ -63,11 +63,11 @@
   },
   "server": {
     "omlx": {
-      "path": "~/Developer/mlsys/serving/omlx_0.7",
+      "path": "omlx",
       "sha": "7a5a3d75ce7463300bdfa5fedccd34348f60ff46",
       "dirty": false
     },
-    "base_path": "~/Developer/mlsys/serving/omlx_0.7/.modeleval-home",
+    "base_path": "omlx/.modeleval-home",
     "port": 8703,
     "settings": {
       "version": "1.0",
@@ -91,9 +91,9 @@
       },
       "model": {
         "model_dirs": [
-          "~/Developer/mlsys/serving/omlx_0.7/.modeleval-home/empty-models"
+          "omlx/.modeleval-home/empty-models"
         ],
-        "model_dir": "~/Developer/mlsys/serving/omlx_0.7/.modeleval-home/empty-models",
+        "model_dir": "omlx/.modeleval-home/empty-models",
         "model_fallback": false,
         "hide_helper_models": false
       },
@@ -120,7 +120,7 @@
         "gdn_snapshot_storage": "auto",
         "gdn_ssd_pending_max_size": "512MB",
         "gdn_sidecar_precision": "fp32",
-        "ssd_cache_dir": "~/Developer/mlsys/experiments/agent-model-eval/runs/nanbeige4-3-33b-oq5/20261026-104645/ssd-cache",
+        "ssd_cache_dir": "eval/backend/runs/nanbeige4-3-33b-oq5/20261026-104645/ssd-cache",
         "ssd_cache_max_size": "128GB",
         "hot_cache_max_size": "20GB",
         "hot_cache_write_through": false,
@@ -231,8 +231,8 @@
       "stopped": "2026-10-26T16:10:26-0400",
       "effective_settings": {
         "version": "0.7.1rc1",
-        "base_path": "~/Developer/mlsys/serving/omlx_0.7/.modeleval-home",
-        "model_dirs": "~/Developer/ml_source/models/mlsys/hf-bench",
+        "base_path": "omlx/.modeleval-home",
+        "model_dirs": "models/hf-bench",
         "memory_guard": "on (tier: balanced)",
         "mode": "Multi-model serving (continuous batching + paged SSD cache)",
         "hot_cache": "20.0GB",
@@ -240,11 +240,11 @@
         "memory_enforcer": "tier=balanced, ceiling=106.8GB, interval=1.0s",
         "metal_cap": "Metal cap (107.5GB, Apple max_recommended_working_set_size) is below the oMLX static ceiling (120.0GB); leaving Apple's default Metal cap active because iogpu.wired_limit_mb is unset. Raise it with: sudo sysctl iogpu.wired_limit_mb=122880",
         "ssd_cache": {
-          "dir": "~/Developer/mlsys/experiments/agent-model-eval/runs/nanbeige4-3-33b-oq5/20261026-104645/ssd-cache",
+          "dir": "eval/backend/runs/nanbeige4-3-33b-oq5/20261026-104645/ssd-cache",
           "max": "128.0GB"
         },
         "ssd_cache_manager": {
-          "dir": "~/Developer/mlsys/experiments/agent-model-eval/runs/nanbeige4-3-33b-oq5/20261026-104645/ssd-cache",
+          "dir": "eval/backend/runs/nanbeige4-3-33b-oq5/20261026-104645/ssd-cache",
           "max_size": "128.00 GB",
           "hot_cache": "20.00 GB",
           "auto_size": "False",
@@ -356,7 +356,7 @@
     }
   ],
   "ssd_cache": {
-    "dir": "~/Developer/mlsys/experiments/agent-model-eval/runs/nanbeige4-3-33b-oq5/20261026-104645/ssd-cache",
+    "dir": "eval/backend/runs/nanbeige4-3-33b-oq5/20261026-104645/ssd-cache",
     "peak_bytes": 137438420944
   },
   "pins": {
@@ -365,38 +365,38 @@
     },
     "snapshot": {
       "personal_agent_bench": {
-        "repo": "~/Developer/mlsys/experiments/personal-agent-bench",
+        "repo": "mlsys/experiments/personal-agent-bench",
         "sha": "3ea190e25fe3114e48308ae77cd7468d4cb80036"
       },
       "harness_smoke": {
-        "repo": "~/Developer/mlsys/experiments/harness-smoke",
+        "repo": "mlsys/experiments/harness-smoke",
         "sha": "abddd26190f5e734b98d26f86c23a28a7e0af051"
       }
     },
     "configs": {
-      "agent_root": "~/Developer/mlsys/agent",
+      "agent_root": "agent",
       "claude_env": "configs/claude-code/claude-code.env",
       "claude_settings": "homes/claude-code/settings.json",
       "hermes_home": "homes/hermes"
     },
     "localmelo": {
-      "repo": "~/Developer/mlsys/experiments/agent-model-eval/vendor/localmelo",
+      "repo": "eval/backend/vendor/localmelo",
       "sha": "3b8f310ee68714497bc3a08805c061ad73a106a8",
       "dist": "localmelo"
     },
     "hermes": {
-      "repo": "~/Developer/mlsys/agent/hermes-agent",
+      "repo": "agent/hermes-agent",
       "tag": "v0.22.2",
       "sha": "d923a5eb487a17c0a68801bba9ef0f56c81040a8",
-      "bin": "~/Developer/mlsys/agent/.venv/bin/hermes",
+      "bin": "agent/.venv/bin/hermes",
       "dist": "hermes_agent"
     },
     "claude_code": {
       "version": "2.1.302",
-      "bin": "~/.local/share/claude/versions/2.1.302"
+      "bin": "claude-versions/2.1.302"
     },
     "data": {
-      "root": "~/Developer/ml_source/datasets",
+      "root": "datasets",
       "aider_polyglot": "7e0611e77b54e2dea774cdc0aa00cf9f7ed6144f",
       "mcpmark": "cd45b7f57923b9b3985467f5139927575f83141c"
     },
@@ -406,7 +406,7 @@
       "shims": "envs/agent-tools/shims"
     },
     "workspace": {
-      "ws_root": "~/Developer/mlsys/experiments/agent-model-eval-ws"
+      "ws_root": "ws"
     }
   },
   "epoch": "7582825160ad",
@@ -421,7 +421,7 @@
     "memsize": "137438953472"
   },
   "repo": {
-    "path": "~/Developer/mlsys/experiments/agent-model-eval",
+    "path": "eval/backend",
     "sha": "626c9e003ffb2e5d2e6111d1a862ab00aaec61cc",
     "dirty": true
   },

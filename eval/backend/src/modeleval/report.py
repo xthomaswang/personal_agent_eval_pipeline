@@ -4,7 +4,9 @@ docs/benchmark/<family>/<quant>/backend/<run-id>/.
 Rows come from the newest complete run per model and comparability key. A table never mixes machines
 (the results path's first level) or protocol versions; speed tables also never mix macOS or Xcode builds,
 and capability tables never mix harness epochs. Rows that do not share a key go into separate tables, each with its own reference row (or a
-note that the reference must be re-run for that key).
+note that the reference must be re-run for that key). Harness epochs declared equivalent in pins.toml
+(`[[epoch.equivalent]]`, DESIGN §6.5) are one epoch here: a capability table is keyed and titled by the
+canonical id, and the footer names the equivalence once.
 """
 
 from __future__ import annotations
@@ -16,7 +18,8 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
-from . import paths, speed, stats
+from . import paths, registry, speed, stats
+from .capability import epoch as harness_epoch
 
 OLD_CAMPAIGN = "../qwen3.8-27b_20261017-2258_benchmark"
 BAND = {"m1": 0.20, "m3": 0.20, "m4": 0.09}  # measured cross-night spread of the old campaign (DESIGN §7)
@@ -95,7 +98,9 @@ class Run:
 
     @property
     def epoch(self) -> Any:
-        return _first(self.manifest.get("epoch"), _dig(self.manifest, "pins", "epoch"), (self.cap or {}).get("epoch"))
+        """The harness epoch the run recorded (compare through canonical_epoch, never directly)."""
+        e = _first(self.manifest.get("epoch"), _dig(self.manifest, "pins", "epoch"), (self.cap or {}).get("epoch"))
+        return e.get("id") if isinstance(e, dict) else e
 
     @property
     def order(self) -> tuple[str, str]:
@@ -197,6 +202,18 @@ def discover(results_root: Path) -> list[Run]:
     return runs
 
 
+def epoch_map() -> dict[str, str]:
+    """Declared-equivalent harness epoch -> its canonical id (pins.toml `[[epoch.equivalent]]`, DESIGN §6.5)."""
+    return harness_epoch.canonical_map(registry.load_pins())
+
+
+def canonical_epoch(epoch: Any, mapping: dict[str, str] | None = None) -> Any:
+    """The id a run's harness epoch is compared and shown under: the oldest of its declared chain."""
+    if epoch is None:
+        return None
+    return (epoch_map() if mapping is None else mapping).get(str(epoch), epoch)
+
+
 # ======================================================================= completeness and selection
 def unit_state(run: Run, unit: str) -> tuple[dict | None, str]:
     """(kept attempt, state): "ok" (clean, or kept with a minor flag: `minor_kept`); "disturbed xN"
@@ -267,12 +284,14 @@ def speed_groups(runs: list[Run]) -> list[tuple[tuple, list[Run]]]:
     return sorted(out, key=lambda kv: (not any(r.is_reference for r in kv[1]), str(kv[0])))
 
 
-def cap_groups(runs: list[Run]) -> list[tuple[tuple, list[Run]]]:
+def cap_groups(runs: list[Run], mapping: dict[str, str] | None = None) -> list[tuple[tuple, list[Run]]]:
+    """Capability tables by (machine, protocol, canonical harness epoch, set)."""
+    mapping = epoch_map() if mapping is None else mapping
     groups: dict[tuple, list[Run]] = {}
     for r in runs:
         for s in SETS:
             if r.records and cap_complete(r, s):
-                groups.setdefault((r.machine, r.protocol, r.epoch, s), []).append(r)
+                groups.setdefault((r.machine, r.protocol, canonical_epoch(r.epoch, mapping), s), []).append(r)
     out = [(k, newest(v)) for k, v in groups.items()]
     return sorted(out, key=lambda kv: (str(kv[0][0]), str(kv[0][1]), str(kv[0][2]), SETS.index(kv[0][3])))
 
@@ -564,6 +583,20 @@ def capability_section(key: tuple, rows: list[Run]) -> str:
 
 
 # ======================================================================= footer
+def equivalence_note(shown: set, raw: dict | None = None) -> str:
+    """The one footnote on declared-equivalent harness epochs whose canonical id has a table; "" if none."""
+    raw = registry.load_pins() if raw is None else raw
+    decls = {d["new"]: d for d in harness_epoch.equivalences(raw)}
+    mapping = harness_epoch.canonical_map(raw)
+    named = [d for new, d in decls.items() if mapping[new] in {str(e) for e in shown}]
+    if not named:
+        return ""
+    parts = [f"{d['new']} counts as {mapping[d['new']]} ({d['reason']})" for d in named]
+    return ("- Declared-equivalent harness epochs (pins.toml `[[epoch.equivalent]]`, DESIGN §6.5; `modeleval "
+            "selftest` checks each against git): " + "; ".join(parts) + ". Their runs share the tables of the "
+            "canonical id named in each heading.")
+
+
 def footer(runs: list[Run], protocols: set, epochs: set) -> str:
     lines = ["## Setting and notes", ""]
     models: dict[str, dict[str, Any]] = {}
@@ -609,6 +642,7 @@ def footer(runs: list[Run], protocols: set, epochs: set) -> str:
         "counted per model; they do not change the checker's verdict.",
         f"- Protocol version(s): {', '.join(str(p) for p in sorted(protocols, key=str)) or '-'} (current: "
         f"{paths.PROTOCOL_VERSION}); harness epoch(s): {', '.join(str(e) for e in sorted(epochs, key=str)) or '-'}.",
+        *([note] if (note := equivalence_note(epochs)) else []),
         f"- Earlier measurements: the Qwen3.8-27B serving campaign (`{OLD_CAMPAIGN}`, 2026-10-17..22) is not "
         "comparable with these tables: it used image-mode M1/M4, temperature 0 for some rows, three M4 runs with "
         "whole-run exclusion of cut steps, and an older localmelo (`5c009a8-dirty`).",

@@ -22,9 +22,17 @@ Layout of vendor/<epoch>/:
     configs/homes/hermes/...                agent/homes/hermes without logs, sessions and caches;
                                             tools/ and installs/ are symlinks to the live store
 
+Declared equivalences (DESIGN §6.5): pins.toml `[[epoch.equivalent]]` may declare a new id the same
+epoch as an older one when the only difference is in listed snapshot trees whose diff touches nothing but
+comments or blank lines in Python files. `canonical()` maps every id of such a chain to its oldest id,
+which is what reports, protocol ids, resume checks and the gate decision compare. `verify_equivalences()`
+checks each declaration mechanically (the selftest runs it); its results name paths and counts only,
+never the text of a changed line.
+
 The only git commands run on another session's repository are `rev-parse`, `--no-optional-locks
-status --porcelain`, `diff-index --quiet HEAD` and `archive`, always with GIT_OPTIONAL_LOCKS=0
-(`_git` enforces this).
+status --porcelain`, `diff-index --quiet HEAD`, `archive`, and, to verify a declared equivalence on the
+snapshot repository, `diff` between two tree objects and `cat-file blob`; always with
+GIT_OPTIONAL_LOCKS=0 (`_git` enforces this). None of them writes the index or the working tree.
 """
 
 from __future__ import annotations
@@ -34,12 +42,15 @@ import hashlib
 import io
 import json
 import os
+import re
 import shutil
 import stat
 import subprocess
 import tarfile
 import tempfile
+import tokenize
 import tomllib
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
@@ -67,6 +78,7 @@ CLAUDE_SETTINGS_COPY = "configs/homes/claude-code/settings.json"
 HERMES_HOME_COPY = "configs/homes/hermes"
 
 _GIT_ENV = {"GIT_OPTIONAL_LOCKS": "0", "GIT_TERMINAL_PROMPT": "0"}
+_HEX40 = re.compile(r"[0-9a-f]{40}")
 
 
 class EpochError(RuntimeError):
@@ -118,11 +130,17 @@ def tree_digest(root: Path) -> str:
 
 
 def _git(repo: Path, *args: str, check: bool = True) -> subprocess.CompletedProcess[bytes]:
-    """Run one of the git commands DESIGN §6.1 allows on another session's repository."""
+    """Run one of the git commands DESIGN §6.1 allows on another session's repository (`diff` and
+    `cat-file` read objects only: the equivalence check compares two tree objects, never the index)."""
     allowed = args[:1] in (("rev-parse",), ("diff-index",), ("archive",)) or args[:2] == (
         "--no-optional-locks",
         "status",
     )
+    if args[:1] == ("diff",):      # tree against tree only: a diff against the work tree could refresh the index
+        operands = [a for a in args[1:] if not a.startswith("-")]
+        allowed = len(operands) == 2 and all(_HEX40.fullmatch(a) for a in operands)
+    elif args[:2] == ("cat-file", "blob"):
+        allowed = len(args) == 3 and bool(_HEX40.fullmatch(args[2]))
     if not allowed:
         raise ValueError(f"git {' '.join(args)} is not an allowed command on a peer repository")
     proc = subprocess.run(
@@ -496,3 +514,249 @@ def ensure_epoch(pins_path: Path = PINS_FILE, vendor_root: Path = paths.VENDOR) 
     if pinned and made != pinned:
         raise EpochError(f"pins.toml names epoch {pinned}, but the pinned inputs now hash to {made}")
     return made
+
+
+# --- declared equivalences (DESIGN §6.5) ---
+#
+# pins.toml:
+#     [[epoch.equivalent]]
+#     new = "<id>"                  # the epoch the current pins hash to
+#     same_as = "<older id>"        # the epoch it counts as (the reference results live there)
+#     reason = "<one line>"         # shown when the old tree objects are gone and the check cannot run
+#     trees = {bench = ["<old tree>", "<new tree>"]}   # full hashes; the only components that differ
+#
+# A declaration holds when, for every listed tree pair, `git diff <old> <new>` edits existing Python
+# files only, every changed line is a comment or blank (stripped: empty or starting with "#"), and the
+# files' code tokens are unchanged (so a "#" line inside a string literal does not pass). When an epoch's
+# snapshot record is present, its components with the listed trees swapped must hash to the other id:
+# nothing outside the listed trees differs. Results carry paths and counts, never a changed line.
+
+EQUIVALENT_KEYS = ("new", "same_as", "reason", "trees")
+_TOKEN_TYPES_WITHOUT_TEXT = (tokenize.INDENT, tokenize.DEDENT, tokenize.NEWLINE, tokenize.ENDMARKER)
+
+
+def _pins_raw(raw: Mapping[str, Any] | None) -> Mapping[str, Any]:
+    """The given pins, else the backend's pins.toml read now (paths.REPO at call time), else {}."""
+    if raw is not None:
+        return raw
+    path = paths.REPO / "pins.toml"
+    return tomllib.loads(path.read_text()) if path.is_file() else {}
+
+
+def equivalences(raw: Mapping[str, Any] | None = None) -> list[dict[str, Any]]:
+    """pins.toml `[[epoch.equivalent]]`, validated: [{new, same_as, reason, trees: {part: (old, new)}}].
+    EpochError on a malformed declaration (a declaration that is not understood never maps an id)."""
+    epoch = _pins_raw(raw).get("epoch")
+    entries = epoch.get("equivalent", []) if isinstance(epoch, Mapping) else []
+    if not isinstance(entries, list):
+        raise EpochError("pins.toml epoch.equivalent must be an array of tables ([[epoch.equivalent]])")
+    out: list[dict[str, Any]] = []
+    for n, entry in enumerate(entries, 1):
+        where = f"pins.toml [[epoch.equivalent]] #{n}"
+        if not isinstance(entry, Mapping) or sorted(entry) != sorted(EQUIVALENT_KEYS):
+            raise EpochError(f"{where}: needs exactly the keys {', '.join(EQUIVALENT_KEYS)}")
+        new, same, reason, trees = (entry[k] for k in EQUIVALENT_KEYS)
+        if not all(isinstance(x, str) and x and x == x.strip() for x in (new, same)) or new == same:
+            raise EpochError(f"{where}: new and same_as must be two different epoch ids")
+        if not isinstance(reason, str) or not reason.strip():
+            raise EpochError(f"{where}: reason must be a non-empty string")
+        if not isinstance(trees, Mapping) or not trees:
+            raise EpochError(f"{where}: trees must name at least one snapshot part")
+        pairs: dict[str, tuple[str, str]] = {}
+        for part, pair in trees.items():
+            if part not in SNAPSHOT_PARTS:
+                raise EpochError(f"{where}: trees.{part} is not a snapshot part ({', '.join(SNAPSHOT_PARTS)})")
+            if (not isinstance(pair, list) or len(pair) != 2 or not all(isinstance(h, str) and _HEX40.fullmatch(h)
+                                                                         for h in pair) or pair[0] == pair[1]):
+                raise EpochError(f"{where}: trees.{part} must be [old tree, new tree], two different full hashes")
+            pairs[part] = (pair[0], pair[1])
+        out.append({"new": new, "same_as": same, "reason": reason.strip(), "trees": pairs})
+    seen: set[str] = set()
+    for e in out:
+        if e["new"] in seen:
+            raise EpochError(f"pins.toml [[epoch.equivalent]]: {e['new']} is declared more than once")
+        seen.add(e["new"])
+    return out
+
+
+def canonical_map(raw: Mapping[str, Any] | None = None) -> dict[str, str]:
+    """Every declared id -> its canonical id: follow same_as to the oldest id of the chain."""
+    parent = {e["new"]: e["same_as"] for e in equivalences(raw)}
+    out: dict[str, str] = {}
+    for start in parent:
+        chain, cur = [start], start
+        while cur in parent:
+            cur = parent[cur]
+            if cur in chain:
+                raise EpochError(f"pins.toml [[epoch.equivalent]]: the chain from {start} loops back to {cur}")
+            chain.append(cur)
+        out[start] = cur
+    return out
+
+
+def canonical(epoch_id: Any, raw: Mapping[str, Any] | None = None) -> Any:
+    """The id an epoch is compared under: the oldest of its declared chain; any other value unchanged."""
+    if epoch_id is None:
+        return None
+    return canonical_map(raw).get(str(epoch_id), epoch_id)
+
+
+def same_epoch(a: Any, b: Any, raw: Mapping[str, Any] | None = None) -> bool:
+    """Whether two recorded epoch ids are the same epoch, declared equivalences included."""
+    if a is None or b is None:
+        return a == b
+    mapping = canonical_map(raw)
+    return str(mapping.get(str(a), a)) == str(mapping.get(str(b), b))
+
+
+def _code_tokens(source: bytes) -> list[tuple[int, str]]:
+    """The tokens Python executes: comments and blank lines dropped, indentation by structure only."""
+    out = []
+    for tok in tokenize.tokenize(io.BytesIO(source).readline):
+        if tok.type in (tokenize.COMMENT, tokenize.NL):
+            continue
+        out.append((tok.type, "" if tok.type in _TOKEN_TYPES_WITHOUT_TEXT else tok.string))
+    return out
+
+
+def _diff_path(header: str) -> str:
+    """The path of a `diff --git a/<p> b/<p>` header (no renames, so both sides name the same path)."""
+    rest = header[len("diff --git "):]
+    half = (len(rest) - 1) // 2
+    return rest[2:half] if rest.startswith("a/") and rest[half + 1:half + 3] == "b/" else rest
+
+
+def comment_only_problems(repo: Path, old: str, new: str) -> list[str]:
+    """Why the change from tree `old` to tree `new` is more than comments or blank lines in Python files;
+    [] when it is not. Paths and counts only: the text of a changed line never leaves this function."""
+    proc = _git(repo, "diff", "--no-color", "--no-ext-diff", "--no-textconv", "--no-renames", "--unified=0",
+                "--src-prefix=a/", "--dst-prefix=b/", old, new, check=False)
+    if proc.returncode != 0:
+        return [f"git diff {old[:8]} {new[:8]} failed (exit {proc.returncode})"]
+    problems: list[str] = []
+    changed: dict[str, int] = {}
+    code: dict[str, int] = {}
+    path, in_hunk = "?", False
+    for line in proc.stdout.decode("utf-8", errors="replace").splitlines():
+        if line.startswith("diff --git "):
+            path, in_hunk = _diff_path(line), False
+            changed.setdefault(path, 0)
+            continue
+        if not in_hunk:
+            if line.startswith("@@"):
+                in_hunk = True
+            elif not line.startswith(("index ", "--- ", "+++ ")):
+                problems.append(f"{path}: not an edit of an existing text file (added, removed, mode or binary)")
+            continue
+        if line.startswith("@@") or line.startswith("\\"):   # next hunk; "\ No newline at end of file"
+            continue
+        if line[:1] in ("+", "-"):
+            changed[path] += 1
+            body = line[1:].strip()
+            if body and not body.startswith("#"):
+                code[path] = code.get(path, 0) + 1
+        else:
+            problems.append(f"{path}: unexpected diff output")
+    for p in sorted(changed):
+        if not p.endswith(".py"):
+            problems.append(f"{p}: not a Python file")
+            continue
+        if code.get(p):
+            problems.append(f"{p}: {code[p]} of {changed[p]} changed lines are not comments or blank")
+            continue
+        sources = []
+        for tree in (old, new):
+            blob = _rev(repo, f"{tree}:{p}")
+            got = _git(repo, "cat-file", "blob", blob, check=False) if blob else None
+            sources.append(got.stdout if got is not None and got.returncode == 0 else None)
+        if None in sources:
+            problems.append(f"{p}: cannot read both versions")
+            continue
+        try:
+            same = _code_tokens(sources[0]) == _code_tokens(sources[1])
+        except (tokenize.TokenError, SyntaxError, UnicodeDecodeError):
+            problems.append(f"{p}: does not tokenize as Python")
+            continue
+        if not same:
+            problems.append(f"{p}: its code tokens differ (a changed line inside a string, or indentation)")
+    if not changed and not problems:
+        problems.append(f"trees {old[:8]} and {new[:8]} do not differ: nothing to declare")
+    return problems
+
+
+def _diff_summary(repo: Path, old: str, new: str) -> str:
+    proc = _git(repo, "diff", "--numstat", "--no-renames", old, new, check=False)
+    rows = [ln.split("\t") for ln in proc.stdout.decode(errors="replace").splitlines() if ln.count("\t") >= 2]
+    lines = sum(int(a) + int(b) for a, b, _ in rows if a.isdigit() and b.isdigit())
+    return f"{len(rows)} Python file{'s' if len(rows) != 1 else ''}, {lines} changed lines, comments only"
+
+
+def _record_components(epoch_id: str, vendor_root: Path) -> dict[str, Any] | None:
+    try:
+        record = json.loads((vendor_root / epoch_id / EPOCH_FILE).read_text())
+    except (OSError, ValueError):
+        return None
+    return record.get("components") if record.get("id") == epoch_id else None
+
+
+def _components_problems(decl: dict[str, Any], vendor_root: Path) -> tuple[list[str], str]:
+    """(problems, note): one side's recorded components with the listed trees swapped must hash to the
+    other side's id. Without either snapshot record the comparison is skipped (the note says so)."""
+    for have, want, side in ((decl["new"], decl["same_as"], 1), (decl["same_as"], decl["new"], 0)):
+        comps = _record_components(have, vendor_root)
+        if comps is None:
+            continue
+        swapped = json.loads(json.dumps(comps))
+        trees = swapped.get("trees") or {}
+        for part, pair in decl["trees"].items():
+            if trees.get(part) != pair[side]:
+                return [f"vendor/{have} records tree {part} {str(trees.get(part))[:8]}, the declaration "
+                        f"{pair[side][:8]}"], ""
+            trees[part] = pair[1 - side]
+        if _sha256_json(swapped)[:ID_LENGTH] != want:
+            return [f"vendor/{have}'s components with the listed trees swapped do not hash to {want}: "
+                    "something else differs"], ""
+        return [], f"only the listed trees differ (vendor/{have})"
+    return [], "components not compared (no snapshot record of either id in vendor/)"
+
+
+def verify_equivalences(raw: Mapping[str, Any] | None = None, *,
+                        vendor_root: Path | None = None) -> list[dict[str, Any]]:
+    """Check every declaration of pins.toml `[[epoch.equivalent]]` (the selftest runs this).
+
+    One result per declaration: {new, same_as, reason, status, detail}. status is "verified", "failed",
+    or "unverified" when a listed tree object is no longer in the repository (after a gc): then only
+    the recorded reason stands, which is reported, not a failure. EpochError on a malformed declaration.
+    """
+    raw = _pins_raw(raw)
+    vendor_root = vendor_root or paths.VENDOR
+    decls = equivalences(raw)
+    canonical_map(raw)                                # a loop is an error here too
+    if not decls:
+        return []
+    repo = _path((raw.get("snapshot") or {}).get("repo", "."), paths.MONOREPO)
+    out = []
+    for decl in decls:
+        problems: list[str] = []
+        missing: list[str] = []
+        done: list[str] = []
+        for part, (old, new) in decl["trees"].items():
+            gone = [h[:8] for h in (old, new) if _rev(repo, f"{h}^{{tree}}") is None]
+            if gone:
+                missing.append(f"{part}: tree {', '.join(gone)} is not in {paths.tilde(repo)}")
+                continue
+            found = comment_only_problems(repo, old, new)
+            problems += [f"{part}: {p}" for p in found]
+            if not found:
+                done.append(f"{part} {old[:8]}..{new[:8]}: {_diff_summary(repo, old, new)}")
+        comp_problems, note = _components_problems(decl, vendor_root)
+        problems += comp_problems
+        if problems:
+            status, detail = "failed", "; ".join(problems)
+        elif missing:
+            status, detail = "unverified", "; ".join(missing + done + [note])
+        else:
+            status, detail = "verified", "; ".join(done + [note])
+        out.append({"new": decl["new"], "same_as": decl["same_as"], "reason": decl["reason"],
+                    "status": status, "detail": detail})
+    return out

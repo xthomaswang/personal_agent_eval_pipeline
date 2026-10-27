@@ -141,7 +141,7 @@ written `results/<model>/<run-id>/`. After a run:
 ```
 uv run modeleval report                  # RESULTS.md (this directory): the protocol tables
 uv run modeleval publish [<model> [<run-id>]]   # summary.json rows for the results page
-python3 scripts/build_docs.py            # at the repository root: docs/index.html and the README tables
+python3 scripts/build_docs.py            # at the repository root: writes docs/index.html (the results page)
 ```
 
 `publish` writes `summary.json` next to the run's `manifest.json` (suite `backend`, protocol `speed-1`)
@@ -175,7 +175,8 @@ rewrites its `settings.json` and `model_settings.json` before every launch.
 - **Peer trees are read only.** This covers the repository's `eval/bench` and `eval/agent_ability`, `agent/`,
   `serving/` (except `.modeleval-home`), `~/.omlx*` and the model directories. The only git
   commands run on them are `rev-parse`, `--no-optional-locks status --porcelain`, `diff-index
-  --quiet HEAD` and, to create a harness epoch's snapshot in `vendor/`, `archive`.
+  --quiet HEAD`, to create a harness epoch's snapshot in `vendor/`, `archive`, and, to check a declared
+  epoch equivalence (DESIGN §6.5), `diff` between two tree objects and `cat-file blob`.
   `PYTHONDONTWRITEBYTECODE=1` and `GIT_OPTIONAL_LOCKS=0` are exported for every child.
 - **Tests are offline.** They use fake `omlx`, lock, quiet-monitor, speed and capability
   processes on ephemeral ports in temporary directories; `tests/integration` runs the real

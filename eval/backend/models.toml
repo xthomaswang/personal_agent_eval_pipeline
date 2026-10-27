@@ -32,7 +32,7 @@ proxy_sampling = "inject:qwen3.8-gen-config"
 server_log_expect = ["Speculative backend selected for .*: Lightning MTP \\(.*active\\)", "MTP path activated"]
 notes = [
   "Converted 2026-10-21 by the qwen3.8-27b campaign (oMLX 0.7.1rc1 oQ, group 64, full-precision sensitivity, MTP head kept).",
-  "Read only: its files are hard links shared with the agent-benchmark session's models/chat copy.",
+  "Read only: its files are hard links shared with another session's models/chat copy.",
 ]
 
 [models.nanbeige4-3-33b-oq5]
@@ -74,7 +74,7 @@ proxy_sampling = "inject:qwen3.8-gen-config"
 model_settings = { qwen4_ple_ssd_offload = true, moe_expert_offload_enabled = false }
 server_log_expect = ["PLE mode for .*: mmap", "Lightning MTP enabled", "MTP path activated"]
 notes = [
-  "Read only: downloaded by the agent-benchmark session into ~/.omlx-0.7/models; models/hf-bench links to it.",
+  "Read only: downloaded by another session into ~/.omlx-0.7/models; models/hf-bench links to it.",
   "Closest published build (its BF16 is ~250 GB): oQ4e, not oQ5; disclosed in every table.",
   "Its 29.8 GiB PLE table is mmapped and file-backed, so the server footprint excludes it; the system-wide memory delta includes it.",
 ]

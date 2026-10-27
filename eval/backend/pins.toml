@@ -5,9 +5,22 @@
 # epoch id below. Changing any pinned input is a new epoch, and a new epoch means a new reference
 # capability run (DESIGN §7). Make it a deliberate edit: change the pin, run
 # `modeleval.capability.epoch.create_epoch(...)`, then write the id it returns here.
+#
+# The one exception is a declared equivalence (DESIGN §6.5): [[epoch.equivalent]] counts `new` as the
+# same epoch as `same_as` when the only components that differ are the listed snapshot trees and their
+# diff touches nothing but comments or blank lines in Python files. Reports, protocol ids, resume checks
+# and the gate decision compare the canonical id (the oldest of a chain). `modeleval selftest` checks every
+# declaration with `git diff <old tree> <new tree>`; once a gc has removed an old tree object, the
+# recorded reason stands and the selftest marks the declaration unverified.
 
 [epoch]
-id = "7582825160ad"                                   # 2026-10-26 07:1x: localmelo 3b8f310 in the pipeline clone
+id = "ce99c7b5d0bd"                                   # 2026-10-26 20:xx: the rewritten history's b999407
+
+[[epoch.equivalent]]
+new = "ce99c7b5d0bd"
+same_as = "7582825160ad"                              # 2026-10-26 07:1x: localmelo 3b8f310 in the pipeline clone
+reason = "eval/bench/manifest.py: one comment line reworded (2026-10-26 history rewrite); no code change"
+trees = { bench = ["40152a3feb446946d8a51fdfdf9934cb4376a8a9", "f258c98991f52ac37e97a01d01aa086b623d3fc7"] }
 
 # Snapshotted with `git archive <sha>:<dir>` into vendor/<epoch>/ (personal-agent-bench/bench,
 # harness-smoke/smoke, harness-smoke/shims: the layout the runner imports). The directories belong to
@@ -15,9 +28,10 @@ id = "7582825160ad"                                   # 2026-10-26 07:1x: localm
 # shims are each directory's path at `sha`. The epoch hashes their git tree hashes only, so the same
 # content at another commit or path is the same epoch (until 2026-10-26 they came from the
 # personal-agent-bench and harness-smoke repositories: bench/ 40152a3f, smoke/ a9b62dbe, shims/ bb008bb6).
+# The history rewrite of 2026-10-26 left bench/ at f258c989 (one comment reworded; see [[epoch.equivalent]]).
 [snapshot]
 repo = "."
-sha = "aea8e20d897d624672acd246eb0765a104c5dce4"   # the move under eval/ (2026-10-26); the same three trees
+sha = "b999407db5b03503c2cf874da9ac8702092c183c"   # after the history rewrite: bench/ f258c989, smoke/ and shims/ unchanged
 bench = "eval/bench"
 smoke = "eval/agent_ability/smoke"
 shims = "eval/agent_ability/shims"

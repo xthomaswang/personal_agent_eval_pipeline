@@ -168,7 +168,74 @@ def run_parts(run_dir: Path | str) -> tuple[str, str, str, str, str]:
 
 
 def tilde(p: Path | str) -> str:
-    """A path as written to anything that may be committed: the home directory becomes ~."""
+    """A path for people (messages, logs): the home directory becomes ~. Committed files use portable()."""
     s = str(p)
     h = str(HOME)
     return "~" + s[len(h):] if s == h or s.startswith(h + "/") else s
+
+
+# Where the backend lived until 2026-10-26 (before it moved into this repository): earlier committed files
+# name it, and portable() writes it as this backend's repository-relative path.
+LEGACY_BACKEND = MLSYS / "experiments" / "agent-model-eval"
+
+
+def portable_roots() -> tuple[tuple[Path, str], ...]:
+    """The declared roots of portable(), most specific first: (root, label). Inside this repository the
+    label is the repository-relative path itself (e.g. eval/backend/runs/...)."""
+    backend = os.path.relpath(REPO, MONOREPO)
+    configured = [(name, label) for name, label in (("agent_root", "agent"), ("claude_versions", "claude-versions"),
+                                                    ("datasets", "datasets")) if name in CONFIG.get("paths", {})]
+    return ((WS_ROOT, "ws"), (MONOREPO, ""), (LEGACY_BACKEND, backend), (OMLX_REPO, "omlx"), (MODELS, "models"),
+            *((_configured(name), label) for name, label in configured), (HF_HOME, "hf-home"), (MLSYS, "mlsys"))
+
+
+def _portable_rules(roots: tuple[tuple[str, str], ...], home: str) -> tuple[re.Pattern[str], dict[str, str]]:
+    labels: dict[str, str] = {}
+    for root, label in roots:
+        for p in (root, os.path.realpath(root)):
+            for spelling in (p, "~" + p[len(home):] if p == home or p.startswith(home + "/") else p):
+                labels.setdefault(spelling.rstrip("/"), label)
+    alternatives = "|".join(re.escape(s) for s in sorted(labels, key=len, reverse=True))
+    # a whole path component only: not inside a longer path (agent-model-eval vs agent-model-eval-ws); a
+    # full stop that ends a sentence is not part of the path
+    return re.compile(rf"(?<![\w.~/-])({alternatives})(?:(/)|(?![\w-]|\.\w))"), labels
+
+
+def _rules_now() -> tuple[re.Pattern[str], dict[str, str]]:
+    """The rules for the roots as configured now (tests repoint them), built once per configuration."""
+    key = (str(WS_ROOT), str(MONOREPO), str(REPO), str(OMLX_REPO), str(MODELS), str(HF_HOME), str(MLSYS), id(CONFIG))
+    return _rules_for(key, str(HOME))
+
+
+@functools.lru_cache(maxsize=8)
+def _rules_for(key: tuple[str, ...], home: str) -> tuple[re.Pattern[str], dict[str, str]]:
+    return _portable_rules(tuple((str(root), label) for root, label in portable_roots()), home)
+
+
+def portable(text: str | Path) -> str:
+    """A string as written to anything committed (DESIGN §8): a path under a declared root (portable_roots)
+    becomes <label>/<rest>, e.g. ws/aider__hangman, eval/backend/runs/..., models/oq/<served id>, in either
+    spelling (absolute or ~, symlinks resolved too); any other path under the home directory reads ~."""
+    pattern, labels = _rules_now()
+
+    def sub(m: re.Match[str]) -> str:
+        label = labels[m.group(1)]
+        if m.group(2):
+            return f"{label}/" if label else ""
+        return label or "."
+
+    out = pattern.sub(sub, str(text))
+    for prefix in {str(HOME), os.path.realpath(HOME)}:
+        out = out.replace(prefix + "/", "~/").replace(prefix, "~")
+    return out
+
+
+def portable_tree(obj: Any) -> Any:
+    """portable() on every string and path of a JSON-like value, keys included."""
+    if isinstance(obj, (str, Path)):
+        return portable(obj)
+    if isinstance(obj, dict):
+        return {portable(str(k)): portable_tree(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [portable_tree(v) for v in obj]
+    return obj

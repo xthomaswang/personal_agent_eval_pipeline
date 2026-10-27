@@ -27,7 +27,9 @@ def results_dir(family, quant_dir, suite=SUITE, machine=None) -> Path   # RESULT
 def run_parts(run_dir) -> (machine, family, quant, suite, run_id)
 def lock_enabled() -> bool                            # CONFIG [lock] mode: on | off | auto (the lock file's directory exists)
 def lock_env() -> dict                                # GPU_LOCK_PATH (+ QUIET_LOCK=off) for gpu_lock.sh and quietlib
-def tilde(p) -> str                                   # the home directory as ~
+def tilde(p) -> str                                   # the home directory as ~ (messages for people)
+def portable(text) -> str                             # committed files: <label>/<rest> under a declared root (DESIGN §8)
+def portable_tree(obj) -> obj                         # portable() on every string, path and key of a JSON-like value
 ```
 
 `results_dir` is the only place the results layout is spelled out; `Model.results_dir` is
@@ -235,7 +237,13 @@ rewrites keep them) and into `results.json` (through `export.write_results`).
 `{repo, sha, bench, smoke, shims}`),
 `load_epoch(id, vendor_root=VENDOR)`, `verify_live(epoch) -> list[str]` (problems; empty = ok),
 `ensure_epoch(pins_path, vendor_root) -> str`, `snapshot_problems(epoch)`, `index_stamps(repos)`, `load_pins(path)`,
-all using only the git commands allowed by DESIGN §6.1 (plus `archive` into vendor/). `capability/export.py`:
+all using only the git commands allowed by DESIGN §6.1 (plus `archive` into vendor/). Declared equivalences
+(pins.toml `[[epoch.equivalent]]`, DESIGN §6.5): `equivalences(raw=None) -> list[dict]` (validated; EpochError on
+a malformed one), `canonical_map(raw=None) -> {id: canonical id}`, `canonical(id, raw=None)`, `same_epoch(a, b,
+raw=None) -> bool`, `verify_equivalences(raw=None, *, vendor_root=None)
+-> [{new, same_as, reason, status: verified | unverified | failed, detail}]` (tree-to-tree `diff` and `cat-file
+blob` only; details carry paths and counts, never line text); raw=None reads `paths.REPO / "pins.toml"` at call
+time. `report.epoch_map()` and `report.canonical_epoch(id, mapping=None)` are what report, publish and run use. `capability/export.py`:
 `is_allowlisted(rel)` is the export allowlist; `scripts/redact.py` mirrors it (it runs under the system Python
 in the pre-commit hook and cannot import the package).
 

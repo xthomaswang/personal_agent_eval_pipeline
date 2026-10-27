@@ -372,6 +372,27 @@ the pipeline environments; the localmelo worktree SHA (`c295ce2`), the Hermes ta
 (Aider polyglot `7e0611e`, MCPMark `cd45b7f`). The live parts (Hermes, localmelo, the Claude Code binary)
 are re-checked before every task; on a mismatch the leg stops resumably. `pins.toml` holds the epoch.
 
+**Declared equivalence.** A change that cannot alter what the harness does need not cost a reference
+re-run (~3 h). `pins.toml` may list `[[epoch.equivalent]]` entries: `new` (an id), `same_as` (an older id),
+a one-line `reason`, and `trees` (per snapshot part, the old and new git tree hashes, in full). Every place
+that compares epochs (RESULTS.md tables, the results page's protocol ids, `--resume` in the orchestrator
+and the runner, the gate decision's lookup of the reference) maps each id to its canonical id, the oldest
+of its chain. RESULTS.md titles a table by the canonical id and names the equivalence once in its footer;
+a results-page row from a non-canonical id says so in its notes; a run's manifest keeps the id it ran under.
+`modeleval selftest` checks each declaration mechanically: for every listed pair, `git diff <old> <new>`
+must edit existing `.py` files only, every changed line must be blank or a comment once stripped, and the
+files' Python tokens must be unchanged (a `#` line inside a string literal fails); when a snapshot record
+(`vendor/<id>/epoch.json`) is present, its components with the listed trees swapped must hash to the other
+id, so nothing else differs. Anything else fails. Once a gc has removed an old tree object, the recorded
+reason stands and the selftest marks the declaration unverified (a warning, not a failure). The check
+reports paths and counts only, never a changed line. It uses two more read-only git commands on the
+snapshot repository: `diff` between two tree objects and `cat-file blob`.
+
+The one declaration so far: `ce99c7b5d0bd` (the snapshot at `b999407`) counts as `7582825160ad`, the
+epoch of the reference's capability leg. The history rewrite of 2026-10-26 reworded one comment line in
+`eval/bench/manifest.py` (bench tree `40152a3f` -> `f258c989`; smoke and shims unchanged), and the two
+epochs' components differ in that tree only.
+
 ### 6.6 Statistics
 
 Analysis is per task, not per run: for each task, a model's score is the number of harnesses that solved
@@ -403,7 +424,7 @@ lock is released only after nothing listens on 8703; the lock carries the run id
 ## 7. Reference rows and epochs
 
 - A table only contains rows with the same protocol version and macOS/Xcode builds (speed) or the same
-  harness epoch (capability).
+  harness epoch (capability; declared-equivalent epochs count as one, §6.5).
 - The reference runs through this pipeline once per protocol version (speed) and once per harness epoch
   (capability), not once per new model.
 - The footer prints the measured cross-night band of the old campaign (M1 and M3 up to ~20 %, M4 ~9 %)
@@ -438,10 +459,19 @@ RESULTS.md                             generated, in eval/backend/
 ```
 
 Only an allowlisted exporter writes capability files under `results/`: `calls.jsonl` (refused if bodies
-were logged), `summary.json` with paths rewritten to `~` or relative, the results row, and the check
-output as `check.txt` with home paths rewritten. Never exported: `prompt.md` (its sha256 is kept),
-`manifest.json` of bench.harness (needed fields are folded into ours), stdout, `claude-home/`,
-`hermes-home/`, `mem/`, `workspace/`, the env file.
+were logged), `summary.json` with paths rewritten, the results row, and the check output as `check.txt`
+with paths rewritten. Never exported: `prompt.md` (its sha256 is kept), `manifest.json` of bench.harness
+(needed fields are folded into ours), stdout, `claude-home/`, `hermes-home/`, `mem/`, `workspace/`, the
+env file.
+
+Committed files name no machine path (`paths.portable`, used by the exporter, `manifest.json`,
+`units.json` and the header line of each raw speed file): a path under a declared root is written relative
+to it as `<label>/<rest>`. The roots, most specific first: `ws` (`[paths] ws_root`, e.g. `ws/aider__hangman`),
+this repository (the repository-relative path itself, e.g. `eval/backend/vendor/localmelo`; the backend's
+pre-2026-10-26 directory `experiments/agent-model-eval` also reads `eval/backend`), `omlx` (`omlx_repo`),
+`models`, `agent` (`agent_root`), `claude-versions`, `datasets`, `hf-home` and `mlsys`, each in its absolute,
+`~` and symlink-resolved spellings and only as whole path components. Any other home path reads `~`. A
+`prompt_sha256` stays the hash of the prompt as sent, which names the absolute workspace path.
 
 `scripts/redact.py --check` (run on `git diff --cached --name-only` by a pre-commit hook) fails on
 `/Users/`, the current hostname, private IPv4 addresses, machine/user/session-id UUIDs, non-UTF-8 files,

@@ -624,9 +624,9 @@ def report(s: dict, settle_note: str | None, verdict: bool, allow: frozenset = f
     peer = [p for p in s["ports"] if p != PEER_PORT]
     lines = [f"quiet_check: {stamp}",
              f"lock: held by us ({s['lock']})" if s["lock"] is not None else "lock: NOT held by us",
-             f"port {PEER_PORT}: LISTENING (agent-benchmark oMLX is up)" if PEER_PORT in s["ports"]
+             f"port {PEER_PORT}: LISTENING (another session's oMLX is up)" if PEER_PORT in s["ports"]
              else f"port {PEER_PORT}: free",
-             "ports 8600-8699: " + (f"LISTENING {', '.join(map(str, peer))} (agent benchmark)" if peer
+             "ports 8600-8699: " + (f"LISTENING {', '.join(map(str, peer))} (another session)" if peer
                                     else "none listening"),
              f"load1: {s['load1']:.2f} (max {MAX_LOAD}){tag('load')}",
              f"gpu: {s['gpu_util']}% busy (max {MAX_GPU:.0f}){tag('gpu')}, {s['gpu_mem_gb']} GB in use",

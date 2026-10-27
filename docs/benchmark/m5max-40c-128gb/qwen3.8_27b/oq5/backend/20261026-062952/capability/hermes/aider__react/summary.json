@@ -1,7 +1,7 @@
 {
   "run_id": "aider__react",
   "harness": "hermes",
-  "workspace": "~/Developer/mlsys/experiments/agent-model-eval-ws/aider__react",
+  "workspace": "ws/aider__react",
   "started_at": 1793015021.886728,
   "exit_code": 0,
   "timed_out": false,

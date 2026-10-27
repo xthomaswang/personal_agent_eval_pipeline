@@ -1,7 +1,7 @@
 {
   "run_id": "aider__book-store",
   "harness": "hermes",
-  "workspace": "~/Developer/mlsys/experiments/agent-model-eval-ws/aider__book-store",
+  "workspace": "ws/aider__book-store",
   "started_at": 1793019356.045007,
   "exit_code": 0,
   "timed_out": false,

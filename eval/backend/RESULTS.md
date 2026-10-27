@@ -69,7 +69,7 @@ Counts of runs; Wilson 95 % intervals are for display only (the three harnesses 
 
 - **Qwen3.8-27B oQ5 + MTP**: quantization oQ5 (Qwen/Qwen3.8-27B@1d4bf0f2ff, oq_convert level 5, MTP kept); speculative decoding mtp; sampling temperature 1.0, top_p 0.95, top_k 20
   - Converted 2026-10-21 by the qwen3.8-27b campaign (oMLX 0.7.1rc1 oQ, group 64, full-precision sensitivity, MTP head kept).
-  - Read only: its files are hard links shared with the agent-benchmark session's models/chat copy.
+  - Read only: its files are hard links shared with another session's models/chat copy.
 - **Nanbeige4.3-33B oQ5**: quantization oQ5 (Nanbeige/Nanbeige4.3-33B@c1093c501c, oq_convert level 5, no MTP head); speculative decoding none; sampling temperature 1.0, top_p 0.95, top_k 0; vision: none
   - Converted 2026-10-26 by scripts/oq_convert.py (126 s, full-precision sensitivity); provenance in <path>/agent-model-eval.json.
   - Tokenizer fix drop-bos-post-processor: one <|im_start|> at the start of every prompt, as apply_chat_template and vLLM tokenize it.
@@ -82,4 +82,5 @@ Counts of runs; Wilson 95 % intervals are for display only (the three harnesses 
 - Cross-night band (old campaign): M1 and M3 up to ~20 %, M4 ~9 %. A ratio marked ≈ lies inside it and counts as no difference.
 - Capability: solved = the checker passes within the 30-step budget (also after a wall timeout); runs excluded only for pipeline mismatches (model id, forwarded sampling or thinking). Anomalies (5xx, a reasoning leak with thinking off, a template fallback) are attributed to the model, never excluded, and counted per model; they do not change the checker's verdict.
 - Protocol version(s): 1 (current: 1); harness epoch(s): 7582825160ad.
+- Declared-equivalent harness epochs (pins.toml `[[epoch.equivalent]]`, DESIGN §6.5; `modeleval selftest` checks each against git): ce99c7b5d0bd counts as 7582825160ad (eval/bench/manifest.py: one comment line reworded (2026-10-26 history rewrite); no code change). Their runs share the tables of the canonical id named in each heading.
 - Earlier measurements: the Qwen3.8-27B serving campaign (`../qwen3.8-27b_20261017-2258_benchmark`, 2026-10-17..22) is not comparable with these tables: it used image-mode M1/M4, temperature 0 for some rows, three M4 runs with whole-run exclusion of cut steps, and an older localmelo (`5c009a8-dirty`).
