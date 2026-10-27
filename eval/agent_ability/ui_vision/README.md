@@ -22,6 +22,8 @@ render.swift               page -> <out>.png + <out>.elements.json (boxes of dat
 ocr.swift                  png -> Apple Vision OCR lines with boxes (JSON lines)
 validate.py                checks a page's tasks against its rendered elements
 run.py                     asks the model, scores, writes runs/ui_vision/<run>/
+real.py                    the same for a set of real web pages (below)
+webrun.swift               renders such a page per item type and replays answers on it
 ```
 
 Render and validate one page (from this directory):
@@ -77,6 +79,18 @@ python3 validate.py pages/job_application.tasks.json /tmp/job.elements.json
   (comma-separated items in any order).
 
 Every item must have one correct answer that a careful person reads off the page without guessing.
+
+## Real web pages
+
+`real.py` runs the same prompts on a set of real web pages: captures of public sites, each with an offline
+replica page that reproduces its layout and records what is clicked and typed. Such a set lives outside the
+repository (the owner's is private, under `eval/customize/ui_real/`) and brings its own manifest and scorer; the
+contract is `window.benchmark.reset(mode)` / `getState()` in each page, `data-item-index` on click targets and
+`data-field-label` on fill controls. `webrun.swift` renders each page per item type at the manifest's size, and
+afterwards replays every click and fill answer on the page, so the page's own state is the evidence. Arms are a
+source and a condition: `replica:vision`, `replica:vision+ocr`, `replica:ax`, and `capture:vision` (the original
+capture; scored on reads only, since the replica matches the capture's layout page-wide but not inline). `--ideal`
+answers every item from the gold and must score 100%.
 
 ## Scoring details
 
