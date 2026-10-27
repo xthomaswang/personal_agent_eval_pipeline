@@ -463,7 +463,7 @@ cached or a cold prompt, decode speed from 16K to 110K tokens of context, a 20-s
 server's memory. Plus a functional gate, and tool-call accuracy (shown with agent ability).</p></div>
 <div class=card><h2><span class="dot agent_ability"></span>Agent ability</h2><p>Whether agents built on the model get
 work done. The same tasks, with byte-identical prompts, run through Claude Code, Hermes Agent and localmelo, and
-objective checkers score them.</p></div>
+objective checkers score them. A UI probe checks clicking, form filling and reading on web pages.</p></div>
 <div class=card><h2><span class="dot memory"></span>Memory</h2><p>Whether an agent keeps a correct, current and compact
 memory. A synthetic 10-day timeline is fed to the agent one session a day, and a fixed reader then answers 60
 questions from the memory store alone. The reader and the scoring are built; the session runner is next.</p></div>
@@ -517,6 +517,7 @@ machine.</span></li>
 <dt>Tasks</dt><dd>MCPMark filesystem tasks (easy) and Aider polyglot Python exercises, at pinned commits.</dd>
 <dt>Harnesses</dt><dd>Claude Code, Hermes Agent and localmelo, each run headless on the same prompts, through the recorder proxy.</dd>
 <dt>Scoring</dt><dd>The benchmark's own checkers, run outside the agent's workspace: MCPMark's verifiers, and the Aider unit tests restored to their original form.</dd>
+<dt>UI probe</dt><dd>The model alone, with no harness: click an element, fill a form from a fictional applicant's profile, or read an answer off a web page, from a screenshot, a screenshot with OCR lines, or an accessibility-style list. Click and fill answers are replayed on the page in WebKit and the page's own record is scored. Five synthetic pages are in <a href="{{REPO}}/tree/main/eval/agent_ability/ui_vision">eval/agent_ability/ui_vision</a>; the set of 75 real pages (offline replicas of public sites) is private, and only its results are published.</dd>
 </dl></div>
 <div class=suite><div><h3><span class="dot memory"></span>Memory</h3><div class=where><a href="{{REPO}}/tree/main/eval/memory">eval/memory</a></div></div>
 <dl>

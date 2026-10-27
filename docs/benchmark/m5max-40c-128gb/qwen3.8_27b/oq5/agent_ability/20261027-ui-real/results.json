@@ -1,0 +1,276 @@
+{
+  "protocol": "ui-real-1",
+  "run_id": "20261027-ui-real",
+  "samples": 3,
+  "units": "item-samples: [passed, total]; fill uses the corrected profile; capture arms score reads only",
+  "gold": {
+    "audited": {
+      "Qwen3.8-27B oQ5 + MTP": {
+        "replica:vision": {
+          "click": [
+            582,
+            594
+          ],
+          "fill": [
+            46,
+            72
+          ],
+          "read_strict": [
+            563,
+            624
+          ],
+          "read_lenient": [
+            595,
+            624
+          ]
+        },
+        "replica:vision+ocr": {
+          "click": [
+            571,
+            594
+          ],
+          "fill": [
+            52,
+            72
+          ],
+          "read_strict": [
+            565,
+            624
+          ],
+          "read_lenient": [
+            598,
+            624
+          ]
+        },
+        "replica:ax": {
+          "click": [
+            585,
+            594
+          ],
+          "fill": [
+            47,
+            72
+          ],
+          "read_strict": [
+            574,
+            624
+          ],
+          "read_lenient": [
+            589,
+            624
+          ]
+        },
+        "capture:vision": {
+          "read_strict": [
+            559,
+            624
+          ],
+          "read_lenient": [
+            584,
+            624
+          ]
+        }
+      },
+      "Qwen3.8-Flash-Next oQ4e + MTP": {
+        "replica:vision": {
+          "click": [
+            545,
+            594
+          ],
+          "fill": [
+            36,
+            72
+          ],
+          "read_strict": [
+            541,
+            624
+          ],
+          "read_lenient": [
+            572,
+            624
+          ]
+        },
+        "replica:vision+ocr": {
+          "click": [
+            549,
+            594
+          ],
+          "fill": [
+            41,
+            72
+          ],
+          "read_strict": [
+            518,
+            624
+          ],
+          "read_lenient": [
+            555,
+            624
+          ]
+        },
+        "replica:ax": {
+          "click": [
+            586,
+            594
+          ],
+          "fill": [
+            45,
+            72
+          ],
+          "read_strict": [
+            550,
+            624
+          ],
+          "read_lenient": [
+            571,
+            624
+          ]
+        },
+        "capture:vision": {
+          "read_strict": [
+            534,
+            624
+          ],
+          "read_lenient": [
+            568,
+            624
+          ]
+        }
+      }
+    },
+    "set": {
+      "Qwen3.8-27B oQ5 + MTP": {
+        "replica:vision": {
+          "click": [
+            588,
+            609
+          ],
+          "fill": [
+            36,
+            72
+          ],
+          "read_strict": [
+            543,
+            666
+          ],
+          "read_lenient": [
+            587,
+            666
+          ]
+        },
+        "replica:vision+ocr": {
+          "click": [
+            577,
+            609
+          ],
+          "fill": [
+            39,
+            72
+          ],
+          "read_strict": [
+            550,
+            666
+          ],
+          "read_lenient": [
+            595,
+            666
+          ]
+        },
+        "replica:ax": {
+          "click": [
+            600,
+            609
+          ],
+          "fill": [
+            34,
+            72
+          ],
+          "read_strict": [
+            564,
+            666
+          ],
+          "read_lenient": [
+            584,
+            666
+          ]
+        },
+        "capture:vision": {
+          "read_strict": [
+            542,
+            666
+          ],
+          "read_lenient": [
+            577,
+            666
+          ]
+        }
+      },
+      "Qwen3.8-Flash-Next oQ4e + MTP": {
+        "replica:vision": {
+          "click": [
+            550,
+            609
+          ],
+          "fill": [
+            24,
+            72
+          ],
+          "read_strict": [
+            518,
+            666
+          ],
+          "read_lenient": [
+            559,
+            666
+          ]
+        },
+        "replica:vision+ocr": {
+          "click": [
+            556,
+            609
+          ],
+          "fill": [
+            28,
+            72
+          ],
+          "read_strict": [
+            496,
+            666
+          ],
+          "read_lenient": [
+            542,
+            666
+          ]
+        },
+        "replica:ax": {
+          "click": [
+            601,
+            609
+          ],
+          "fill": [
+            32,
+            72
+          ],
+          "read_strict": [
+            541,
+            666
+          ],
+          "read_lenient": [
+            570,
+            666
+          ]
+        },
+        "capture:vision": {
+          "read_strict": [
+            506,
+            666
+          ],
+          "read_lenient": [
+            551,
+            666
+          ]
+        }
+      }
+    }
+  }
+}
