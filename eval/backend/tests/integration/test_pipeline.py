@@ -109,7 +109,7 @@ def test_missing_fixtures_are_refused_before_the_lock(sandbox, tmp_path, monkeyp
     monkeypatch.setattr(speed, "FIXTURES_DIR", tmp_path / "no-fixtures")
     assert _run(sandbox, legs=("speed",)) == 5
     out = capsys.readouterr().out
-    assert "fixtures not built" in out and "agentbench fixtures build" in out and "LOCK-NOTICE" not in out
+    assert "fixtures not built" in out and "uv run modeleval fixtures" in out and "LOCK-NOTICE" not in out
     assert not (sandbox.root / "lock.log").exists() and not paths.BASE.exists()
     lines = run.plan_lines(run.Options(model="mock-1b"), sandbox.models)
     assert any(x.startswith("ready       fixtures MISSING m3-off-110000") for x in lines)

@@ -492,7 +492,7 @@ def _fixtures(ctx: SpeedContext) -> tuple[Any, str | None]:
     missing = [p for p in required_prompts(ctx.model) if not (prompts / f"{p}.json").exists()]
     if missing:
         return fx, (f"fixtures: generated prompts missing ({', '.join(missing)}); "
-                    "rebuild them with `agentbench fixtures build`")
+                    "rebuild them with `uv run modeleval fixtures`")
     return fx, None
 
 

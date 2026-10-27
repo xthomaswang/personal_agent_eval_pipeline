@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import json
 import os
 import socket
 
@@ -139,6 +141,7 @@ server_log_expect = ["MTP path activated"]
 
 def test_cli_models_plan_and_dry_run(env, monkeypatch, capsys):
     monkeypatch.setattr(paths, "REPO", env.root)
+    monkeypatch.delenv(cli.TOKENIZER_ENV, raising=False)   # main() may set it; undone after the test
     _toml(env)
     assert cli.main(["models"]) == 0
     out = capsys.readouterr().out
@@ -157,3 +160,72 @@ def test_selftest_hygiene_checks_run_read_only():
     names = [r[1] for r in rows]
     assert "models.toml" in names and any("quietlib" in n for n in names)
     assert all(r[0] in ("ok", "WARN", "FAIL") for r in rows)
+
+
+def test_tokenizer_dir_defaults_to_the_reference_checkpoint(env, monkeypatch):
+    """At startup $AGENTBENCH_TOKENIZER_DIR becomes the registry's reference checkpoint, but only when it holds
+    the tokenizer files (else agentbench's HF-snapshot fallback stays open); a value already set wins."""
+    from agentbench.tokenizer import FILES
+
+    monkeypatch.setattr(paths, "REPO", env.root)
+    _toml(env)                                     # fake-1b is the reference, at env.ckpt
+    monkeypatch.delenv(cli.TOKENIZER_ENV, raising=False)
+    cli.default_tokenizer_dir()
+    assert cli.TOKENIZER_ENV not in os.environ
+    for f in FILES:
+        (env.ckpt / f).write_text("{}")
+    assert cli.reference_tokenizer_dir() == env.ckpt
+    cli.default_tokenizer_dir()
+    assert os.environ[cli.TOKENIZER_ENV] == str(env.ckpt)
+    monkeypatch.setenv(cli.TOKENIZER_ENV, str(env.root / "elsewhere"))
+    cli.default_tokenizer_dir()
+    assert os.environ[cli.TOKENIZER_ENV] == str(env.root / "elsewhere")
+    (env.root / "models.toml").write_text("not [toml")
+    assert cli.reference_tokenizer_dir() is None   # a broken registry is the command's problem, not startup's
+
+
+def _fake_build(prompt: bytes):
+    """agentbench's build() in miniature: a committed file, a generated prompt, the manifest, an extra prompt."""
+    def build(out, seed, log=print, extras=True):
+        files = {"system_prompt.md": b"S\n", "generated/prompts/cold-2000.json": prompt}
+        for rel, data in files.items():
+            (out / rel).parent.mkdir(parents=True, exist_ok=True)
+            (out / rel).write_bytes(data)
+        manifest = {"generator_version": 1, "seed": seed, "pillow": "13.0.0", "tokenizer_snapshot": out.name,
+                    "files": {rel: {"sha256": hashlib.sha256(d).hexdigest(), "bytes": len(d)} for rel, d in files.items()}}
+        (out / "manifest.json").write_text(json.dumps(manifest))
+        (out / "generated/prompts/m3-off-110000.json").write_text("{}")
+        log("fitting ...")
+        return dict(manifest, extra_prompts={"m3-off-110000": 110000})
+    return build
+
+
+def test_fixtures_command_installs_only_a_build_that_matches_the_manifest(tmp_path, monkeypatch):
+    import agentbench.fixtures.build as fixtures_build
+    import agentbench.tokenizer as tokenizer
+
+    root = tmp_path / "fixtures"
+    root.mkdir()
+    _fake_build(b"x")(root, 7)                     # the committed state (another tokenizer directory name)
+    committed = (root / "manifest.json").read_bytes()
+    (root / "generated/prompts/cold-2000.json").unlink()
+    monkeypatch.setattr(tokenizer, "snapshot_dir", lambda: tmp_path)
+    monkeypatch.setattr(fixtures_build, "build", _fake_build(b"x"))
+    lines: list[str] = []
+    assert cli.build_fixtures(root, log=lines.append) == 0
+    assert (root / "generated/prompts/cold-2000.json").read_bytes() == b"x"
+    assert (root / "generated/prompts/m3-off-110000.json").exists()
+    assert (root / "manifest.json").read_bytes() == committed   # committed files are never written
+    assert lines[-1].startswith("fixtures check: OK") and "m3-off-110000 (110000 tokens)" in "\n".join(lines)
+
+    monkeypatch.setattr(fixtures_build, "build", _fake_build(b"y"))   # drift: another prompt
+    lines.clear()
+    assert cli.build_fixtures(root, log=lines.append) == 1
+    assert "MISMATCH generated/prompts/cold-2000.json: sha256 differs from the manifest" in lines
+    assert (root / "generated/prompts/cold-2000.json").read_bytes() == b"x"   # left as it was
+
+    def no_tokenizer():
+        raise FileNotFoundError("no local Qwen3.8 tokenizer files")
+    monkeypatch.setattr(tokenizer, "snapshot_dir", no_tokenizer)
+    lines.clear()
+    assert cli.build_fixtures(root, log=lines.append) == 5 and "no local Qwen3.8 tokenizer" in lines[0]

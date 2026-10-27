@@ -487,6 +487,7 @@ uv run modeleval plan <model>           # units, per-model time estimates, what 
 uv run modeleval run <model> [--legs speed,capability] [--capability gate|full|full-force] [--unverified]
                                         [--resume <run-id>]
 uv run modeleval report                 # rebuild RESULTS.md
+uv run modeleval fixtures               # fixtures/generated with the reference tokenizer, checked against the manifest
 uv run modeleval selftest               # offline: mock servers, fake harness, registry, paths, hygiene
 ```
 

@@ -6,16 +6,24 @@
   run M                        the orchestrator (run.py)
   report                       rebuild RESULTS.md
   publish [M [RUN_ID]]         the results page's summary.json rows under docs/benchmark
+  fixtures                     build fixtures/generated and check it against fixtures/manifest.json
   selftest                     offline test suite + path, contract and hygiene checks
+
+At startup $AGENTBENCH_TOKENIZER_DIR, when unset, becomes the reference checkpoint (default_tokenizer_dir).
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
+import json
 import os
 import re
+import shutil
 import subprocess
 import sys
+import tempfile
+import time
 from pathlib import Path
 
 from modeleval import paths, prepare, registry, run
@@ -102,6 +110,106 @@ def cmd_publish(a: argparse.Namespace) -> int:
     if any(line.startswith("wrote ") for line in lines):
         print("next: python3 scripts/build_docs.py (at the repository root)")
     return 0 if any(line.startswith("wrote ") for line in lines) else 1
+
+
+# ---------------------------------------------------------------- tokenizer and fixtures
+
+
+TOKENIZER_ENV = "AGENTBENCH_TOKENIZER_DIR"
+
+
+def reference_tokenizer_dir() -> Path | None:
+    """The registry's reference checkpoint (models.toml `path`, expanded with the config's [paths]) when it holds
+    the tokenizer files agentbench reads; None when the registry or those files are not there."""
+    from agentbench.tokenizer import FILES
+
+    try:
+        ref = registry.reference(registry.load_models())
+    except (OSError, ValueError):   # RegistryError, ConfigError, a TOML error: the command reports it if it matters
+        return None
+    return ref.path if all((ref.path / f).is_file() for f in FILES) else None
+
+
+def default_tokenizer_dir() -> None:
+    """Point $AGENTBENCH_TOKENIZER_DIR, when unset, at the reference checkpoint. The fixtures are sized in the
+    reference's (Qwen3.8) tokens, and agentbench builds in no machine path: with this, the speed leg and
+    `modeleval fixtures` find the tokenizer wherever the config puts the models. Without the checkpoint the
+    variable stays unset and agentbench looks for an HF snapshot under $HF_HOME (agentbench.tokenizer)."""
+    if not os.environ.get(TOKENIZER_ENV) and (d := reference_tokenizer_dir()) is not None:
+        os.environ[TOKENIZER_ENV] = str(d)
+
+
+def _sha256(p: Path) -> str:
+    return hashlib.sha256(p.read_bytes()).hexdigest()
+
+
+def fixture_problems(manifest: dict, fresh_root: Path) -> list[str]:
+    """How a fresh build (fresh_root) differs from the committed manifest: every manifest field but the tokenizer
+    directory's name, and every file's sha256 (what `agentbench fixtures check` compares)."""
+    fresh = json.loads((fresh_root / "manifest.json").read_text(encoding="utf-8"))
+    problems = [f"manifest.json: {k} differs from the committed manifest" for k in sorted(set(manifest) | set(fresh))
+                if k not in ("files", "tokenizer_snapshot") and fresh.get(k) != manifest.get(k)]
+    files, got = manifest.get("files", {}), fresh.get("files", {})
+    for rel, meta in files.items():
+        if rel not in got:
+            problems.append(f"{rel}: no longer generated")
+        elif got[rel]["sha256"] != meta["sha256"]:
+            problems.append(f"{rel}: sha256 differs from the manifest")
+    problems += [f"{rel}: new file not in the manifest" for rel in sorted(set(got) - set(files))]
+    return problems
+
+
+def build_fixtures(root: Path | None = None, log=print) -> int:
+    """Build the fixtures into a temporary directory with the tokenizer agentbench resolves, compare the build with
+    root/manifest.json, then replace root/generated (gitignored) with the build's and check every manifest file
+    on disk. The committed files are never written. 0 = ok, 1 = a mismatch (generated/ left as it was), 5 = no
+    tokenizer or no manifest."""
+    from agentbench.fixtures.build import build
+    from agentbench.tokenizer import snapshot_dir
+
+    root = Path(root or paths.FIXTURES)
+    try:
+        tok = snapshot_dir()
+        manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+    except (FileNotFoundError, ValueError) as e:
+        log(f"modeleval fixtures: {e}")
+        return 5
+    source = f"${TOKENIZER_ENV}" if os.environ.get(TOKENIZER_ENV) else "HF snapshot"
+    log(f"tokenizer {paths.tilde(tok)} ({source}); building with seed {manifest['seed']} into a temporary directory")
+    t0 = time.time()
+    with tempfile.TemporaryDirectory(prefix="modeleval-fixtures-") as tmp:
+        fresh = build(Path(tmp), manifest["seed"], log=lambda line: log(f"  {line}"))
+        problems = fixture_problems(manifest, Path(tmp))
+        if problems:
+            for p in problems:
+                log(f"MISMATCH {p}")
+            log(f"fixtures: {len(problems)} problem(s); {paths.tilde(root / 'generated')} left as it was")
+            return 1
+        gen = root / "generated"
+        if gen.exists():
+            shutil.rmtree(gen)
+        shutil.copytree(Path(tmp) / "generated", gen)
+    extras = fresh.get("extra_prompts", {})
+    log(f"built in {time.time() - t0:.1f} s; installed {paths.tilde(gen)}: {len(manifest['files'])} manifest files, "
+        f"outside the manifest {', '.join(f'{k} ({v} tokens)' for k, v in extras.items()) or 'none'}")
+    stale = [rel for rel, meta in manifest["files"].items()
+             if not (root / rel).is_file() or _sha256(root / rel) != meta["sha256"]]
+    ours = root == paths.FIXTURES   # the speed leg's fixtures: its prompts for every registry model must be there
+    missing = sorted({p for m in registry.load_models().values() for p in run.missing_prompts(run.load_speed(), m)}
+                     ) if ours else []
+    for rel in stale:
+        log(f"MISMATCH {rel}: the file on disk differs from the manifest")
+    if missing:
+        log(f"MISSING speed-leg prompts: {', '.join(missing)}")
+    if stale or missing:
+        return 1
+    log(f"fixtures check: OK (every file of {paths.tilde(root / 'manifest.json')} matches on disk"
+        + ("; the speed leg's prompts are there for every registry model)" if ours else ")"))
+    return 0
+
+
+def cmd_fixtures(a: argparse.Namespace) -> int:
+    return build_fixtures(log=lambda line: print(line, flush=True))
 
 
 # ---------------------------------------------------------------- selftest
@@ -282,6 +390,8 @@ def parser() -> argparse.ArgumentParser:
     pb.add_argument("model", nargs="?", help="registry key or served id (default: every run of this pipeline)")
     pb.add_argument("run_id", nargs="?", help="one run of that model (default: all of its runs)")
     pb.set_defaults(fn=cmd_publish)
+    sub.add_parser("fixtures", help="build fixtures/generated with the reference tokenizer (CPU only) and check it "
+                   "against fixtures/manifest.json").set_defaults(fn=cmd_fixtures)
     s = sub.add_parser("selftest", help="offline tests and hygiene checks")
     s.add_argument("--skip-tests", action="store_true")
     s.set_defaults(fn=cmd_selftest)
@@ -293,6 +403,7 @@ def main(argv: list[str] | None = None) -> int:
     os.environ["GIT_OPTIONAL_LOCKS"] = "0"
     sys.dont_write_bytecode = True
     a = parser().parse_args(argv)
+    default_tokenizer_dir()
     try:
         return a.fn(a)
     except (registry.RegistryError, prepare.PrepareError, paths.ConfigError) as e:

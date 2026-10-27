@@ -10,7 +10,7 @@ the fixed setting, and [DESIGN.md](DESIGN.md) explains why.
 uv sync                                  # Python 3.12 venv with modeleval + the copied agentbench harness
 uv sync --project envs/capability        # Python 3.13: the capability runner and the recorder proxy
 uv sync --project envs/agent-tools       # pytest only: the agents' PATH and the checkers
-(cd harness && uv run agentbench fixtures build)   # once: fixtures/generated (gitignored), incl. the 110K M3 prompt
+uv run modeleval fixtures                # once: fixtures/generated (gitignored), incl. the 110K M3 prompt; CPU only
 uv run modeleval selftest                # offline: tests, path and hygiene checks (no server, no GPU, no lock)
 uv run modeleval models                  # the registry and what each model has
 uv run modeleval plan <model>            # units, time estimates, what is already done
@@ -21,6 +21,13 @@ uv run modeleval publish                 # the results page's rows under docs/be
 
 `<model>` is a registry key from `models.toml` (for example `nanbeige4-3-33b-oq5`) or a served
 id.
+
+The fixtures are sized in the reference model's (Qwen3.8) tokens. At startup `modeleval` sets
+`$AGENTBENCH_TOKENIZER_DIR`, when it is unset, to the reference checkpoint (`models.toml` `path`, with the
+config's `[paths]`), if that directory has the tokenizer files; otherwise the harness looks for an HF snapshot
+of `Qwen/Qwen3.8-27B` under `$HF_HOME`. `modeleval fixtures` builds into a temporary directory, compares the
+build with the committed `fixtures/manifest.json` (every file's sha256), and only then replaces
+`fixtures/generated`; the committed fixture files are never written. It prints the tokenizer directory it used.
 
 ## On another Mac
 
@@ -182,4 +189,5 @@ rewrites its `settings.json` and `model_settings.json` before every launch.
   processes on ephemeral ports in temporary directories; `tests/integration` runs the real
   orchestrator with the real speed module against agentbench's mock server launched as `omlx`.
   Run them with `uv run pytest tests/core -q`, or the whole suite with `uv run modeleval selftest`
-  (`cd harness && uv run pytest -q` for the copied harness).
+  (`cd harness && uv run pytest -q` for the copied harness; its fixture and template tests need
+  `$AGENTBENCH_TOKENIZER_DIR` set to the reference checkpoint, and skip without it).

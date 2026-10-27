@@ -35,6 +35,6 @@ fi
 # scripts/build_docs.py --check runs, on the working tree, from the repository root.
 cd "$root"
 if [ -f scripts/build_docs.py ] && ! "$py" -I -B scripts/build_docs.py --check; then
-  echo "pre-commit: docs/index.html or the README results block is stale: run python3 scripts/build_docs.py" >&2
+  echo "pre-commit: docs/index.html is stale: run python3 scripts/build_docs.py" >&2
   exit 1
 fi

@@ -76,6 +76,6 @@ def test_protocol_ids_match_the_canonical_epoch(results: Path, tmp_path: Path, m
     written, msgs = publish.rows(runs["flash"])
     [(_, row)] = written
     assert msgs == [] and row["protocol"] == "capability-9"
-    assert row["notes"].count("Harness epoch e-new, declared equivalent to e-old (DESIGN §6.5).") == 1
+    assert row["notes"].count("Harness epoch e-new, declared equivalent to e-old (eval/backend/DESIGN.md §6.5).") == 1
     [(_, ref_row)] = publish.rows(runs["qwen-ref"])[0]
     assert "declared equivalent" not in ref_row.get("notes", "")

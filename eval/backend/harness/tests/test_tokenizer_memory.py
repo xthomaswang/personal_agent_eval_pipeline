@@ -19,7 +19,7 @@ def test_template_render_and_count():
         from agentbench.tokenizer import QwenPrompt
         p = QwenPrompt()
     except FileNotFoundError:
-        pytest.skip("local Qwen3.8 snapshot not present")
+        pytest.skip("no local Qwen3.8 tokenizer: set $AGENTBENCH_TOKENIZER_DIR (README.md)")
     tools = [{"type": "function", "function": {"name": "f", "description": "d", "parameters": {"type": "object", "properties": {}}}}]
     msgs = [{"role": "system", "content": "sys"}, {"role": "user", "content": [
         {"type": "image_url", "image_url": {"url": "data:image/png;base64,AAAA"}}, {"type": "text", "text": "hi"}]}]

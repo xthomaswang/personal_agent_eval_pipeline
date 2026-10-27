@@ -16,7 +16,7 @@ results/_unverified/
 *.gguf
 models/
 
-# Generated fixtures (rebuild with `agentbench fixtures build`)
+# Generated fixtures (rebuild with `uv run modeleval fixtures`)
 fixtures/generated/
 
 # Secrets

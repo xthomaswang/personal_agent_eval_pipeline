@@ -48,6 +48,6 @@
       "value": "74.0 GiB"
     }
   ],
-  "notes": "Kept with a minor disturbance flag (DESIGN §5.4): m1. Some trajectory steps opened with a tool call, so their TTFT includes its decode.",
+  "notes": "Kept with a minor disturbance flag (eval/backend/DESIGN.md §5.4): Cached-prefix TTFT. Some trajectory steps opened with a tool call, so their TTFT includes its decode.",
   "details": "README.md"
 }

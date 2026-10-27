@@ -1079,7 +1079,7 @@ class Run:
             miss = missing_prompts(load_speed(), m)
             if miss:
                 raise Stop("refused", f"fixtures not built ({', '.join(miss)} missing): "
-                           "run `uv run agentbench fixtures build` in harness/ (needs the Qwen3.8 oQ5 tokenizer)")
+                           "run `uv run modeleval fixtures` (needs the reference checkpoint's tokenizer)")
         if "capability" in self.opts.legs:
             if not CAP_PYTHON.exists():
                 raise Stop("refused", f"no capability interpreter {paths.tilde(CAP_PYTHON)}: "
@@ -1238,7 +1238,7 @@ def readiness(opts: Options, m: Model) -> list[str]:
         except ImportError:
             miss = []
         out.append("ready       fixtures " + ("ok" if not miss else f"MISSING {', '.join(miss)} (refused; run "
-                                                                     "`uv run agentbench fixtures build` in harness/)"))
+                                                                     "`uv run modeleval fixtures`)"))
     if "capability" in opts.legs:
         epoch = registry.epoch_id(registry.load_pins())
         snap = bool(epoch) and (paths.VENDOR / str(epoch) / "epoch.json").exists()

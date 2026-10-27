@@ -511,3 +511,37 @@ async def test_m4_direct_tool_calls_without_server_timing_are_flagged(built, fx,
     r = s["per_run"][0]
     assert r["ttft_includes_decode"] == [0, 1] and r["decode_rate_tps"] is None and r["headline_s"] is None
     assert all(x["metrics"]["ttft_source"] == "client-incl-decode" for x in requests(read(path)))
+
+
+def test_tokenizer_resolution_builds_in_no_machine_path(tmp_path, monkeypatch):
+    """$AGENTBENCH_TOKENIZER_DIR, then an HF snapshot under $HF_HOME (the official repo first); no directory under
+    the home folder is assumed (modeleval points the variable at its reference checkpoint)."""
+    from agentbench import tokenizer as T
+
+    assert not hasattr(T, "OQ5_DIR") and "Developer" not in Path(T.__file__).read_text(encoding="utf-8")
+
+    def complete(d: Path) -> Path:
+        d.mkdir(parents=True)
+        for f in T.FILES:
+            (d / f).write_text("{}")
+        return d
+
+    def snap(repo: str, rev: str) -> Path:
+        return complete(tmp_path / "hf/hub" / ("models--" + repo.replace("/", "--")) / "snapshots" / rev)
+
+    monkeypatch.delenv("AGENTBENCH_TOKENIZER_DIR", raising=False)
+    monkeypatch.setenv("HF_HOME", str(tmp_path / "hf"))
+    with pytest.raises(FileNotFoundError, match="AGENTBENCH_TOKENIZER_DIR"):
+        T.snapshot_dir()
+    eight_bit = snap("mlx-community/Qwen3.8-27B-8bit", "b" * 40)
+    assert T.snapshot_dir() == eight_bit
+    official = snap("Qwen/Qwen3.8-27B", "a" * 40)
+    assert T.snapshot_dir() == official
+    own = tmp_path / "ckpt"
+    own.mkdir()
+    monkeypatch.setenv("AGENTBENCH_TOKENIZER_DIR", str(own))
+    with pytest.raises(FileNotFoundError, match="lacks one of"):
+        T.snapshot_dir()                       # an incomplete directory is an error, never a silent fallback
+    shutil.rmtree(own)
+    complete(own)
+    assert T.snapshot_dir() == own

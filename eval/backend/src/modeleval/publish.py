@@ -18,6 +18,7 @@ equivalence. Afterwards `python3 scripts/build_docs.py` at the repository root r
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import Any
 
@@ -44,6 +45,33 @@ SPEED_METRICS = ("64K cold TTFT", "Cached-prefix TTFT", "Decode 16K", "Decode 32
 CAP_METRICS = ("Claude Code (gate)", "Hermes (gate)", "localmelo (gate)", "Gate set", "Ranking set",
                "M7 tool-call cases")
 DECODE_UNITS = ("m3-16k", "m3-32k", "g5+m3-64k", "m3-110k")
+M4_UNITS = ("m4-1", "m4-2", "m4-3")   # the trajectory column is the median of these runs
+# The SPEED_METRICS columns each timed unit (speed.UNIT_ORDER) feeds, so that notes name what a reader of the row
+# sees, never a unit id: G5 and the 64K decode cell are one unit, and the three M4 runs make one column.
+UNIT_COLUMNS: dict[str, tuple[str, ...]] = {
+    "g5+m3-64k": ("64K cold TTFT", "Decode 64K"), "m1": ("Cached-prefix TTFT",), "m3-16k": ("Decode 16K",),
+    "m3-32k": ("Decode 32K",), "m3-110k": ("Decode 110K",), **{u: ("20-step agent trajectory",) for u in M4_UNITS}}
+# Units without a column of their own in the row (RESULTS.md shows them)
+UNIT_LABELS = {"m3-think-16k": "Decode 16K with thinking on (in RESULTS.md, not in this table)"}
+
+
+# DESIGN.md as a reader of the results page finds it: its path in the repository (eval/backend/DESIGN.md)
+DESIGN_DOC = Path(os.path.relpath(paths.REPO / "DESIGN.md", paths.MONOREPO)).as_posix()
+
+
+def design_ref(section: str) -> str:
+    return f"{DESIGN_DOC} §{section}"
+
+
+def unit_columns(units: list[str]) -> list[str]:
+    """The row's column names for timed units, in SPEED_METRICS order; the trajectory column says how many of
+    its runs are meant, and a unit without a column gets UNIT_LABELS' name (else its id)."""
+    out = []
+    for name in SPEED_METRICS:
+        hit = [u for u in units if name in UNIT_COLUMNS.get(u, ())]
+        if hit:
+            out.append(f"{name} ({len(hit)} of its {len(M4_UNITS)} runs)" if hit[0] in M4_UNITS else name)
+    return out + [UNIT_LABELS.get(u, u) for u in units if u not in UNIT_COLUMNS]
 
 
 def speed_protocol(run: report.Run) -> str | None:
@@ -94,7 +122,7 @@ def speed_notes(run: report.Run) -> str:
     notes = []
     units = [u for u in report.speed.timed_units(_spec(run)) if report.minor_kept(run, u)]
     if units:
-        notes.append(f"Kept with a minor disturbance flag (DESIGN §5.4): {', '.join(units)}.")
+        notes.append(f"Kept with a minor disturbance flag ({design_ref('5.4')}): {', '.join(unit_columns(units))}.")
     if any(report._decode_mark(run, f"m4-{i}", "m4") for i in (1, 2, 3)):
         notes.append("Some trajectory steps opened with a tool call, so their TTFT includes its decode.")
     if not report.speed_complete(run):
@@ -135,7 +163,7 @@ def cap_notes(run: report.Run, mapping: dict[str, str] | None = None) -> str:
     notes = []
     canonical = report.canonical_epoch(run.epoch, mapping)
     if canonical is not None and str(canonical) != str(run.epoch):
-        notes.append(f"Harness epoch {run.epoch}, declared equivalent to {canonical} (DESIGN §6.5).")
+        notes.append(f"Harness epoch {run.epoch}, declared equivalent to {canonical} ({design_ref('6.5')}).")
     if not report.cap_complete(run, "gate"):
         done = sum(d["runs"] for d in gate.values())
         status = str(run.manifest.get("status") or "stopped")

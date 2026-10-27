@@ -156,6 +156,17 @@ the old tests pass unchanged; `tests/test_model_eval_changes.py` covers each cha
   Qwen3.8 path renders exactly as before. *Why:* Nanbeige keeps its template in
   `tokenizer_config.json` and ships no preprocessor config, so the strict loader would fail.
 
+- **No built-in machine path.** `snapshot_dir()` resolves `$AGENTBENCH_TOKENIZER_DIR` (which must
+  hold all three files), then an HF snapshot of `Qwen/Qwen3.8-27B` or
+  `mlx-community/Qwen3.8-27B-8bit` under `$HF_HOME/hub`. The c15a0a8 second step, the oQ5
+  checkpoint at `~/Developer/mlsys/models/oq/Qwen3.8-27B-oQ5-mtp` (`OQ5_DIR`), is gone.
+  `modeleval` sets the variable, when unset, to its registry's reference checkpoint at startup
+  (when that directory has the files), and `modeleval fixtures` builds and checks the fixtures
+  with it. The tokenizer is the same files on the owner's machine, so the fixtures stay
+  byte-identical. *Why:* without the variable the harness looked for the checkpoint only in the
+  owner's home layout; on another Mac, or with the models elsewhere (config `[paths] models`),
+  runs and fixture builds failed unless an HF snapshot happened to be cached.
+
 ## CLI (`cli.py`)
 
 New options: `--no-vision`, `--cold-nonce tool|system+tool`, `--anthropic-sampling`,
@@ -177,8 +188,10 @@ Logged requests record their `sampling` fields.
 
 ## Tests
 
-- `tests/test_model_eval_changes.py` (new, 26 tests) covers every change above, including the CLI
-  options and `summarize` on new M4 files.
+- `tests/test_model_eval_changes.py` (new, 27 tests) covers every change above, including the CLI
+  options, `summarize` on new M4 files and the tokenizer resolution.
+- The fixture and template tests skip without a resolvable tokenizer: set
+  `$AGENTBENCH_TOKENIZER_DIR` to the reference checkpoint before `uv run pytest`.
 - `tests/test_interference.py`: the 12 tests of `scripts/interference.py` and `scripts/run_m8.sh`
   skip when those scripts are missing. agent-model-eval did not copy the M8 tooling (M8 is
   dropped by default). The 5 quietlib tests skip when `scripts/quietlib.py` is agent-model-eval's

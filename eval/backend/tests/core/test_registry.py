@@ -17,6 +17,8 @@ def test_repo_registry_loads_three_models_with_one_reference():
     assert set(models) == {"qwen3-8-27b-oq5", "nanbeige4-3-33b-oq5", "qwen3-8-flash-next-oq4e"}
     ref = registry.reference(models)
     assert ref.key == "qwen3-8-27b-oq5" and ref.spec == "mtp" and ref.quant == "oQ5"
+    assert ref.prepare == {"convert": {"level": 5}}   # download + convert work for the reference on a fresh Mac
+    assert ref.source["revision"] == "1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0"
     nb = models["nanbeige4-3-33b-oq5"]
     assert nb.spec == "none" and not nb.vision and nb.sampling["top_k"] == 0
     assert nb.source["revision"] == "c1093c501cc6460427c0ac634db7223d0450c0ee"

@@ -30,6 +30,10 @@ proxy_sampling = "inject:qwen3.8-gen-config"
 # Qwen3.5-family models log "Speculative backend selected ...: Lightning MTP (..., active)" at load;
 # "Lightning MTP enabled" is the Qwen4-Exp wording only. "MTP path activated" proves the warm-up used it.
 server_log_expect = ["Speculative backend selected for .*: Lightning MTP \\(.*active\\)", "MTP path activated"]
+# The campaign's recipe, for `modeleval download` + `convert` on a Mac without this checkpoint: oQ level 5 from the
+# pinned source revision; scripts/oq_convert.py keeps the MTP head by itself (--preserve-mtp auto: the source has
+# mtp.* tensors). No tokenizer fixes: the checkpoint keeps the source's tokenizer files unchanged.
+prepare = { convert = { level = 5 } }
 notes = [
   "Converted 2026-10-21 by the qwen3.8-27b campaign (oMLX 0.7.1rc1 oQ, group 64, full-precision sensitivity, MTP head kept).",
   "Read only: its files are hard links shared with another session's models/chat copy.",

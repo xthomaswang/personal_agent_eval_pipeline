@@ -7,17 +7,22 @@ in-process from `modeleval` (DESIGN.md §5, §10). The copy is modified; every c
 [STATUS.md](STATUS.md) is the old campaign's status note.
 
 Python 3.12, uv project, offline. The tokenizer and chat template come from a local directory:
-`$AGENTBENCH_TOKENIZER_DIR`, else the oQ5 checkpoint `~/Developer/mlsys/models/oq/Qwen3.8-27B-oQ5-mtp`,
-else an HF snapshot of `Qwen/Qwen3.8-27B` or `mlx-community/Qwen3.8-27B-8bit`. The fixtures were
-built from the 8-bit snapshot, and the oQ5 files rebuild them byte for byte
-(`src/agentbench/tokenizer.py`).
+`$AGENTBENCH_TOKENIZER_DIR`, else an HF snapshot of `Qwen/Qwen3.8-27B` or
+`mlx-community/Qwen3.8-27B-8bit` under `$HF_HOME/hub`; no machine path is built in. `modeleval` sets
+the variable, when unset, to its reference checkpoint (the Qwen3.8-27B oQ5 + MTP `path` in
+`../models.toml`). The fixtures were built from the 8-bit snapshot, and the oQ5 files rebuild them
+byte for byte (`src/agentbench/tokenizer.py`).
 
 ```bash
 cd harness
 uv sync                              # harness/.venv from uv.lock
+export AGENTBENCH_TOKENIZER_DIR=<the reference checkpoint>   # without it the fixture and template tests skip
 uv run pytest -q                     # mock servers only; never a real model server
-uv run agentbench fixtures build     # deterministic fixtures in ../fixtures (about 20 s)
 ```
+
+Build the fixtures from the backend directory with `uv run modeleval fixtures`: it sets the
+tokenizer directory, builds, and checks the build against `fixtures/manifest.json` before it
+replaces `fixtures/generated` (about 20 s).
 
 **The harness never takes the GPU lock and never starts or stops a server.** Follow
 METHODOLOGY §3 (lock, port check) before any timed run. It refuses base URLs on 8500 and

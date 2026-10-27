@@ -11,7 +11,7 @@ def built(tmp_path_factory):
         from agentbench.tokenizer import snapshot_dir
         snapshot_dir()
     except FileNotFoundError:
-        pytest.skip("local Qwen3.8 snapshot not present")
+        pytest.skip("no local Qwen3.8 tokenizer: set $AGENTBENCH_TOKENIZER_DIR (README.md)")
     from agentbench.fixtures.build import build
 
     root = tmp_path_factory.mktemp("fixtures")
@@ -30,7 +30,10 @@ def fx(built):
 def qwen():
     from agentbench.tokenizer import default_prompt
 
-    return default_prompt()
+    try:
+        return default_prompt()
+    except FileNotFoundError:
+        pytest.skip("no local Qwen3.8 tokenizer: set $AGENTBENCH_TOKENIZER_DIR (README.md)")
 
 
 def start_mock(root: Path, behavior: str, **overrides):

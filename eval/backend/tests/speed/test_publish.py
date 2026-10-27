@@ -32,7 +32,8 @@ def test_rows_of_the_committed_runs_are_the_numbers_of_results_md():
                                         "328.5 s", "74.0 GiB"]
     assert _values(q["agent_ability"][1]) == ["21/22", "20/22", "22/22", "63/66", "61/66", "21/22"]
     assert _values(n["agent_ability"][1]) == ["16/22", "15/18 (partial)", "—", "31/40 (partial)", "—", "17/22"]
-    assert "40 of 66 gate-set runs" in n["agent_ability"][1]["notes"] and "m1" in n["backend"][1]["notes"]
+    assert "40 of 66 gate-set runs" in n["agent_ability"][1]["notes"]
+    assert "minor disturbance flag (eval/backend/DESIGN.md §5.4): Cached-prefix TTFT." in n["backend"][1]["notes"]
     assert q["backend"][1]["reference"] is True and "reference" not in n["backend"][1]
     for rows in by.values():
         for suite, (path, row) in rows.items():
@@ -74,3 +75,16 @@ def test_runs_in_progress_unverified_or_foreign_are_not_published(tmp_path):
     assert publish.publish(root)[0].startswith("no run of this pipeline")
     man.write_text(json.dumps({**doc, "unverified": True}))
     assert publish.publish(root)[0].startswith("no run of this pipeline")
+
+
+def test_notes_name_the_columns_of_the_row_not_unit_ids():
+    """A note names what the row shows (SPEED_METRICS) and where DESIGN.md is in the repository."""
+    assert publish.design_ref("5.4") == "eval/backend/DESIGN.md §5.4"
+    assert publish.unit_columns(["m1"]) == ["Cached-prefix TTFT"]
+    assert publish.unit_columns(["m4-2", "m3-32k", "g5+m3-64k"]) == [
+        "64K cold TTFT", "Decode 32K", "Decode 64K", "20-step agent trajectory (1 of its 3 runs)"]
+    assert publish.unit_columns(["m4-1", "m4-3", "m3-think-16k"]) == [
+        "20-step agent trajectory (2 of its 3 runs)", publish.UNIT_LABELS["m3-think-16k"]]
+    every = [u for u in publish.UNIT_COLUMNS] + list(publish.UNIT_LABELS)
+    assert sorted(every) == sorted(report.speed.UNIT_ORDER)   # every timed unit has a name
+    assert {c for cols in publish.UNIT_COLUMNS.values() for c in cols} <= set(publish.SPEED_METRICS)
