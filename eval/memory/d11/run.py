@@ -260,7 +260,7 @@ def _run_item(
     if run_dir.exists():
         shutil.rmtree(run_dir)
 
-    before_tasks = set(_history_task_ids(mem_dir / "history.db"))
+    before_tasks = set(item.get("before_tasks") or _history_task_ids(mem_dir / "history.db"))
     summary = _invoke_harness(
         prompt_text,
         ws,
@@ -297,9 +297,10 @@ def _run_item(
     if summary is not None and n_llm is None:
         n_llm = 0
 
+    clean_item = {k: v for k, v in item.items() if k != "before_tasks"}
     verdict = runner.verdict(summary, check_result, None)
     record = {
-        **item,
+        **clean_item,
         "state": "finished",
         "task_id": task_id,
         "verdict": verdict,
@@ -323,6 +324,64 @@ def _run_item(
     }
     save(run_dir / "record.json", record)
     return record
+
+
+def _salvage_interrupted(item: dict[str, Any], trial: Path) -> dict[str, Any]:
+    """Record a 'started' item with no record.json as 'interrupted', salvaging summary.json and history.db."""
+    from bench.proxy.steps import step_counts
+
+    run_id = item["run_id"]
+    arm = item["arm"]
+    run_dir = trial / "runs" / run_id
+    mem_dir = trial / f"mem-{arm}"
+    summary_path = run_dir / "summary.json"
+    summary = json.loads(summary_path.read_text()) if summary_path.exists() else None
+    check_path = run_dir / "check.json"
+    check_result = json.loads(check_path.read_text()) if check_path.exists() else None
+
+    stdout_records = log_records(run_dir / "stdout.log")
+    run_record = next((r for r in reversed(stdout_records) if "task_id" in r and "status" in r), {})
+    task_id = run_record.get("task_id")
+    if not task_id:
+        before_tasks = set(item.get("before_tasks") or ())
+        after_tasks = _history_task_ids(mem_dir / "history.db")
+        new_tasks = [t for t in after_tasks if t not in before_tasks]
+        if new_tasks:
+            task_id = new_tasks[-1]
+        elif "before_tasks" not in item and after_tasks:
+            task_id = after_tasks[-1]
+
+    hist = _history_task_info(mem_dir / "history.db", task_id)
+    calls = log_records(run_dir / "calls.jsonl")
+    steps = (summary.get("steps") if summary else None) or (step_counts(calls) if calls else {})
+    n_llm = steps.get("n_llm")
+    if n_llm is None:
+        n_llm = hist["llm_calls"]
+    timed_out = bool(summary and summary.get("timed_out"))
+    budget = timed_out or any(c.get("budget_exhausted") for c in calls)
+    clean_item = {k: v for k, v in item.items() if k != "before_tasks"}
+    return {
+        **clean_item,
+        "state": "interrupted",
+        "task_id": task_id,
+        "verdict": "interrupted",
+        "passed": False,
+        "wall_s": summary.get("wall_s") if summary else None,
+        "exit_code": summary.get("exit_code") if summary else None,
+        "timed_out": timed_out,
+        "budget_exhausted": budget,
+        "n_llm": n_llm,
+        "n_tool": steps.get("n_tool"),
+        "n_llm_aux": steps.get("n_llm_aux"),
+        "n_llm_err": steps.get("n_llm_err"),
+        "history_steps": hist["steps"],
+        "history_llm_calls": hist["llm_calls"],
+        "task_status": run_record.get("status") or hist["task_status"] or "interrupted",
+        "check": check_result,
+        "run_dir": str(run_dir.relative_to(trial)),
+        "mem_dir": str(mem_dir.relative_to(trial)),
+        "error": "interrupted",
+    }
 
 
 def _export(localmelo: Path, mem_dir: Path, home_dir: Path, flag: str, target: Path) -> None:
@@ -477,21 +536,28 @@ def bootstrap_ci(
     }
 
 
+def _is_interrupted(row: dict[str, Any]) -> bool:
+    return row.get("state") == "interrupted" or row.get("verdict") == "interrupted"
+
+
 def _summarize_slice(rows: Sequence[dict[str, Any]]) -> dict[str, Any]:
-    n = len(rows)
-    n_pass = sum(1 for r in rows if r.get("verdict") == "pass" or r.get("passed") is True)
-    llm_vals = [float(r["n_llm"]) for r in rows if r.get("n_llm") is not None]
-    wall_vals = [float(r["wall_s"]) for r in rows if r.get("wall_s") is not None]
-    written_vals = [int(r.get("entries_written", 0)) for r in rows]
+    finished = [r for r in rows if not _is_interrupted(r)]
+    n = len(finished)
+    n_interrupted = len(rows) - n
+    n_pass = sum(1 for r in finished if r.get("verdict") == "pass" or r.get("passed") is True)
+    llm_vals = [float(r["n_llm"]) for r in finished if r.get("n_llm") is not None]
+    wall_vals = [float(r["wall_s"]) for r in finished if r.get("wall_s") is not None]
+    written_vals = [int(r.get("entries_written", 0)) for r in finished]
     signals: Counter[str] = Counter()
-    for r in rows:
+    for r in finished:
         for sig, cnt in (r.get("admitted_by") or {}).items():
             signals[sig] += int(cnt)
-    same_hits = sum(int((r.get("recall_hits") or {}).get("same_exercise", 0)) for r in rows)
-    cross_hits = sum(int((r.get("recall_hits") or {}).get("cross_exercise", 0)) for r in rows)
-    task_local_hits = sum(int((r.get("recall_hits") or {}).get("task_local", 0)) for r in rows)
+    same_hits = sum(int((r.get("recall_hits") or {}).get("same_exercise", 0)) for r in finished)
+    cross_hits = sum(int((r.get("recall_hits") or {}).get("cross_exercise", 0)) for r in finished)
+    task_local_hits = sum(int((r.get("recall_hits") or {}).get("task_local", 0)) for r in finished)
     return {
         "n_runs": n,
+        "n_interrupted": n_interrupted,
         "n_pass": n_pass,
         "pass_rate": round(n_pass / n, 6) if n else None,
         "n_llm": {
@@ -520,9 +586,13 @@ def _summarize_slice(rows: Sequence[dict[str, Any]]) -> dict[str, Any]:
 
 
 def evaluate_d2(enriched_runs: Sequence[dict[str, Any]], *, n_boot: int = 2000, seed: int = 0) -> dict[str, Any]:
-    """Evaluate the D2 decision rule and paired tests on passes 2-5."""
+    """Evaluate the D2 decision rule and paired tests on passes 2-5, leaving interrupted runs out of pairs."""
     by_pair: dict[tuple[int, str], dict[str, dict[str, Any]]] = {}
+    interrupted_ids: list[str] = []
     for r in enriched_runs:
+        if _is_interrupted(r):
+            interrupted_ids.append(str(r.get("run_id") or f"p{int(r['pass']):02d}__{r['exercise']}__{r['arm']}"))
+            continue
         if int(r["pass"]) >= 2:
             by_pair.setdefault((int(r["pass"]), str(r["exercise"])), {})[str(r["arm"])] = r
 
@@ -562,7 +632,7 @@ def evaluate_d2(enriched_runs: Sequence[dict[str, Any]], *, n_boot: int = 2000, 
     mean_written_on = sum(on_written_p25) / len(on_written_p25) if on_written_p25 else 0.0
     max_written_on = max(on_written_p25) if on_written_p25 else 0
 
-    all_on_written = [int(r.get("entries_written", 0)) for r in enriched_runs if r.get("arm") == "on"]
+    all_on_written = [int(r.get("entries_written", 0)) for r in enriched_runs if r.get("arm") == "on" and not _is_interrupted(r)]
     all_mean_written_on = sum(all_on_written) / len(all_on_written) if all_on_written else 0.0
     all_max_written_on = max(all_on_written) if all_on_written else 0
 
@@ -576,6 +646,7 @@ def evaluate_d2(enriched_runs: Sequence[dict[str, Any]], *, n_boot: int = 2000, 
     return {
         "passes": [2, 3, 4, 5],
         "n_pairs": n_pairs,
+        "interrupted_runs": interrupted_ids,
         "pass_rate_off": round(pass_rate_off, 6) if pass_rate_off is not None else None,
         "pass_rate_on": round(pass_rate_on, 6) if pass_rate_on is not None else None,
         "pass_rate_diff": round(pass_rate_diff, 6) if pass_rate_diff is not None else None,
@@ -668,7 +739,7 @@ def build_report(
         enriched.append(
             {
                 **r,
-                "passed": bool(r.get("verdict") == "pass" or r.get("passed") is True),
+                "passed": False if _is_interrupted(r) else bool(r.get("verdict") == "pass" or r.get("passed") is True),
                 "admitted_by": admitted_by,
                 "entries_written": entries_written,
                 "recall_hits": recall_hits,
@@ -690,12 +761,26 @@ def build_report(
             for p in passes
         }
 
+    interrupted = [
+        {
+            "run_id": r.get("run_id") or f"p{int(r['pass']):02d}__{r['exercise']}__{r['arm']}",
+            "pass": r["pass"],
+            "exercise": r["exercise"],
+            "arm": r["arm"],
+            "task_id": r.get("task_id"),
+            "n_llm": r.get("n_llm"),
+            "wall_s": r.get("wall_s"),
+        }
+        for r in enriched
+        if _is_interrupted(r)
+    ]
     d2 = evaluate_d2(enriched)
     return {
         "schema_version": 1,
         "protocol": "d11-v1",
         "config": config or {},
         "exports": exports or {},
+        "interrupted": interrupted,
         "by_arm": by_arm,
         "by_arm_and_pass": by_arm_and_pass,
         "d2": d2,
@@ -706,12 +791,15 @@ def build_report(
 def render_markdown(report: dict[str, Any]) -> str:
     cfg = report.get("config") or {}
     d2 = report["d2"]
+    interrupted = report.get("interrupted") or []
     lines_out = [
         "# D11 cross-task memory report (--admit-on-outcome on vs off)",
         "",
         f"- localmelo SHA: `{cfg.get('localmelo_sha', 'unknown')}` (`--reasoning {cfg.get('reasoning', 'compress')}`)",
         f"- Model: `{cfg.get('model', 'unknown')}`; passes: {cfg.get('passes')}; "
         f"exercises: {len(cfg.get('exercises') or ())}",
+        f"- Interrupted runs ({len(interrupted)}): "
+        + (", ".join(f"`{r['run_id']}`" for r in interrupted) if interrupted else "none"),
         "",
         "## Per arm and pass",
         "",
@@ -765,7 +853,12 @@ def render_markdown(report: dict[str, Any]) -> str:
 def load_trial_report(trial: Path) -> dict[str, Any]:
     state = json.loads((trial / "d11.json").read_text())
     planned = state["schedule"]
-    runs = [state["runs"][item["run_id"]] for item in planned if item["run_id"] in state["runs"] and state["runs"][item["run_id"]].get("state") == "finished"]
+    runs = [
+        state["runs"][item["run_id"]]
+        for item in planned
+        if item["run_id"] in state["runs"]
+        and state["runs"][item["run_id"]].get("state") in ("finished", "interrupted")
+    ]
     decisions_by_arm: dict[str, list[dict[str, Any]]] = {}
     entries_by_arm: dict[str, list[dict[str, Any]]] = {}
     recalls_by_task: dict[str, list[dict[str, Any]]] = {}
@@ -829,17 +922,22 @@ def run_d11(
     for item in planned:
         run_id = item["run_id"]
         existing = state["runs"].get(run_id)
-        if existing and existing.get("state") == "finished":
+        if existing and existing.get("state") in ("finished", "interrupted"):
             continue
         record_file = trial / "runs" / run_id / "record.json"
-        if existing and existing.get("state") == "started" and record_file.exists():
-            state["runs"][run_id] = json.loads(record_file.read_text())
+        if existing and existing.get("state") == "started":
+            if record_file.exists():
+                state["runs"][run_id] = json.loads(record_file.read_text())
+            else:
+                state["runs"][run_id] = _salvage_interrupted(existing, trial)
             save(checkpoint, state)
             continue
-        state["runs"][run_id] = {**item, "state": "started"}
+        mem_dir = trial / f"mem-{item['arm']}"
+        before_tasks = _history_task_ids(mem_dir / "history.db")
+        state["runs"][run_id] = {**item, "state": "started", "before_tasks": before_tasks}
         save(checkpoint, state)
         record = _run_item(
-            item,
+            state["runs"][run_id],
             trial,
             localmelo,
             env_file,

@@ -132,7 +132,7 @@ def test_harness_flags_shared_mem_dir_and_resume(tmp_path: Path, monkeypatch: py
         "identity",
         lambda localmelo, **kw: {
             "protocol": "d11-v1",
-            "localmelo_sha": "15c3cde",
+            "localmelo_sha": "356ff19",
             "passes": kw["passes"],
             "exercises": list(kw["exercises"]),
             "model": "stub",
@@ -159,8 +159,19 @@ def test_harness_flags_shared_mem_dir_and_resume(tmp_path: Path, monkeypatch: py
         assert "# dirty" not in stub_file.read_text()
         stub_file.write_text(stub_file.read_text() + "\n# dirty\n")
 
-        if len(calls) == 2 and not getattr(fake_invoke, "allow_all", False):
-            raise RuntimeError("simulated interruption on run 3")
+        if run_dir.name == "p02__transpose__on" and not getattr(fake_invoke, "allow_all", False):
+            # Simulate an interrupted process that already touched history.db and summary.json
+            run_dir.mkdir(parents=True, exist_ok=True)
+            d11.save(run_dir / "summary.json", {"exit_code": -15, "timed_out": False, "wall_s": 0.4, "steps": {"n_llm": 1}})
+            with sqlite3.connect(mem_dir / "history.db") as conn:
+                conn.execute("CREATE TABLE IF NOT EXISTS tasks (task_id TEXT PRIMARY KEY, query TEXT, status TEXT, result TEXT)")
+                conn.execute("CREATE TABLE IF NOT EXISTS steps (step_id TEXT PRIMARY KEY, task_id TEXT)")
+                conn.execute(
+                    "CREATE TABLE IF NOT EXISTS llm_calls (task_id TEXT, seq INTEGER, kind TEXT, recall_json TEXT)"
+                )
+                conn.execute("INSERT INTO tasks VALUES ('tid-interrupted', 'q', 'running', '')")
+                conn.execute("INSERT INTO steps VALUES ('s1', 'tid-interrupted')")
+            raise KeyboardInterrupt("simulated mid-run interruption")
 
         calls.append(
             {
@@ -196,33 +207,44 @@ def test_harness_flags_shared_mem_dir_and_resume(tmp_path: Path, monkeypatch: py
     )
 
     trial = tmp_path / "trial"
-    with pytest.raises(RuntimeError, match="simulated interruption"):
-        d11.run_d11(trial, passes=1, exercises=("transpose", "proverb"))
+    with pytest.raises(KeyboardInterrupt, match="simulated mid-run interruption"):
+        d11.run_d11(trial, passes=2, exercises=("transpose", "proverb"))
 
-    assert len(calls) == 2
     state_mid = json.loads((trial / "d11.json").read_text())
-    assert state_mid["config"]["localmelo_sha"] == "15c3cde"
-    assert len(state_mid["schedule"]) == 4
-    assert sum(1 for r in state_mid["runs"].values() if r.get("state") == "finished") == 2
+    assert state_mid["config"]["localmelo_sha"] == "356ff19"
+    assert len(state_mid["schedule"]) == 8
+    assert state_mid["runs"]["p02__transpose__on"]["state"] == "started"
 
-    # Resume finishes the remaining 2 runs without re-running the first 2
+    # Resume must NOT replay the interrupted p02__transpose__on run: it records it as "interrupted",
+    # salvages summary.json and history.db, leaves its pair out of D2 pairs, and lists it in the report.
     fake_invoke.allow_all = True  # type: ignore[attr-defined]
-    report = d11.run_d11(trial, passes=1, exercises=("transpose", "proverb"))
-    assert len(calls) == 4
-    assert [c["arm"] for c in calls] == ["off", "on", "off", "on"]
+    report = d11.run_d11(trial, passes=2, exercises=("transpose", "proverb"))
+    assert "p02__transpose__on" not in [c["run_id"] for c in calls]
+    assert len(calls) == 7
     for c in calls:
         assert c["mem_dir"] == trial / f"mem-{c['arm']}"
         assert c["home_dir"] == trial / "home"
         assert c["timeout_s"] == 600.0 and c["max_steps"] == 30 and c["thinking"] == "off"
-    assert len(report["runs"]) == 4
+
+    state_done = json.loads((trial / "d11.json").read_text())
+    salvaged = state_done["runs"]["p02__transpose__on"]
+    assert salvaged["state"] == "interrupted" and salvaged["verdict"] == "interrupted"
+    assert salvaged["task_id"] == "tid-interrupted"
+    assert salvaged["history_steps"] == 1 and salvaged["n_llm"] == 1 and salvaged["wall_s"] == 0.4
+
+    assert [r["run_id"] for r in report["interrupted"]] == ["p02__transpose__on"]
+    assert report["d2"]["interrupted_runs"] == ["p02__transpose__on"]
+    # Pass 2 has 2 exercises, but transpose is excluded because its 'on' run was interrupted -> 1 pair left
+    assert report["d2"]["n_pairs"] == 1
+    assert "`p02__transpose__on`" in (trial / "report.md").read_text()
 
     # Re-running a completed trial executes nothing
-    d11.run_d11(trial, passes=1, exercises=("transpose", "proverb"))
-    assert len(calls) == 4
+    d11.run_d11(trial, passes=2, exercises=("transpose", "proverb"))
+    assert len(calls) == 7
 
     # Changed config is refused
     with pytest.raises(ValueError, match="changed"):
-        d11.run_d11(trial, passes=2, exercises=("transpose", "proverb"))
+        d11.run_d11(trial, passes=3, exercises=("transpose", "proverb"))
 
 
 def test_report_math_recall_splits_and_d2_decision_rule() -> None:

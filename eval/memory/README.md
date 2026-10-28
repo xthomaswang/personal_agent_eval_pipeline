@@ -137,3 +137,39 @@ were therefore unscorable for routing, with 38 never-admitted gold versions; bot
 were 0. The bench does not invent missing source ids. The notes currently derive provenance from the
 same step's tool result, while a factual note following `feed_day` accompanies `submit`, whose result
 contains no records. Environment: macOS 27.2 build `26B123`, Xcode 27.1 build `27A9275`; CPU stub only.
+
+## D11 runner
+
+`memory.d11.run` implements section 2 of `native_t4_and_d11.md`: 120 direct-mode runs over the 12 Aider
+exercises of `aider12-v0` (5 passes × 12 exercises × arms `off`/`on`). Real-model runs require the
+shared GPU lock and the user's window (~6 h of oQ5 across both arms). From `eval/`:
+
+```sh
+BENCH_LOCALMELO_REPO="$PWD/memory/vendor/localmelo" nice -n 19 uv run python -m memory.d11.run --run-dir <trial>
+```
+
+Each pass permutes the 12 exercises with a seed equal to the pass number (identical for both arms);
+each exercise runs in both arms back to back, with the first arm alternating by pass (`off` on odd
+passes, `on` on even passes), and gets a fresh exercise copy before every run. Each arm shares one
+memory directory (`<trial>/mem-off`, `<trial>/mem-on`), runs with `--admit-on-outcome <arm> --reasoning compress --output-format json`,
+and uses `aider12-v0` budgets (30 proxy calls, 600 s, thinking off) and a temporary harness HOME at `<trial>/home`.
+
+Outputs under `<trial>/`:
+
+- `d11.json`: resumable checkpoint with the config, `localmelo_sha`, the 120-run schedule, and per-run records.
+  Finished runs are skipped on resume; a `started` run with no `record.json` is recorded as `interrupted`
+  (salvaging `summary.json` and `history.db` if present), never replayed against an already-mutated memory,
+  left out of the D2 pairs, and listed in the report.
+- `runs/<run_id>/`: per-run proxy logs, `summary.json`, `check.json`, `record.json` and final `workspace/`.
+- `mem-off/{export,decisions}.jsonl` and `mem-on/{export,decisions}.jsonl`: active long-store entries and
+  admission decisions exported with the pinned clone's `melo-retrieve`.
+- `report.json` (and `results.json`) and `report.md`: per-arm and per-pass pass rate, `n_llm`, `wall_s`,
+  entries admitted by signal (`admitted_by`), long-store entries written per run, recall hits split into
+  `same_exercise` vs `cross_exercise` via `llm_calls.recall_json` `origin_task_ids`, and the D2 decision
+  rule on passes 2–5 with paired McNemar and bootstrap 95% CIs.
+
+CPU-only checks (no oMLX or GPU lock required):
+
+```sh
+nice -n 19 uv run python -I -m pytest memory/tests/test_d11.py
+```
