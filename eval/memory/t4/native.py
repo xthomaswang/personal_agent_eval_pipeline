@@ -140,8 +140,8 @@ def _evaluate(trial: Path, store: Path, fixtures: Path, tokenizer: Path | None) 
             cmd += ["--tokenizer", str(tokenizer)]
         with (trial / (module.rsplit(".", 1)[-1] + ".out")).open("w") as out, \
                 (trial / (module.rsplit(".", 1)[-1] + ".err")).open("w") as err:
-            subprocess.run(cmd, cwd=ROOT, stdout=out, stderr=err, check=True,
-                           env={**os.environ, "HOME": str(trial / "home")})
+            # The reader keeps the real HOME: its proxy's upstream token command may need the login keychain.
+            subprocess.run(cmd, cwd=ROOT, stdout=out, stderr=err, check=True)
 
 
 def identity(fixtures: Path, localmelo: Path, tokenizer: Path | None) -> dict[str, Any]:
