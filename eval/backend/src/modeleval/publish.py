@@ -39,6 +39,9 @@ CAP_PROTOCOLS: dict[str, dict[str, Any]] = {
     "capability-1": {"protocol_version": 1, "epoch": "7582825160ad",
                      "title": "Claude Code, Hermes, localmelo on Aider 12 + MCPMark easy 10 (gate set) and "
                               "Aider 22 (ranking set); thinking off"},
+    "capability-2": {"protocol_version": 1, "epoch": "4271c2f4a925",
+                     "title": "Claude Code, Hermes, localmelo on Aider 12 + MCPMark easy 10 (gate set) and "
+                              "Aider 22 (ranking set); thinking off"},
 }
 SPEED_METRICS = ("64K cold TTFT", "Cached-prefix TTFT", "Decode 16K", "Decode 32K", "Decode 64K", "Decode 110K",
                  "20-step agent trajectory", "Peak server memory")

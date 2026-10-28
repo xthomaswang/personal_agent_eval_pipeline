@@ -14,7 +14,7 @@
 # recorded reason stands and the selftest marks the declaration unverified.
 
 [epoch]
-id = "ce99c7b5d0bd"                                   # 2026-10-26 20:xx: the rewritten history's b999407
+id = "4271c2f4a925"                                   # localmelo a4366a4, Claude Code 2.1.312
 
 [[epoch.equivalent]]
 new = "ce99c7b5d0bd"
@@ -31,7 +31,7 @@ trees = { bench = ["40152a3feb446946d8a51fdfdf9934cb4376a8a9", "f258c98991f52ac3
 # The history rewrite of 2026-10-26 left bench/ at f258c989 (one comment reworded; see [[epoch.equivalent]]).
 [snapshot]
 repo = "."
-sha = "b999407db5b03503c2cf874da9ac8702092c183c"   # after the history rewrite: bench/ f258c989, smoke/ and shims/ unchanged
+sha = "91412872792b09774a6cd33c24c1051287a13730"   # blank-task behavior comment corrected
 bench = "eval/bench"
 smoke = "eval/agent_ability/smoke"
 shims = "eval/agent_ability/shims"
@@ -51,7 +51,7 @@ hermes_home = "homes/hermes"                        # tools/ and installs/ stay 
 # `git remote remove origin`; the venv is `UV_PYTHON_DOWNLOADS=never uv sync --frozen --all-extras` from
 # the clone's uv.lock: the same package versions as the bench's. Relative to this backend directory.
 repo = "vendor/localmelo"
-sha = "3b8f310ee68714497bc3a08805c061ad73a106a8"
+sha = "a4366a4a2ba8ce9eb34f7bf2158d871b5d221e63"
 dist = "localmelo"                                  # .venv/bin/melo must be an editable install of repo
 
 [hermes]
@@ -62,8 +62,8 @@ bin = "${agent_root}/.venv/bin/hermes"
 dist = "hermes_agent"
 
 [claude_code]
-version = "2.1.302"
-bin = "${claude_versions}/2.1.302"
+version = "2.1.312"
+bin = "vendor/claude-code/2.1.312"                  # retained copy, independent of CLI auto-update
 
 # Task data (fetched by harness-smoke's scripts/fetch_data.py into ml_source)
 [data]
