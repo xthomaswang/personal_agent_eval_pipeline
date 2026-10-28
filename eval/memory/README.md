@@ -12,6 +12,17 @@ Does an agent keep a correct, current and compact memory? Two parts:
 - **R3, offline retrieval** (planned here; built in personal-agent-bench): recall@k and latency of
   localmelo's retrievers on recorded agent runs. No agent loop.
 
+## localmelo for the native probe and D11
+
+They run their own localmelo clone, `eval/memory/vendor/localmelo` (gitignored, no remote), so a run of
+several hours never sees another session move a shared checkout. Pinned at **673ea8d** (R6-lite, #97).
+Made with `git clone --no-hardlinks <localmelo's git dir> eval/memory/vendor/localmelo`,
+`git checkout --detach <sha>`, `git remote remove origin`, then
+`UV_PYTHON_DOWNLOADS=never uv sync --frozen --all-extras` in the clone. The runners point bench.harness at
+it with `BENCH_LOCALMELO_REPO` and use its `melo-retrieve` for the exports. A memory directory belongs to
+one build (history.db v2 and long_term.db v1 are not read by older builds), so moving the pin starts new
+memory directories.
+
 ## T4
 
 ```

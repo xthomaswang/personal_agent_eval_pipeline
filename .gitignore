@@ -27,3 +27,6 @@ models/
 
 # Local preview mirror and review screenshots; canonical website source is in site/.
 /website-demo/
+
+# The memory suite's own localmelo clone (eval/memory/vendor/localmelo, pinned in eval/memory/README.md)
+eval/memory/vendor/
