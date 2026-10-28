@@ -20,6 +20,7 @@ import sqlite3
 import statistics
 import subprocess
 import sys
+import time
 from collections import Counter
 from collections.abc import Sequence
 from pathlib import Path
@@ -110,6 +111,46 @@ def schedule(passes: int = DEFAULT_PASSES, exercises: Sequence[str] = EXERCISES)
                     }
                 )
     return planned
+
+
+def _cmd_out(cmd: Sequence[str], timeout: float = 15.0) -> str:
+    try:
+        proc = subprocess.run(list(cmd), capture_output=True, text=True, timeout=timeout, check=False)
+        return proc.stdout.strip() if proc.returncode == 0 else ""
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
+
+
+def _battery_pct() -> int | None:
+    batt = _cmd_out(["pmset", "-g", "batt"])
+    m = __import__("re").search(r"(\d+)%", batt)
+    return int(m.group(1)) if m else None
+
+
+def _guard_battery(log_path: Path, low_pct: int = 30, resume_pct: int = 60) -> None:
+    level = _battery_pct()
+    if level is not None and level < low_pct:
+        with log_path.open("a") as log:
+            log.write(f"== battery {level}% < {low_pct}%: pausing until {resume_pct}%\n")
+        while True:
+            time.sleep(300)
+            now_level = _battery_pct()
+            if now_level is None or now_level >= resume_pct:
+                with log_path.open("a") as log:
+                    log.write(f"== battery {now_level}%: resuming\n")
+                break
+
+
+def _system_snapshot() -> dict[str, Any]:
+    return {
+        "timestamp": time.time(),
+        "sw_vers": _cmd_out(["sw_vers"]),
+        "macos_product_version": _cmd_out(["sw_vers", "-productVersion"]),
+        "macos_build": _cmd_out(["sw_vers", "-buildVersion"]),
+        "xcodebuild_version": _cmd_out(["xcodebuild", "-version"]),
+        "pmset_batt": _cmd_out(["pmset", "-g", "batt"]),
+        "pmset_therm": _cmd_out(["pmset", "-g", "therm"]),
+    }
 
 
 def identity(
@@ -918,6 +959,11 @@ def run_d11(
     for name in ("mem-off", "mem-on", "home", "runs", "ws"):
         (trial / name).mkdir(parents=True, exist_ok=True)
     env_file = adapters.write_env_file(trial / "agent-env.sh")
+    log_path = trial / "d11.log"
+    env_path = trial / "environment.json"
+    env_doc = json.loads(env_path.read_text()) if env_path.exists() else {}
+    env_doc.setdefault("start", _system_snapshot())
+    save(env_path, env_doc)
 
     for item in planned:
         run_id = item["run_id"]
@@ -932,6 +978,11 @@ def run_d11(
                 state["runs"][run_id] = _salvage_interrupted(existing, trial)
             save(checkpoint, state)
             continue
+        if (trial / "STOP").exists():
+            with log_path.open("a") as log:
+                log.write(f"== STOP file found before {run_id}; stopping\n")
+            break
+        _guard_battery(log_path)
         mem_dir = trial / f"mem-{item['arm']}"
         before_tasks = _history_task_ids(mem_dir / "history.db")
         state["runs"][run_id] = {**item, "state": "started", "before_tasks": before_tasks}
@@ -947,12 +998,22 @@ def run_d11(
         )
         state["runs"][run_id] = record
         save(checkpoint, state)
+        with log_path.open("a") as log:
+            log.write(
+                f"[{item['index']}/{len(planned)}] {run_id}: {record['verdict']} "
+                f"n_llm={record['n_llm']} wall_s={record['wall_s']}\n"
+            )
 
     if (trial / "ws").exists() and not any((trial / "ws").iterdir()):
         (trial / "ws").rmdir()
 
+    env_doc["end"] = _system_snapshot()
+    save(env_path, env_doc)
     state["exports"] = export_arms(trial, localmelo)
-    state["complete"] = True
+    state["complete"] = all(
+        state["runs"].get(item["run_id"], {}).get("state") in ("finished", "interrupted")
+        for item in planned
+    )
     save(checkpoint, state)
 
     report = load_trial_report(trial)
