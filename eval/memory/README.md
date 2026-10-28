@@ -15,7 +15,7 @@ Does an agent keep a correct, current and compact memory? Two parts:
 ## localmelo for the native probe and D11
 
 They run their own localmelo clone, `eval/memory/vendor/localmelo` (gitignored, no remote), so a run of
-several hours never sees another session move a shared checkout. Pinned at **76f9d74** (adds heuristic facts #114 and content digests #116 on top of R6-lite #97, #100, #103).
+several hours never sees another session move a shared checkout. Pinned at **b7aa590** (adds digest task names and verified-check filtering #128 on top of R6-lite and content digests).
 Made with `git clone --no-hardlinks <localmelo's git dir> eval/memory/vendor/localmelo`,
 `git checkout --detach <sha>`, `git remote remove origin`, then
 `UV_PYTHON_DOWNLOADS=never uv sync --frozen --all-extras` in the clone. The runners point bench.harness at
