@@ -125,7 +125,10 @@ def build(seed: int) -> dict[str, Any]:
             late = [k for k in v["sources"] if next(r["day"] for r in sc.RECORDS if r["key"] == k) > v["day"]]
             if late:
                 raise SystemExit(f"item {item['key']} day {v['day']}: cites records of later days {late}")
-            versions.append({"day": v["day"], "text": v["text"], "source_ids": rids(v["sources"], item["key"])})
+            version = {"day": v["day"], "text": v["text"], "source_ids": rids(v["sources"], item["key"])}
+            if "change" in v:
+                version["change"] = v["change"]
+            versions.append(version)
         items.append({"key": item["key"], "versions": versions})
 
     probes = []

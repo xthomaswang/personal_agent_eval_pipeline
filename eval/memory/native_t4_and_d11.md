@@ -19,11 +19,13 @@ build refuses it, so a pre-R5 baseline and an R5 candidate never share a directo
 
 - Session n (1..10): direct mode, with pab as the only MCP server:
   ```
-  melo --mcp-only --mcp-config <cfg> --keep-decision-text [R6-lite and R5 flags at their defaults] -- "<prompt>"
+  melo --mcp-only --mcp-config <cfg> --reasoning compress --keep-decision-text [R6-lite and R5 flags at their defaults] -- "<prompt>"
   cfg: {"mcpServers": {"pab": {"command": "<eval>/.venv/bin/python",
          "args": ["-m", "memory.pab", "--run-dir", "<trial>", "--session", "n", "--task", "t4-native"]}}}
   env: LOCALMELO_PERSIST_MEMORY=1, LOCALMELO_MEMORY_DIR=<trial>/mem (the same directory every day)
   ```
+  `--reasoning compress` is explicit: R6-lite's typed store and write path require a non-legacy
+  reasoning mode (protocol clarification, 2026-10-28); the R5/R6-specific flags stay at their defaults.
   `--task t4-native` offers `feed_day` and `submit` only, so localmelo's own memory does the
   remembering. The records arrive as tool output, never as a user message, as in real use; third-party
   mail in the user role would turn into profile facts through the user-statement markers.
@@ -44,7 +46,9 @@ build refuses it, so a pre-R5 baseline and an R5 candidate never share a directo
   ```
   `memory/t4/store.py` already reads an export whose entries carry `text` and
   `provenance.source_ids`. With an exported store, `fabricated_source` checks every cited id against
-  the ids pab's `feed_day` returned during the trial.
+  the ids pab's `feed_day` returned during the trial. A missing `long_term.db` means an empty store:
+  retain the export command's exit code and stderr as diagnostics, write empty exports, and still
+  run the reader and oracle (older pins exit 2 on a missing file; T59 and later exit 0).
 
 **Measures** (T4's own): probe accuracy per category over the 48 answerable probes, abstention apart;
 `fabricated_source`; `source_precision`; `duplicate_ratio`; `memory_tokens`. Plus Hippo's routing
@@ -62,8 +66,25 @@ include it (`facts.yaml` items, versions by day). For a candidate:
 | introduce a later version that only adds (a payment made, who brings snacks) | UPDATE or RELATED | NEW |
 | only records the item's current version already cites | IGNORE | |
 
-The "replaces" and "adds" labels go into `scenario.py` as a field on each later version when the
-routing check is built, from the gold texts: of the 16 later versions in fixtures v1, 12 replace a value and 4 only add.
+The `change: replaces` and `change: adds` labels in `scenario.py` are copied into `facts.yaml`: of
+fixtures v1's 16 later versions, 12 replace a value and 4 only add. These are routing metadata; the
+story, gold texts, records, probes and frozen drop list are unchanged.
+
+A version is introduced by its sources dated on that version's own day. Earlier-dated sources are
+support, not introductions of future versions. A row carries the latest version each of its ids
+introduces. A supporting id of a version the row carries gets no separate verdict: for example, C1
+(day 1) introduces `sister` v1, and C4 (day 8) introduces `family_dinner` v1, whose sources are C1+C4.
+The row `{C1}` carries only `sister` v1; `{C1,C4}` carries only `family_dinner` v1. Ids stay literal;
+neither routing nor the runner invents provenance from candidate text.
+
+The comparison tracks the **admitted store**, in decision-log order, per item. A row with an entry
+and action NEW, UPDATE, RELATED or MERGE advances that item's stored version; a refusal, IGNORE or
+CONFLICT does not. With no stored version, NEW is expected (RELATED accepted), whatever the carried
+version. With an older stored version, apply the replaces/adds rows above. With an equal or newer
+stored version, expect IGNORE. Report a verdict for each (row, item), per-pair and per-row totals,
+`conflict_left_open`, `distractor_admitted`, and `missed_versions`: timeline versions never admitted
+by day 10. Missing source ids, ids absent from the fixtures and non-distractor records that map to
+no item are unscorable, reported separately; ids pab never returned are also checked by the oracle.
 
 **Comparators.** Memory off scores 0 on the answerable probes by T4's construction (the filter keeps
 only probes an empty store cannot answer), so it is not a comparator.

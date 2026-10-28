@@ -32,6 +32,8 @@ t4/fixtures/v1/        days/day01..10.jsonl, facts.yaml, probes.yaml, drop_list.
 pab/                   the bench's MCP server (stdio): feed_day, memory_*, submit
 t4/reader.py           the fixed reader (one call per probe, thinking off, temperature 0)
 t4/oracle.py           accuracy per category, fabricated_source, source_precision, duplicate_ratio, memory_tokens
+t4/native.py           resumable localmelo native trial, exports and both fixed-reader arms
+t4/routing.py          Hippo decisions against version introductions and admitted-store state
 t4/values.py           answer normalization and key-value extraction
 ```
 
@@ -81,3 +83,57 @@ thinking off, temperature 0; macOS 26B5101f, Xcode 27A9275; M5 Max 128 GB):
 drops answerable probes that the reader gets right from an empty store; abstention probes are never
 dropped, since an empty store answers them right by construction, and are reported apart. The headline
 is the accuracy over the four answerable categories.
+
+### Native localmelo driver
+
+`memory.t4.native` implements section 1 of `native_t4_and_d11.md`. From `eval/`, with the model server,
+`BENCH_MODEL`, tokenizer (`BENCH_MODEL_PATH` or `--tokenizer`) and GPU lock arranged by the caller:
+
+```sh
+BENCH_LOCALMELO_REPO="$PWD/memory/vendor/localmelo" nice -n 19 uv run python -m memory.t4.native --run-dir <trial>
+```
+
+Each day has its own process, workspace, MCP config and recorder under `sessions/dayNN/`; all ten
+processes share `<trial>/mem` and a temporary harness HOME at `<trial>/home`. Only pab's `feed_day` and
+`submit` are exposed. The driver keeps localmelo's R5/R6 flags at their defaults, adds
+`--reasoning compress --keep-decision-text --output-format json`, and uses 30 proxy calls, 900 s and thinking off. MCP is
+launched with an isolated Python bootstrap that explicitly names the trusted `eval/` root, because
+this project is not installed as a Python package.
+
+Re-running the same command resumes `t4/native.json`. Completed sessions, including budget exhaustion,
+are not replayed. A started session whose process was interrupted is recorded as interrupted (or
+recovered from its completed harness summary), then the driver proceeds to the next day; it never
+replays a partially-mutated memory. A changed build, model, fixture fingerprint or tokenizer requires
+a fresh trial. Export/reader failures leave the checkpoint resumable without repeating ingestion.
+
+After ingestion, `t4/export.jsonl` and `t4/decisions.jsonl` come from the pinned clone's `melo-retrieve`.
+Each has an adjacent `.diagnostic.json` with the command's exit code, stderr and missing-store flag;
+a missing long-term database produces empty exports and still proceeds through both readers. Other
+export errors stop evaluation and remain resumable.
+`t4/routing.json` reports decision-row/item verdicts, unscorable provenance and never-admitted versions.
+`t4/store-everything.jsonl` retains every decision's text, including ignored duplicates; missing texts
+are an error, not silently dropped. The native arm writes `reader/` and `t4/oracle.json`; the same
+reader/oracle runs on the rebuilt store under `comparators/store-everything/`, using the original pab
+events for fabricated-source checks. Per-session proxy model calls, wall time and admitted-by-signal
+counts are saved in the checkpoint. Without a tokenizer, the oracle explicitly reports null tokens.
+
+CPU-only checks (no oMLX required):
+
+```sh
+nice -n 19 uv run python -I -m pytest memory/tests/test_native_t4.py memory/tests/test_t4.py
+nice -n 19 uv run python -I -m pytest memory/tests/test_native_t4_smoke.py
+```
+
+The smoke uses the suite's localmelo clone if available (otherwise skips), a loopback scripted model,
+and fresh scratch/HOME directories. It drives pab through localmelo, quotes facts from actual tool
+outputs in structured notes (no gold lookup), answers reader probes with scripted nulls, and handles
+llm-retriever catalogs; its scores are **not model-quality measurements**.
+
+The 2026-10-28 scripted smoke at localmelo `15c3cde` completed 10 sessions and 20 pab tool calls in one
+memory directory. It exported 11 active entries (10 episodic reasoning notes plus 1 user-request digest)
+and 30 decision rows; both 60-probe reader/oracle arms completed. **Provenance limitation:** all source
+id lists were empty, even on the note quoting a record read by the preceding `feed_day`. All 30 rows
+were therefore unscorable for routing, with 38 never-admitted gold versions; both source precisions
+were 0. The bench does not invent missing source ids. The notes currently derive provenance from the
+same step's tool result, while a factual note following `feed_day` accompanies `submit`, whose result
+contains no records. Environment: macOS 27.2 build `26B123`, Xcode 27.1 build `27A9275`; CPU stub only.

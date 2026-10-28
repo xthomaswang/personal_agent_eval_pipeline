@@ -681,6 +681,7 @@ items:
     source_ids:
     - r38ad45f23d
     - r7f526eb523
+    change: replaces
 - key: rent
   versions:
   - day: 1
@@ -694,6 +695,7 @@ items:
     source_ids:
     - r4af3c64af7
     - r81f0e642f4
+    change: replaces
 - key: lena
   versions:
   - day: 1
@@ -713,6 +715,7 @@ items:
     source_ids:
     - ra4ec148cb4
     - rdceb8ac8ce
+    change: replaces
 - key: sister
   versions:
   - day: 1
@@ -731,6 +734,7 @@ items:
     source_ids:
     - rf0d8a064df
     - rf0eacc110e
+    change: replaces
 - key: kenji_trip
   versions:
   - day: 2
@@ -750,6 +754,7 @@ items:
     source_ids:
     - rbe3e2434e3
     - rcc8d103ed3
+    change: replaces
   - day: 9
     text: 'Book club (organizer Lucia Ferrante): reading Salt and Signal; meeting Wednesday 2026-04-22 at 19:00 at Kestrel
       Books. Grace Liu brings snacks; Omar leads the discussion.'
@@ -757,6 +762,7 @@ items:
     - rbe3e2434e3
     - rcc8d103ed3
     - rf01abb8ba3
+    change: adds
 - key: concert
   versions:
   - day: 2
@@ -770,6 +776,7 @@ items:
     source_ids:
     - raa6a107b75
     - r41ee52bdb6
+    change: adds
   - day: 6
     text: 'Static Bloom concert at the Paradise Lot on Saturday 2026-04-11: doors moved to 21:00 (the opener cancelled; Lena
       told Jamie). Omar bought 3 tickets at $84.50 each (Jamie, Omar, Lena). Jamie paid Omar $84.50 for his own ticket on
@@ -778,6 +785,7 @@ items:
     - raa6a107b75
     - r41ee52bdb6
     - r401bd7ce73
+    change: replaces
   - day: 8
     text: Static Bloom concert at the Paradise Lot on Saturday 2026-04-11, doors at 21:00. Omar bought 3 tickets at $84.50
       each (Jamie, Omar, Lena). Jamie paid Omar $84.50 for his own ticket on 2026-04-09, and is also covering Lena's ticket
@@ -787,6 +795,7 @@ items:
     - r41ee52bdb6
     - r401bd7ce73
     - r0221615022
+    change: adds
 - key: plumber
   versions:
   - day: 3
@@ -802,6 +811,7 @@ items:
     - r0b78255d68
     - r802b28fef0
     - rdc2e47dc0e
+    change: replaces
   - day: 8
     text: 'Kitchen sink repair at 14 Orchard Lane, Apt 3, arranged by landlord Tom: Adler Plumbing, technician Ben Okoro,
       visit Monday 2026-04-13 (moved from 2026-04-10, part on backorder). Final invoice $215.00 (estimate was $180.00), billed
@@ -811,6 +821,7 @@ items:
     - r802b28fef0
     - rdc2e47dc0e
     - r09d9bc1d97
+    change: replaces
 - key: reading_group
   versions:
   - day: 3
@@ -823,6 +834,7 @@ items:
     source_ids:
     - r649403560d
     - r0ef320cd57
+    change: replaces
 - key: code_freeze
   versions:
   - day: 3
@@ -841,6 +853,7 @@ items:
     source_ids:
     - r8fc7038069
     - r84b1eedaff
+    change: replaces
 - key: cabin
   versions:
   - day: 4
@@ -854,6 +867,7 @@ items:
     source_ids:
     - r915d5f576c
     - rf9fa1b1bf1
+    change: adds
 - key: lena_birthday
   versions:
   - day: 5
@@ -873,6 +887,7 @@ items:
     source_ids:
     - r04de3a5db5
     - r48e65150b5
+    change: replaces
 - key: desk
   versions:
   - day: 6
@@ -884,6 +899,7 @@ items:
     source_ids:
     - rcb6bc15385
     - r9c5349da48
+    change: replaces
 - key: one_on_one
   versions:
   - day: 7

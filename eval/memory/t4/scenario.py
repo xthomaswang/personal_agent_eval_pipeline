@@ -326,20 +326,21 @@ DISTRACTORS: list[dict[str, Any]] = [
 ]
 
 # The gold memory store. A version's sources are record keys; its text uses absolute dates and only values
-# found in (or resolved for) those records, so the gold store has source_precision 1.
+# found in (or resolved for) those records, so the gold store has source_precision 1. Later versions
+# label whether the new evidence replaces a value or only adds facts, for the native routing check.
 ITEMS: list[dict[str, Any]] = [
     {"key": "offsite", "versions": [
         {"day": 1, "sources": ["A1"], "text": "Q2 planning offsite (work; organizer Maya Lindqvist): Thursday "
          "2026-04-16, 09:30-16:00, at Pine Street Community Center. Lunch catered by Lupa Trattoria. Bring the "
          "team's Q2 draft."},
-        {"day": 6, "sources": ["A1", "A3"], "text": "Q2 planning offsite (work; organizer Maya Lindqvist): moved "
+        {"day": 6, "change": "replaces", "sources": ["A1", "A3"], "text": "Q2 planning offsite (work; organizer Maya Lindqvist): moved "
          "to Friday 2026-04-17, 09:30-16:00, at Harbor Hall (2nd floor), because Pine Street had a water leak. "
          "Lunch catered by Lupa Trattoria. Bring the team's Q2 draft."},
     ]},
     {"key": "rent", "versions": [
         {"day": 1, "sources": ["R1"], "text": "Lease at 14 Orchard Lane, Apt 3, landlord Tom Whitfield (Whitfield "
          "Properties): rent goes from $1,980 to $2,150 per month starting 2026-05-01."},
-        {"day": 4, "sources": ["R1", "R2"], "text": "Lease at 14 Orchard Lane, Apt 3, landlord Tom Whitfield "
+        {"day": 4, "change": "replaces", "sources": ["R1", "R2"], "text": "Lease at 14 Orchard Lane, Apt 3, landlord Tom Whitfield "
          "(Whitfield Properties): new rent $2,095 per month (corrected from $2,150) starting 2026-05-01; the old "
          "rent is $1,980."},
     ]},
@@ -350,7 +351,7 @@ ITEMS: list[dict[str, Any]] = [
     {"key": "yoga", "versions": [
         {"day": 1, "sources": ["Y1"], "text": "Yoga at Studio Verde with instructor Hannah Reyes, weekly on "
          "Saturdays, 09:00-10:00."},
-        {"day": 3, "sources": ["Y1", "Y2"], "text": "Yoga at Studio Verde with instructor Hannah Reyes, weekly on "
+        {"day": 3, "change": "replaces", "sources": ["Y1", "Y2"], "text": "Yoga at Studio Verde with instructor Hannah Reyes, weekly on "
          "Saturdays: from Saturday 2026-04-11 the class is at 10:00 instead of 09:00."},
     ]},
     {"key": "sister", "versions": [
@@ -360,7 +361,7 @@ ITEMS: list[dict[str, Any]] = [
     {"key": "dentist", "versions": [
         {"day": 2, "sources": ["B1"], "text": "Dental cleaning at Riverside Dental (220 Water Street) with "
          "Dr. Ana Sousa: Tuesday 2026-04-21 at 08:15."},
-        {"day": 8, "sources": ["B1", "B2"], "text": "Dental cleaning at Riverside Dental (220 Water Street): "
+        {"day": 8, "change": "replaces", "sources": ["B1", "B2"], "text": "Dental cleaning at Riverside Dental (220 Water Street): "
          "moved to Thursday 2026-04-23 at 10:45 with Dr. Ken Ito, because Dr. Sousa is unavailable on "
          "2026-04-21 (originally 08:15 with Dr. Ana Sousa)."},
     ]},
@@ -370,22 +371,22 @@ ITEMS: list[dict[str, Any]] = [
     {"key": "book_club", "versions": [
         {"day": 2, "sources": ["E1"], "text": "Book club (organizer Lucia Ferrante): reading The Glass Orchard by "
          "Imani Cole; meeting Wednesday 2026-04-22 at 19:00 at Kestrel Books."},
-        {"day": 5, "sources": ["E1", "E2"], "text": "Book club (organizer Lucia Ferrante): now reading Salt and "
+        {"day": 5, "change": "replaces", "sources": ["E1", "E2"], "text": "Book club (organizer Lucia Ferrante): now reading Salt and "
          "Signal instead of The Glass Orchard; meeting Wednesday 2026-04-22 at 19:00 at Kestrel Books."},
-        {"day": 9, "sources": ["E1", "E2", "E3"], "text": "Book club (organizer Lucia Ferrante): reading Salt and "
+        {"day": 9, "change": "adds", "sources": ["E1", "E2", "E3"], "text": "Book club (organizer Lucia Ferrante): reading Salt and "
          "Signal; meeting Wednesday 2026-04-22 at 19:00 at Kestrel Books. Grace Liu brings snacks; Omar leads "
          "the discussion."},
     ]},
     {"key": "concert", "versions": [
         {"day": 2, "sources": ["F1"], "text": "Static Bloom concert at the Paradise Lot on Saturday 2026-04-11, "
          "doors at 20:00. Omar bought 3 tickets at $84.50 each (Jamie, Omar, Lena); Jamie owes Omar $84.50."},
-        {"day": 5, "sources": ["F1", "F2"], "text": "Static Bloom concert at the Paradise Lot on Saturday "
+        {"day": 5, "change": "adds", "sources": ["F1", "F2"], "text": "Static Bloom concert at the Paradise Lot on Saturday "
          "2026-04-11, doors at 20:00. Omar bought 3 tickets at $84.50 each (Jamie, Omar, Lena). Jamie paid Omar "
          "$84.50 for his own ticket on 2026-04-09."},
-        {"day": 6, "sources": ["F1", "F2", "F3"], "text": "Static Bloom concert at the Paradise Lot on Saturday "
+        {"day": 6, "change": "replaces", "sources": ["F1", "F2", "F3"], "text": "Static Bloom concert at the Paradise Lot on Saturday "
          "2026-04-11: doors moved to 21:00 (the opener cancelled; Lena told Jamie). Omar bought 3 tickets at "
          "$84.50 each (Jamie, Omar, Lena). Jamie paid Omar $84.50 for his own ticket on 2026-04-09."},
-        {"day": 8, "sources": ["F1", "F2", "F3", "F4"], "text": "Static Bloom concert at the Paradise Lot on "
+        {"day": 8, "change": "adds", "sources": ["F1", "F2", "F3", "F4"], "text": "Static Bloom concert at the Paradise Lot on "
          "Saturday 2026-04-11, doors at 21:00. Omar bought 3 tickets at $84.50 each (Jamie, Omar, Lena). Jamie "
          "paid Omar $84.50 for his own ticket on 2026-04-09, and is also covering Lena's ticket as her birthday "
          "present, which he still has to pay Omar for."},
@@ -394,10 +395,10 @@ ITEMS: list[dict[str, Any]] = [
         {"day": 3, "sources": ["D1", "D2"], "text": "Kitchen sink repair at 14 Orchard Lane, Apt 3, arranged by "
          "landlord Tom: Adler Plumbing, technician Ben Okoro, Friday 2026-04-10 between 13:00 and 15:00. "
          "Estimate $180.00."},
-        {"day": 5, "sources": ["D1", "D2", "D3"], "text": "Kitchen sink repair at 14 Orchard Lane, Apt 3, "
+        {"day": 5, "change": "replaces", "sources": ["D1", "D2", "D3"], "text": "Kitchen sink repair at 14 Orchard Lane, Apt 3, "
          "arranged by landlord Tom: Adler Plumbing, technician Ben Okoro. The part is on backorder, so the visit "
          "moved from Friday 2026-04-10 to Monday 2026-04-13, 13:00-15:00. Estimate $180.00."},
-        {"day": 8, "sources": ["D1", "D2", "D3", "D4"], "text": "Kitchen sink repair at 14 Orchard Lane, Apt 3, "
+        {"day": 8, "change": "replaces", "sources": ["D1", "D2", "D3", "D4"], "text": "Kitchen sink repair at 14 Orchard Lane, Apt 3, "
          "arranged by landlord Tom: Adler Plumbing, technician Ben Okoro, visit Monday 2026-04-13 (moved from "
          "2026-04-10, part on backorder). Final invoice $215.00 (estimate was $180.00), billed to Whitfield "
          "Properties."},
@@ -405,7 +406,7 @@ ITEMS: list[dict[str, Any]] = [
     {"key": "reading_group", "versions": [
         {"day": 3, "sources": ["H1"], "text": "Reading group: Grace Liu presents a sparse attention survey on "
          "Thursday 2026-04-09, 15:00-16:00, in Room 4B."},
-        {"day": 4, "sources": ["H1", "H2"], "text": "Reading group: Grace Liu presents a sparse attention survey "
+        {"day": 4, "change": "replaces", "sources": ["H1", "H2"], "text": "Reading group: Grace Liu presents a sparse attention survey "
          "on Thursday 2026-04-09, 15:00-16:00; moved to Room 7A because 4B was double-booked."},
     ]},
     {"key": "code_freeze", "versions": [
@@ -414,14 +415,14 @@ ITEMS: list[dict[str, Any]] = [
     {"key": "flight", "versions": [
         {"day": 4, "sources": ["C2"], "text": "Priya Raman and Dev Kapoor fly UA 1482 from Denver (DEN) to Boston "
          "(BOS), arriving Friday 2026-04-17 at 18:40."},
-        {"day": 7, "sources": ["C2", "C3"], "text": "Priya Raman and Dev Kapoor fly UA 1482 from Denver (DEN) to "
+        {"day": 7, "change": "replaces", "sources": ["C2", "C3"], "text": "Priya Raman and Dev Kapoor fly UA 1482 from Denver (DEN) to "
          "Boston (BOS) on Friday 2026-04-17. United rebooked them (Dev told Jamie): they now arrive at 20:55 "
          "instead of 18:40, same flight number."},
     ]},
     {"key": "cabin", "versions": [
         {"day": 4, "sources": ["G1"], "text": "Cedar Ridge Cabin #3 (Cedar Ridge Rentals): check-in 2026-06-12, "
          "check-out 2026-06-15 (3 nights). Deposit $250.00 due by 2026-04-20."},
-        {"day": 7, "sources": ["G1", "G2"], "text": "Cedar Ridge Cabin #3 (Cedar Ridge Rentals): check-in "
+        {"day": 7, "change": "adds", "sources": ["G1", "G2"], "text": "Cedar Ridge Cabin #3 (Cedar Ridge Rentals): check-in "
          "2026-06-12, check-out 2026-06-15 (3 nights). Deposit of $250.00 received; remaining balance $615.00 "
          "due 2026-06-01."},
     ]},
@@ -432,13 +433,13 @@ ITEMS: list[dict[str, Any]] = [
     {"key": "car", "versions": [
         {"day": 5, "sources": ["V1"], "text": "Metro Auto service for the 2019 Honda Civic: Saturday 2026-04-25 "
          "at 09:00. Estimate $129.99."},
-        {"day": 9, "sources": ["V1", "V2"], "text": "Metro Auto service for the 2019 Honda Civic: Saturday "
+        {"day": 9, "change": "replaces", "sources": ["V1", "V2"], "text": "Metro Auto service for the 2019 Honda Civic: Saturday "
          "2026-04-25 at 09:00. Revised estimate $164.99 (front brake pads added; was $129.99)."},
     ]},
     {"key": "desk", "versions": [
         {"day": 6, "sources": ["P1"], "text": "Ordered an Ergo standing desk (walnut) from Lumen Office; delivery "
          "expected Tuesday 2026-04-14."},
-        {"day": 9, "sources": ["P1", "P2"], "text": "Ordered an Ergo standing desk (walnut) from Lumen Office; "
+        {"day": 9, "change": "replaces", "sources": ["P1", "P2"], "text": "Ordered an Ergo standing desk (walnut) from Lumen Office; "
          "delivery delayed from 2026-04-14 to Thursday 2026-04-16."},
     ]},
     {"key": "one_on_one", "versions": [
