@@ -10,6 +10,7 @@ and gets a fresh copy of the exercise on every run so only memory carries over.
 from __future__ import annotations
 
 import argparse
+import datetime as dt
 import hashlib
 import json
 import math
@@ -130,22 +131,31 @@ def _battery_pct() -> int | None:
     return int(m.group(1)) if m else None
 
 
-def _guard_battery(log_path: Path, low_pct: int = 30, resume_pct: int = 60) -> None:
+def _guard_battery(log_path: Path, low_pct: int = 30, resume_pct: int = 60, *, cutoff: float | None = None) -> bool:
     level = _battery_pct()
     if level is not None and level < low_pct:
         with log_path.open("a") as log:
             log.write(f"== battery {level}% < {low_pct}%: pausing until {resume_pct}%\n")
         while True:
+            if cutoff is not None and time.time() + 300 >= cutoff:
+                return False
             time.sleep(300)
             now_level = _battery_pct()
             if now_level is None or now_level >= resume_pct:
                 with log_path.open("a") as log:
                     log.write(f"== battery {now_level}%: resuming\n")
                 break
+    return cutoff is None or time.time() < cutoff
 
 
 def _system_snapshot() -> dict[str, Any]:
+    from bench import manifest
+
+    settings_path = manifest.OMLX_HOME / "settings.json"
+    settings = json.loads(settings_path.read_text()) if settings_path.exists() else {}
     return {
+        "omlx_configured_settings": {"path": str(settings_path), "memory": settings.get("memory"),
+                                     "cache": settings.get("cache")},
         "timestamp": time.time(),
         "sw_vers": _cmd_out(["sw_vers"]),
         "macos_product_version": _cmd_out(["sw_vers", "-productVersion"]),
@@ -998,6 +1008,7 @@ def run_d11(
     max_steps: int = DEFAULT_MAX_STEPS,
     thinking: str = DEFAULT_THINKING,
     restart_between_passes: bool = False,
+    cutoff: float | None = None,
 ) -> dict[str, Any]:
     trial = trial.resolve()
     localmelo = Path(os.environ.get("BENCH_LOCALMELO_REPO", VENDOR)).expanduser().resolve()
@@ -1053,11 +1064,25 @@ def run_d11(
             with log_path.open("a") as log:
                 log.write(f"== STOP file found before {run_id}; stopping\n")
             break
-        _guard_battery(log_path)
+        if cutoff is not None and time.time() >= cutoff:
+            with log_path.open("a") as log:
+                log.write(f"== start cutoff reached before {run_id}; stopping\n")
+            break
+        battery_ready = _guard_battery(log_path, cutoff=cutoff) if cutoff is not None else _guard_battery(log_path)
+        if battery_ready is False:
+            with log_path.open("a") as log:
+                log.write(f"== battery wait would cross cutoff before {run_id}; stopping\n")
+            break
         if restart_between_passes and item["pass"] > 1 and str(item["pass"]) not in state.setdefault("restarted_passes", []):
+            if cutoff is not None and time.time() + 210 >= cutoff:
+                with log_path.open("a") as log:
+                    log.write(f"== restart could cross cutoff before {run_id}; stopping\n")
+                break
             _restart_omlx(trial)
             state["restarted_passes"].append(str(item["pass"]))
             save(checkpoint, state)
+        if cutoff is not None and time.time() >= cutoff:
+            break
         mem_dir = trial / f"mem-{item['arm']}"
         before_tasks = _history_task_ids(mem_dir / "history.db")
         before_long = _long_state(mem_dir) if restart_between_passes else None
@@ -1090,7 +1115,19 @@ def run_d11(
             failed = {**record, "run_dir": str(failed_path.relative_to(trial))}
             state["runs"][run_id] = {**item, "state": "retry_pending", "infra_failed_attempts": [failed]}
             save(checkpoint, state)
+            if cutoff is not None and time.time() + 210 >= cutoff:
+                state["runs"][run_id] = {**failed, "state": "interrupted", "verdict": "interrupted",
+                                         "infra_failed_attempts": [failed]}
+                save(checkpoint, state)
+                with log_path.open("a") as log:
+                    log.write(f"== retry restart could cross cutoff for {run_id}; stopping\n")
+                break
             _restart_omlx(trial)
+            if cutoff is not None and time.time() >= cutoff:
+                state["runs"][run_id] = {**failed, "state": "interrupted", "verdict": "interrupted",
+                                         "infra_failed_attempts": [failed]}
+                save(checkpoint, state)
+                break
             state["runs"][run_id] = {**item, "state": "started", "before_tasks": _history_task_ids(mem_dir / "history.db"),
                                      "infra_failed_attempts": [failed]}
             save(checkpoint, state)
@@ -1143,6 +1180,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     ap.add_argument("--max-steps", type=int, default=DEFAULT_MAX_STEPS, help="proxy step budget per run (default 30)")
     ap.add_argument("--thinking", default=DEFAULT_THINKING, help="proxy thinking mode (default off)")
     ap.add_argument("--restart-between-passes", action="store_true", help="restart verified local oMLX between passes and retry safe prefill failures")
+    ap.add_argument("--last-start", help="local ISO datetime cutoff, e.g. 2026-10-28T22:38; omit when resuming")
     ap.add_argument("--print-schedule", action="store_true", help="print the planned schedule as JSON and exit")
     return ap.parse_args(argv)
 
@@ -1161,6 +1199,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         max_steps=args.max_steps,
         thinking=args.thinking,
         restart_between_passes=args.restart_between_passes,
+        cutoff=dt.datetime.fromisoformat(args.last_start).timestamp() if args.last_start else None,
     )
     print(
         json.dumps(

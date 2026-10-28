@@ -18,6 +18,21 @@ def test_logical_long_store_snapshot(tmp_path):
     assert d11._long_state(tmp_path) != ((), ())
 
 
+def test_cutoff_prevents_run_and_battery_sleep(tmp_path, monkeypatch):
+    monkeypatch.setattr(d11, "identity", lambda *a, **k: {"model": "stub"})
+    monkeypatch.setattr(d11, "_system_snapshot", lambda: {})
+    monkeypatch.setattr(d11, "export_arms", lambda *a: {})
+    monkeypatch.setattr(d11.time, "time", lambda: 1000.0)
+    monkeypatch.setattr(d11, "_battery_pct", lambda: 20)
+    monkeypatch.setattr(d11.time, "sleep", lambda _: pytest.fail("must not sleep across cutoff"))
+    monkeypatch.setattr(d11, "_run_item", lambda *a, **k: pytest.fail("must not start run"))
+    trial = tmp_path / "trial"
+    report = d11.run_d11(trial, passes=1, exercises=("transpose",), cutoff=1100.0)
+    assert not report["runs"]
+    assert not json.loads((trial / "d11.json").read_text())["complete"]
+    assert "battery wait would cross cutoff" in (trial / "d11.log").read_text()
+
+
 def test_retry_and_pass_restart(tmp_path, monkeypatch):
     monkeypatch.setattr(d11, "identity", lambda *a, **k: {"model": "stub"})
     monkeypatch.setattr(d11, "_guard_battery", lambda *a: None)
