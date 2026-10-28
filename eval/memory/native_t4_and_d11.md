@@ -14,6 +14,8 @@ measured, and the acceptance rules, fixed before any localmelo run.
 cleanly. The fixed reader answers from the exported store, so retrieval is not part of the score.
 
 **One trial** = a fresh memory directory, 10 sessions (one `melo` process per day), then the reader.
+A memory directory belongs to one localmelo build: from R5 on, history.db is schema v2 and an older
+build refuses it, so a pre-R5 baseline and an R5 candidate never share a directory.
 
 - Session n (1..10): direct mode, with pab as the only MCP server:
   ```
