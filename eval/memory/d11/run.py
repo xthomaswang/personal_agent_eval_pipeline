@@ -15,7 +15,10 @@ import json
 import math
 import os
 import random
+import signal
 import shutil
+import urllib.request
+import urllib.parse
 import sqlite3
 import statistics
 import subprocess
@@ -151,6 +154,70 @@ def _system_snapshot() -> dict[str, Any]:
         "pmset_batt": _cmd_out(["pmset", "-g", "batt"]),
         "pmset_therm": _cmd_out(["pmset", "-g", "therm"]),
     }
+
+
+def _long_state(mem_dir: Path) -> tuple[Any, ...]:
+    """Logical active entries and decisions; never create or migrate a store."""
+    db = mem_dir / "long_term.db"
+    if not db.exists():
+        return ((), ())
+    with sqlite3.connect(f"{db.resolve().as_uri()}?mode=ro", uri=True) as conn:
+        tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        if not {"long_term", "decisions"} <= tables:
+            raise RuntimeError(f"Cannot verify long-store state: {db} has missing tables")
+        return (tuple(conn.execute("SELECT * FROM long_term WHERE status = 'active' ORDER BY id")),
+                tuple(conn.execute("SELECT * FROM decisions ORDER BY seq")))
+
+
+def _prefill_failed(run_dir: Path) -> bool:
+    return any((row.get("error") or {}).get("code") == "prefill_memory_exceeded"
+               for row in log_records(run_dir / "calls.jsonl") if isinstance(row.get("error"), dict))
+
+
+def _restart_omlx(trial: Path) -> None:
+    """Restart only the verified bench-owned local oMLX listener with unchanged settings."""
+    from bench import manifest
+
+    lock = Path.home() / "Developer/mlsys/experiments/.gpu-lock"
+    if not lock.exists() or "holder: agent-benchmark" not in lock.read_text():
+        raise RuntimeError("GPU lock is not held by agent-benchmark")
+    url = urllib.parse.urlsplit(manifest.OMLX_BASE_URL)
+    if url.hostname not in ("127.0.0.1", "localhost"):
+        raise RuntimeError("Refusing to restart a non-local server")
+    port = url.port or 8500
+    bench_root = Path.home() / "Developer/mlsys/experiments/personal-agent-bench"
+    info_path = bench_root / "runs" / f".server-{port}.json"
+    info = json.loads(info_path.read_text())
+    listeners = _cmd_out(["lsof", "-t", "-nP", f"-iTCP:{port}", "-sTCP:LISTEN"]).splitlines()
+    pid = str(info.get("pid", ""))
+    if listeners != [pid] or Path(info["repo"]).resolve() != manifest.OMLX_REPO.resolve() or Path(info["base_path"]).resolve() != manifest.OMLX_HOME.resolve():
+        raise RuntimeError("oMLX listener or settings do not match the bench server record")
+    os.kill(int(pid), signal.SIGTERM)
+    deadline = time.monotonic() + 30
+    while time.monotonic() < deadline:
+        if not _cmd_out(["lsof", "-t", "-nP", f"-iTCP:{port}", "-sTCP:LISTEN"]):
+            break
+        time.sleep(0.25)
+    else:
+        raise RuntimeError("oMLX did not stop")
+    script = Path.home() / "Developer/mlsys/experiments/personal-agent-bench/scripts/serve-omlx.sh"
+    env = {**os.environ, "OMLX_REPO": str(manifest.OMLX_REPO), "OMLX_BASE_PATH": str(manifest.OMLX_HOME),
+           "BENCH_OMLX_PORT": str(port)}
+    with (trial / "omlx-restarts.log").open("a") as log:
+        proc = subprocess.Popen(["nice", "-n", "19", str(script)], env=env, stdout=log, stderr=subprocess.STDOUT,
+                                stdin=subprocess.DEVNULL, start_new_session=True)
+    deadline = time.monotonic() + 180
+    while time.monotonic() < deadline:
+        if proc.poll() is not None:
+            raise RuntimeError("oMLX restart exited; see omlx-restarts.log")
+        try:
+            with urllib.request.urlopen(manifest.OMLX_BASE_URL.rstrip("/") + "/models", timeout=3) as response:
+                if manifest.BENCH_MODEL in {m["id"] for m in json.load(response)["data"]}:
+                    return
+        except (OSError, ValueError, KeyError):
+            pass
+        time.sleep(1)
+    raise RuntimeError("oMLX restart did not become healthy; see omlx-restarts.log")
 
 
 def identity(
@@ -930,6 +997,7 @@ def run_d11(
     timeout_s: float = DEFAULT_TIMEOUT_S,
     max_steps: int = DEFAULT_MAX_STEPS,
     thinking: str = DEFAULT_THINKING,
+    restart_between_passes: bool = False,
 ) -> dict[str, Any]:
     trial = trial.resolve()
     localmelo = Path(os.environ.get("BENCH_LOCALMELO_REPO", VENDOR)).expanduser().resolve()
@@ -944,6 +1012,7 @@ def run_d11(
     )
     os.environ.setdefault("BENCH_MODEL", config["model"])
     planned = schedule(passes=passes, exercises=exercises)
+    config["restart_between_passes"] = restart_between_passes
 
     checkpoint = trial / "d11.json"
     if checkpoint.exists():
@@ -970,6 +1039,8 @@ def run_d11(
         existing = state["runs"].get(run_id)
         if existing and existing.get("state") in ("finished", "interrupted"):
             continue
+        if existing and existing.get("state") in ("retry_pending", "infra_failed"):
+            raise RuntimeError(f"{run_id} has an unresolved infrastructure failure; inspect the checkpoint before continuing")
         record_file = trial / "runs" / run_id / "record.json"
         if existing and existing.get("state") == "started":
             if record_file.exists():
@@ -983,8 +1054,13 @@ def run_d11(
                 log.write(f"== STOP file found before {run_id}; stopping\n")
             break
         _guard_battery(log_path)
+        if restart_between_passes and item["pass"] > 1 and str(item["pass"]) not in state.setdefault("restarted_passes", []):
+            _restart_omlx(trial)
+            state["restarted_passes"].append(str(item["pass"]))
+            save(checkpoint, state)
         mem_dir = trial / f"mem-{item['arm']}"
         before_tasks = _history_task_ids(mem_dir / "history.db")
+        before_long = _long_state(mem_dir) if restart_between_passes else None
         state["runs"][run_id] = {**item, "state": "started", "before_tasks": before_tasks}
         save(checkpoint, state)
         record = _run_item(
@@ -996,6 +1072,37 @@ def run_d11(
             max_steps=max_steps,
             thinking=thinking,
         )
+        run_path = trial / record["run_dir"]
+        if restart_between_passes and _prefill_failed(run_path):
+            safe = (record.get("n_llm") == 0 and record.get("history_steps") == 0
+                    and before_long == _long_state(mem_dir))
+            record["state"] = "infra_failed"
+            record["verdict"] = "infra_failed"
+            state["runs"][run_id] = record
+            save(checkpoint, state)
+            if not safe:
+                raise RuntimeError(f"{run_id}: prefill failure may have changed memory; inspect before continuing")
+            failed_path = trial / "infra-failed" / run_id
+            failed_path.parent.mkdir(parents=True, exist_ok=True)
+            if failed_path.exists():
+                raise RuntimeError(f"{failed_path} already exists; inspect before continuing")
+            shutil.move(run_path, failed_path)
+            failed = {**record, "run_dir": str(failed_path.relative_to(trial))}
+            state["runs"][run_id] = {**item, "state": "retry_pending", "infra_failed_attempts": [failed]}
+            save(checkpoint, state)
+            _restart_omlx(trial)
+            state["runs"][run_id] = {**item, "state": "started", "before_tasks": _history_task_ids(mem_dir / "history.db"),
+                                     "infra_failed_attempts": [failed]}
+            save(checkpoint, state)
+            record = _run_item(state["runs"][run_id], trial, localmelo, env_file,
+                               timeout_s=timeout_s, max_steps=max_steps, thinking=thinking)
+            if _prefill_failed(trial / record["run_dir"]):
+                record.update(state="infra_failed", verdict="infra_failed", infra_failed_attempts=[failed])
+                state["runs"][run_id] = record
+                save(checkpoint, state)
+                raise RuntimeError(f"{run_id}: prefill failure recurred after restart; inspect before continuing")
+            record["infra_failed_attempts"] = [failed]
+            save(trial / record["run_dir"] / "record.json", record)
         state["runs"][run_id] = record
         save(checkpoint, state)
         with log_path.open("a") as log:
@@ -1035,6 +1142,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     ap.add_argument("--timeout", type=float, default=DEFAULT_TIMEOUT_S, help="seconds per run (default 600)")
     ap.add_argument("--max-steps", type=int, default=DEFAULT_MAX_STEPS, help="proxy step budget per run (default 30)")
     ap.add_argument("--thinking", default=DEFAULT_THINKING, help="proxy thinking mode (default off)")
+    ap.add_argument("--restart-between-passes", action="store_true", help="restart verified local oMLX between passes and retry safe prefill failures")
     ap.add_argument("--print-schedule", action="store_true", help="print the planned schedule as JSON and exit")
     return ap.parse_args(argv)
 
@@ -1052,6 +1160,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         timeout_s=args.timeout,
         max_steps=args.max_steps,
         thinking=args.thinking,
+        restart_between_passes=args.restart_between_passes,
     )
     print(
         json.dumps(
