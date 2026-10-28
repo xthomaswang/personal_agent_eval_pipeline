@@ -123,8 +123,8 @@ def _localmelo(prompt: str, run_dir: Path, base_url: str, max_turns: int) -> Com
     # Direct mode has no turn limit of its own; its hard cap is 30 steps, plus the proxy's --max-steps.
     # Persisting memory per run gives history.db, whose steps table is localmelo's own step count.
     # "--" ends the options, so a task text that starts with "-" stays the task.
-    # A blank task would open localmelo's interactive loop, which reads EOF from our stdin and exits 0
-    # with no answer (since #35); refuse it here so it cannot pass as a run.
+    # A blank task requests localmelo's interactive UI, which exits 2 without a TTY (since U2a.1);
+    # refuse it here so it cannot pass as a run.
     if not prompt.strip():
         raise ValueError("localmelo needs a non-blank task text")
     cmd = [
