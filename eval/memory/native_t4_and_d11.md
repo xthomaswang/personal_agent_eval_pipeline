@@ -129,6 +129,9 @@ over.
   (48 pairs per arm).
 - Setting as `aider12-v0`: oQ5, thinking off, the bench's sampling, 600 s and 30 model calls per run;
   R5's recall at its merged defaults.
+- After each finished pass (both arms, before any oMLX restart), both memory directories are snapshotted to
+  `snapshots/p<NN>/mem-<arm>` (SQLite backups, with a size and sha256 index), so a recall change can be
+  replayed offline over each pass's full store. A pass with an interrupted run gets no snapshot.
 
 **Measures**, per arm and pass: pass rate; model calls (`n_llm`, from the proxy) and `wall_s`; entries
 admitted, by signal (`admitted_by` in the decision log); long-store entries written per run; recall

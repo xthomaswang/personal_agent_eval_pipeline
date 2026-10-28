@@ -24,9 +24,11 @@ import sqlite3
 import statistics
 import subprocess
 import sys
+import tempfile
 import time
 from collections import Counter
 from collections.abc import Sequence
+from contextlib import closing
 from pathlib import Path
 from typing import Any
 
@@ -179,6 +181,62 @@ def _long_state(mem_dir: Path) -> tuple[Any, ...]:
             raise RuntimeError(f"Cannot verify long-store state: {db} has missing tables")
         return (tuple(conn.execute("SELECT * FROM long_term WHERE status = 'active' ORDER BY id")),
                 tuple(conn.execute("SELECT * FROM decisions ORDER BY seq")))
+
+
+def _snapshot_pass(trial: Path, pass_num: int) -> dict[str, Any]:
+    """Publish an immutable pass snapshot after both arms stop writing."""
+    root = trial / "snapshots"
+    root.mkdir(parents=True, exist_ok=True)
+    destination = root / f"p{pass_num:02d}"
+    index_path = destination / "index.json"
+    if destination.exists():
+        if not index_path.is_file():
+            raise RuntimeError(f"Incomplete snapshot requires inspection: {destination}")
+        index = json.loads(index_path.read_text())
+        if index.get("pass") != pass_num:
+            raise RuntimeError(f"Snapshot pass mismatch: {destination}")
+        for entry in index["files"]:
+            path = destination / entry["path"]
+            if not path.is_file() or path.stat().st_size != entry["size"] or hashlib.sha256(path.read_bytes()).hexdigest() != entry["sha256"]:
+                raise RuntimeError(f"Snapshot file changed or missing: {path}")
+        return {"pass": pass_num, "path": str(destination.relative_to(trial)), "index": str(index_path.relative_to(trial))}
+
+    staging = Path(tempfile.mkdtemp(prefix=f".p{pass_num:02d}-", dir=root))
+    try:
+        files = []
+        for arm in ARMS:
+            source = trial / f"mem-{arm}"
+            target = staging / f"mem-{arm}"
+            target.mkdir()
+            for path in sorted(source.rglob("*")):
+                relative = path.relative_to(source)
+                dest = target / relative
+                if path.is_symlink():
+                    raise RuntimeError(f"Cannot snapshot symlink: {path}")
+                if path.is_dir():
+                    dest.mkdir(parents=True, exist_ok=True)
+                elif path.is_file():
+                    # SQLite backup incorporates WAL; copying sidecars would invalidate the backup.
+                    if path.name.endswith((".db-wal", ".db-shm")):
+                        continue
+                    dest.parent.mkdir(parents=True, exist_ok=True)
+                    if path.suffix == ".db":
+                        with closing(sqlite3.connect(f"{path.resolve().as_uri()}?mode=ro", uri=True)) as src:
+                            with closing(sqlite3.connect(dest)) as dst:
+                                src.backup(dst)
+                                dst.execute("PRAGMA journal_mode=DELETE")
+                    else:
+                        shutil.copy2(path, dest)
+                    files.append({"path": str(dest.relative_to(staging)), "size": dest.stat().st_size,
+                                  "sha256": hashlib.sha256(dest.read_bytes()).hexdigest()})
+                else:
+                    raise RuntimeError(f"Cannot snapshot non-regular file: {path}")
+        save(staging / "index.json", {"pass": pass_num, "files": files})
+        staging.rename(destination)
+    finally:
+        if staging.exists():
+            shutil.rmtree(staging)
+    return {"pass": pass_num, "path": str(destination.relative_to(trial)), "index": str(index_path.relative_to(trial))}
 
 
 def _prefill_failed(run_dir: Path) -> bool:
@@ -1046,10 +1104,31 @@ def run_d11(
     env_doc.setdefault("start", _system_snapshot())
     save(env_path, env_doc)
 
+    def snapshot_boundary(item: dict[str, Any]) -> None:
+        pass_num = item["pass"]
+        pass_items = [row for row in planned if row["pass"] == pass_num]
+        if item["run_id"] != pass_items[-1]["run_id"]:
+            return
+        if not all(state["runs"].get(row["run_id"], {}).get("state") == "finished" for row in pass_items):
+            return
+        snapshots = state.setdefault("snapshots", {})
+        key = str(pass_num)
+        if key in snapshots:
+            return
+        destination = trial / "snapshots" / f"p{pass_num:02d}"
+        if not destination.exists() and any(
+            row["pass"] > pass_num and row["run_id"] in state["runs"] for row in planned
+        ):
+            # An older checkpoint advanced beyond this boundary; its original store is gone.
+            return
+        snapshots[key] = _snapshot_pass(trial, pass_num)
+        save(checkpoint, state)
+
     for item in planned:
         run_id = item["run_id"]
         existing = state["runs"].get(run_id)
         if existing and existing.get("state") in ("finished", "interrupted"):
+            snapshot_boundary(item)
             continue
         if existing and existing.get("state") in ("retry_pending", "infra_failed"):
             raise RuntimeError(f"{run_id} has an unresolved infrastructure failure; inspect the checkpoint before continuing")
@@ -1060,6 +1139,7 @@ def run_d11(
             else:
                 state["runs"][run_id] = _salvage_interrupted(existing, trial)
             save(checkpoint, state)
+            snapshot_boundary(item)
             continue
         if (trial / "STOP").exists():
             with log_path.open("a") as log:
@@ -1148,6 +1228,7 @@ def run_d11(
                 f"[{item['index']}/{len(planned)}] {run_id}: {record['verdict']} "
                 f"n_llm={record['n_llm']} wall_s={record['wall_s']}\n"
             )
+        snapshot_boundary(item)
 
     if (trial / "ws").exists() and not any((trial / "ws").iterdir()):
         (trial / "ws").rmdir()

@@ -214,6 +214,8 @@ def test_harness_flags_shared_mem_dir_and_resume(tmp_path: Path, monkeypatch: py
     assert state_mid["config"]["localmelo_sha"] == "356ff19"
     assert len(state_mid["schedule"]) == 8
     assert state_mid["runs"]["p02__transpose__on"]["state"] == "started"
+    assert (trial / "snapshots/p01/index.json").is_file()
+    assert not (trial / "snapshots/p02").exists()
 
     # Resume must NOT replay the interrupted p02__transpose__on run: it records it as "interrupted",
     # salvages summary.json and history.db, leaves its pair out of D2 pairs, and lists it in the report.
@@ -229,6 +231,7 @@ def test_harness_flags_shared_mem_dir_and_resume(tmp_path: Path, monkeypatch: py
     state_done = json.loads((trial / "d11.json").read_text())
     salvaged = state_done["runs"]["p02__transpose__on"]
     assert salvaged["state"] == "interrupted" and salvaged["verdict"] == "interrupted"
+    assert not (trial / "snapshots/p02").exists()
     assert salvaged["task_id"] == "tid-interrupted"
     assert salvaged["history_steps"] == 1 and salvaged["n_llm"] == 1 and salvaged["wall_s"] == 0.4
 
