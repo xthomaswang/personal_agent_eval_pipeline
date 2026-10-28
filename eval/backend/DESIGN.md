@@ -4,6 +4,12 @@ Status: revision 2 of 2026-10-26, after a four-lens review (methodology, efficie
 constraints; 26 confirmed findings). The implementation follows this file; where code and this file
 disagree, fix one of them in the same commit.
 
+**Protocol 2 update (2026-10-28).** Following the noon oMLX jetsam incident and the subsequent memory-cap
+change, protocol 2 uses a 12 GB hot cache and the custom memory guard with a 90 GB ceiling. For capability-2
+(epoch `4271c2f4a925`), Qwen3.8-Flash-Next-oQ4e-mtp is the reference. Protocol 1 retains its 20 GB hot cache,
+balanced guard, and 27B reference. Protocol 1 and 2 timings are not comparable; a run cannot resume across
+protocol versions. No protocol 2 speed row is defined until a speed reference is run.
+
 ## 1. Purpose
 
 One command evaluates a local model as an agent backend on this Mac (MacBook Pro M5 Max, 128 GB) and

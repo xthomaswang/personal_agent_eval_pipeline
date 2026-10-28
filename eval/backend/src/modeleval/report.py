@@ -323,8 +323,15 @@ def table(head: list[str], rows: list[list[str]]) -> str:
                      + ["| " + " | ".join(esc(c) for c in r) + " |" for r in rows])
 
 
-def _row_name(run: Run) -> str:
-    return f"{run.name}{' (reference)' if run.is_reference else ''}"
+def _row_name(run: Run, reference: bool | None = None) -> str:
+    reference = run.is_reference if reference is None else reference
+    return f"{run.name}{' (reference)' if reference else ''}"
+
+
+def capability_is_reference(run: Run, mapping: dict[str, str] | None = None) -> bool:
+    epoch = canonical_epoch(run.epoch, epoch_map() if mapping is None else mapping)
+    legacy = run.model_key if run.is_reference else None
+    return registry.capability_reference(run.protocol, epoch, legacy) == run.model_key
 
 
 def _run_ref(run: Run) -> str:
@@ -502,7 +509,7 @@ def _pair(tts: dict[str, Any], key: str) -> str:
 
 def capability_section(key: tuple, rows: list[Run]) -> str:
     machine, proto, epoch, set_name = key
-    ref = next((r for r in rows if r.is_reference), None)
+    ref = next((r for r in rows if capability_is_reference(r)), None)
     n_tasks = SET_TASKS[set_name]
     out = [f"## Capability on {machine}: {set_name} set (protocol {proto}, harness epoch {epoch or '?'})"]
     if ref is None:
@@ -531,7 +538,7 @@ def capability_section(key: tuple, rows: list[Run]) -> str:
         runs_n = sum(d["runs"] for d in hc.values())
         anomalies = sum(d["anomalies"] for d in hc.values())
         kinds_s = ", ".join(f"{k} {v}" for k, v in sorted(kinds.items()))
-        hrows.append([_row_name(r), _run_ref(r)] + cells + [f"{solved}/{runs_n}", f"{fast}/{runs_n}",
+        hrows.append([_row_name(r, capability_is_reference(r)), _run_ref(r)] + cells + [f"{solved}/{runs_n}", f"{fast}/{runs_n}",
                                                             f"{anomalies}" + (f" ({kinds_s})" if kinds_s else "")])
     head = (["Model", "Run"] + [HARNESS_NAMES.get(h, h) for h in harnesses]
             + ["Runs solved", "Solved within 1200 s", "Anomalies"])
@@ -556,7 +563,7 @@ def capability_section(key: tuple, rows: list[Run]) -> str:
         harness_net = ", ".join(f"{h} {v['net']:+d}" for h, v in (c["per_harness"] or {}).items())
         decision = f"**{c['decision']}**" + (f" (provisional: {len(c['excluded'])} pairs excluded)"
                                              if c["provisional"] else "")
-        crows.append([_row_name(r), f"{c['tasks']} ({c['pairs']} pairs)", f"{c['score_new']} vs {c['score_ref']}",
+        crows.append([_row_name(r, capability_is_reference(r)), f"{c['tasks']} ({c['pairs']} pairs)", f"{c['score_new']} vs {c['score_ref']}",
                       str(c["wins"]), str(c["losses"]), str(c["ties"]), f"{c['p']:.3f}", harness_net or "-", decision,
                       mdd_s])
         diffs = [f"{t} {d:+d}" for t, d in c["diffs"].items() if d]
@@ -567,7 +574,7 @@ def capability_section(key: tuple, rows: list[Run]) -> str:
             if tasks:
                 drows.append(f"  - tasks with valid pairs for {side}: {', '.join(tasks)}")
         tts = stats.time_to_solution(r.records, ref.records, set_name)
-        trows.append([_row_name(r), str(tts["pairs"]), _pair(tts, "wall"), _pair(tts, "model"),
+        trows.append([_row_name(r, capability_is_reference(r)), str(tts["pairs"]), _pair(tts, "wall"), _pair(tts, "model"),
                       f"{_f(tts['steps_new'], 1)} / {_f(tts['steps_ref'], 1)}"])
     if crows:
         c0 = stats.decide(set_name, 0, 0, 1.0, None)[1]

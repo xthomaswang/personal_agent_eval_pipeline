@@ -28,9 +28,10 @@ def test_write_settings_sets_every_protocol_value(env):
     assert st["server"]["server_aliases"] == ["localhost", "127.0.0.1"]
     assert st["scheduler"] == {"max_concurrent_requests": 8, "embedding_batch_size": 32, "chunked_prefill": True,
                                "prefill_priority": "context", "decode_fairness": True}
-    assert st["cache"]["hot_cache_max_size"] == "20GB" and st["cache"]["ssd_cache_max_size"] == "128GB"
+    assert st["cache"]["hot_cache_max_size"] == "12GB" and st["cache"]["ssd_cache_max_size"] == "128GB"
     assert st["cache"]["ssd_cache_dir"] == str(s.ssd_cache) and s.ssd_cache.is_dir()
-    assert st["memory"]["memory_guard_tier"] == "balanced"
+    assert st["memory"]["memory_guard_tier"] == "custom"
+    assert st["memory"]["memory_guard_custom_ceiling_gb"] == 90.0
     assert (st["memory"]["soft_threshold"], st["memory"]["hard_threshold"]) == (0.85, 0.95)
     assert st["server"]["burst_decode_mode"] == "balanced"
     assert st["sampling"]["max_tokens"] == 32768 and st["sampling"]["top_k"] == 0
@@ -46,6 +47,19 @@ def test_write_settings_sets_every_protocol_value(env):
     assert "auth" not in s.written_settings and "server_aliases" not in s.written_settings["server"]
     s.write_settings()   # the secret survives a rewrite, so oMLX never regenerates and re-saves the file
     assert json.loads((paths.BASE / "settings.json").read_text())["auth"]["secret_key"] == secret
+
+
+def test_protocol_v1_settings_remain_reproducible(tmp_path):
+    from modeleval.server import protocol_settings
+
+    v1 = protocol_settings(tmp_path, 8703, tmp_path / "ssd", version=1)
+    v2 = protocol_settings(tmp_path, 8703, tmp_path / "ssd", version=2)
+    assert v1["cache"]["hot_cache_max_size"] == "20GB"
+    assert v1["memory"]["memory_guard_tier"] == "balanced"
+    assert v1["memory"]["memory_guard_custom_ceiling_gb"] == 0.0
+    assert v2["cache"]["hot_cache_max_size"] == "12GB"
+    assert v2["memory"]["memory_guard_tier"] == "custom"
+    assert v2["memory"]["memory_guard_custom_ceiling_gb"] == 90.0
 
 
 def test_model_settings_per_spec_and_no_max_tokens(env):
@@ -79,8 +93,8 @@ def test_start_warm_up_log_checks_and_stop(env):
         reqs = (env.root / "omlx-requests").read_text().splitlines()
         assert "chat Fake-1B-mtp" in reqs   # the 8-token warm-up loaded the model
         eff = s.effective_settings
-        assert eff["version"] == "0.7.1rc1" and eff["memory_guard"] == "on (tier: balanced)"
-        assert eff["ssd_cache"]["max"] == "128.0GB" and eff["hot_cache"] == "20.0GB"
+        assert eff["version"] == "0.7.1rc1" and eff["memory_guard"] == "on (tier: custom)"
+        assert eff["ssd_cache"]["max"] == "128.0GB" and eff["hot_cache"] == "12.0GB"
         assert eff["ssd_cache_manager"]["auto_size"] == "False"
         assert eff["loaded_model"]["id"] == "Fake-1B-mtp"
         assert set(eff["log_expect"]) == set(env.model.server_log_expect)

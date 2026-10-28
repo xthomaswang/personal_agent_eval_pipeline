@@ -48,7 +48,8 @@ def main() -> int:
     print(f"Memory guard: on (tier: {settings['memory']['memory_guard_tier']})")
     print("Mode: Multi-model serving (continuous batching + paged SSD cache)")
     print(f"paged SSD cache: {ssd} (max: 128.0GB)")
-    print(f"Hot cache: 20.0GB (in-memory)", flush=True)
+    hot_cache = float(settings['cache']['hot_cache_max_size'].removesuffix('GB'))
+    print(f"Hot cache: {hot_cache:.1f}GB (in-memory)", flush=True)
     log(f"omlx.server - INFO - Default max tokens: {settings['sampling']['max_tokens']}")
     log("omlx.process_memory_enforcer - INFO - Process memory enforcer started (tier=balanced, ceiling=101.5GB, interval=1.0s)")
     if os.environ.get("FAKE_OMLX_CHILD") == "1":

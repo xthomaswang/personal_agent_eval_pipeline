@@ -39,7 +39,7 @@ CAP_PROTOCOLS: dict[str, dict[str, Any]] = {
     "capability-1": {"protocol_version": 1, "epoch": "7582825160ad",
                      "title": "Claude Code, Hermes, localmelo on Aider 12 + MCPMark easy 10 (gate set) and "
                               "Aider 22 (ranking set); thinking off"},
-    "capability-2": {"protocol_version": 1, "epoch": "4271c2f4a925",
+    "capability-2": {"protocol_version": 2, "epoch": "4271c2f4a925",
                      "title": "Claude Code, Hermes, localmelo on Aider 12 + MCPMark easy 10 (gate set) and "
                               "Aider 22 (ranking set); thinking off"},
 }
@@ -234,6 +234,9 @@ def rows(run: report.Run) -> tuple[list[tuple[Path, dict[str, Any]]], list[str]]
                         f"epoch {run.epoch} (add one to publish.CAP_PROTOCOLS): capability row skipped")
         else:
             row = _base(run, family, quant, CAP_SUITE)
+            row.pop("reference", None)
+            if report.capability_is_reference(run, mapping):
+                row["reference"] = True
             row.update(protocol=pid, title=CAP_PROTOCOLS[pid]["title"],
                        metrics=[{"name": n, "value": v} for n, v in zip(CAP_METRICS, cap_values(run))])
             if notes := cap_notes(run, mapping):

@@ -62,6 +62,26 @@ def test_publish_writes_rows_and_skips_settings_without_a_protocol_id(tmp_path):
     assert publish.publish(root, "nobody") == [f"no run of this pipeline under {paths.tilde(root)} for nobody"]
 
 
+def test_capability_reference_is_scoped_by_protocol_and_epoch(tmp_path):
+    root = tmp_path / "results"
+    old = cap_run(root, "qwen3-8-27b-oq5", "old", {}, epoch="7582825160ad", reference=True)
+    flash = cap_run(root, "qwen3-8-flash-next-oq4e", "new", {}, epoch="4271c2f4a925")
+    paused = cap_run(root, "qwen3-8-27b-oq5", "paused", {}, epoch="4271c2f4a925", reference=True)
+    man = flash / "manifest.json"
+    doc = json.loads(man.read_text())
+    man.write_text(json.dumps({**doc, "protocol_version": 2}))
+    runs = {r.run_id: r for r in report.discover(root)}
+    old_rows, _ = publish.rows(runs["old"])
+    flash_rows, _ = publish.rows(runs["new"])
+    paused_rows, messages = publish.rows(runs["paused"])
+    assert old_rows[0][1]["protocol"] == "capability-1" and old_rows[0][1]["reference"] is True
+    assert flash_rows[0][1]["protocol"] == "capability-2" and flash_rows[0][1]["reference"] is True
+    assert not paused_rows and any("no capability protocol id" in line for line in messages)
+    assert report.capability_is_reference(runs["old"]) and report.capability_is_reference(runs["new"])
+    runs["paused"].manifest["protocol_version"] = 2
+    assert not report.capability_is_reference(runs["paused"])
+
+
 def test_runs_in_progress_unverified_or_foreign_are_not_published(tmp_path):
     root = tmp_path / "results"
     ctx = speed_run(root, "20261027-010000")

@@ -132,9 +132,9 @@ def test_unverified_end_to_end_hold_and_server_lost(orch, capsys):
     assert [c["code"] for c in caps] == [75, 76, 0, 0]
     assert [c["resume"] for c in caps] == [False, True, True, True]
     assert caps[0]["server_pid"] == caps[1]["server_pid"] != caps[2]["server_pid"]   # relaunched after 76
-    # the gate set first; the reference model has nothing to compare with, so the ranking set follows
+    # The fake epoch has no protocol 2 reference, so the ranking set follows.
     assert caps[0]["epoch"] == "test-epoch" and [c["sets"] for c in caps] == [["gate"]] * 3 + [["ranking"]]
-    assert "GATE-DECISION" in tags and 'why="reference model"' in out and "action=ranking" in out
+    assert "GATE-DECISION" in tags and 'why="no reference configured for protocol 2, epoch test-epoch"' in out and "action=ranking" in out
     assert man["gate_decision"]["action"] == "ranking"
     assert caps[0]["server_log"] == str(o.env.runs / "fake-1b" / res.name / "server.log")
     assert (res / "capability/results.json").exists()
@@ -466,6 +466,7 @@ def newmodel(orch, monkeypatch):
     is in results/ for the harness epoch the runs use."""
     from modeleval.registry import parse_models
 
+    monkeypatch.setattr(paths, "PROTOCOL_VERSION", 1)  # historical v1 reference and gate behavior
     env = orch.env
     ckpt = env.root / "models/oq/New-1B"
     ckpt.mkdir(parents=True)
@@ -492,6 +493,44 @@ def newmodel(orch, monkeypatch):
 
 def _worse(h, t):   # loses five tasks in two harnesses: "worse" by the gate rule of DESIGN §6.6
     return not (h in ("claude_code", "hermes") and t in GATE[:5])
+
+
+def test_gate_uses_only_protocol_2_flash_reference_on_same_machine(tmp_path, monkeypatch):
+    from modeleval import report, stats
+
+    flash = "qwen3-8-flash-next-oq4e"
+    epoch = "4271c2f4a925"
+    legacy = SimpleNamespace(key="qwen3-8-27b-oq5", reference=True)
+    target = SimpleNamespace(key="other", reference=False)
+    ctx = SimpleNamespace(epoch=epoch, model=target, models={legacy.key: legacy, target.key: target}, results=tmp_path)
+    result_dir = tmp_path / "capability"
+    result_dir.mkdir()
+    (result_dir / "results.json").write_text(json.dumps({"rows": [{"task": "t"}]}))
+    def ref(key, protocol, machine, name):
+        return SimpleNamespace(model_key=key, protocol=protocol, machine=machine, epoch=epoch, records=[{"task": "t"}],
+                               order=(name, name), run_id=name)
+    candidates = [ref(legacy.key, 1, "mac", "old"), ref(flash, 1, "mac", "wrong-protocol"),
+                  ref(flash, 2, "other-machine", "wrong-machine"), ref(flash, 2, "mac", "matching")]
+    monkeypatch.setattr(paths, "PROTOCOL_VERSION", 2)
+    monkeypatch.setattr(paths, "machine_id", lambda: "mac")
+    monkeypatch.setattr(report, "epoch_map", lambda: {})
+    monkeypatch.setattr(report, "discover", lambda root: candidates)
+    monkeypatch.setattr(report, "cap_complete", lambda r, s: True)
+    monkeypatch.setattr(stats, "compare", lambda *a, **kw: {
+        "decision": "not worse", "wins": 0, "losses": 0, "ties": 1, "net": 0, "p": 1, "pairs": 1,
+        "excluded": [], "provisional": False, "per_harness": {}})
+    assert run.Run.gate_decision(ctx)["reference_run"] == f"{flash}/matching"
+    ctx.model = SimpleNamespace(key=flash, reference=False)
+    assert run.Run.gate_decision(ctx)["why"] == "reference model"
+
+
+def test_resume_refuses_a_different_protocol(orch):
+    r = run.Run(run.Options(model="fake-1b", legs=("capability",), resume="old"), {"fake-1b": orch.env.model})
+    r.results.mkdir(parents=True)
+    (r.results / "manifest.json").write_text(json.dumps({"protocol_version": 1}))
+    r.load_state()
+    with pytest.raises(run.Stop, match="protocol 1 differs from current protocol 2"):
+        r.check_resume()
 
 
 def test_a_worse_gate_set_skips_the_ranking_set(orch, newmodel, capsys):

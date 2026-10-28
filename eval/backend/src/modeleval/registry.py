@@ -177,6 +177,16 @@ def reference(models: dict[str, Model]) -> Model:
     return next(m for m in models.values() if m.reference)
 
 
+CAPABILITY_REFERENCES = {(2, "4271c2f4a925"): "qwen3-8-flash-next-oq4e"}
+
+
+def capability_reference(protocol: int, epoch: str | None, legacy_reference: str | None) -> str | None:
+    """Resolve a capability reference without changing the historical speed or v1 reference."""
+    if protocol == 1:
+        return legacy_reference
+    return CAPABILITY_REFERENCES.get((protocol, epoch))
+
+
 def get(models: dict[str, Model], name: str) -> Model:
     """A model by registry key or served id, with a message that lists the keys."""
     if name in models:

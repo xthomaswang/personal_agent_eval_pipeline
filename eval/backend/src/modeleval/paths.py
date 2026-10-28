@@ -93,7 +93,7 @@ SCRIPTS = REPO / "scripts"
 GPU_LOCK = _configured("gpu_lock")
 HOLD_FILE = RUNS / "hold"
 HF_HOME = Path(os.environ["HF_HOME"]) if os.environ.get("HF_HOME") else _configured("hf_home")
-PROTOCOL_VERSION = 1
+PROTOCOL_VERSION = 2
 LOCK_MODES = ("auto", "on", "off")
 
 

@@ -95,7 +95,7 @@ SETTINGS_TEMPLATE: dict = {
 
 # DESIGN §2, the fixed setting of protocol version 1: the user's production backend
 # (~/.omlx-0.7/settings.json) plus a fixed SSD-cache cap. Dotted keys into settings.json.
-PROTOCOL_SETTINGS: dict[str, object] = {
+PROTOCOL_V1_SETTINGS: dict[str, object] = {
     "server.host": "127.0.0.1",
     "server.burst_decode_mode": "balanced",
     "memory.prefill_memory_guard": True,
@@ -116,6 +116,11 @@ PROTOCOL_SETTINGS: dict[str, object] = {
     "sampling.top_k": 0,
     "huggingface.hf_cache_enabled": False,
     "idle_timeout.idle_timeout_seconds": None,
+}
+PROTOCOL_SETTINGS = {
+    1: PROTOCOL_V1_SETTINGS,
+    2: {**PROTOCOL_V1_SETTINGS, "cache.hot_cache_max_size": "12GB", "memory.memory_guard_tier": "custom",
+        "memory.memory_guard_custom_ceiling_gb": 90.0},
 }
 
 
@@ -145,10 +150,11 @@ def _set(d: dict, dotted: str, value: object) -> None:
     d[last] = value
 
 
-def protocol_settings(base: Path, port: int, ssd_cache_dir: Path, secret_key: str | None = None) -> dict:
+def protocol_settings(base: Path, port: int, ssd_cache_dir: Path, secret_key: str | None = None,
+                      *, version: int | None = None) -> dict:
     """The complete settings.json of a launch: template + protocol values + this run's paths."""
     d = copy.deepcopy(SETTINGS_TEMPLATE)
-    for k, v in PROTOCOL_SETTINGS.items():
+    for k, v in PROTOCOL_SETTINGS[paths.PROTOCOL_VERSION if version is None else version].items():
         _set(d, k, v)
     empty = str(base / "empty-models")   # models come from OMLX_MODEL_DIR, as in serve.sh
     _set(d, "server.port", port)

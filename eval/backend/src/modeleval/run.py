@@ -394,6 +394,7 @@ class Run:
         self.server_settings: dict | None = None   # settings.json as written for the last launch, minus auth
         self.epoch: str | None = None              # set by preflight when the capability leg runs
         self.stored_epoch: str | None = None       # the epoch an earlier invocation of this run recorded
+        self.stored_protocol: int | None = None
         self.gate: dict | None = None              # the gate decision of DESIGN §6.6 before the ranking set
         self.server_lost = 0                       # relaunches after a lost server (all legs)
         self.claimed = False
@@ -416,11 +417,15 @@ class Run:
             self.started = old.get("started", self.started)
             self.machine = old.get("machine") or {}
             self.stored_epoch = old.get("epoch")
+            self.stored_protocol = old.get("protocol_version")
             self.gate = old.get("gate_decision")
 
     def check_resume(self) -> None:
         """Refuse a resume that would mix macOS/Xcode builds in the speed leg, or harness epochs in the
         capability leg, inside one reported run (DESIGN §2, §7): the first invocation's values win."""
+        if self.stored_protocol is not None and self.stored_protocol != paths.PROTOCOL_VERSION:
+            raise Stop("refused", f"--resume {self.run_id}: protocol {self.stored_protocol} differs from current "
+                       f"protocol {paths.PROTOCOL_VERSION}; use the original protocol or start a new run")
         old, now = builds(self.machine), builds(self.machine_now)
         speed_rows = any(self.unit_rec(self.read_units(), u)["attempts"] for u in self.read_units()["units"])
         if "speed" in self.opts.legs and speed_rows and old["macos"] and old != now:
@@ -951,13 +956,16 @@ class Run:
         from modeleval import report, stats
 
         out: dict = {"epoch": self.epoch, "decision": None, "action": "ranking"}
-        if self.model.reference:
+        mapping = report.epoch_map()
+        mine_epoch = str(report.canonical_epoch(self.epoch, mapping))
+        ref_key = registry.capability_reference(paths.PROTOCOL_VERSION, mine_epoch, registry.reference(self.models).key)
+        if ref_key == self.model.key:
             out["why"] = "reference model"
+        elif ref_key is None:
+            out["why"] = f"no reference configured for protocol {paths.PROTOCOL_VERSION}, epoch {mine_epoch}"
         else:
-            ref_key = registry.reference(self.models).key
-            mapping = report.epoch_map()
-            mine_epoch = str(report.canonical_epoch(self.epoch, mapping))
             refs = [r for r in report.discover(paths.RESULTS) if r.model_key == ref_key
+                    and r.protocol == paths.PROTOCOL_VERSION and r.machine == paths.machine_id()
                     and str(report.canonical_epoch(r.epoch, mapping)) == mine_epoch
                     and r.records and report.cap_complete(r, "gate")]
             mine = report.cap_records(report._json(self.results / "capability" / "results.json"))
