@@ -219,3 +219,20 @@ def test_reader_request(fx: Fixtures) -> None:
     body = seen["body"]
     assert body["temperature"] == 0 and body["messages"][0] == {"role": "system", "content": "SYSTEM"}
     assert "top_p" not in body and probe["question"] in body["messages"][1]["content"]
+
+
+@pytest.mark.parametrize(("error", "exit_code"), [
+    (reader.FORMAT_ERROR, 0), ("request: service unavailable", 1),
+])
+def test_reader_main_error_exit(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, error: str, exit_code: int) -> None:
+    monkeypatch.setenv("BENCH_MODEL", "test")
+    monkeypatch.setattr(sys, "argv", ["reader", "--run-dir", str(tmp_path), "--gold"])
+    monkeypatch.setattr(reader, "start_proxy", lambda *args: (None, "http://proxy"))
+    monkeypatch.setattr(reader, "_stop", lambda proc: None)
+    monkeypatch.setattr(reader, "ask", lambda *args: {"answer": None, "raw": "invalid", "error": error})
+
+    assert reader.main() == exit_code
+    rows = [json.loads(line) for line in (tmp_path / "reader/answers.jsonl").read_text().splitlines()]
+    assert len(rows) == 60
+    assert all(row["error"] == error and not row["correct"] for row in rows)
+    assert score(Fixtures(), rows)["answerable"]["correct"] == 0

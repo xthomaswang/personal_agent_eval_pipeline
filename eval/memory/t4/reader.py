@@ -38,6 +38,7 @@ from memory.t4.oracle import ANSWERABLE, FIXTURES, Fixtures, score
 
 ROOT = Path(__file__).resolve().parents[2]
 MAX_TOKENS = 200
+FORMAT_ERROR = "no JSON object with an answer"
 FORMATS = {
     "date": 'a date as "YYYY-MM-DD"',
     "datetime": 'a local date and time as "YYYY-MM-DD HH:MM" (24-hour clock)',
@@ -85,7 +86,7 @@ def parse(text: str) -> tuple[Any, str | None]:
             continue
         if isinstance(obj, dict) and "answer" in obj:
             return obj["answer"], None
-    return None, "no JSON object with an answer"
+    return None, FORMAT_ERROR
 
 
 def ask(client: httpx.Client, url: str, model: str, system: str, probe: dict[str, Any]) -> dict[str, Any]:
@@ -187,7 +188,7 @@ def main() -> int:
     s = score(Fixtures(args.fixtures), answers)
     cats = " ".join(f"{c}={v['correct']}/{v['n']}" for c, v in s["per_category"].items())
     print(f"answerable {s['answerable']['correct']}/{s['answerable']['n']}  {cats}  errors {errors}")
-    return 1 if errors else 0
+    return 1 if any(a["error"] not in (None, FORMAT_ERROR) for a in answers) else 0
 
 
 if __name__ == "__main__":
