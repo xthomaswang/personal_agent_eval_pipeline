@@ -1,8 +1,8 @@
 # localmelo's native T4 probe and the cross-task protocol (D11)
 
 Design, 2026-10-26. Both measure localmelo's own long-term memory (R6-lite: the typed long store,
-Hippo's five actions, `--admit-on-outcome`). They run after R6-lite merges, likely in the week of
-11/23. Until then nothing here runs; the T4 assets they need exist (`memory/t4`, `memory/pab`).
+Hippo's five actions, `--admit-on-outcome`). They run after R6-lite merges (localmelo's target: the week of 11/9, after R5
+around 11/3). Until then nothing here runs; the T4 assets they need exist (`memory/t4`, `memory/pab`).
 
 The plan they come from is localmelo's reasoning-memory plan (`.melo/reasoning_memory_plan.md`,
 "How stability is shown", items 3 and 4, and D11). This file is the bench side: what runs, what is
@@ -17,7 +17,7 @@ cleanly. The fixed reader answers from the exported store, so retrieval is not p
 
 - Session n (1..10): direct mode, with pab as the only MCP server:
   ```
-  melo --mcp-only --mcp-config <cfg> [R6-lite and R5 flags at their defaults] -- "<prompt>"
+  melo --mcp-only --mcp-config <cfg> --keep-decision-text [R6-lite and R5 flags at their defaults] -- "<prompt>"
   cfg: {"mcpServers": {"pab": {"command": "<eval>/.venv/bin/python",
          "args": ["-m", "memory.pab", "--run-dir", "<trial>", "--session", "n", "--task", "t4-native"]}}}
   env: LOCALMELO_PERSIST_MEMORY=1, LOCALMELO_MEMORY_DIR=<trial>/mem (the same directory every day)
@@ -70,7 +70,7 @@ only probes an empty store cannot answer), so it is not a comparator.
    per trial, at least 9/12 extraction, 8/12 knowledge_update, 6/12 cross_session, 6/12 temporal and
    10/12 abstention, as the mean of k = 3 trials; and no `fabricated_source` in any trial.
 2. **Store everything**: every candidate Hippo received, admitted with no policy, rebuilt from
-   `decisions.jsonl` (the text is kept under the evaluation setting) and read by the same reader. It
+   `decisions.jsonl` (`--keep-decision-text` keeps each candidate's text there; off by default) and read by the same reader. It
    costs reader calls only, and it places Hippo on the frontier of accuracy against `memory_tokens`.
 3. **Hermes on `pab.memory_*`**: T4's own arm (`memory/t4/task.yaml`), same timeline, model and budget.
    It needs T4's runner, which is built before the native probe runs.
@@ -127,8 +127,9 @@ differences in model calls and wall time. These are reported; the rule above dec
 **Cost.** About 3 h of oQ5 per arm, 6 h in all: one overnight window under the GPU lock.
 
 **Not in this protocol.** A session variant, in which staged candidates can be rehearsed across turns,
-needs a session entry point the bench can drive (the gateway or U2's REPL); the bench drives
-`melo "task"` in direct mode today.
+needs a session entry point the bench can drive: the gateway's session API (U3: create a session, post a
+turn, SSE events). U2's REPL needs a pty, so it is not one. The bench drives `melo "task"` in direct mode
+today.
 
 ## 3. To build when R6-lite merges
 
