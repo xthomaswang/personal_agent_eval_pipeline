@@ -98,6 +98,23 @@ def test_unscorable_and_distractor_decisions_are_reported(facts: dict[str, Any])
     assert result["rows"][2]["unmapped_source_ids"] == [ids["A2"]]
 
 
+@pytest.mark.parametrize(("action", "entry", "admitted", "accepted"), [
+    ("NEW", 1, True, True), ("RELATED", 1, True, True),
+    ("NEW", None, False, True), ("RELATED", None, False, True),
+    ("IGNORE", None, False, True), ("IGNORE", 1, False, True),
+    ("UPDATE", 1, False, False), ("CONFLICT", 1, False, False),
+])
+def test_distractor_admission_table(facts: dict[str, Any], action: str, entry: int | None,
+                                    admitted: bool, accepted: bool) -> None:
+    distractor = next(rid for rid, r in facts["records"].items() if r["key"] is None)
+    result = routing.check(facts, [decision([distractor], action, entry)])
+    assert result["rows"][0]["distractor_admitted"] is admitted
+    assert result["rows"][0]["accepted"] is accepted
+    assert result["per_row"] == {"n": 1, "scorable": 1, "accepted": int(accepted),
+                                  "errors": int(not accepted), "unscorable": 0,
+                                  "distractor_admitted": int(admitted)}
+
+
 def test_scripted_retrieval_and_reader_replies() -> None:
     from memory.tests.native_stub import observed_fact, response
 

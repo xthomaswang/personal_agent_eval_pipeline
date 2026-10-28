@@ -60,7 +60,7 @@ include it (`facts.yaml` items, versions by day). For a candidate:
 
 | Its source_ids | Expected | Also accepted |
 |---|---|---|
-| only distractor records | not admitted, or IGNORE | NEW (counted as `distractor_admitted`, not an error) |
+| only distractor records | not admitted, or IGNORE | NEW or RELATED (counted as `distractor_admitted`, not an error) |
 | introduce an item's first version | NEW | RELATED |
 | introduce a later version that replaces a value (a rescheduled date, a corrected amount, a new room) | UPDATE | CONFLICT (counted as `conflict_left_open`) |
 | introduce a later version that only adds (a payment made, who brings snacks) | UPDATE or RELATED | NEW |

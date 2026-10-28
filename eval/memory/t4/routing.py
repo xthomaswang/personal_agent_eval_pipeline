@@ -78,7 +78,7 @@ def check(facts: dict[str, Any], decisions: list[dict[str, Any]]) -> dict[str, A
                 seen.add((key, i))
         distractor = bool(ids) and not selected and not unknown and not unmapped and all(
             records[rid].get("key") is None for rid in ids)
-        distractor_admitted = distractor and action == "NEW" and decision.get("entry_id") is not None
+        distractor_admitted = distractor and action in {"NEW", "RELATED"} and decision.get("entry_id") is not None
         if distractor:
             ok = action == "IGNORE" or decision.get("entry_id") is None or distractor_admitted
         else:
