@@ -156,6 +156,8 @@ def _system_snapshot() -> dict[str, Any]:
     return {
         "omlx_configured_settings": {"path": str(settings_path), "memory": settings.get("memory"),
                                      "cache": settings.get("cache")},
+        # repo commit and whether serve-omlx.sh's record matches the listener (verified)
+        "model_server": manifest._model_server(),
         "timestamp": time.time(),
         "sw_vers": _cmd_out(["sw_vers"]),
         "macos_product_version": _cmd_out(["sw_vers", "-productVersion"]),
@@ -195,8 +197,7 @@ def _restart_omlx(trial: Path) -> None:
     if url.hostname not in ("127.0.0.1", "localhost"):
         raise RuntimeError("Refusing to restart a non-local server")
     port = url.port or 8500
-    bench_root = Path.home() / "Developer/mlsys/experiments/personal-agent-bench"
-    info_path = bench_root / "runs" / f".server-{port}.json"
+    info_path = manifest.SERVED_DIR / f".server-{port}.json"
     info = json.loads(info_path.read_text())
     listeners = _cmd_out(["lsof", "-t", "-nP", f"-iTCP:{port}", "-sTCP:LISTEN"]).splitlines()
     pid = str(info.get("pid", ""))

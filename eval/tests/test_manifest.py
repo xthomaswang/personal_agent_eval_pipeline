@@ -125,3 +125,12 @@ def test_a_model_in_a_model_dir_is_found_by_its_directory_name(
     server = manifest._model_server()
 
     assert server["model_id"] == "Qwen3.8-27B-oQ8-mtp" and server["model_settings"] == entry
+
+
+def test_default_roots_follow_the_mlsys_layout():
+    """<mlsys>/experiments/<pipeline>/eval: the env-free defaults (oMLX repo, models, agents) hang off <mlsys>."""
+    if manifest.BENCH_ROOT.parent.parent.name != "experiments":
+        pytest.skip("this checkout is not under <mlsys>/experiments")
+    assert manifest.MLSYS_ROOT / "experiments" == manifest.BENCH_ROOT.parent.parent
+    if "BENCH_SERVED_DIR" not in os.environ:
+        assert manifest.SERVED_DIR == manifest.MLSYS_ROOT / "experiments" / "personal-agent-bench" / "runs"

@@ -27,7 +27,8 @@ SCHEMA_VERSION = 1
 
 HOME = Path.home()
 BENCH_ROOT = Path(__file__).resolve().parent.parent
-MLSYS_ROOT = BENCH_ROOT.parent.parent
+# <mlsys>/experiments/<this repository>/eval: three levels up (two before eval/ existed)
+MLSYS_ROOT = BENCH_ROOT.parent.parent.parent
 # The active serving setup. .envrc exports the same values; the defaults matter when a run starts
 # without direnv (a non-interactive shell), which once recorded the 0.3.9 install for 0.7.1rc1 runs.
 OMLX_BASE_URL = os.environ.get("OMLX_BASE_URL", "http://127.0.0.1:8500/v1")
@@ -41,8 +42,8 @@ BENCH_MODEL_PATH = os.environ.get(
     "BENCH_MODEL_PATH", str(MLSYS_ROOT / "models" / "chat" / "Qwen3.8-27B-oQ5-mtp")
 )
 CONVERSION_RECORD = "pab-conversion.json"
-# scripts/serve-omlx.sh records what it started in .server-<port>.json here
-SERVED_DIR = BENCH_ROOT / "runs"
+# personal-agent-bench's scripts/serve-omlx.sh records what it started in .server-<port>.json here
+SERVED_DIR = Path(os.environ.get("BENCH_SERVED_DIR", MLSYS_ROOT / "experiments" / "personal-agent-bench" / "runs"))
 # The localmelo checkout whose .venv runs melo: by default the bench's own worktree, pinned at a
 # fixed commit, so the main checkout can change without changing a run. Override to test a branch.
 LOCALMELO_REPO = Path(
