@@ -40,7 +40,7 @@ def capability_data(root: Path, rows: list[dict]) -> dict[str, list[str]]:
     spec.loader.exec_module(stats)
     tasks: dict[str, list[str]] = {"gate": [], "ranking": []}
     for row in rows:
-        if row["protocol"] != "capability-1":
+        if not re.fullmatch(r"capability-\d+", row["protocol"]):
             continue
         source = (root / "docs/benchmark" / row["system"]["machine"] / row["family"] / row["quant"]
                   / "backend" / row["run_id"] / "capability/results.json")
@@ -67,7 +67,7 @@ def capability_data(root: Path, rows: list[dict]) -> dict[str, list[str]]:
             if results.get("complete_sets", {}).get(set_name):
                 found = sorted({r["task"] for r in results["rows"] if r["set"] == set_name and r.get("scored")})
                 require(len(found) == 22, f"{source}: {set_name} must contain 22 unique tasks")
-                require(not tasks[set_name] or tasks[set_name] == found, f"{source}: task lists differ within capability-1")
+                require(not tasks[set_name] or tasks[set_name] == found, f"{source}: task lists differ across capability protocols")
                 tasks[set_name] = found
     require(set(tasks["gate"]).isdisjoint(tasks["ranking"]), "gate and ranking tasks overlap")
     return tasks
