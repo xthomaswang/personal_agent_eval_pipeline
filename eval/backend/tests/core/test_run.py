@@ -885,3 +885,12 @@ def test_without_the_gpu_lock_protocol_there_is_no_lock_and_no_notice(orch, caps
     assert os.environ.get("QUIET_LOCK") == "off" and paths.lock_env()["QUIET_LOCK"] == "off"
     assert "the GPU-lock protocol is off" in "\n".join(run.plan_lines(run.Options(model="fake-1b"), o.env.models))
     _assert_clean_exit(o)
+
+
+def test_plan_names_the_settings_of_its_protocol(orch, monkeypatch):
+    def plan() -> str:
+        return "\n".join(run.plan_lines(run.Options(model="fake-1b"), orch.env.models))
+    monkeypatch.setattr(paths, "PROTOCOL_VERSION", 2)
+    assert "protocol 2: hot cache 12GB, memory guard custom (ceiling 90 GB), SSD cache 128GB" in plan()
+    monkeypatch.setattr(paths, "PROTOCOL_VERSION", 1)
+    assert "protocol 1: hot cache 20GB, memory guard balanced, SSD cache 128GB" in plan()

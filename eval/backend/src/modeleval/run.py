@@ -35,6 +35,7 @@ from modeleval import paths, prepare, progress, quiet, registry
 from modeleval.capability import epoch as epochs
 from modeleval.registry import Model
 from modeleval.server import (
+    PROTOCOL_SETTINGS,
     MemorySampler,
     Pidfile,
     Server,
@@ -1268,6 +1269,10 @@ def plan_lines(opts: Options, models: dict[str, Model] | None = None) -> list[st
     est = estimate(m)
     run_id = opts.resume or "<new>"
     root = results_root(m, opts.unverified)
+    ps = PROTOCOL_SETTINGS[paths.PROTOCOL_VERSION]
+    guard = str(ps["memory.memory_guard_tier"])
+    if "memory.memory_guard_custom_ceiling_gb" in ps:
+        guard += f" (ceiling {ps['memory.memory_guard_custom_ceiling_gb']:g} GB)"
     done: dict = {}
     if opts.resume:
         uj = root / opts.resume / "speed" / "units.json"
@@ -1284,8 +1289,10 @@ def plan_lines(opts: Options, models: dict[str, Model] | None = None) -> list[st
               "lock        none: the GPU-lock protocol is off (config [lock] mode): no lock file, no LOCK-NOTICE, no wait"),
              f"server      {paths.tilde(paths.OMLX_EXE)} serve --base-path {paths.tilde(paths.BASE)} --headless "
              f"on 127.0.0.1:{paths.PORT}, models from {paths.tilde(paths.MODELS_DIR)}",
-             f"settings    hot cache 20GB, SSD cache 128GB in runs/<model>/<run-id>/ssd-cache, chunked prefill, "
-             f"8 concurrent, max_tokens 32768; model: context 131072"
+             f"settings    protocol {paths.PROTOCOL_VERSION}: hot cache {ps['cache.hot_cache_max_size']}, "
+             f"memory guard {guard}, SSD cache {ps['cache.ssd_cache_max_size']} in runs/<model>/<run-id>/ssd-cache, "
+             f"chunked prefill, {ps['scheduler.max_concurrent_requests']} concurrent, "
+             f"max_tokens {ps['sampling.max_tokens']}; model: context 131072"
              + (", mtp_enabled" if m.spec == "mtp" else "") + "".join(f", {k}={v}" for k, v in m.model_settings.items()),
              f"log expect  {m.server_log_expect}"] + readiness(opts, m)
     if "speed" in opts.legs:
