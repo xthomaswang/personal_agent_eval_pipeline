@@ -52,6 +52,8 @@ ARMS: dict[str, tuple[str, ...]] = {
     "S2": ("--fixed-prefix", "on"),
     # E3b, added after E3: chunked eviction with the v2 fixed prefix
     "C2": ("--window-eviction", "chunk", "--fixed-prefix", "on"),
+    # C2 + the reflect request keeps the plan's tools and asks for JSON only (needs a build that has the flag)
+    "C3": ("--window-eviction", "chunk", "--fixed-prefix", "on", "--reflect-tool-guard", "on"),
 }
 DEFAULT_ARMS = ("S0", "C1", "B1", "B2", "S2")   # E3's five
 EXERCISES = (

@@ -62,6 +62,7 @@ def test_arms_are_the_agreed_flag_sets() -> None:
         "B2": ("--window-eviction", "boundary", "--fixed-prefix", "on"),
         "S2": ("--fixed-prefix", "on"),
         "C2": ("--window-eviction", "chunk", "--fixed-prefix", "on"),
+        "C3": ("--window-eviction", "chunk", "--fixed-prefix", "on", "--reflect-tool-guard", "on"),
     }
     assert e3_run.DEFAULT_ARMS == ("S0", "C1", "B1", "B2", "S2")
     assert e3_run.arm_args("B2")[:2] == ["--output-format", "json"]
