@@ -30,3 +30,6 @@ models/
 
 # The memory suite's own localmelo clone (eval/memory/vendor/localmelo, pinned in eval/memory/README.md)
 eval/memory/vendor/
+
+# E3 gets its own pinned localmelo clone (eval/agent_ability/README.md, section E3)
+eval/agent_ability/e3/vendor/

@@ -174,6 +174,62 @@ uv run pytest ../harness-smoke/tests -q
 | `test_adapters.py` | builder wrappers and restoration; the installed MCP server over stdio; PATH resolution through Hermes's real terminal code and through Claude Code's Bash command layout |
 | `test_runner_e2e.py` | the runner end to end through `bench.harness` with a fake harness and a fake upstream: pass, fail, timeout, tamper and crash verdicts; identical prompts; step counts; dry-run plans |
 
+## E3: prompt-cache A/B of localmelo flag sets
+
+`e3/` compares five localmelo flag sets (arms) on prompt-cache reuse, with the smoke runner's `run_one` and
+`bench.harness` underneath, on twelve Aider exercises (sgf-parsing, book-store, zebra-puzzle, pov,
+scale-generator, connect, transpose, bowling, paasio, wordy, zipper, react), 2 repeats each:
+
+| Arm | Extra localmelo flags |
+|---|---|
+| S0 | none |
+| C1 | `--window-eviction chunk` |
+| B1 | `--window-eviction boundary` |
+| B2 | `--window-eviction boundary --fixed-prefix on` |
+| S2 | `--fixed-prefix on` |
+
+Every run also passes `--output-format json` (localmelo's result line, with `attempts` and `n_aux`) and gets
+the capability leg's budget: 30 proxy steps, 40 turns, 3600 s, thinking off, request and response bodies
+logged. That is 120 runs. The order is task-major: for each (task, repeat) all five arms run back to back,
+and the arm order is rotated by (task index + repeat), the task index counted from 0 and the repeat from 1,
+so no arm is always first.
+
+**localmelo build.** The arms run a separate clone pinned at `ce4a3a8` in `e3/vendor/localmelo`
+(gitignored), made the way `memory/README.md` describes for the native probe and D11: `git clone
+--no-hardlinks <localmelo's git dir> e3/vendor/localmelo`, `git checkout --detach ce4a3a8`, `git remote remove
+origin`, then `UV_PYTHON_DOWNLOADS=never uv sync --frozen --all-extras` in the clone. The driver points
+`bench.harness` at it (`manifest.LOCALMELO_REPO`) and refuses to start if it is at another commit or has
+uncommitted changes.
+
+```
+cd eval
+uv run python agent_ability/e3/run.py --run-dir <dir> --dry-run   # the schedule and every check; no model
+uv run python agent_ability/e3/run.py --run-dir <dir>             # run; the same command resumes
+uv run python agent_ability/e3/report.py <dir>                    # <dir>/report.md and report.json
+```
+
+The operator takes the GPU lock (`holder: agent-benchmark`) and starts the model server first; the driver
+never takes or releases the lock, and refuses to start without it. `<dir>/e3.json` is the checkpoint
+(`schedule.json` and `environment.json` sit next to it): finished runs are never re-run, and a run that was
+started and left no record is recorded as `interrupted` rather than replayed. Before each run the driver
+stops cleanly (exit code 3) when `<dir>/STOP` exists, when the lock has gone, or on battery below 30%.
+`environment.json` has the macOS and Xcode builds, the localmelo commit and the model server's record at the
+start and at the end of the last session. `--tasks`, `--arms` and `--repeats` select a subset.
+
+The report has, per arm, the pass counts (per task and repeat), cache efficiency (cached / prompt tokens over
+each run's model calls except its first, pooled and as the median of the per-run values), prompt, uncached
+tokens, steps and wall time, reflection health (reflections, unreadable ones and their rate, found in the
+logged bodies), `attempts` and `n_aux`. Its decision rule picks the arm with the highest cache efficiency
+that loses no task S0 passed in every repeat and whose unreadable-reflection rate is at most 2 points above
+S0's, ties going to the simpler arm; it lists every (task, arm) pair whose pass count differs from S0's for a
+rerun. A reflection request is one whose last user message starts with localmelo's `REFLECTION_PROMPT`, or a
+tool-less one that carries that text in its system message; tool-less requests without it are counted
+apart. A reflection is unreadable when its reply has no JSON object with a `recommended_action` key; the
+retry that follows it at once is not counted as another reflection.
+
+Tests: `uv run pytest agent_ability/tests/test_e3_run.py agent_ability/tests/test_e3_report.py` (from `eval/`;
+fake runs only).
+
 ## Expected runtime
 
 These figures are estimates from 18 tok/s decode and 13-16K tokens of harness prompt overhead per
