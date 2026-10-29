@@ -16,9 +16,14 @@ def _values(row: dict) -> list[str]:
     return [m["value"] for m in row["metrics"]]
 
 
+# The capability-1 / speed-1 runs this test pins; later runs of the same models (capability-2) are other rows.
+COMMITTED = {"qwen3-8-27b-oq5": "20261026-062952", "nanbeige4-3-33b-oq5": "20261026-104645"}
+
+
 def test_rows_of_the_committed_runs_are_the_numbers_of_results_md():
-    runs = {r.model_key: r for r in report.discover(paths.RESULTS) if publish.ours(r)}
-    if not {"qwen3-8-27b-oq5", "nanbeige4-3-33b-oq5"} <= set(runs):
+    runs = {r.model_key: r for r in report.discover(paths.RESULTS)
+            if publish.ours(r) and COMMITTED.get(r.model_key) == r.run_id}
+    if set(COMMITTED) - set(runs):
         pytest.skip("the committed runs are not under docs/benchmark")
     by = {}
     for key in ("qwen3-8-27b-oq5", "nanbeige4-3-33b-oq5"):
