@@ -1,0 +1,61 @@
+............FF.F...F...                                                  [100%]
+=================================== FAILURES ===================================
+_ SgfParsingTest.test_opening_bracket_within_property_value_doesn_t_need_to_be_escaped _
+
+self = <sgf_parsing_test.SgfParsingTest testMethod=test_opening_bracket_within_property_value_doesn_t_need_to_be_escaped>
+
+    def test_opening_bracket_within_property_value_doesn_t_need_to_be_escaped(self):
+        input_string = "(;A[x[y\\]z][foo]B[bar];C[baz])"
+        expected = SgfTree(
+            properties={"A": ["x[y]z", "foo"], "B": ["bar"]},
+            children=[SgfTree({"C": ["baz"]})],
+        )
+>       self.assertEqual(parse(input_string), expected)
+E       AssertionError: <sgf_parsing.SgfTree object at 0x1075c8730> != <sgf_parsing.SgfTree object at 0x1075c8690>
+
+sgf_parsing_test.py:119: AssertionError
+__ SgfParsingTest.test_parentheses_in_property_value_don_t_need_to_be_escaped __
+
+self = <sgf_parsing_test.SgfParsingTest testMethod=test_parentheses_in_property_value_don_t_need_to_be_escaped>
+
+    def test_parentheses_in_property_value_don_t_need_to_be_escaped(self):
+        input_string = "(;A[x(y)z][foo]B[bar];C[baz])"
+        expected = SgfTree(
+            properties={"A": ["x(y)z", "foo"], "B": ["bar"]},
+            children=[SgfTree({"C": ["baz"]})],
+        )
+>       self.assertEqual(parse(input_string), expected)
+E       AssertionError: <sgf_parsing.SgfTree object at 0x1075e1010> != <sgf_parsing.SgfTree object at 0x1075c1850>
+
+sgf_parsing_test.py:135: AssertionError
+__ SgfParsingTest.test_semicolon_in_property_value_doesn_t_need_to_be_escaped __
+
+self = <sgf_parsing_test.SgfParsingTest testMethod=test_semicolon_in_property_value_doesn_t_need_to_be_escaped>
+
+    def test_semicolon_in_property_value_doesn_t_need_to_be_escaped(self):
+        input_string = "(;A[a;b][foo]B[bar];C[baz])"
+        expected = SgfTree(
+            properties={"A": ["a;b", "foo"], "B": ["bar"]},
+            children=[SgfTree({"C": ["baz"]})],
+        )
+>       self.assertEqual(parse(input_string), expected)
+E       AssertionError: <sgf_parsing.SgfTree object at 0x107577410> != <sgf_parsing.SgfTree object at 0x107577350>
+
+sgf_parsing_test.py:127: AssertionError
+________________________ SgfParsingTest.test_two_nodes _________________________
+
+self = <sgf_parsing_test.SgfParsingTest testMethod=test_two_nodes>
+
+    def test_two_nodes(self):
+        input_string = "(;A[B];B[C])"
+        expected = SgfTree(properties={"A": ["B"]}, children=[SgfTree({"B": ["C"]})])
+>       self.assertEqual(parse(input_string), expected)
+E       AssertionError: <sgf_parsing.SgfTree object at 0x107577170> != <sgf_parsing.SgfTree object at 0x107577530>
+
+sgf_parsing_test.py:74: AssertionError
+=========================== short test summary info ============================
+FAILED sgf_parsing_test.py::SgfParsingTest::test_opening_bracket_within_property_value_doesn_t_need_to_be_escaped
+FAILED sgf_parsing_test.py::SgfParsingTest::test_parentheses_in_property_value_don_t_need_to_be_escaped
+FAILED sgf_parsing_test.py::SgfParsingTest::test_semicolon_in_property_value_doesn_t_need_to_be_escaped
+FAILED sgf_parsing_test.py::SgfParsingTest::test_two_nodes - AssertionError: ...
+4 failed, 19 passed in 0.02s

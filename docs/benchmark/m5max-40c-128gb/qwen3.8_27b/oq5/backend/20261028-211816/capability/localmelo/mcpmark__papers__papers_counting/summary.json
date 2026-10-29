@@ -1,0 +1,70 @@
+{
+  "run_id": "mcpmark__papers__papers_counting",
+  "harness": "localmelo",
+  "workspace": "ws/mcpmark__papers__papers_counting",
+  "started_at": 1793238962.291672,
+  "exit_code": 0,
+  "timed_out": false,
+  "wall_s": 6.434,
+  "harness_args": [
+    "--request-timeout",
+    "1800",
+    "--timeout",
+    "3540",
+    "--output-format",
+    "json"
+  ],
+  "steps": {
+    "n_llm": 3,
+    "n_llm_aux": 0,
+    "n_llm_err": 0,
+    "n_llm_post_submit": 0,
+    "n_tool": 2,
+    "images_new_sum": 0
+  },
+  "harness_report": {
+    "steps": 2,
+    "task_status": "completed",
+    "run_record": {
+      "task_id": "97eff8840d404f15a889d0667722de58",
+      "status": "completed",
+      "error": "",
+      "steps": 3,
+      "attempts": 1,
+      "n_llm": 3,
+      "n_main": 3,
+      "n_aux": 0,
+      "n_tool": 2,
+      "llm_errors": 0,
+      "usage": {
+        "prompt_tokens": 2413,
+        "completion_tokens": 246,
+        "total_tokens": 2659
+      },
+      "duration_s": 6.230073250000714,
+      "config": {
+        "max_steps": 30,
+        "attempt_policy": "reflect",
+        "steps_per_attempt": 10,
+        "max_attempts": 5,
+        "reflection_gate": "flags",
+        "tool_exposure": "retrieve",
+        "mode": "direct",
+        "builtins": [
+          "file_read",
+          "file_write",
+          "python_exec"
+        ],
+        "memory": true,
+        "memory_dir": "eval/backend/runs/qwen3-8-27b-oq5/20261028-211816/capability/localmelo/mcpmark__papers__papers_counting/mem",
+        "timeout_s": 3540.0,
+        "tools": [
+          "file_read",
+          "file_write",
+          "python_exec"
+        ]
+      },
+      "localmelo_version": "a4366a4"
+    }
+  }
+}

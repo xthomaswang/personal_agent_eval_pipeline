@@ -1,0 +1,25 @@
+{
+  "run_id": "aider__grade-school",
+  "harness": "claude_code",
+  "workspace": "ws/aider__grade-school",
+  "started_at": 1793212835.869356,
+  "exit_code": 0,
+  "timed_out": false,
+  "wall_s": 14.436,
+  "harness_args": [],
+  "steps": {
+    "n_llm": 4,
+    "n_llm_aux": 0,
+    "n_llm_err": 0,
+    "n_llm_post_submit": 0,
+    "n_tool": 4,
+    "images_new_sum": 0
+  },
+  "harness_report": {
+    "num_turns": 5,
+    "subtype": "success",
+    "is_error": false,
+    "permission_denials": 0,
+    "duration_ms": 14250
+  }
+}

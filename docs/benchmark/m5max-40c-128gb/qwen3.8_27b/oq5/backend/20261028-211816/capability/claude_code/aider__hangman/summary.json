@@ -1,0 +1,25 @@
+{
+  "run_id": "aider__hangman",
+  "harness": "claude_code",
+  "workspace": "ws/aider__hangman",
+  "started_at": 1793241208.5285451,
+  "exit_code": 1,
+  "timed_out": false,
+  "wall_s": 183.297,
+  "harness_args": [],
+  "steps": {
+    "n_llm": 30,
+    "n_llm_aux": 0,
+    "n_llm_err": 6,
+    "n_llm_post_submit": 0,
+    "n_tool": 32,
+    "images_new_sum": 0
+  },
+  "harness_report": {
+    "num_turns": 33,
+    "subtype": "success",
+    "is_error": true,
+    "permission_denials": 0,
+    "duration_ms": 183150
+  }
+}

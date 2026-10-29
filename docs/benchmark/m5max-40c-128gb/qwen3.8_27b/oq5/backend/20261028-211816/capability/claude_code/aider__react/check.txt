@@ -1,0 +1,368 @@
+.FFFFFFFFFFF.F                                                           [100%]
+=================================== FAILURES ===================================
+______________ ReactTest.test_callback_cells_only_fire_on_change _______________
+
+self = <react_test.ReactTest testMethod=test_callback_cells_only_fire_on_change>
+
+    def test_callback_cells_only_fire_on_change(self):
+        input = InputCell(1)
+>       output = ComputeCell([input], lambda inputs: 111 if inputs[0] < 3 else 222)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+react_test.py:98: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+react.py:30: in __init__
+    self.recompute()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <react.ComputeCell object at 0x108d46e40>
+
+    def recompute(self):
+        # Recompute the value from the current values of the input cells.
+        new_value = self.compute_function([cell.value for cell in self.inputs])
+>       if new_value != self._value:
+                        ^^^^^^^^^^^
+E       AttributeError: 'ComputeCell' object has no attribute '_value'. Did you mean: 'value'?
+
+react.py:49: AttributeError
+______________ ReactTest.test_callbacks_can_be_added_and_removed _______________
+
+self = <react_test.ReactTest testMethod=test_callbacks_can_be_added_and_removed>
+
+    def test_callbacks_can_be_added_and_removed(self):
+        input = InputCell(11)
+>       output = ComputeCell(
+            [
+                input,
+            ],
+            lambda inputs: inputs[0] + 1,
+        )
+
+react_test.py:149: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+react.py:30: in __init__
+    self.recompute()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <react.ComputeCell object at 0x108d6b750>
+
+    def recompute(self):
+        # Recompute the value from the current values of the input cells.
+        new_value = self.compute_function([cell.value for cell in self.inputs])
+>       if new_value != self._value:
+                        ^^^^^^^^^^^
+E       AttributeError: 'ComputeCell' object has no attribute '_value'. Did you mean: 'value'?
+
+react.py:49: AttributeError
+____________ ReactTest.test_callbacks_can_fire_from_multiple_cells _____________
+
+self = <react_test.ReactTest testMethod=test_callbacks_can_fire_from_multiple_cells>
+
+    def test_callbacks_can_fire_from_multiple_cells(self):
+        input = InputCell(1)
+>       plus_one = ComputeCell(
+            [
+                input,
+            ],
+            lambda inputs: inputs[0] + 1,
+        )
+
+react_test.py:125: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+react.py:30: in __init__
+    self.recompute()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <react.ComputeCell object at 0x108d6a210>
+
+    def recompute(self):
+        # Recompute the value from the current values of the input cells.
+        new_value = self.compute_function([cell.value for cell in self.inputs])
+>       if new_value != self._value:
+                        ^^^^^^^^^^^
+E       AttributeError: 'ComputeCell' object has no attribute '_value'. Did you mean: 'value'?
+
+react.py:49: AttributeError
+________ ReactTest.test_callbacks_do_not_report_already_reported_values ________
+
+self = <react_test.ReactTest testMethod=test_callbacks_do_not_report_already_reported_values>
+
+    def test_callbacks_do_not_report_already_reported_values(self):
+        input = InputCell(1)
+>       output = ComputeCell(
+            [
+                input,
+            ],
+            lambda inputs: inputs[0] + 1,
+        )
+
+react_test.py:109: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+react.py:30: in __init__
+    self.recompute()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <react.ComputeCell object at 0x108d6bd90>
+
+    def recompute(self):
+        # Recompute the value from the current values of the input cells.
+        new_value = self.compute_function([cell.value for cell in self.inputs])
+>       if new_value != self._value:
+                        ^^^^^^^^^^^
+E       AttributeError: 'ComputeCell' object has no attribute '_value'. Did you mean: 'value'?
+
+react.py:49: AttributeError
+_ ReactTest.test_callbacks_should_not_be_called_if_dependencies_change_but_output_value_doesn_t_change _
+
+self = <react_test.ReactTest testMethod=test_callbacks_should_not_be_called_if_dependencies_change_but_output_value_doesn_t_change>
+
+    def test_callbacks_should_not_be_called_if_dependencies_change_but_output_value_doesn_t_change(
+        self,
+    ):
+        input = InputCell(1)
+>       plus_one = ComputeCell(
+            [
+                input,
+            ],
+            lambda inputs: inputs[0] + 1,
+        )
+
+react_test.py:235: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+react.py:30: in __init__
+    self.recompute()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <react.ComputeCell object at 0x108e40050>
+
+    def recompute(self):
+        # Recompute the value from the current values of the input cells.
+        new_value = self.compute_function([cell.value for cell in self.inputs])
+>       if new_value != self._value:
+                        ^^^^^^^^^^^
+E       AttributeError: 'ComputeCell' object has no attribute '_value'. Did you mean: 'value'?
+
+react.py:49: AttributeError
+_ ReactTest.test_callbacks_should_only_be_called_once_even_if_multiple_dependencies_change _
+
+self = <react_test.ReactTest testMethod=test_callbacks_should_only_be_called_once_even_if_multiple_dependencies_change>
+
+    def test_callbacks_should_only_be_called_once_even_if_multiple_dependencies_change(
+        self,
+    ):
+        input = InputCell(1)
+>       plus_one = ComputeCell(
+            [
+                input,
+            ],
+            lambda inputs: inputs[0] + 1,
+        )
+
+react_test.py:200: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+react.py:30: in __init__
+    self.recompute()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <react.ComputeCell object at 0x108e402d0>
+
+    def recompute(self):
+        # Recompute the value from the current values of the input cells.
+        new_value = self.compute_function([cell.value for cell in self.inputs])
+>       if new_value != self._value:
+                        ^^^^^^^^^^^
+E       AttributeError: 'ComputeCell' object has no attribute '_value'. Did you mean: 'value'?
+
+react.py:49: AttributeError
+_____________ ReactTest.test_compute_cells_calculate_initial_value _____________
+
+self = <react_test.ReactTest testMethod=test_compute_cells_calculate_initial_value>
+
+    def test_compute_cells_calculate_initial_value(self):
+        input = InputCell(1)
+>       output = ComputeCell(
+            [
+                input,
+            ],
+            lambda inputs: inputs[0] + 1,
+        )
+
+react_test.py:26: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+react.py:30: in __init__
+    self.recompute()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <react.ComputeCell object at 0x108e40410>
+
+    def recompute(self):
+        # Recompute the value from the current values of the input cells.
+        new_value = self.compute_function([cell.value for cell in self.inputs])
+>       if new_value != self._value:
+                        ^^^^^^^^^^^
+E       AttributeError: 'ComputeCell' object has no attribute '_value'. Did you mean: 'value'?
+
+react.py:49: AttributeError
+________ ReactTest.test_compute_cells_can_depend_on_other_compute_cells ________
+
+self = <react_test.ReactTest testMethod=test_compute_cells_can_depend_on_other_compute_cells>
+
+    def test_compute_cells_can_depend_on_other_compute_cells(self):
+        input = InputCell(1)
+>       times_two = ComputeCell(
+            [
+                input,
+            ],
+            lambda inputs: inputs[0] * 2,
+        )
+
+react_test.py:59: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+react.py:30: in __init__
+    self.recompute()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <react.ComputeCell object at 0x108e40550>
+
+    def recompute(self):
+        # Recompute the value from the current values of the input cells.
+        new_value = self.compute_function([cell.value for cell in self.inputs])
+>       if new_value != self._value:
+                        ^^^^^^^^^^^
+E       AttributeError: 'ComputeCell' object has no attribute '_value'. Did you mean: 'value'?
+
+react.py:49: AttributeError
+_________________ ReactTest.test_compute_cells_fire_callbacks __________________
+
+self = <react_test.ReactTest testMethod=test_compute_cells_fire_callbacks>
+
+    def test_compute_cells_fire_callbacks(self):
+        input = InputCell(1)
+>       output = ComputeCell(
+            [
+                input,
+            ],
+            lambda inputs: inputs[0] + 1,
+        )
+
+react_test.py:84: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+react.py:30: in __init__
+    self.recompute()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <react.ComputeCell object at 0x108e40690>
+
+    def recompute(self):
+        # Recompute the value from the current values of the input cells.
+        new_value = self.compute_function([cell.value for cell in self.inputs])
+>       if new_value != self._value:
+                        ^^^^^^^^^^^
+E       AttributeError: 'ComputeCell' object has no attribute '_value'. Did you mean: 'value'?
+
+react.py:49: AttributeError
+_________ ReactTest.test_compute_cells_take_inputs_in_the_right_order __________
+
+self = <react_test.ReactTest testMethod=test_compute_cells_take_inputs_in_the_right_order>
+
+    def test_compute_cells_take_inputs_in_the_right_order(self):
+        one = InputCell(1)
+        two = InputCell(2)
+>       output = ComputeCell(
+            [
+                one,
+                two,
+            ],
+            lambda inputs: inputs[0] + inputs[1] * 10,
+        )
+
+react_test.py:37: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+react.py:30: in __init__
+    self.recompute()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <react.ComputeCell object at 0x108e407d0>
+
+    def recompute(self):
+        # Recompute the value from the current values of the input cells.
+        new_value = self.compute_function([cell.value for cell in self.inputs])
+>       if new_value != self._value:
+                        ^^^^^^^^^^^
+E       AttributeError: 'ComputeCell' object has no attribute '_value'. Did you mean: 'value'?
+
+react.py:49: AttributeError
+___ ReactTest.test_compute_cells_update_value_when_dependencies_are_changed ____
+
+self = <react_test.ReactTest testMethod=test_compute_cells_update_value_when_dependencies_are_changed>
+
+    def test_compute_cells_update_value_when_dependencies_are_changed(self):
+        input = InputCell(1)
+>       output = ComputeCell(
+            [
+                input,
+            ],
+            lambda inputs: inputs[0] + 1,
+        )
+
+react_test.py:48: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+react.py:30: in __init__
+    self.recompute()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <react.ComputeCell object at 0x108d6aad0>
+
+    def recompute(self):
+        # Recompute the value from the current values of the input cells.
+        new_value = self.compute_function([cell.value for cell in self.inputs])
+>       if new_value != self._value:
+                        ^^^^^^^^^^^
+E       AttributeError: 'ComputeCell' object has no attribute '_value'. Did you mean: 'value'?
+
+react.py:49: AttributeError
+_ ReactTest.test_removing_a_callback_multiple_times_doesn_t_interfere_with_other_callbacks _
+
+self = <react_test.ReactTest testMethod=test_removing_a_callback_multiple_times_doesn_t_interfere_with_other_callbacks>
+
+    def test_removing_a_callback_multiple_times_doesn_t_interfere_with_other_callbacks(
+        self,
+    ):
+        input = InputCell(1)
+>       output = ComputeCell(
+            [
+                input,
+            ],
+            lambda inputs: inputs[0] + 1,
+        )
+
+react_test.py:177: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+react.py:30: in __init__
+    self.recompute()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <react.ComputeCell object at 0x108d6ae90>
+
+    def recompute(self):
+        # Recompute the value from the current values of the input cells.
+        new_value = self.compute_function([cell.value for cell in self.inputs])
+>       if new_value != self._value:
+                        ^^^^^^^^^^^
+E       AttributeError: 'ComputeCell' object has no attribute '_value'. Did you mean: 'value'?
+
+react.py:49: AttributeError
+=========================== short test summary info ============================
+FAILED react_test.py::ReactTest::test_callback_cells_only_fire_on_change - At...
+FAILED react_test.py::ReactTest::test_callbacks_can_be_added_and_removed - At...
+FAILED react_test.py::ReactTest::test_callbacks_can_fire_from_multiple_cells
+FAILED react_test.py::ReactTest::test_callbacks_do_not_report_already_reported_values
+FAILED react_test.py::ReactTest::test_callbacks_should_not_be_called_if_dependencies_change_but_output_value_doesn_t_change
+FAILED react_test.py::ReactTest::test_callbacks_should_only_be_called_once_even_if_multiple_dependencies_change
+FAILED react_test.py::ReactTest::test_compute_cells_calculate_initial_value
+FAILED react_test.py::ReactTest::test_compute_cells_can_depend_on_other_compute_cells
+FAILED react_test.py::ReactTest::test_compute_cells_fire_callbacks - Attribut...
+FAILED react_test.py::ReactTest::test_compute_cells_take_inputs_in_the_right_order
+FAILED react_test.py::ReactTest::test_compute_cells_update_value_when_dependencies_are_changed
+FAILED react_test.py::ReactTest::test_removing_a_callback_multiple_times_doesn_t_interfere_with_other_callbacks
+12 failed, 2 passed in 0.03s

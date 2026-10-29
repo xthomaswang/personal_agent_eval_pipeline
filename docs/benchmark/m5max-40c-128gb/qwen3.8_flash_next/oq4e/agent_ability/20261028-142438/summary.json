@@ -1,0 +1,45 @@
+{
+  "schema": 1,
+  "suite": "agent_ability",
+  "protocol": "capability-2",
+  "title": "Claude Code, Hermes, localmelo on Aider 12 + MCPMark easy 10 (gate set) and Aider 22 (ranking set); thinking off",
+  "model": "Qwen3.8-Flash-Next oQ4e + MTP",
+  "family": "qwen3.8_flash_next",
+  "quant": "oq4e",
+  "run_id": "20261028-142438",
+  "date": "2026-10-28",
+  "system": {
+    "machine": "m5max-40c-128gb",
+    "macos_build": "26B123",
+    "xcode_build": "27A9275",
+    "server": "oMLX 0.7.1rc1 (7a5a3d75)"
+  },
+  "metrics": [
+    {
+      "name": "Claude Code (gate)",
+      "value": "22/22"
+    },
+    {
+      "name": "Hermes (gate)",
+      "value": "22/22"
+    },
+    {
+      "name": "localmelo (gate)",
+      "value": "22/22"
+    },
+    {
+      "name": "Gate set",
+      "value": "66/66"
+    },
+    {
+      "name": "Ranking set",
+      "value": "62/66"
+    },
+    {
+      "name": "M7 tool-call cases",
+      "value": "—"
+    }
+  ],
+  "reference": true,
+  "details": "../../backend/20261028-142438/capability/results.json"
+}

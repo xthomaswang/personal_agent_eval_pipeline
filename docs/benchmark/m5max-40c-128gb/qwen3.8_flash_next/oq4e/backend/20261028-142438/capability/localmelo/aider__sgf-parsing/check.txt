@@ -1,0 +1,57 @@
+....F..F...............                                                  [100%]
+=================================== FAILURES ===================================
+_ SgfParsingTest.test_escaped_newline_in_property_value_is_converted_to_nothing_at_all _
+
+self = <sgf_parsing_test.SgfParsingTest testMethod=test_escaped_newline_in_property_value_is_converted_to_nothing_at_all>
+
+    def test_escaped_newline_in_property_value_is_converted_to_nothing_at_all(self):
+        input_string = "(;A[hello\\\nworld])"
+        expected = SgfTree(properties={"A": ["helloworld"]})
+>       self.assertEqual(parse(input_string), expected)
+E       AssertionError: <sgf_parsing.SgfTree object at 0x1091be210> != <sgf_parsing.SgfTree object at 0x10915e3f0>
+
+sgf_parsing_test.py:145: AssertionError
+_ SgfParsingTest.test_mixing_various_kinds_of_whitespace_and_escaped_characters_in_property_value _
+
+self = <sgf_parsing_test.SgfParsingTest testMethod=test_mixing_various_kinds_of_whitespace_and_escaped_characters_in_property_value>
+
+    def test_mixing_various_kinds_of_whitespace_and_escaped_characters_in_property_value(
+        self,
+    ):
+        input_string = "(;A[\\]b\nc\\\nd\t\te\\\\ \\\n\\]])"
+        expected = SgfTree(properties={"A": ["]b\ncd  e\\ ]"]})
+>       self.assertEqual(parse(input_string), expected)
+                         ^^^^^^^^^^^^^^^^^^^
+
+sgf_parsing_test.py:157: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+sgf_parsing.py:32: in parse
+    trees = parser.parse_trees()
+            ^^^^^^^^^^^^^^^^^^^^
+sgf_parsing.py:54: in parse_trees
+    trees = [self.parse_tree()]
+             ^^^^^^^^^^^^^^^^^
+sgf_parsing.py:65: in parse_tree
+    node = self.parse_node()
+           ^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <sgf_parsing._Parser object at 0x1092489e0>
+
+    def parse_node(self):
+        # consume ';'
+        self.i += 1
+        properties = {}
+        while True:
+            c = self.peek()
+            if c is None or c in ";()":
+                break
+            if not c.isalpha():
+>               raise ValueError("properties without delimiter")
+E               ValueError: properties without delimiter
+
+sgf_parsing.py:88: ValueError
+=========================== short test summary info ============================
+FAILED sgf_parsing_test.py::SgfParsingTest::test_escaped_newline_in_property_value_is_converted_to_nothing_at_all
+FAILED sgf_parsing_test.py::SgfParsingTest::test_mixing_various_kinds_of_whitespace_and_escaped_characters_in_property_value
+2 failed, 21 passed in 0.02s

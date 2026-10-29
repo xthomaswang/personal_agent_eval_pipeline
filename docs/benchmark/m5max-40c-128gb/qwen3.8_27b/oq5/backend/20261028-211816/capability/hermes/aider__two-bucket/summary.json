@@ -1,0 +1,23 @@
+{
+  "run_id": "aider__two-bucket",
+  "harness": "hermes",
+  "workspace": "ws/aider__two-bucket",
+  "started_at": 1793246918.144046,
+  "exit_code": 0,
+  "timed_out": false,
+  "wall_s": 37.96,
+  "harness_args": [],
+  "steps": {
+    "n_llm": 5,
+    "n_llm_aux": 0,
+    "n_llm_err": 0,
+    "n_llm_post_submit": 0,
+    "n_tool": 5,
+    "images_new_sum": 0
+  },
+  "harness_report": {
+    "tool_use_events": 5,
+    "api_call_count": 5,
+    "exit_code": 0
+  }
+}

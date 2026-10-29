@@ -1,0 +1,84 @@
+....F..FFF                                                               [100%]
+=================================== FAILURES ===================================
+_____________ ConnectTest.test_o_wins_crossing_from_top_to_bottom ______________
+
+self = <connect_test.ConnectTest testMethod=test_o_wins_crossing_from_top_to_bottom>
+
+    def test_o_wins_crossing_from_top_to_bottom(self):
+        game = ConnectGame(
+            """. O . .
+                O X X X
+                 O O O .
+                  X X O X
+                   . O X ."""
+        )
+        winner = game.get_winner()
+>       self.assertEqual(winner, "O")
+E       AssertionError: '' != 'O'
+E       + O
+
+connect_test.py:86: AssertionError
+_____________ ConnectTest.test_x_wins_crossing_from_left_to_right ______________
+
+self = <connect_test.ConnectTest testMethod=test_x_wins_crossing_from_left_to_right>
+
+    def test_x_wins_crossing_from_left_to_right(self):
+        game = ConnectGame(
+            """. O . .
+                O X X X
+                 O X O .
+                  X X O X
+                   . O X ."""
+        )
+        winner = game.get_winner()
+>       self.assertEqual(winner, "X")
+E       AssertionError: '' != 'X'
+E       + X
+
+connect_test.py:75: AssertionError
+_______________ ConnectTest.test_x_wins_using_a_convoluted_path ________________
+
+self = <connect_test.ConnectTest testMethod=test_x_wins_using_a_convoluted_path>
+
+    def test_x_wins_using_a_convoluted_path(self):
+        game = ConnectGame(
+            """. X X . .
+                X . X . X
+                 . X . X .
+                  . X X . .
+                   O O O O O"""
+        )
+        winner = game.get_winner()
+>       self.assertEqual(winner, "X")
+E       AssertionError: '' != 'X'
+E       + X
+
+connect_test.py:97: AssertionError
+_________________ ConnectTest.test_x_wins_using_a_spiral_path __________________
+
+self = <connect_test.ConnectTest testMethod=test_x_wins_using_a_spiral_path>
+
+    def test_x_wins_using_a_spiral_path(self):
+        game = ConnectGame(
+            """O X X X X X X X X
+                O X O O O O O O O
+                 O X O X X X X X O
+                  O X O X O O O X O
+                   O X O X X X O X O
+                    O X O O O X O X O
+                     O X X X X X O X O
+                      O O O O O O O X O
+                       X X X X X X X X O"""
+        )
+        winner = game.get_winner()
+>       self.assertEqual(winner, "X")
+E       AssertionError: '' != 'X'
+E       + X
+
+connect_test.py:112: AssertionError
+=========================== short test summary info ============================
+FAILED connect_test.py::ConnectTest::test_o_wins_crossing_from_top_to_bottom
+FAILED connect_test.py::ConnectTest::test_x_wins_crossing_from_left_to_right
+FAILED connect_test.py::ConnectTest::test_x_wins_using_a_convoluted_path - As...
+FAILED connect_test.py::ConnectTest::test_x_wins_using_a_spiral_path - Assert...
+4 failed, 6 passed in 0.01s

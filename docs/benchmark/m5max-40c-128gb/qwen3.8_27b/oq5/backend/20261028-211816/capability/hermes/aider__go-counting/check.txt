@@ -1,0 +1,89 @@
+.F....FFFFF                                                              [100%]
+=================================== FAILURES ===================================
+___________ GoCountingTest.test_black_corner_territory_on_5x5_board ____________
+
+self = <go_counting_test.GoCountingTest testMethod=test_black_corner_territory_on_5x5_board>
+
+    def test_black_corner_territory_on_5x5_board(self):
+        board = Board(["  B  ", " B B ", "B W B", " W W ", "  W  "])
+        stone, territory = board.territory(x=0, y=1)
+>       self.assertEqual(stone, BLACK)
+E       AssertionError: '' != 'B'
+E       + B
+
+go_counting_test.py:19: AssertionError
+_____________ GoCountingTest.test_one_territory_is_the_whole_board _____________
+
+self = <go_counting_test.GoCountingTest testMethod=test_one_territory_is_the_whole_board>
+
+    def test_one_territory_is_the_whole_board(self):
+        board = Board([" "])
+        territories = board.territories()
+        self.assertSetEqual(territories[BLACK], set())
+        self.assertSetEqual(territories[WHITE], set())
+>       self.assertSetEqual(territories[NONE], {(0, 0)})
+E       AssertionError: Items in the second set but not the first:
+E       (0, 0)
+
+go_counting_test.py:73: AssertionError
+____________ GoCountingTest.test_open_corner_territory_on_5x5_board ____________
+
+self = <go_counting_test.GoCountingTest testMethod=test_open_corner_territory_on_5x5_board>
+
+    def test_open_corner_territory_on_5x5_board(self):
+        board = Board(["  B  ", " B B ", "B W B", " W W ", "  W  "])
+        stone, territory = board.territory(x=1, y=4)
+        self.assertEqual(stone, NONE)
+>       self.assertSetEqual(territory, {(0, 3), (0, 4), (1, 4)})
+E       AssertionError: Items in the second set but not the first:
+E       (0, 3)
+E       (0, 4)
+E       (1, 4)
+
+go_counting_test.py:32: AssertionError
+_______________ GoCountingTest.test_two_region_rectangular_board _______________
+
+self = <go_counting_test.GoCountingTest testMethod=test_two_region_rectangular_board>
+
+    def test_two_region_rectangular_board(self):
+        board = Board([" B "])
+        territories = board.territories()
+>       self.assertSetEqual(territories[BLACK], {(0, 0), (2, 0)})
+E       AssertionError: Items in the second set but not the first:
+E       (2, 0)
+E       (0, 0)
+
+go_counting_test.py:85: AssertionError
+_____________ GoCountingTest.test_two_territory_rectangular_board ______________
+
+self = <go_counting_test.GoCountingTest testMethod=test_two_territory_rectangular_board>
+
+    def test_two_territory_rectangular_board(self):
+        board = Board([" BW ", " BW "])
+        territories = board.territories()
+>       self.assertSetEqual(territories[BLACK], {(0, 0), (0, 1)})
+E       AssertionError: Items in the second set but not the first:
+E       (0, 1)
+E       (0, 0)
+
+go_counting_test.py:78: AssertionError
+___________ GoCountingTest.test_white_center_territory_on_5x5_board ____________
+
+self = <go_counting_test.GoCountingTest testMethod=test_white_center_territory_on_5x5_board>
+
+    def test_white_center_territory_on_5x5_board(self):
+        board = Board(["  B  ", " B B ", "B W B", " W W ", "  W  "])
+        stone, territory = board.territory(x=2, y=3)
+>       self.assertEqual(stone, WHITE)
+E       AssertionError: '' != 'W'
+E       + W
+
+go_counting_test.py:25: AssertionError
+=========================== short test summary info ============================
+FAILED go_counting_test.py::GoCountingTest::test_black_corner_territory_on_5x5_board
+FAILED go_counting_test.py::GoCountingTest::test_one_territory_is_the_whole_board
+FAILED go_counting_test.py::GoCountingTest::test_open_corner_territory_on_5x5_board
+FAILED go_counting_test.py::GoCountingTest::test_two_region_rectangular_board
+FAILED go_counting_test.py::GoCountingTest::test_two_territory_rectangular_board
+FAILED go_counting_test.py::GoCountingTest::test_white_center_territory_on_5x5_board
+6 failed, 5 passed in 0.01s

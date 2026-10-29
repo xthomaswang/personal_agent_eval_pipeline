@@ -1,0 +1,36 @@
+..................F....                                                  [100%]
+=================================== FAILURES ===================================
+_____________________ SgfParsingTest.test_two_child_trees ______________________
+
+self = <sgf_parsing_test.SgfParsingTest testMethod=test_two_child_trees>
+
+    def test_two_child_trees(self):
+        input_string = "(;A[B](;B[C])(;C[D]))"
+        expected = SgfTree(
+            properties={"A": ["B"]},
+            children=[SgfTree({"B": ["C"]}), SgfTree({"C": ["D"]})],
+        )
+>       self.assertEqual(parse(input_string), expected)
+                         ^^^^^^^^^^^^^^^^^^^
+
+sgf_parsing_test.py:82: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+input_string = '(;A[B](;B[C])(;C[D]))'
+
+    def parse(input_string):
+        text = input_string
+        if not text or text[0] != '(':
+            raise ValueError("tree missing")
+    
+        parser = _Parser(text)
+        parser._advance()  # consume '('
+        tree = parser.parse_tree()
+        if parser.pos != len(text):
+>           raise ValueError("properties without delimiter")
+E           ValueError: properties without delimiter
+
+sgf_parsing.py:185: ValueError
+=========================== short test summary info ============================
+FAILED sgf_parsing_test.py::SgfParsingTest::test_two_child_trees - ValueError...
+1 failed, 22 passed in 0.01s

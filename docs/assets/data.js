@@ -1,8 +1,8 @@
 window.BENCHMARK_DATA = {
   "repoUrl": "https://github.com/xthomaswang/personal_agent_eval_pipeline",
-  "latest": "2026-10-27",
+  "latest": "2026-10-28",
   "buildCount": 6,
-  "resultCount": 16,
+  "resultCount": 18,
   "machineCount": 1,
   "harnessCount": 3,
   "machines": [
@@ -33,6 +33,22 @@ window.BENCHMARK_DATA = {
       "kind": "ability",
       "title": "Claude Code, Hermes, localmelo on Aider 12 + MCPMark easy 10 (gate set) and Aider 22 (ranking set); thinking off",
       "latest": "2026-10-26",
+      "metrics": [
+        "Claude Code (gate)",
+        "Hermes (gate)",
+        "localmelo (gate)",
+        "Gate set",
+        "Ranking set",
+        "M7 tool-call cases"
+      ]
+    },
+    {
+      "machine": "m5max-40c-128gb",
+      "suite": "agent_ability",
+      "id": "capability-2",
+      "kind": "ability",
+      "title": "Claude Code, Hermes, localmelo on Aider 12 + MCPMark easy 10 (gate set) and Aider 22 (ranking set); thinking off",
+      "latest": "2026-10-28",
       "metrics": [
         "Claude Code (gate)",
         "Hermes (gate)",
@@ -591,6 +607,103 @@ window.BENCHMARK_DATA = {
     },
     {
       "schema": 1,
+      "suite": "agent_ability",
+      "protocol": "capability-2",
+      "title": "Claude Code, Hermes, localmelo on Aider 12 + MCPMark easy 10 (gate set) and Aider 22 (ranking set); thinking off",
+      "model": "Qwen3.8-27B oQ5 + MTP",
+      "family": "qwen3.8_27b",
+      "quant": "oq5",
+      "run_id": "20261028-211816",
+      "date": "2026-10-28",
+      "system": {
+        "machine": "m5max-40c-128gb",
+        "macos_build": "26B123",
+        "xcode_build": "27A9275",
+        "server": "oMLX 0.7.1rc1 (7a5a3d75)"
+      },
+      "metrics": [
+        {
+          "name": "Claude Code (gate)",
+          "value": "20/22"
+        },
+        {
+          "name": "Hermes (gate)",
+          "value": "21/22"
+        },
+        {
+          "name": "localmelo (gate)",
+          "value": "22/22"
+        },
+        {
+          "name": "Gate set",
+          "value": "63/66"
+        },
+        {
+          "name": "Ranking set",
+          "value": "58/66"
+        },
+        {
+          "name": "M7 tool-call cases",
+          "value": "\u2014"
+        }
+      ],
+      "details": "../../backend/20261028-211816/capability/results.json",
+      "_dir": "docs/benchmark/m5max-40c-128gb/qwen3.8_27b/oq5/agent_ability/20261028-211816",
+      "_details": "docs/benchmark/m5max-40c-128gb/qwen3.8_27b/oq5/backend/20261028-211816/capability/results.json",
+      "_harness_source": "docs/benchmark/m5max-40c-128gb/qwen3.8_27b/oq5/backend/20261028-211816/capability/results.json",
+      "_harnesses": {
+        "claude_code": {
+          "gate": {
+            "passed": 20,
+            "runs": 22,
+            "expected": 22,
+            "modelTimeMedian": 23.0,
+            "modelCallsMedian": 5.5
+          },
+          "ranking": {
+            "passed": 19,
+            "runs": 22,
+            "expected": 22,
+            "modelTimeMedian": 50.8,
+            "modelCallsMedian": 6.0
+          }
+        },
+        "hermes": {
+          "gate": {
+            "passed": 21,
+            "runs": 22,
+            "expected": 22,
+            "modelTimeMedian": 23.2,
+            "modelCallsMedian": 5.0
+          },
+          "ranking": {
+            "passed": 18,
+            "runs": 22,
+            "expected": 22,
+            "modelTimeMedian": 45.0,
+            "modelCallsMedian": 6.5
+          }
+        },
+        "localmelo": {
+          "gate": {
+            "passed": 22,
+            "runs": 22,
+            "expected": 22,
+            "modelTimeMedian": 21.5,
+            "modelCallsMedian": 4.0
+          },
+          "ranking": {
+            "passed": 21,
+            "runs": 22,
+            "expected": 22,
+            "modelTimeMedian": 38.5,
+            "modelCallsMedian": 6.0
+          }
+        }
+      }
+    },
+    {
+      "schema": 1,
       "model": "Qwen3.8-27B oQ5 + MTP",
       "family": "qwen3.8_27b",
       "quant": "oq5",
@@ -1068,6 +1181,104 @@ window.BENCHMARK_DATA = {
     },
     {
       "schema": 1,
+      "suite": "agent_ability",
+      "protocol": "capability-2",
+      "title": "Claude Code, Hermes, localmelo on Aider 12 + MCPMark easy 10 (gate set) and Aider 22 (ranking set); thinking off",
+      "model": "Qwen3.8-Flash-Next oQ4e + MTP",
+      "family": "qwen3.8_flash_next",
+      "quant": "oq4e",
+      "run_id": "20261028-142438",
+      "date": "2026-10-28",
+      "system": {
+        "machine": "m5max-40c-128gb",
+        "macos_build": "26B123",
+        "xcode_build": "27A9275",
+        "server": "oMLX 0.7.1rc1 (7a5a3d75)"
+      },
+      "metrics": [
+        {
+          "name": "Claude Code (gate)",
+          "value": "22/22"
+        },
+        {
+          "name": "Hermes (gate)",
+          "value": "22/22"
+        },
+        {
+          "name": "localmelo (gate)",
+          "value": "22/22"
+        },
+        {
+          "name": "Gate set",
+          "value": "66/66"
+        },
+        {
+          "name": "Ranking set",
+          "value": "62/66"
+        },
+        {
+          "name": "M7 tool-call cases",
+          "value": "\u2014"
+        }
+      ],
+      "reference": true,
+      "details": "../../backend/20261028-142438/capability/results.json",
+      "_dir": "docs/benchmark/m5max-40c-128gb/qwen3.8_flash_next/oq4e/agent_ability/20261028-142438",
+      "_details": "docs/benchmark/m5max-40c-128gb/qwen3.8_flash_next/oq4e/backend/20261028-142438/capability/results.json",
+      "_harness_source": "docs/benchmark/m5max-40c-128gb/qwen3.8_flash_next/oq4e/backend/20261028-142438/capability/results.json",
+      "_harnesses": {
+        "claude_code": {
+          "gate": {
+            "passed": 22,
+            "runs": 22,
+            "expected": 22,
+            "modelTimeMedian": 17.2,
+            "modelCallsMedian": 6.0
+          },
+          "ranking": {
+            "passed": 20,
+            "runs": 22,
+            "expected": 22,
+            "modelTimeMedian": 32.2,
+            "modelCallsMedian": 9.0
+          }
+        },
+        "hermes": {
+          "gate": {
+            "passed": 22,
+            "runs": 22,
+            "expected": 22,
+            "modelTimeMedian": 12.6,
+            "modelCallsMedian": 5.0
+          },
+          "ranking": {
+            "passed": 22,
+            "runs": 22,
+            "expected": 22,
+            "modelTimeMedian": 17.2,
+            "modelCallsMedian": 4.5
+          }
+        },
+        "localmelo": {
+          "gate": {
+            "passed": 22,
+            "runs": 22,
+            "expected": 22,
+            "modelTimeMedian": 10.7,
+            "modelCallsMedian": 5.0
+          },
+          "ranking": {
+            "passed": 20,
+            "runs": 22,
+            "expected": 22,
+            "modelTimeMedian": 17.3,
+            "modelCallsMedian": 5.5
+          }
+        }
+      }
+    },
+    {
+      "schema": 1,
       "suite": "backend",
       "protocol": "speed-1",
       "title": "Speed on oMLX 0.7.1rc1 (M5 Max): text-only, agent sampling, thinking off",
@@ -1172,5 +1383,5 @@ window.BENCHMARK_DATA = {
       "aider/zipper"
     ]
   },
-  "sourceDigest": "2c0a86f14f2cdebf39094b2d2004fd77d9231d505950d028832a7e9e020da08a"
+  "sourceDigest": "4ca85a8af6b00b2f5a6c664d9696e905f60a79aa2b377e6a85d762ddf10caa83"
 };

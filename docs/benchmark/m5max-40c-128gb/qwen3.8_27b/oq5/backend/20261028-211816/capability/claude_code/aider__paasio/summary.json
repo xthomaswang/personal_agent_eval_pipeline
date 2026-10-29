@@ -1,0 +1,25 @@
+{
+  "run_id": "aider__paasio",
+  "harness": "claude_code",
+  "workspace": "ws/aider__paasio",
+  "started_at": 1793241392.651298,
+  "exit_code": 0,
+  "timed_out": false,
+  "wall_s": 195.518,
+  "harness_args": [],
+  "steps": {
+    "n_llm": 18,
+    "n_llm_aux": 0,
+    "n_llm_err": 0,
+    "n_llm_post_submit": 0,
+    "n_tool": 19,
+    "images_new_sum": 0
+  },
+  "harness_report": {
+    "num_turns": 20,
+    "subtype": "success",
+    "is_error": false,
+    "permission_denials": 0,
+    "duration_ms": 195348
+  }
+}

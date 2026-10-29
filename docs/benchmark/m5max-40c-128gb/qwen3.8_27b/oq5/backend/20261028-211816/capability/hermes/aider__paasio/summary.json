@@ -1,0 +1,23 @@
+{
+  "run_id": "aider__paasio",
+  "harness": "hermes",
+  "workspace": "ws/aider__paasio",
+  "started_at": 1793245860.791788,
+  "exit_code": 1,
+  "timed_out": false,
+  "wall_s": 314.336,
+  "harness_args": [],
+  "steps": {
+    "n_llm": 30,
+    "n_llm_aux": 0,
+    "n_llm_err": 1,
+    "n_llm_post_submit": 0,
+    "n_tool": 33,
+    "images_new_sum": 0
+  },
+  "harness_report": {
+    "tool_use_events": 33,
+    "api_call_count": 30,
+    "exit_code": 1
+  }
+}

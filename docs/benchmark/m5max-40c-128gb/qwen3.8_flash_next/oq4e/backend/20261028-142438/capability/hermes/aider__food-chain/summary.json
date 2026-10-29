@@ -1,0 +1,23 @@
+{
+  "run_id": "aider__food-chain",
+  "harness": "hermes",
+  "workspace": "ws/aider__food-chain",
+  "started_at": 1793216317.077473,
+  "exit_code": 0,
+  "timed_out": false,
+  "wall_s": 21.412,
+  "harness_args": [],
+  "steps": {
+    "n_llm": 7,
+    "n_llm_aux": 0,
+    "n_llm_err": 0,
+    "n_llm_post_submit": 0,
+    "n_tool": 7,
+    "images_new_sum": 0
+  },
+  "harness_report": {
+    "tool_use_events": 7,
+    "api_call_count": 7,
+    "exit_code": 0
+  }
+}

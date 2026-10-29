@@ -1,0 +1,504 @@
+{
+  "protocol_version": 2,
+  "run_id": "20261028-211816",
+  "status": "complete",
+  "reason": "",
+  "started": "2026-10-28T21:18:16-0400",
+  "ended": "2026-10-29T00:53:24-0400",
+  "model": {
+    "key": "qwen3-8-27b-oq5",
+    "display": "Qwen3.8-27B oQ5 + MTP",
+    "served_id": "Qwen3.8-27B-oQ5-mtp",
+    "path": "models/oq/Qwen3.8-27B-oQ5-mtp",
+    "quant": "oQ5",
+    "family": "qwen3.8_27b",
+    "quant_dir": "oq5",
+    "spec": "mtp",
+    "vision": true,
+    "reference": true,
+    "sampling": {
+      "temperature": 1.0,
+      "top_p": 0.95,
+      "top_k": 20
+    },
+    "proxy_sampling": "inject:qwen3.8-gen-config",
+    "source": {
+      "hf_repo": "Qwen/Qwen3.8-27B",
+      "revision": "1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0",
+      "made_by": "oq_convert level 5, MTP kept"
+    },
+    "model_settings": {},
+    "server_log_expect": [
+      "Speculative backend selected for .*: Lightning MTP \\(.*active\\)",
+      "MTP path activated"
+    ],
+    "prepare": {
+      "convert": {
+        "level": 5
+      }
+    },
+    "notes": [
+      "Converted 2026-10-21 by the qwen3.8-27b campaign (oMLX 0.7.1rc1 oQ, group 64, full-precision sensitivity, MTP head kept).",
+      "Read only: its files are hard links shared with another session's models/chat copy."
+    ]
+  },
+  "unverified": false,
+  "arm": {
+    "thinking": "off",
+    "only": [],
+    "harnesses": [],
+    "thinking_budget": 0
+  },
+  "options": {
+    "legs": [
+      "capability"
+    ],
+    "capability": "full",
+    "resumed": true,
+    "notice_wait_s": 60
+  },
+  "estimate": {
+    "factor": 1.02,
+    "functional_min": 4,
+    "quiet_min": 20.1,
+    "gate_min": 61,
+    "ranking_min": 123,
+    "source": "measured quiet window of the previous run; capability rough"
+  },
+  "server": {
+    "omlx": {
+      "path": "omlx",
+      "sha": "7a5a3d75ce7463300bdfa5fedccd34348f60ff46",
+      "dirty": false
+    },
+    "base_path": "omlx/.modeleval-home",
+    "port": 8703,
+    "settings": {
+      "version": "1.0",
+      "server": {
+        "host": "127.0.0.1",
+        "port": 8703,
+        "log_level": "info",
+        "cors_origins": [
+          "*"
+        ],
+        "sse_keepalive_mode": "chunk",
+        "auto_start_on_launch": true,
+        "burst_decode_mode": "balanced",
+        "preserve_mid_system_cache": true,
+        "distributed_inference_enabled": false,
+        "max_audio_upload_size": "100MB",
+        "max_image_upload_size": "50MB",
+        "max_request_body_size": "512MB",
+        "max_image_side_length": 2048,
+        "gpu_keep_warm_interval": 0.5
+      },
+      "model": {
+        "model_dirs": [
+          "omlx/.modeleval-home/empty-models"
+        ],
+        "model_dir": "omlx/.modeleval-home/empty-models",
+        "model_fallback": false,
+        "hide_helper_models": false
+      },
+      "memory": {
+        "prefill_memory_guard": true,
+        "memory_guard_tier": "custom",
+        "memory_guard_custom_ceiling_gb": 90.0,
+        "soft_threshold": 0.85,
+        "hard_threshold": 0.95,
+        "prefill_safe_zone_ratio": 0.8,
+        "prefill_min_chunk_tokens": 32
+      },
+      "scheduler": {
+        "max_concurrent_requests": 8,
+        "embedding_batch_size": 32,
+        "chunked_prefill": true,
+        "prefill_priority": "context",
+        "decode_fairness": true
+      },
+      "cache": {
+        "enabled": true,
+        "hot_cache_only": false,
+        "gdn_ssd_split_enabled": true,
+        "gdn_snapshot_storage": "auto",
+        "gdn_ssd_pending_max_size": "512MB",
+        "gdn_sidecar_precision": "fp32",
+        "ssd_cache_dir": "eval/backend/runs/qwen3-8-27b-oq5/20261028-211816/ssd-cache",
+        "ssd_cache_max_size": "128GB",
+        "hot_cache_max_size": "12GB",
+        "hot_cache_write_through": false,
+        "ane_compile_cache": false,
+        "initial_cache_blocks": 256
+      },
+      "mcp": {
+        "config_path": null,
+        "expose_tools": true
+      },
+      "huggingface": {
+        "endpoint": "",
+        "hf_cache_enabled": false
+      },
+      "modelscope": {
+        "endpoint": ""
+      },
+      "network": {
+        "http_proxy": "",
+        "https_proxy": "",
+        "no_proxy": "",
+        "ca_bundle": ""
+      },
+      "sampling": {
+        "max_context_window": 32768,
+        "max_context_window_policy": null,
+        "max_tokens": 32768,
+        "temperature": 1.0,
+        "top_p": 0.95,
+        "top_k": 0,
+        "repetition_penalty": 1.0
+      },
+      "logging": {
+        "log_dir": null,
+        "retention_days": 7
+      },
+      "claude_code": {
+        "mode": "cloud",
+        "opus_model": null,
+        "sonnet_model": null,
+        "haiku_model": null
+      },
+      "integrations": {
+        "codex_model": null,
+        "opencode_model": null,
+        "openclaw_model": null,
+        "hermes_model": null,
+        "pi_model": null,
+        "vibe_model": null,
+        "copilot_model": null,
+        "dsh_model": null,
+        "openclaw_tools_profile": "coding",
+        "markitdown_enabled": true,
+        "markitdown_expose_model": false,
+        "markitdown_max_file_size_mb": 25,
+        "markitdown_max_files_per_request": 5,
+        "markitdown_pdf_processing_engine": "markitdown",
+        "web_search_provider": "ddgs",
+        "web_search_brave_api_key": "",
+        "web_search_searxng_url": "",
+        "web_search_ddgs_backends": "",
+        "web_search_max_results": 3,
+        "web_search_content_mode": "snippet",
+        "web_search_content_truncate": true,
+        "web_search_content_max_chars": 20000,
+        "splash_path": null,
+        "splash_kv_format": "int8",
+        "splash_max_memory_gb": null,
+        "splash_ssd_cache_gb": null,
+        "splash_ane_prefill": true
+      },
+      "ui": {
+        "language": "en",
+        "dashboard_layout": null
+      },
+      "usage": {
+        "usage_history": true
+      },
+      "idle_timeout": {
+        "idle_timeout_seconds": null
+      }
+    },
+    "model_settings": {
+      "version": 1,
+      "models": {
+        "Qwen3.8-27B-oQ5-mtp": {
+          "max_context_window": 131072,
+          "mtp_enabled": true
+        },
+        "Nanbeige4.3-33B-oQ5": {
+          "max_context_window": 131072
+        },
+        "Qwen3.8-Flash-Next-oQ4e-mtp": {
+          "max_context_window": 131072,
+          "mtp_enabled": true,
+          "qwen4_ple_ssd_offload": true,
+          "moe_expert_offload_enabled": false
+        }
+      }
+    }
+  },
+  "launches": [
+    {
+      "launch": 1,
+      "pid": 76986,
+      "started": "2026-10-28T21:19:17-0400",
+      "ready": "2026-10-28T21:19:24-0400",
+      "stopped": "2026-10-28T23:02:16-0400",
+      "effective_settings": {
+        "version": "0.7.1rc1",
+        "base_path": "omlx/.modeleval-home",
+        "model_dirs": "models/hf-bench",
+        "memory_guard": "on (tier: custom)",
+        "mode": "Multi-model serving (continuous batching + paged SSD cache)",
+        "hot_cache": "12.0GB",
+        "default_max_tokens": "32768",
+        "memory_enforcer": "tier=custom, ceiling=90.0GB, interval=1.0s",
+        "metal_cap": "Metal cap (107.5GB, Apple max_recommended_working_set_size) is below the oMLX static ceiling (126.0GB); leaving Apple's default Metal cap active because iogpu.wired_limit_mb is unset. Raise it with: sudo sysctl iogpu.wired_limit_mb=124518",
+        "speculative": "Lightning MTP (model_type=qwen3_5, active)",
+        "tool_parser": "qwen3_coder",
+        "ssd_cache": {
+          "dir": "eval/backend/runs/qwen3-8-27b-oq5/20261028-211816/ssd-cache",
+          "max": "128.0GB"
+        },
+        "ssd_cache_manager": {
+          "dir": "eval/backend/runs/qwen3-8-27b-oq5/20261028-211816/ssd-cache",
+          "max_size": "128.00 GB",
+          "hot_cache": "12.00 GB",
+          "auto_size": "False",
+          "existing_files": "0",
+          "disk_free": "574.56 GB",
+          "cache_used": "0 B",
+          "incompatible_files": "0"
+        },
+        "loaded_model": {
+          "id": "Qwen3.8-27B-oQ5-mtp",
+          "detail": "actual: 19.19GB, local estimate: 19.84GB, full model: 19.84GB, total: 19.84GB"
+        },
+        "ple_forced_to_ssd": false,
+        "log_expect": {
+          "Speculative backend selected for .*: Lightning MTP \\(.*active\\)": "Speculative backend selected for models/hf-bench/Qwen3.8-27B-oQ5-mtp: Lightning MTP (model_type=qwen3_5, active)",
+          "MTP path activated": "MTP path activated for uid=0 (model has mtp_forward, batch=1, primed=15)"
+        }
+      },
+      "reason": "initial",
+      "battery": 100,
+      "phase": "capability",
+      "builds": {
+        "macos": "26B123",
+        "xcode": "27A9275"
+      }
+    },
+    {
+      "launch": 2,
+      "pid": 72184,
+      "started": "2026-10-28T23:34:07-0400",
+      "ready": "2026-10-28T23:34:14-0400",
+      "stopped": "2026-10-29T00:53:23-0400",
+      "effective_settings": {
+        "version": "0.7.1rc1",
+        "base_path": "omlx/.modeleval-home",
+        "model_dirs": "models/hf-bench",
+        "memory_guard": "on (tier: custom)",
+        "mode": "Multi-model serving (continuous batching + paged SSD cache)",
+        "hot_cache": "12.0GB",
+        "default_max_tokens": "32768",
+        "memory_enforcer": "tier=custom, ceiling=90.0GB, interval=1.0s",
+        "metal_cap": "Metal cap (107.5GB, Apple max_recommended_working_set_size) is below the oMLX static ceiling (126.0GB); leaving Apple's default Metal cap active because iogpu.wired_limit_mb is unset. Raise it with: sudo sysctl iogpu.wired_limit_mb=124518",
+        "speculative": "Lightning MTP (model_type=qwen3_5, active)",
+        "tool_parser": "qwen3_coder",
+        "ssd_cache": {
+          "dir": "eval/backend/runs/qwen3-8-27b-oq5/20261028-211816/ssd-cache",
+          "max": "128.0GB"
+        },
+        "ssd_cache_manager": {
+          "dir": "eval/backend/runs/qwen3-8-27b-oq5/20261028-211816/ssd-cache",
+          "max_size": "128.00 GB",
+          "hot_cache": "12.00 GB",
+          "auto_size": "False",
+          "existing_files": "0",
+          "disk_free": "577.23 GB",
+          "cache_used": "0 B",
+          "incompatible_files": "0"
+        },
+        "loaded_model": {
+          "id": "Qwen3.8-27B-oQ5-mtp",
+          "detail": "actual: 19.19GB, local estimate: 19.84GB, full model: 19.84GB, total: 19.84GB"
+        },
+        "ple_forced_to_ssd": false,
+        "log_expect": {
+          "Speculative backend selected for .*: Lightning MTP \\(.*active\\)": "Speculative backend selected for models/hf-bench/Qwen3.8-27B-oQ5-mtp: Lightning MTP (model_type=qwen3_5, active)",
+          "MTP path activated": "MTP path activated for uid=0 (model has mtp_forward, batch=1, primed=15)"
+        }
+      },
+      "reason": "initial",
+      "battery": 100,
+      "phase": "capability",
+      "builds": {
+        "macos": "26B123",
+        "xcode": "27A9275"
+      }
+    }
+  ],
+  "memory": [
+    {
+      "samples": 3078,
+      "launch": 1,
+      "source": "footprint",
+      "after_load_tree_bytes": 25769803776,
+      "peak": {
+        "tree_bytes": 42949672960,
+        "system_delta_bytes": 76071895040,
+        "pressure": 1,
+        "swapouts_delta": 26691
+      },
+      "by_label": {
+        "capability": {
+          "tree_bytes": 42949672960,
+          "system_delta_bytes": 76071895040,
+          "pressure": 1,
+          "swapouts_delta": 26691
+        },
+        "idle": {
+          "tree_bytes": 36507222016,
+          "system_delta_bytes": 71606026240,
+          "pressure": 1,
+          "swapouts_delta": 26691
+        }
+      },
+      "under_pressure": false,
+      "swapped_out": true
+    },
+    {
+      "samples": 2368,
+      "launch": 2,
+      "source": "footprint",
+      "after_load_tree_bytes": 25769803776,
+      "peak": {
+        "tree_bytes": 42949672960,
+        "system_delta_bytes": 63411159040,
+        "pressure": 1,
+        "swapouts_delta": 0
+      },
+      "by_label": {
+        "capability": {
+          "tree_bytes": 42949672960,
+          "system_delta_bytes": 63411159040,
+          "pressure": 1,
+          "swapouts_delta": 0
+        },
+        "idle": {
+          "tree_bytes": 36507222016,
+          "system_delta_bytes": 60131131392,
+          "pressure": 1,
+          "swapouts_delta": 0
+        }
+      },
+      "under_pressure": false,
+      "swapped_out": false
+    }
+  ],
+  "ssd_cache": {
+    "dir": "eval/backend/runs/qwen3-8-27b-oq5/20261028-211816/ssd-cache",
+    "peak_bytes": 137376364880
+  },
+  "pins": {
+    "epoch": {
+      "id": "4271c2f4a925",
+      "equivalent": [
+        {
+          "new": "ce99c7b5d0bd",
+          "same_as": "7582825160ad",
+          "reason": "eval/bench/manifest.py: one comment line reworded (2026-10-26 history rewrite); no code change",
+          "trees": {
+            "bench": [
+              "40152a3feb446946d8a51fdfdf9934cb4376a8a9",
+              "f258c98991f52ac37e97a01d01aa086b623d3fc7"
+            ]
+          }
+        }
+      ]
+    },
+    "snapshot": {
+      "repo": ".",
+      "sha": "91412872792b09774a6cd33c24c1051287a13730",
+      "bench": "eval/bench",
+      "smoke": "eval/agent_ability/smoke",
+      "shims": "eval/agent_ability/shims"
+    },
+    "configs": {
+      "agent_root": "${agent_root}",
+      "claude_env": "configs/claude-code/claude-code.env",
+      "claude_settings": "homes/claude-code/settings.json",
+      "hermes_home": "homes/hermes"
+    },
+    "localmelo": {
+      "repo": "vendor/localmelo",
+      "sha": "a4366a4a2ba8ce9eb34f7bf2158d871b5d221e63",
+      "dist": "localmelo"
+    },
+    "hermes": {
+      "repo": "${agent_root}/hermes-agent",
+      "tag": "v0.22.2",
+      "sha": "d923a5eb487a17c0a68801bba9ef0f56c81040a8",
+      "bin": "${agent_root}/.venv/bin/hermes",
+      "dist": "hermes_agent"
+    },
+    "claude_code": {
+      "version": "2.1.312",
+      "bin": "vendor/claude-code/2.1.312"
+    },
+    "data": {
+      "root": "${datasets}",
+      "aider_polyglot": "7e0611e77b54e2dea774cdc0aa00cf9f7ed6144f",
+      "mcpmark": "cd45b7f57923b9b3985467f5139927575f83141c"
+    },
+    "envs": {
+      "capability": "envs/capability",
+      "agent_tools": "envs/agent-tools",
+      "shims": "envs/agent-tools/shims"
+    },
+    "workspace": {
+      "ws_root": "${ws_root}"
+    }
+  },
+  "epoch": "4271c2f4a925",
+  "machine": {
+    "sw_vers": {
+      "ProductName": "macOS",
+      "ProductVersion": "27.2",
+      "BuildVersion": "26B123"
+    },
+    "xcodebuild": "Xcode 27.1; Build version 27A9275",
+    "hw_model": "Mac17,7",
+    "memsize": "137438953472"
+  },
+  "repo": {
+    "path": "eval/backend",
+    "sha": "c36820cb29e1ee544b34d6c19d53c76f08e2e6a2",
+    "dirty": true
+  },
+  "capability_results": "capability/results.json",
+  "gate_decision": {
+    "epoch": "4271c2f4a925",
+    "decision": "not worse",
+    "action": "ranking",
+    "wins": 0,
+    "losses": 3,
+    "ties": 19,
+    "net": -3,
+    "p": 0.25,
+    "pairs": 66,
+    "excluded": [],
+    "provisional": false,
+    "per_harness": {
+      "claude_code": {
+        "wins": 0,
+        "losses": 2,
+        "net": -2,
+        "tasks": 22
+      },
+      "hermes": {
+        "wins": 0,
+        "losses": 1,
+        "net": -1,
+        "tasks": 22
+      },
+      "localmelo": {
+        "wins": 0,
+        "losses": 0,
+        "net": 0,
+        "tasks": 22
+      }
+    },
+    "reference_run": "qwen3-8-flash-next-oq4e/20261028-142438"
+  }
+}

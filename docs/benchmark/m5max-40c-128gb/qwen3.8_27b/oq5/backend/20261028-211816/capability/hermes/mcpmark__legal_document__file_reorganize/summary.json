@@ -1,0 +1,23 @@
+{
+  "run_id": "mcpmark__legal_document__file_reorganize",
+  "harness": "hermes",
+  "workspace": "ws/mcpmark__legal_document__file_reorganize",
+  "started_at": 1793237868.053185,
+  "exit_code": 0,
+  "timed_out": false,
+  "wall_s": 83.379,
+  "harness_args": [],
+  "steps": {
+    "n_llm": 7,
+    "n_llm_aux": 0,
+    "n_llm_err": 0,
+    "n_llm_post_submit": 0,
+    "n_tool": 7,
+    "images_new_sum": 0
+  },
+  "harness_report": {
+    "tool_use_events": 7,
+    "api_call_count": 7,
+    "exit_code": 0
+  }
+}

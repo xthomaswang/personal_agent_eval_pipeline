@@ -1,0 +1,21 @@
+...F.....................                                                [100%]
+=================================== FAILURES ===================================
+____________________ PaasioTest.test_meteredfile_iteration _____________________
+
+self = <paasio_test.PaasioTest testMethod=test_meteredfile_iteration>
+super_mock = <SuperMock at 0x106d42780 with mock object: <NonCallableMagicMock id='4409708224'>>
+
+    @patch("paasio.super", create=True, new_callable=SuperMock)
+    def test_meteredfile_iteration(self, super_mock):
+        mock = NonCallableMagicMock(wraps=MockFile(ZEN), autospec=True)
+        super_mock.mock_object = mock
+        actual_reads = b""
+        file = MeteredFile()
+>       for line in file:
+                    ^^^^
+E       ValueError: I/O operation on uninitialized object
+
+paasio_test.py:275: ValueError
+=========================== short test summary info ============================
+FAILED paasio_test.py::PaasioTest::test_meteredfile_iteration - ValueError: I...
+1 failed, 24 passed in 0.16s

@@ -1,0 +1,23 @@
+{
+  "run_id": "mcpmark__papers__papers_counting",
+  "harness": "hermes",
+  "workspace": "ws/mcpmark__papers__papers_counting",
+  "started_at": 1793237952.059893,
+  "exit_code": 0,
+  "timed_out": false,
+  "wall_s": 14.808,
+  "harness_args": [],
+  "steps": {
+    "n_llm": 3,
+    "n_llm_aux": 0,
+    "n_llm_err": 0,
+    "n_llm_post_submit": 0,
+    "n_tool": 2,
+    "images_new_sum": 0
+  },
+  "harness_report": {
+    "tool_use_events": 2,
+    "api_call_count": 3,
+    "exit_code": 0
+  }
+}

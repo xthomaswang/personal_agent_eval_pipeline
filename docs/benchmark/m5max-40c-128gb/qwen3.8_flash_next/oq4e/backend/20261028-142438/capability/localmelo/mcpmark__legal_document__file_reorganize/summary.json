@@ -1,0 +1,70 @@
+{
+  "run_id": "mcpmark__legal_document__file_reorganize",
+  "harness": "localmelo",
+  "workspace": "ws/mcpmark__legal_document__file_reorganize",
+  "started_at": 1793213578.503268,
+  "exit_code": 0,
+  "timed_out": false,
+  "wall_s": 16.091,
+  "harness_args": [
+    "--request-timeout",
+    "1800",
+    "--timeout",
+    "3540",
+    "--output-format",
+    "json"
+  ],
+  "steps": {
+    "n_llm": 6,
+    "n_llm_aux": 0,
+    "n_llm_err": 0,
+    "n_llm_post_submit": 0,
+    "n_tool": 5,
+    "images_new_sum": 0
+  },
+  "harness_report": {
+    "steps": 5,
+    "task_status": "completed",
+    "run_record": {
+      "task_id": "b4d84132587243f59b95c37dcc804be9",
+      "status": "completed",
+      "error": "",
+      "steps": 6,
+      "attempts": 1,
+      "n_llm": 6,
+      "n_main": 6,
+      "n_aux": 0,
+      "n_tool": 5,
+      "llm_errors": 0,
+      "usage": {
+        "prompt_tokens": 20890,
+        "completion_tokens": 840,
+        "total_tokens": 21730
+      },
+      "duration_s": 15.872722333006095,
+      "config": {
+        "max_steps": 30,
+        "attempt_policy": "reflect",
+        "steps_per_attempt": 10,
+        "max_attempts": 5,
+        "reflection_gate": "flags",
+        "tool_exposure": "retrieve",
+        "mode": "direct",
+        "builtins": [
+          "file_read",
+          "file_write",
+          "python_exec"
+        ],
+        "memory": true,
+        "memory_dir": "eval/backend/runs/qwen3-8-flash-next-oq4e/20261028-142438/capability/localmelo/mcpmark__legal_document__file_reorganize/mem",
+        "timeout_s": 3540.0,
+        "tools": [
+          "file_read",
+          "file_write",
+          "python_exec"
+        ]
+      },
+      "localmelo_version": "a4366a4"
+    }
+  }
+}
