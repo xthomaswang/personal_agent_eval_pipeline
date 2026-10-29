@@ -61,7 +61,9 @@ def test_arms_are_the_agreed_flag_sets() -> None:
         "B1": ("--window-eviction", "boundary"),
         "B2": ("--window-eviction", "boundary", "--fixed-prefix", "on"),
         "S2": ("--fixed-prefix", "on"),
+        "C2": ("--window-eviction", "chunk", "--fixed-prefix", "on"),
     }
+    assert e3_run.DEFAULT_ARMS == ("S0", "C1", "B1", "B2", "S2")
     assert e3_run.arm_args("B2")[:2] == ["--output-format", "json"]
     assert e3_run.BUDGET == {
         "max_steps": 30, "max_turns": 40, "timeout_s": 3600.0, "thinking": "off", "log_bodies": True,
@@ -78,11 +80,11 @@ def test_schedule_is_task_major_with_all_arms_back_to_back() -> None:
     assert [(g[0]["exercise"], g[0]["repeat"]) for g in groups] == expected
     for group in groups:
         assert {(p["exercise"], p["repeat"]) for p in group} == {(group[0]["exercise"], group[0]["repeat"])}
-        assert sorted(p["arm"] for p in group) == sorted(e3_run.ARMS)
+        assert sorted(p["arm"] for p in group) == sorted(e3_run.DEFAULT_ARMS)
 
 
 def test_schedule_rotates_the_arm_order_by_task_index_plus_repeat() -> None:
-    arms = list(e3_run.ARMS)
+    arms = list(e3_run.DEFAULT_ARMS)
     planned = e3_run.schedule()
     firsts = []
     for gi in range(24):
@@ -310,3 +312,23 @@ def test_dry_run_prints_the_schedule_and_writes_nothing(tmp_path: Path, monkeypa
     monkeypatch.setattr(e3_run, "preflight", lambda *a, **k: [])
     assert e3_run.main(["--run-dir", str(out), "--dry-run", "--repeats", "1", "--arms", "S0,B1"], harness=fake_harness()) == 0
     assert "E3 plan: 24 runs" in capsys.readouterr().out
+
+
+def test_unreadable_reflection_replies_are_kept_as_200_character_excerpts(tmp_path: Path) -> None:
+    from e3 import report as e3_report
+
+    lines = e3_report._unreadable_section([{"run_id": "r1", "unreadable_replies": ["I think `x`\nis fine " + "y" * 300]}])
+    assert lines[0].startswith("### Unreadable reflection replies")
+    assert lines[2].startswith("- `r1`: I think 'x' is fine y")
+    assert e3_report._unreadable_section([{"run_id": "r2", "unreadable_replies": []}]) == []
+
+
+def test_an_unreadable_reply_that_called_a_tool_says_so() -> None:
+    from e3 import report as e3_report
+
+    body = {"choices": [{"finish_reason": "tool_calls", "message": {"role": "assistant", "tool_calls": [
+        {"function": {"name": "python_exec", "arguments": '{"code": "print(1)"}'}}]}}]}
+    excerpt = e3_report.reply_excerpt(json.dumps(body).encode(), "000001-response.json")
+    assert excerpt.startswith("<tool call instead of text, finish tool_calls: python_exec(")
+    empty = {"choices": [{"finish_reason": "stop", "message": {"role": "assistant", "content": ""}}]}
+    assert e3_report.reply_excerpt(json.dumps(empty).encode(), "x.json") == "<empty reply, finish stop>"

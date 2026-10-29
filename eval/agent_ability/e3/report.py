@@ -103,6 +103,28 @@ def reply_text(raw: bytes, name: str) -> str:
     return ""
 
 
+def reply_excerpt(raw: bytes, name: str, limit: int = 200) -> str:
+    """Why a reply could not be read: its content, or, when it has none, the tool call(s) it made instead."""
+    text = reply_text(raw, name)
+    if text.strip():
+        return text[:limit]
+    calls = []
+    try:
+        obj = json.loads(raw.decode("utf-8", errors="replace")) if not name.endswith(".sse") else None
+    except json.JSONDecodeError:
+        obj = None
+    choices = obj.get("choices") if isinstance(obj, dict) else None
+    if choices and isinstance(choices[0], dict):
+        for call in (choices[0].get("message") or {}).get("tool_calls") or []:
+            fn = call.get("function") or {}
+            calls.append(f"{fn.get('name')}({str(fn.get('arguments') or '')[:80]})")
+        finish = choices[0].get("finish_reason")
+        if calls:
+            return f"<tool call instead of text, finish {finish}: {'; '.join(calls)}>"[:limit]
+        return f"<empty reply, finish {finish}>"
+    return "<empty reply>"
+
+
 def has_decision(text: str) -> bool:
     """Whether text holds a JSON object with a recommended_action key (markdown fences and prose around it are fine)."""
     decoder = json.JSONDecoder()
@@ -159,6 +181,7 @@ def run_metrics(run_dir: Path, prompt: str) -> dict[str, Any]:
     later_prompt = sum(u[0] for _, u in after_first)
     later_cached = sum(u[1] for _, u in after_first)
     reflection_requests = reflections = unreadable = other = 0
+    unreadable_replies: list[str] = []   # the first 200 characters of each unreadable reflection's reply
     previous_unreadable = False
     for call in calls:
         request = _body(run_dir, call, "request")
@@ -178,6 +201,8 @@ def run_metrics(run_dir: Path, prompt: str) -> dict[str, Any]:
         if not previous_unreadable:
             reflections += 1
             unreadable += 0 if readable else 1
+            if not readable:
+                unreadable_replies.append(reply_excerpt(*response) if response is not None else "<no response body>")
         previous_unreadable = not readable
     return {
         "model_calls": len(used),
@@ -189,6 +214,7 @@ def run_metrics(run_dir: Path, prompt: str) -> dict[str, Any]:
         "reflection_requests": reflection_requests,
         "reflections": reflections,
         "unreadable_reflections": unreadable,
+        "unreadable_replies": unreadable_replies,
         "toolless_other": other,
     }
 
@@ -360,6 +386,16 @@ def _num(value: float | None, digits: int = 0) -> str:
     return "n/a" if value is None else f"{value:,.{digits}f}"
 
 
+def _unreadable_section(runs: Sequence[dict[str, Any]]) -> list[str]:
+    """Each unreadable reflection's reply, first 200 characters, one line per reflection."""
+    lines = [
+        f"- `{r['run_id']}`: {' '.join(text.split()).replace('`', chr(39))}"
+        for r in runs
+        for text in r.get("unreadable_replies") or []
+    ]
+    return ["### Unreadable reflection replies (first 200 characters)", "", *lines, ""] if lines else []
+
+
 def render_markdown(report: dict[str, Any]) -> str:
     cfg = report["config"]
     arms = report["arms"]
@@ -404,6 +440,7 @@ def render_markdown(report: dict[str, Any]) -> str:
             for n, a in arms.items()
         ],
         "",
+        *_unreadable_section(report["runs"]),
         "## Passes per task (one mark per repeat)",
         "",
         "| Task | " + " | ".join(arms) + " |",

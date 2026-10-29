@@ -50,7 +50,10 @@ ARMS: dict[str, tuple[str, ...]] = {
     "B1": ("--window-eviction", "boundary"),
     "B2": ("--window-eviction", "boundary", "--fixed-prefix", "on"),
     "S2": ("--fixed-prefix", "on"),
+    # E3b, added after E3: chunked eviction with the v2 fixed prefix
+    "C2": ("--window-eviction", "chunk", "--fixed-prefix", "on"),
 }
+DEFAULT_ARMS = ("S0", "C1", "B1", "B2", "S2")   # E3's five
 EXERCISES = (
     "sgf-parsing",
     "book-store",
@@ -83,7 +86,7 @@ def rotated(arms: Sequence[str], offset: int) -> list[str]:
 
 
 def schedule(
-    exercises: Sequence[str] = EXERCISES, repeats: int = REPEATS, arms: Sequence[str] = tuple(ARMS)
+    exercises: Sequence[str] = EXERCISES, repeats: int = REPEATS, arms: Sequence[str] = DEFAULT_ARMS
 ) -> list[dict[str, Any]]:
     """Task-major runs. The arms of (task index i, repeat r) start at arm number (i + r) mod len(arms),
     with i counted from 0 and r from 1."""
@@ -189,12 +192,14 @@ def stop_reason(out: Path) -> str | None:
     return lock_problem() or battery_problem()
 
 
-def preflight(settings: runner.Settings, harness: ModuleType, localmelo: Path) -> list[str]:
+def preflight(
+    settings: runner.Settings, harness: ModuleType, localmelo: Path, expect_sha: str = LOCALMELO_SHA
+) -> list[str]:
     """Everything that would make the study invalid, as messages."""
     problems: list[str] = []
     sha = localmelo_sha(localmelo)
-    if not sha.startswith(LOCALMELO_SHA):
-        problems.append(f"localmelo at {localmelo} is {sha or 'not a git checkout'}, not {LOCALMELO_SHA}")
+    if not sha.startswith(expect_sha):
+        problems.append(f"localmelo at {localmelo} is {sha or 'not a git checkout'}, not {expect_sha}")
     elif _out(["git", "-C", str(localmelo), "status", "--porcelain"]):
         problems.append(f"localmelo at {localmelo} has uncommitted changes")
     known = set(data.exercise_names())
@@ -308,9 +313,10 @@ def run_e3(
     *,
     exercises: Sequence[str] = EXERCISES,
     repeats: int = REPEATS,
-    arms: Sequence[str] = tuple(ARMS),
+    arms: Sequence[str] = DEFAULT_ARMS,
     localmelo: Path = VENDOR,
     harness: ModuleType | None = None,
+    expect_sha: str = LOCALMELO_SHA,
 ) -> int:
     """0 when every run is finished or interrupted, 2 when refused to start, 3 when stopped early."""
     out = out.resolve()
@@ -321,7 +327,7 @@ def run_e3(
         harness = harness_module
     harness.manifest.LOCALMELO_REPO = localmelo
     planned = schedule(exercises, repeats, arms)
-    problems = preflight(_settings(exercises), harness, localmelo)
+    problems = preflight(_settings(exercises), harness, localmelo, expect_sha)
     if problems:
         print("Preflight failed:", *problems, sep="\n  - ", file=sys.stderr)
         return 2
@@ -424,8 +430,9 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     ap.add_argument("--dry-run", action="store_true", help="print the schedule and the checks; run no model")
     ap.add_argument("--repeats", type=int, default=REPEATS, help=f"repeats per task (default {REPEATS})")
     ap.add_argument("--tasks", default=",".join(EXERCISES), help="comma-separated Aider exercises (default: the 12)")
-    ap.add_argument("--arms", default=",".join(ARMS), help="comma-separated arms (default: all five)")
+    ap.add_argument("--arms", default=",".join(DEFAULT_ARMS), help="comma-separated arms (default: E3's five)")
     ap.add_argument("--localmelo", type=Path, default=VENDOR, help="the pinned localmelo clone")
+    ap.add_argument("--localmelo-sha", default=LOCALMELO_SHA, help=f"the commit it must be at (default {LOCALMELO_SHA})")
     return ap.parse_args(argv)
 
 
@@ -444,7 +451,7 @@ def main(argv: Sequence[str] | None = None, harness: ModuleType | None = None) -
             harness = harness_module
         localmelo = args.localmelo.resolve()
         harness.manifest.LOCALMELO_REPO = localmelo
-        problems = preflight(_settings(exercises), harness, localmelo)
+        problems = preflight(_settings(exercises), harness, localmelo, args.localmelo_sha)
         print_plan(
             args.run_dir.resolve(), planned, exercises, args.repeats, arms, localmelo, problems,
             system_snapshot(localmelo),
@@ -453,7 +460,7 @@ def main(argv: Sequence[str] | None = None, harness: ModuleType | None = None) -
     try:
         return run_e3(
             args.run_dir, exercises=exercises, repeats=args.repeats, arms=arms, localmelo=args.localmelo,
-            harness=harness,
+            harness=harness, expect_sha=args.localmelo_sha,
         )
     except ValueError as exc:
         print(exc, file=sys.stderr)
