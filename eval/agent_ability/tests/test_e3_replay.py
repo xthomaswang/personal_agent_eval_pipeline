@@ -170,6 +170,23 @@ def test_a_reply_that_is_not_readable_is_kept_in_full(tmp_path: Path) -> None:
     assert f"[tool_call] bash({arguments})" in rows[2]["reply"]
 
 
+def test_full_replies_adds_the_content_and_tool_calls_only_when_asked(tmp_path: Path) -> None:
+    items = replay.reflections(make_study(tmp_path), ("S0", "V64"), PROMPT)[:2]
+    arguments = json.dumps({"command": "ls " + "-l " * 80})
+    tool_calls = [{"function": {"name": "bash", "arguments": arguments}}]
+    for full in (False, True):
+        out = tmp_path / ("full" if full else "plain") / "replies.jsonl"
+        out.parent.mkdir()
+        post, _ = poster([completion(DECISION), completion("", tool_calls)])
+        assert replay.replay(items, 1, out, "http://server/v1", post, full_replies=full) is None
+        readable, tool = replay.load(out)
+        if full:
+            assert readable["content"] == DECISION and readable["tool_calls"] == []
+            assert tool["content"] == "" and tool["tool_calls"] == [{"name": "bash", "arguments": arguments}]
+        else:
+            assert all("content" not in row and "tool_calls" not in row for row in (readable, tool))
+
+
 def test_stop_file_and_failed_requests_stop_it_and_failures_are_retried(tmp_path: Path) -> None:
     items = replay.reflections(make_study(tmp_path), ("S0", "V64"), PROMPT)
     out = tmp_path / "out" / "replies.jsonl"
@@ -224,3 +241,13 @@ def test_main_replays_and_prints_the_summary(tmp_path: Path, clone: Path, capsys
     argv[4] = "B1"
     assert replay.main(argv, post=poster([])[0]) == 0
     assert "no reflections of B1" in capsys.readouterr().err
+
+
+def test_main_full_replies_flag_keeps_the_content(tmp_path: Path, clone: Path) -> None:
+    study = make_study(tmp_path)
+    out = tmp_path / "out" / "replies.jsonl"
+    post, _ = poster([completion(DECISION)] * 3)
+    argv = [str(study), "--out", str(out), "--arms", "S0,V64", "--repeats", "1", "--localmelo", str(clone),
+            "--base-url", "http://server/v1", "--full-replies"]  # fmt: skip
+    assert replay.main(argv, post=post) == 0
+    assert [(r["content"], r["tool_calls"]) for r in replay.load(out)] == [(DECISION, [])] * 3

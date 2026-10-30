@@ -1,7 +1,7 @@
 """Replay the recorded reflection requests of E3-style studies to measure how often a reflection is unreadable.
 
     cd eval
-    uv run python agent_ability/e3/replay.py --out <file.jsonl> --arms S0,V64 --localmelo <clone> <dir> [<dir> ...]
+    uv run python agent_ability/e3/replay.py --out <file.jsonl> --arms S0,V64,O20 --localmelo <clone> <dir> [<dir> ...]
 
 A study's own reflections are few (five to eight per arm), too few to compare unreadable rates. Here each
 reflection of the given arms (as the report counts them: the first request of a chain, not its retries) is
@@ -16,6 +16,7 @@ interleave and a stopped replay has a similar count for every reflection. Each r
 - error: the request failed (retried on the next run).
 
 A reply that is not readable is kept in full (`reply`), so a repair of it can be checked offline.
+With `--full-replies`, every non-error row also keeps its full content and tool calls (`content`, `tool_calls`).
 
 The output file is appended to and read back on a rerun, so a stopped replay resumes. The operator takes the
 GPU lock and starts the server; this only checks that the lock is held by agent-benchmark. It stops before the
@@ -60,14 +61,21 @@ def classify(reply: dict[str, Any]) -> str:
     return "invalid" if "recommended_action" in text else "no_json"
 
 
-def full_reply(reply: dict[str, Any]) -> str:
-    """The reply as text: its content, then one line per tool call with the full arguments."""
+def content_and_tool_calls(reply: dict[str, Any]) -> tuple[str, list[dict[str, Any]]]:
+    """The assistant's content as text, and its tool calls, each with its name and its full arguments string."""
     message = ((reply.get("choices") or [{}])[0]).get("message") or {}
-    text = rp._text(message.get("content"))
-    lines = [text] if text else []
+    calls = []
     for call in message.get("tool_calls") or []:
         fn = call.get("function") or {}
-        lines.append(f"[tool_call] {fn.get('name')}({str(fn.get('arguments') or '')})")
+        calls.append({"name": fn.get("name"), "arguments": str(fn.get("arguments") or "")})
+    return rp._text(message.get("content")), calls
+
+
+def full_reply(reply: dict[str, Any]) -> str:
+    """The reply as text: its content, then one line per tool call with the full arguments."""
+    text, calls = content_and_tool_calls(reply)
+    lines = [text] if text else []
+    lines += [f"[tool_call] {call['name']}({call['arguments']})" for call in calls]
     return "\n".join(lines)
 
 
@@ -134,7 +142,12 @@ def latest(rows: Sequence[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def replay(
-    items: Sequence[dict[str, Any]], repeats: int, out: Path, base_url: str, post: Post = http_post
+    items: Sequence[dict[str, Any]],
+    repeats: int,
+    out: Path,
+    base_url: str,
+    post: Post = http_post,
+    full_replies: bool = False,
 ) -> str | None:
     """Send what is not done yet; returns why it stopped early, or None when every reply is in."""
     done = {_key(r) for r in load(out) if r["class"] != "error"}
@@ -163,6 +176,8 @@ def replay(
                 "seconds": round(time.monotonic() - started, 3),
                 "error": error,
             }
+            if full_replies and not error:
+                row["content"], row["tool_calls"] = content_and_tool_calls(reply)
             with out.open("a") as f:
                 f.write(json.dumps(row) + "\n")
             errors_in_a_row = errors_in_a_row + 1 if error else 0
@@ -196,6 +211,7 @@ def main(argv: Sequence[str] | None = None, post: Post = http_post) -> int:
     ap.add_argument("--repeats", type=int, default=6, help="replies per reflection (default 6)")
     ap.add_argument("--localmelo", type=Path, default=rp.VENDOR, help="the studies' clone, for REFLECTION_PROMPT")
     ap.add_argument("--base-url", default=None, help="the model server (default: bench.manifest's OMLX_BASE_URL)")
+    ap.add_argument("--full-replies", action="store_true", help="also keep each reply's full content and tool calls")
     args = ap.parse_args(argv)
     arms = tuple(a.strip() for a in args.arms.split(",") if a.strip())
     prompt = rp.reflection_prompt(args.localmelo)
@@ -215,7 +231,7 @@ def main(argv: Sequence[str] | None = None, post: Post = http_post) -> int:
 
         args.base_url = manifest.OMLX_BASE_URL
     args.out.parent.mkdir(parents=True, exist_ok=True)
-    stopped = replay(items, args.repeats, args.out, args.base_url, post)
+    stopped = replay(items, args.repeats, args.out, args.base_url, post, full_replies=args.full_replies)
     print(summary(load(args.out), arms))
     if stopped:
         print(f"stopped: {stopped}; run it again to resume", file=sys.stderr)
