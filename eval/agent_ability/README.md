@@ -227,8 +227,19 @@ tool-less one that carries that text in its system message; tool-less requests w
 apart. A reflection is unreadable when its reply has no JSON object with a `recommended_action` key; the
 retry that follows it at once is not counted as another reflection.
 
-Tests: `uv run pytest agent_ability/tests/test_e3_run.py agent_ability/tests/test_e3_report.py` (from `eval/`;
-fake runs only).
+A study has only five to eight reflections per arm, too few to compare unreadable rates, so `e3/replay.py`
+sends each reflection of the chosen arms again, several times, to the model server, exactly as the recorder
+proxy forwarded it (sampling, tools and chat-template settings included), and classifies every reply:
+readable, a tool call instead of text, invalid JSON that names `recommended_action`, or no JSON. It needs the
+same lock, appends to its output file and resumes from it, and stops on `STOP` next to that file:
+
+```
+uv run python agent_ability/e3/replay.py --out <dir>/replay.jsonl --arms S0,V64 --repeats 6 \
+    --localmelo <the studies' clone> <study dir> [<study dir> ...]
+```
+
+Tests: `uv run pytest agent_ability/tests/test_e3_run.py agent_ability/tests/test_e3_report.py
+agent_ability/tests/test_e3_replay.py` (from `eval/`; fake runs only).
 
 ## Expected runtime
 
