@@ -23,7 +23,7 @@ The MCP-only arm (`--mcp-arm`) runs the 10 MCPMark tasks on Claude Code and Herm
 
 ## Data
 
-Everything lives under `~/Developer/ml_source/datasets/` (override with `HARNESS_SMOKE_DATA`):
+Everything lives under the data directory (`HARNESS_SMOKE_DATA`):
 
 | Path | Content |
 |---|---|
@@ -47,7 +47,7 @@ category folder, and `__MACOSX/` skipped.
 The runner executes in personal-agent-bench's environment, which provides `bench.harness`:
 
 ```sh
-cd ~/Developer/mlsys/experiments/personal-agent-bench
+cd <personal-agent-bench checkout>
 uv run python ../harness-smoke/run.py --dry-run      # plan, prompt hashes, preflight
 uv run python ../harness-smoke/run.py                # the full built-in-tools suite
 uv run python ../harness-smoke/run.py --mcp-arm      # Claude Code + Hermes, filesystem MCP server only
@@ -163,7 +163,7 @@ afterwards; `bench/harness.py` itself is untouched.
 These run offline, with no model, no oMLX and no GPU:
 
 ```sh
-cd ~/Developer/mlsys/experiments/personal-agent-bench
+cd <personal-agent-bench checkout>
 uv run pytest ../harness-smoke/tests -q
 ```
 

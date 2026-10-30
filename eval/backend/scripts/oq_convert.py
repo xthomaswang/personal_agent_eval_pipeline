@@ -11,10 +11,10 @@ Generalizes ../qwen3.8-27b_20261017-2258_benchmark/scripts/oq_convert.py (Qwen3.
 `uv run modeleval convert <model>` runs it with --no-register, under the GPU lock, while no model
 server runs, and then makes the link itself (`modeleval register`). By hand, with the bench oMLX
 interpreter and the lock held:
-  ~/Developer/mlsys/serving/omlx_0.7/.venv/bin/python -I -B scripts/oq_convert.py \
+  <omlx_repo>/.venv/bin/python -I -B scripts/oq_convert.py \
       --src <HF snapshot dir> --name Nanbeige4.3-33B-oQ5 --level 5 --fix drop-bos-post-processor
 
-Writes <models>/oq/<name> (--models, default ~/Developer/mlsys/models; modeleval passes the config's
+Writes <models>/oq/<name> (--models, default the config's [paths] models; modeleval passes the config's
 [paths] models) and, without --no-register, links <models>/hf-bench/<name> to it. It writes no oMLX settings: the pipeline writes
 model_settings.json into its own base path before every launch (DESIGN.md section 2).
 --register-only only makes the link; --fix-only re-applies the tokenizer fixes to an existing output.

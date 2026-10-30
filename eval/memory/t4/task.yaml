@@ -51,7 +51,7 @@ probes:
   abstention: never dropped, since an empty store answers it right by construction (decided 2026-10-26). Scored apart, as the share the reader still answers null from the full store; the headline is the accuracy over the four answerable categories
 
 preconditions:
-  - {gpu_lock_absent: ~/Developer/mlsys/experiments/.gpu-lock}   # a timed trial takes this lock for its duration and does not start while another session (such as local_ai-benchmark) holds it: default assumed (2026-10-18); the user may change it
+  - {gpu_lock_absent: <experiments>/.gpu-lock}   # a timed trial takes this lock for its duration and does not start while another session (such as local_ai-benchmark) holds it: default assumed (2026-10-18); the user may change it
   - {omlx_idle: true}
 
 oracle:

@@ -51,7 +51,7 @@ re-run of the reference speed leg.
 | Item | Value |
 |---|---|
 | Machine | MacBook Pro M5 Max (40-core GPU), 128 GB; AC power, High Power mode; `sw_vers` and `xcodebuild -version` in every result |
-| Server | oMLX 0.7.1rc1, `~/Developer/mlsys/serving/omlx_0.7` at `7a5a3d75` (clean, never modified), its `.venv`; **pipeline-owned base path** `serving/omlx_0.7/.modeleval-home` (HOME isolated to `.modeleval-home/home`), model dir `~/Developer/mlsys/models/hf-bench`, port **8703**, `OMLX_HF_CACHE_ENABLED=false` |
+| Server | oMLX 0.7.1rc1, `${omlx_repo}` at `7a5a3d75` (clean, never modified), its `.venv`; **pipeline-owned base path** `serving/omlx_0.7/.modeleval-home` (HOME isolated to `.modeleval-home/home`), model dir `${models_dir}`, port **8703**, `OMLX_HF_CACHE_ENABLED=false` |
 | Server settings | written to `.modeleval-home/settings.json` before every launch, with the server stopped. Mirrors the user's production backend (`~/.omlx-0.7/settings.json`, read only): `scheduler.max_concurrent_requests` 8, `chunked_prefill` true, `prefill_priority` context, `decode_fairness` true; `cache.hot_cache_max_size` 20GB; memory guard `balanced` (soft 0.85, hard 0.95); `burst_decode_mode` balanced; global `max_tokens` 32768, temperature 1.0, top_p 0.95, top_k 0. Plus: `cache.ssd_cache_dir` a fresh `<run scratch>/ssd-cache` per run, deleted at the end with its peak size logged; `ssd_cache_max_size` fixed at 128GB. The effective values are parsed from the startup log into the manifest |
 | Per-model settings | `.modeleval-home/model_settings.json`, rewritten before every launch from the registry: `max_context_window` 131072; `mtp_enabled` per registry; never a per-model `max_tokens` (Hermes and localmelo send none, so every model gets the global 32768) |
 | Speculative decoding | the model's own head when it ships one (MTP); none otherwise. Recorded per model, never a separate row |
@@ -68,7 +68,7 @@ re-run of the reference speed leg.
 [models.qwen3-8-27b-oq5]
 display        = "Qwen3.8-27B oQ5 + MTP"
 served_id      = "Qwen3.8-27B-oQ5-mtp"            # oMLX model id = directory name under models/hf-bench
-path           = "~/Developer/mlsys/models/oq/Qwen3.8-27B-oQ5-mtp"   # read only: hard-linked with a peer's copy
+path           = "${models}/oq/Qwen3.8-27B-oQ5-mtp"   # read only: hard-linked with a peer's copy
 source         = { hf_repo = "Qwen/Qwen3.8-27B", revision = "<sha>", made_by = "oq_convert level 5, MTP kept" }
 quant          = "oQ5"
 spec           = "mtp"                             # "mtp" | "none"
@@ -322,7 +322,7 @@ The three harnesses come from personal-agent-bench's `bench.harness` (and its pr
   `*TOKEN*`, `*_KEY` is present, and records the sorted variable names. `CLAUDE_CONFIG_DIR` and
   `HERMES_HOME` point to scratch directories for the whole process (the manifest's version probes
   otherwise write `~/.hermes/source-checks`).
-- **ws_root** = `~/Developer/mlsys/experiments/agent-model-eval-ws`, one fixed path for every model and
+- **ws_root** = `${mlsys}/experiments/agent-model-eval-ws`, one fixed path for every model and
   run (it is part of every prompt, so of `prompt_sha256`). Preflight refuses if `git -C <ws_root>
   rev-parse` succeeds or if any of Hermes's project markers (pyproject.toml, setup.py, setup.cfg,
   requirements.txt, package.json, Makefile, Dockerfile, AGENTS.md, CLAUDE.md, .cursorrules, ...) exists in

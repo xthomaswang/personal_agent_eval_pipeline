@@ -1,6 +1,6 @@
 # Where things are on this machine, and whether it takes part in the shared GPU-lock protocol.
 #
-# These are the defaults (the owner's MacBook Pro). On another Mac, put only the keys that differ, in
+# These are example defaults. On a real machine, put only the keys that differ, in
 # their tables, into config.toml next to this file (gitignored); it overrides this file key by key.
 # `uv run modeleval selftest` prints the resolved values.
 #
@@ -8,7 +8,7 @@
 # to this directory. pins.toml and models.toml use the same `${name}` references.
 
 [paths]
-mlsys = "~/Developer/mlsys"                           # the owner's tree; most defaults below hang off it
+mlsys = "~/mlsys"                                     # the root most defaults below hang off
 omlx_repo = "${mlsys}/serving/omlx_0.7"               # oMLX 0.7.1rc1 checkout with its .venv (bin/omlx, bin/python)
 omlx_base = "${omlx_repo}/.modeleval-home"            # the pipeline's own oMLX base path (settings, HOME)
 models = "${mlsys}/models"                            # converted checkpoints: ${models}/oq/<served id>
@@ -16,8 +16,8 @@ models_dir = "${models}/hf-bench"                     # what oMLX serves: one li
 ws_root = "${mlsys}/experiments/agent-model-eval-ws"  # agent workspaces; part of every task prompt (epoch)
 agent_root = "${mlsys}/agent"                         # Claude Code and Hermes configs, the Hermes install
 claude_versions = "~/.local/share/claude/versions"    # Claude Code binaries, one file per version
-datasets = "~/Developer/ml_source/datasets"           # the pinned task data (Aider polyglot, MCPMark)
-hf_home = "~/Developer/ml_source/huggingface"         # Hugging Face cache; $HF_HOME wins when set
+datasets = "~/ml_source/datasets"                     # the pinned task data (Aider polyglot, MCPMark)
+hf_home = "~/.cache/huggingface"                      # Hugging Face cache; $HF_HOME wins when set
 gpu_lock = "${mlsys}/experiments/.gpu-lock"           # the GPU lock file shared with other sessions
 
 [lock]
