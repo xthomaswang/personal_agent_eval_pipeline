@@ -461,7 +461,7 @@ results/<model>/<run-id>/              committed after the export and the redact
   speed/<unit>-<attempt>.jsonl         agentbench raw files of kept attempts (clean or minor)
   speed/monitor.tsv, speed/memory.tsv
   capability/results.json              per (harness, task): verdict, check, steps, turns, wall and model
-                                       time, call checks, flags, prompt_sha256, launch
+                                       time, call checks, budget_exhausted, flags, prompt_sha256, launch
 results/_unverified/                   gitignored, in eval/backend/: attempts with a major disturbance, mechanics checks
 runs/<model>/<run-id>/                 gitignored: raw harness run dirs (transcripts, homes, workspaces,
                                        proxy logs), per-run config copies, ssd-cache, pidfile
@@ -473,6 +473,14 @@ were logged), `summary.json` with paths rewritten, the results row, and the chec
 with paths rewritten. Never exported: `prompt.md` (its sha256 is kept), `manifest.json` of bench.harness
 (needed fields are folded into ours), stdout, `claude-home/`, `hermes-home/`, `mem/`, `workspace/`, the
 env file.
+
+A row's `budget_exhausted` says plainly whether the proxy refused a main call of the run because its step
+budget was used up (HTTP 400, error type `bench_budget_exhausted`). It is true when `calls.budget_refusals`
+is above 0, the same for all three harnesses, and it changes no verdict, score or flag. `n_llm_err` counts
+every failed generation call (any role), so it includes these refusals. `localmelo_status` is localmelo's
+own status for its run and is not rewritten: localmelo reports any HTTP error, a budget refusal included, as
+`provider_error`. Rows exported before the field existed lack it; their `calls.budget_refusals` says the same, and a
+re-export derives the field from it.
 
 Committed files name no machine path (`paths.portable`, used by the exporter, `manifest.json`,
 `units.json` and the header line of each raw speed file): a path under a declared root is written relative

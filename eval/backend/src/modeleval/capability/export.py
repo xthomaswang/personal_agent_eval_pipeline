@@ -28,6 +28,7 @@ from pathlib import Path
 from typing import Any
 
 from modeleval import paths
+from modeleval.capability import checks
 
 RESULTS_NAME = "results.json"
 RUN_FILES = ("calls.jsonl", "summary.json", "check.txt")
@@ -38,7 +39,7 @@ _RUN_NAME = re.compile(r"^[A-Za-z0-9._-]+$")
 ROW_FIELDS = (
     "set", "harness", "task", "kind", "scored", "attempt", "run_dir", "launch",
     "verdict", "smoke_verdict", "valid", "solved", "solved_within_1200", "invalid_reasons", "anomalies",
-    "wall_s", "model_s", "timed_out", "exit_code", "localmelo_status",
+    "wall_s", "model_s", "timed_out", "exit_code", "localmelo_status", "budget_exhausted",
     "n_llm", "n_tool", "n_llm_aux", "n_llm_err", "native_steps", "turns",
     "check", "calls", "prompt_sha256", "t_start", "t_end", "battery_start", "template_errors", "error", "flags",
 )  # fmt: skip
@@ -88,6 +89,8 @@ def _assert_clean(text: str, where: str, home: Path = paths.HOME) -> None:
 def clean_row(record: dict[str, Any]) -> dict[str, Any]:
     """A runner record reduced to the allowlisted row fields, paths portable (scrub_text)."""
     row = {key: record.get(key) for key in ROW_FIELDS}
+    if row["budget_exhausted"] is None and isinstance(record.get("calls"), dict):  # a record from before the field
+        row["budget_exhausted"] = checks.budget_exhausted(record["calls"])
     check = record.get("check") or {}
     row["check"] = {key: check.get(key) for key in CHECK_FIELDS if key in check}
     return scrub(row)

@@ -66,6 +66,14 @@ For every `capability-N` protocol, the site derives per-harness pass counts and 
 published `backend/<run-id>/capability/results.json`. It uses the runner's final-record and solved
 accessors, excludes warm-ups, and verifies that totals match these summary rows.
 
+A row of that `results.json` carries `budget_exhausted`: true when the proxy refused a main call of the run
+because its step budget was used up (HTTP 400, error type `bench_budget_exhausted`), that is, when
+`calls.budget_refusals` is above 0. It is the same for every harness and changes no verdict or score.
+`n_llm_err` counts every failed generation call (any role), so it includes these refusals.
+`localmelo_status` is localmelo's own status for its run and is not rewritten: localmelo reports any HTTP
+error, a budget refusal included, as `provider_error`. Rows exported before `budget_exhausted` existed lack
+it; their `calls.budget_refusals` says the same, and a re-export derives the field from it.
+
 For `ui-real-1`, the report's sibling `results.json` holds item-sample counts. The site reads
 `gold.audited`, verifies the seven summary values, and exposes screenshot, screenshot + OCR, AX-list,
 and read-only original-capture arms. Strict and lenient reads remain separate. Pages, questions,

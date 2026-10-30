@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from modeleval import paths
-from modeleval.capability import export
+from modeleval.capability import checks, export
 
 HOME = str(paths.HOME)
 
@@ -87,6 +87,44 @@ def test_rows_keep_only_allowlisted_fields() -> None:
     assert "harness_report" not in row and "watch" not in row
     assert row["check"] == {"passed": True, "detail": "~/x 1 passed", "extra_files": []}
     assert row["error"] == "OSError: ~/a"
+
+
+def test_rows_publish_budget_exhaustion_next_to_localmelos_status_and_the_error_count() -> None:
+    """A refused main call is counted by n_llm_err like any failed call, and localmelo calls its run provider_error.
+    The row carries the plain flag and the refusal count (calls.budget_refusals), and keeps both of those."""
+    refused = {"calls": 31, "generation_calls": 30, "budget_refusals": 1, "examples": []}
+    melo = {"set": "ranking", "harness": "localmelo", "task": "aider/pov", "run_dir": "localmelo/aider__pov",
+            "verdict": "fail", "localmelo_status": "provider_error", "n_llm": 30, "n_llm_err": 1,
+            "budget_exhausted": True, "calls": refused}  # fmt: skip
+    row = export.clean_row(melo)
+    assert row["budget_exhausted"] is True and row["calls"]["budget_refusals"] == 1
+    assert (row["verdict"], row["localmelo_status"], row["n_llm"], row["n_llm_err"]) == ("fail", "provider_error", 30, 1)
+    # Another harness: the flag is not localmelo's, and a run without a refusal says false, not nothing
+    other = {"set": "gate", "harness": "hermes", "task": "aider/wordy", "run_dir": "hermes/aider__wordy",
+             "verdict": "pass", "localmelo_status": None, "n_llm": 6, "n_llm_err": 0,
+             "budget_exhausted": False, "calls": {**refused, "calls": 6, "generation_calls": 6, "budget_refusals": 0}}  # fmt: skip
+    row = export.clean_row(other)
+    assert row["budget_exhausted"] is False and row["calls"]["budget_refusals"] == 0 and row["localmelo_status"] is None
+    refused_hermes = {**other, "verdict": "fail", "n_llm": 30, "n_llm_err": 6, "budget_exhausted": True,
+                      "calls": {**refused, "budget_refusals": 6}}  # fmt: skip
+    row = export.clean_row(refused_hermes)
+    assert (row["budget_exhausted"], row["calls"]["budget_refusals"], row["n_llm_err"]) == (True, 6, 6)
+
+
+def test_rows_from_before_the_budget_flag_derive_it_from_the_refusal_count() -> None:
+    """A record written before outcome() had budget_exhausted gets it from calls.budget_refusals on a re-export."""
+    old = {"harness": "claude_code", "verdict": "fail", "calls": {"calls": 40, "budget_refusals": 10}}
+    assert export.clean_row(old)["budget_exhausted"] is True
+    assert export.clean_row({**old, "calls": {"calls": 12, "budget_refusals": 0}})["budget_exhausted"] is False
+    assert export.clean_row({"harness": "hermes", "verdict": "invalid"})["budget_exhausted"] is None  # no calls summary
+
+
+def test_every_field_of_a_verdict_row_is_on_the_row_allowlist() -> None:
+    """checks.outcome() fills the runner's record; a field it adds that ROW_FIELDS lacks would never be published."""
+    calls = checks.check_calls([], served_id="M", sampling={}, thinking="off")
+    out = checks.outcome({"harness": "claude_code", "verdict": "pass", "check": {"passed": True}}, calls, max_steps=30)
+    assert set(out) <= set(export.ROW_FIELDS)
+    assert "budget_exhausted" in out
 
 
 def test_write_results(tmp_path: Path) -> None:

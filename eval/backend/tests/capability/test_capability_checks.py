@@ -158,6 +158,52 @@ def test_over_budget_is_never_solved() -> None:
     assert out["valid"] and not out["solved"]
 
 
+def budget_refusal() -> dict[str, Any]:
+    """What the proxy records for a main call beyond --max-steps: HTTP 400 bench_budget_exhausted, never sent upstream."""
+    return call(status=400, budget_exhausted=True, handled_locally=True, sampling_forwarded=None,
+                error={"source": "proxy", "type": "bench_budget_exhausted"})  # fmt: skip
+
+
+def test_budget_exhausted_is_true_for_a_localmelo_provider_error_and_localmelo_keeps_its_word() -> None:
+    """localmelo calls any HTTP error `provider_error`, a budget refusal included. The row says plainly that the
+    step budget was used up, and localmelo_status stays localmelo's own status."""
+    report = {"run_record": {"status": "provider_error", "steps": 29}}
+    record = smoke_record("localmelo", "fail", False, n_llm=30, harness_report=report)
+    refused = run([call(), budget_refusal()])
+    assert refused["budget_refusals"] == 1
+    out = checks.outcome(record, refused, max_steps=30)
+    assert out["budget_exhausted"] is True
+    assert (out["verdict"], out["localmelo_status"], out["valid"], out["solved"]) == ("fail", "provider_error", True, False)
+    assert out["anomalies"] == [] and out["invalid_reasons"] == []  # a refusal is neither a fault nor a mismatch
+    # The same record when localmelo ends its run for another reason, and no call was refused
+    other = {"run_record": {"status": "completed", "steps": 12}}
+    out = checks.outcome(smoke_record("localmelo", "fail", False, harness_report=other), CLEAN, max_steps=30)
+    assert (out["budget_exhausted"], out["localmelo_status"]) == (False, "completed")
+
+
+@pytest.mark.parametrize("harness", ["claude_code", "hermes", "localmelo"])
+def test_budget_exhausted_is_the_same_for_every_harness_and_changes_no_other_field(harness: str) -> None:
+    record = smoke_record(harness, "fail", False, n_llm=30)
+    with_refusals = checks.outcome(record, run([call(), budget_refusal(), budget_refusal()]), max_steps=30)
+    without = checks.outcome(record, CLEAN, max_steps=30)
+    assert with_refusals["budget_exhausted"] is True and without["budget_exhausted"] is False
+    assert {**with_refusals, "budget_exhausted": False} == without
+    if harness != "localmelo":
+        assert with_refusals["localmelo_status"] is None  # localmelo's own status exists for localmelo only
+
+
+def test_budget_exhausted_is_not_set_by_other_failed_calls() -> None:
+    bad_request = call(status=400, error={"source": "proxy", "type": "invalid_request"})
+    out = checks.outcome(smoke_record(), run([call(), bad_request]), max_steps=30)
+    assert out["budget_exhausted"] is False
+
+
+def test_a_budget_refusal_does_not_change_the_verdict_or_the_score() -> None:
+    """A run can use its 30 steps, be refused the 31st call and still leave a workspace that passes."""
+    out = checks.outcome(smoke_record(n_llm=30), run([call(), budget_refusal()]), max_steps=30)
+    assert (out["verdict"], out["valid"], out["solved"], out["budget_exhausted"]) == ("pass", True, True, True)
+
+
 def test_native_turns() -> None:
     assert checks.native_turns("claude_code", {"num_turns": 7}) == 7
     assert checks.native_turns("hermes", {"api_call_count": 4}) == 4

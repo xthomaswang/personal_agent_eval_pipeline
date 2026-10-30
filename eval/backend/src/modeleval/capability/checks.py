@@ -147,6 +147,11 @@ def no_model_call(record: dict[str, Any], calls: dict[str, Any]) -> bool:
     return record.get("verdict") == "harness_error" and not calls.get("generation_calls")
 
 
+def budget_exhausted(calls: dict[str, Any]) -> bool:
+    """The proxy refused a main call because the run had used up its step budget."""
+    return (calls.get("budget_refusals") or 0) > 0
+
+
 def outcome(
     record: dict[str, Any],
     calls: dict[str, Any],
@@ -163,6 +168,11 @@ def outcome(
       `--timeout` (its JSON run record says status "timeout", exit code 0);
     - pass / fail / harness_error: harness-smoke's verdict otherwise. A harness_error after model calls
       is terminal: a harness that crashes on a model's output is that model's failure, and it is flagged.
+
+    `budget_exhausted` is true when the proxy refused a main call because the run had used up its step
+    budget (`budget_refusals` > 0 in the calls summary); it is the same for every harness. It changes no
+    verdict, score or flag. `localmelo_status` stays localmelo's own word for its run, which is
+    `provider_error` for any HTTP error, a budget refusal included.
     """
     report = record.get("harness_report") or {}
     run_record = report.get("run_record") if isinstance(report.get("run_record"), dict) else {}
@@ -199,6 +209,7 @@ def outcome(
         "anomalies": anomalies,
         "model_s": calls.get("model_s"),
         "localmelo_status": melo_status,
+        "budget_exhausted": budget_exhausted(calls),
         "template_errors": template_errors,
     }
 
