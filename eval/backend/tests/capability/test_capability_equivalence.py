@@ -185,6 +185,6 @@ def test_the_repo_declaration_is_never_failed() -> None:
     tree objects exist; after a gc only the recorded reason stands (unverified), never a failure."""
     raw = registry.load_pins()
     assert epochs.canonical("ce99c7b5d0bd", raw) == "7582825160ad"
-    assert epochs.canonical(registry.epoch_id(raw), raw) == "4271c2f4a925"
+    assert epochs.canonical(registry.epoch_id(raw), raw) == "8c545ce3471c"
     for result in epochs.verify_equivalences(raw):
         assert result["status"] in ("verified", "unverified"), result["detail"]
