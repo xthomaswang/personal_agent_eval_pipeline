@@ -162,6 +162,17 @@ def test_keys_become_cua_driver_names(spec: str, combo: list[str]) -> None:
     assert tap.cua_key(spec) == combo
 
 
+@pytest.mark.parametrize("keys", [["Alt", "ArrowLeft"], ["Shift"], ["Control+Shift"], ["Enter", "cmd"]])
+def test_a_lone_modifier_is_refused_with_the_combined_form(keys: list[str]) -> None:
+    with pytest.raises(tap.Refused, match=r'only a modifier.*"Alt\+ArrowLeft"'):
+        tap.keys_arg({"keys": keys})
+
+
+def test_keys_and_combinations_pass() -> None:
+    keys = ["Alt+ArrowLeft", "Enter", "Control+a", "Shift+Tab", "a"]
+    assert tap.keys_arg({"keys": keys}) == keys
+
+
 def test_the_cua_child_is_cua_drivers_mcp_server() -> None:
     assert tap.child_command("cua", None, cua_bin="/x/cua-driver") == ["/x/cua-driver", "mcp"]
 
@@ -241,6 +252,7 @@ def test_the_screen_arm_checks_apply(rig: CuaRig) -> None:
         ("click", {"x": 1, "y": 2, "button": "right"}),
         ("type_text", {"text": ""}),
         ("press_keys", {"keys": ["Enter", "cmd+v"]}),  # nothing is pressed when one key is refused
+        ("press_keys", {"keys": ["Alt", "Left"]}),  # a chord sent as two items
         ("scroll", {"direction": "left"}),
         ("screenshot", {"full": True}),
     ]:

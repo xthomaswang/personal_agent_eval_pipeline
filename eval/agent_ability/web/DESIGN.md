@@ -108,15 +108,18 @@ D, S and S-cua and 600 s for C.
 **Order** is repeat-major. Each (repeat, question) runs its nine cells (harness × arm) back to back,
 rotated as in e3 by (question index + repeat), and the C runs space out Google queries.
 
-| Stage | Runs | Estimate |
+| Stage | Runs | Time |
 |---|---|---|
-| 0 plumbing | 2 questions × 3 arms × 3 harnesses = 18 | ~65 min |
-| 1 | 24 × 3 arms × 3 harnesses = 216 | ~13 h |
-| 2 | second repeat, 216 | ~13 h, if Stage 1 is informative |
+| 0 plumbing | 2 questions × 3 arms × 3 harnesses = 18 | 6 min (measured) |
+| 1 | 24 × 3 arms × 3 harnesses = 216 | ~1.5 h |
+| 2 | second repeat, 216 | ~1.5 h, if Stage 1 is informative |
 
-Estimated time per run: C 0.5 min, D 4 min and S 5.5 min, plus 20 s for Chrome. These numbers scale
-Flash-Next's 40-80 s Aider runs to D's 5-30K-token snapshots and S's extra steps. They are not measured
-yet; Stage 0 will replace them.
+Stage 0 measured, per run: D 8-30 s, S 14-51 s (a run at the 30-step cap takes about 50 s), C 1-15 s,
+plus about 6 s to start and close Chrome. Stage 1's estimate scales these to the medium tier's longer
+searches.
+
+Stage 0 also changed the S tools: a model sent a chord as two items (`["Alt", "Left"]`, two separate
+presses), so `press_keys` now refuses an item that is only a modifier and says how to write the chord.
 
 ## 4. Chrome lifecycle
 
@@ -342,10 +345,11 @@ Per harness and arm, the report gives:
 
 Risks:
 
-- Flash-Next's tool-result images are unproven; the G2b probe must pass before S runs.
+- Tool-result images reached the model in all three harnesses in Stage 0 (requests carry each new
+  screenshot).
 - Long pages in D can hit Claude Code's MCP output cap.
 - A harness may offer a search tool of its own next to the tap's. `foreign_tools` and `search_tool_leak` in each
-  record show it; Stage 0 must check.
+  record show it. Stage 0 found none.
 - S-cua depends on the Space staying on screen for a run; a lost Space costs the run.
 - 24 questions support only descriptive conclusions.
 

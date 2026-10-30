@@ -287,10 +287,13 @@ def normalize_key(spec: str) -> str:
     return "+".join(out)
 
 
+_MODIFIERS = ("Control", "Meta", "Alt", "Shift")
+
+
 def split_key(spec: str) -> tuple[frozenset[str], str]:
     """(modifiers, lower-cased key) of a key spec."""
     parts = key_parts(normalize_key(spec))
-    mods = frozenset(p for p in parts[:-1] if p in ("Control", "Meta", "Alt", "Shift"))
+    mods = frozenset(p for p in parts[:-1] if p in _MODIFIERS)
     return mods, parts[-1].lower()
 
 
@@ -652,8 +655,10 @@ SCREEN_TOOL_DEFS: list[dict[str, Any]] = [
     {
         "name": "press_keys",
         "description": (
-            'Press keys in order, each one a key or a combination, e.g. ["Enter"], ["Control+A", "Delete"] or '
-            '["Tab", "Tab", "Enter"]. Alt+ArrowLeft goes back, Alt+ArrowRight goes forward and F5 reloads the page.'
+            'Press keys one after another. Each item is one key, or one combination joined with "+": ["Enter"], '
+            '["Control+A", "Delete"] or ["Tab", "Tab", "Enter"]. ["Alt", "ArrowLeft"] would be two separate presses, '
+            'so a lone modifier is refused. Alt+ArrowLeft goes back, Alt+ArrowRight goes forward and F5 reloads the '
+            'page.'
         ),
         "inputSchema": {
             "type": "object",
@@ -752,6 +757,8 @@ def keys_arg(args: dict[str, Any]) -> list[str]:
         why = refused_key(key)
         if why:
             raise Refused(f"{key} is not allowed ({why})")
+        if all(part in _MODIFIERS for part in key_parts(normalize_key(key))):
+            raise Refused(f'{key} is only a modifier; write a combination as one item joined with "+", e.g. "Alt+ArrowLeft"')
     return keys
 
 
