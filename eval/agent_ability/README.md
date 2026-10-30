@@ -234,7 +234,7 @@ readable, a tool call instead of text, invalid JSON that names `recommended_acti
 same lock, appends to its output file and resumes from it, and stops on `STOP` next to that file:
 
 ```
-uv run python agent_ability/e3/replay.py --out <dir>/replay.jsonl --arms S0,V64 --repeats 6 \
+uv run python agent_ability/e3/replay.py --out <dir>/replay.jsonl --arms S0,V64,O20 --repeats 6 \
     --localmelo <the studies' clone> <study dir> [<study dir> ...]
 ```
 

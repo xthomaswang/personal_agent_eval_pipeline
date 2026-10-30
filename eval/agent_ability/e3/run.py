@@ -58,6 +58,9 @@ ARMS: dict[str, tuple[str, ...]] = {
     # 64-message window
     "V3": ("--cache-layout", "v3"),
     "V64": ("--cache-layout", "v3", "--window-messages", "64"),
+    # E5, on a build whose defaults are the v3 layout and a 64-message window (S0 then means those defaults);
+    # O20 opts out to the previous v2 layout and a 20-message window
+    "O20": ("--cache-layout", "v2", "--window-messages", "20"),
 }
 DEFAULT_ARMS = ("S0", "C1", "B1", "B2", "S2")   # E3's five
 EXERCISES = (
