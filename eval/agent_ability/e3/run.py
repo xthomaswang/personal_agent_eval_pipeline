@@ -66,6 +66,9 @@ ARMS: dict[str, tuple[str, ...]] = {
     "SH": ("--builtins", "file_read,file_write,python_exec,shell_exec"),
     "L": ("-X", "agent.lean_output=true"),
     "LSH": ("-X", "agent.lean_output=true", "--builtins", "file_read,file_write,python_exec,shell_exec"),
+    # E7, on a build that can confine plain direct runs: the defaults confined, and SH confined
+    "S0-C": ("-X", "agent.confine_direct_runs=true"),
+    "SH-C": ("--builtins", "file_read,file_write,python_exec,shell_exec", "-X", "agent.confine_direct_runs=true"),
 }
 DEFAULT_ARMS = ("S0", "C1", "B1", "B2", "S2")   # E3's five
 EXERCISES = (
