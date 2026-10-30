@@ -3,6 +3,7 @@
 
     python3 tap.py --mode dom    --log calls.jsonl --browser-url http://127.0.0.1:9222
     python3 tap.py --mode screen --log calls.jsonl --browser-url http://127.0.0.1:9222
+    python3 tap.py --mode cua    --log calls.jsonl --chrome-pid 4242
     python3 tap.py --mode none   --log calls.jsonl
 
 The modes are the arms:
@@ -15,12 +16,17 @@ The modes are the arms:
   tools (``screenshot``, ``click``, ``type_text``, ``press_keys``, ``scroll``). Coordinates are 0-1000 on the latest
   screenshot and mapped to the CSS pixels of the viewport. Screenshots are JPEGs of at most 256 KB, returned as an
   image block only. Nothing else is exposed, and the child's text is never shown (it holds URLs and page titles).
+- ``cua`` (S-cua): the same five tools, served by cua-driver (``cua-driver mcp``, which acts through CuaDriver.app
+  and its permissions) on the window of a headed Chrome given by ``--chrome-pid``. Screenshots are of the whole
+  window, browser UI included; input is OS-level and sent in the background (no pointer move, no focus change). The
+  window must be on the Space on screen: off-Space windows give no screenshot, so a call is refused while the Space
+  that was current at the first screenshot is not.
 - ``none`` (C): no tools.
 
 Every tools/call is appended to the JSONL file given by ``--log`` (or ``WEB_TAP_LOG``). ``tools/list`` is answered from
 the filtered set; errors of the child come back as tool errors; the child is shut down when stdin closes.
 
-The child command is built from ``--mcp-bin`` and ``--browser-url``; anything after ``--`` replaces it (the tests put
+The child command is built from ``--mcp-bin`` and ``--browser-url`` (``--cua-bin`` in the cua mode); anything after ``--`` replaces it (the tests put
 a fake MCP server there). This file uses the standard library only, and runs on any Python 3.9 or later.
 """
 
@@ -84,6 +90,9 @@ DOM_CHILD_FLAGS = ("--javascriptEvaluation=false", "--fileNavigations=false")
 SCREEN_CHILD_FLAGS = ("--experimentalVision", "--screenshotMaxWidth=1280", "--screenshotMaxHeight=800")
 CHILD_ENV = {"CHROME_DEVTOOLS_MCP_NO_USAGE_STATISTICS": "1", "CHROME_DEVTOOLS_MCP_NO_UPDATE_CHECKS": "1"}
 
+CUA_BUNDLE_ID = "com.trycua.driver"
+CUA_EXECUTABLE = os.path.join("Contents", "MacOS", "cua-driver")
+CUA_IMAGE_DIM = 1280  # the long edge of a cua screenshot: a 1280x800 window comes back at 1280x800
 MAX_IMAGE_BYTES = 256 * 1024
 JPEG_QUALITIES = (80, 60, 40, 25)
 SCROLL_SETTLE_S = 0.5  # Chrome animates PageDown; a screenshot taken at once would catch it half way
@@ -100,8 +109,27 @@ ALLOWED_URL_SCHEMES = ("http", "https")
 # --- small pure helpers ---
 
 
-def child_command(mode: str, browser_url: str | None, mcp_bin: str | None = None) -> list[str]:
-    """The default command line of the chrome-devtools-mcp child for a mode."""
+def default_cua_bin() -> str:
+    """The cua-driver binary: the app with cua-driver's bundle id (Spotlight); one in /Applications wins."""
+    try:
+        out = subprocess.run(
+            ["mdfind", f"kMDItemCFBundleIdentifier == '{CUA_BUNDLE_ID}'"], capture_output=True, text=True, timeout=30
+        ).stdout
+    except (OSError, subprocess.SubprocessError):
+        out = ""
+    apps = [line for line in out.splitlines() if line.endswith(".app")]
+    if not apps:
+        raise ValueError(f"no app with bundle id {CUA_BUNDLE_ID}; pass --cua-bin")
+    app = min(apps, key=lambda a: (os.path.dirname(a) != "/Applications", len(a), a))
+    return os.path.join(app, CUA_EXECUTABLE)
+
+
+def child_command(
+    mode: str, browser_url: str | None, mcp_bin: str | None = None, cua_bin: str | None = None
+) -> list[str]:
+    """The default command line of the child for a mode: chrome-devtools-mcp, or cua-driver's MCP server."""
+    if mode == "cua":
+        return [cua_bin or default_cua_bin(), "mcp"]
     if mode not in ("dom", "screen"):
         raise ValueError(f"mode {mode!r} has no child")
     if not browser_url:
@@ -307,6 +335,59 @@ def navigation_shortcut(spec: str) -> str | None:
     if len(mods) == 1:
         return _NAV_SHORTCUTS.get((next(iter(mods)), key))
     return "reload" if not mods and key == "f5" else None
+
+
+# cua-driver's names for keys and modifiers, and Chrome's own shortcuts on macOS for the navigation keys.
+_CUA_MODIFIERS = {"Control": "ctrl", "Meta": "cmd", "Alt": "option", "Shift": "shift"}
+_CUA_KEYS = {
+    "Enter": "return",
+    "Escape": "escape",
+    "Tab": "tab",
+    " ": "space",
+    "Backspace": "delete",
+    "Delete": "delete",
+    "ArrowUp": "up",
+    "ArrowDown": "down",
+    "ArrowLeft": "left",
+    "ArrowRight": "right",
+    "PageUp": "pageup",
+    "PageDown": "pagedown",
+    "Home": "home",
+    "End": "end",
+}
+_CUA_NAV = {"back": ["cmd", "["], "forward": ["cmd", "]"], "reload": ["cmd", "r"]}
+
+
+def cua_key(spec: str) -> list[str]:
+    """A key spec as cua-driver's names, modifiers first: ``Control+a`` -> ``["ctrl", "a"]``, ``Return`` ->
+    ``["return"]``. The navigation shortcuts become Chrome's own (``Alt+ArrowLeft`` -> ``["cmd", "["]``)."""
+    nav = navigation_shortcut(spec)
+    if nav:
+        return list(_CUA_NAV[nav])
+    parts = key_parts(normalize_key(spec))
+    mods = [_CUA_MODIFIERS[p] for p in parts[:-1] if p in _CUA_MODIFIERS]
+    key = parts[-1]
+    if key in _CUA_KEYS:
+        key = _CUA_KEYS[key]
+    elif re.fullmatch(r"F\d{1,2}", key) or len(key) == 1:
+        key = key.lower()
+    return [*mods, key]
+
+
+def png_to_jpeg(png: bytes, quality: int, workdir: str) -> bytes:
+    """Re-encode a PNG as a JPEG with macOS's ``sips`` (the tap has no image library)."""
+    src = os.path.join(workdir, "shot.png")
+    dst = os.path.join(workdir, "shot.jpg")
+    with open(src, "wb") as f:
+        f.write(png)
+    subprocess.run(
+        ["sips", "-s", "format", "jpeg", "-s", "formatOptions", str(quality), src, "--out", dst],
+        capture_output=True,
+        check=True,
+        timeout=30,
+    )
+    with open(dst, "rb") as f:
+        return f.read()
 
 
 # --- results ---
@@ -635,20 +716,76 @@ def filter_dom_tools(child_tools: list[dict[str, Any]]) -> list[dict[str, Any]]:
 # --- the server ---
 
 
+# --- the argument checks shared by the two screen arms ---
+
+
+def click_args(args: dict[str, Any]) -> tuple[float, float]:
+    extra = set(args) - {"x", "y"}
+    if extra:
+        raise Refused(f"click takes x and y only, not {sorted(extra)}")
+    coords = []
+    for key in ("x", "y"):
+        value = args.get(key)
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not 0 <= value <= 1000:
+            raise Refused(f"{key} must be a number from 0 to 1000")
+        coords.append(float(value))
+    return coords[0], coords[1]
+
+
+def text_arg(args: dict[str, Any]) -> str:
+    text = args.get("text")
+    if set(args) - {"text"} or not isinstance(text, str) or not text:
+        raise Refused("type_text takes one non-empty string, text")
+    return text
+
+
+def keys_arg(args: dict[str, Any]) -> list[str]:
+    """The keys of a press_keys call, every one checked before the first is pressed."""
+    keys = args.get("keys")
+    if isinstance(keys, str):
+        keys = [keys]
+    if set(args) - {"keys"} or not isinstance(keys, list) or not keys or not all(isinstance(k, str) and k for k in keys):
+        raise Refused("press_keys takes keys: a list of key names")
+    if len(keys) > MAX_KEYS:
+        raise Refused(f"press at most {MAX_KEYS} keys at a time")
+    for key in keys:
+        why = refused_key(key)
+        if why:
+            raise Refused(f"{key} is not allowed ({why})")
+    return keys
+
+
+def scroll_args(args: dict[str, Any]) -> tuple[str, int]:
+    direction = args.get("direction")
+    amount = args.get("amount", 1)
+    if set(args) - {"direction", "amount"} or direction not in ("down", "up"):
+        raise Refused('scroll takes direction ("down" or "up") and an optional amount')
+    if isinstance(amount, bool) or not isinstance(amount, int) or not 1 <= amount <= MAX_SCROLL_AMOUNT:
+        raise Refused(f"amount must be a whole number from 1 to {MAX_SCROLL_AMOUNT}")
+    return direction, amount
+
+
 class Tap:
-    def __init__(self, mode: str, log: CallLog, child: Child | None) -> None:
+    def __init__(self, mode: str, log: CallLog, child: Child | None, chrome_pid: int | None = None) -> None:
         self.mode = mode
         self.log = log
         self.child = child
         self.call_lock = threading.Lock()  # one tool call at a time: the screen tools are sequences
         self._dom_tools: list[dict[str, Any]] | None = None
         self.viewport: tuple[int, int] | None = None  # CSS pixels of the viewport at the latest screenshot
+        # S-cua: the Chrome whose window is driven, its window, the latest screenshot's size and the Space it was on
+        self.chrome_pid = chrome_pid
+        self.window_id: int | None = None
+        self.image_size: tuple[int, int] | None = None
+        self.space_id: int | None = None
+        self.session = f"web-tap-{os.getpid()}"
+        self._workdir: str | None = None
 
     # tools/list
     def tools(self) -> list[dict[str, Any]]:
         if self.mode == "none":
             return []
-        if self.mode == "screen":
+        if self.mode in ("screen", "cua"):
             return SCREEN_TOOL_DEFS
         assert self.child is not None
         if self._dom_tools is None:
@@ -696,6 +833,8 @@ class Tap:
             return self._call_dom(name, args, detail)
         if self.mode == "screen" and name in SCREEN_TOOLS:
             return getattr(self, "_screen_" + name)(args, detail)
+        if self.mode == "cua" and name in SCREEN_TOOLS:
+            return getattr(self, "_cua_" + name)(args, detail)
         raise Refused(f"there is no tool {name!r}")
 
     # D arm
@@ -763,46 +902,20 @@ class Tap:
         return {"content": [{"type": "image", "data": block["data"], "mimeType": "image/jpeg"}]}
 
     def _screen_click(self, args: dict[str, Any], detail: dict[str, Any]) -> dict[str, Any]:
-        extra = set(args) - {"x", "y"}
-        if extra:
-            raise Refused(f"click takes x and y only, not {sorted(extra)}")
-        coords = []
-        for key in ("x", "y"):
-            value = args.get(key)
-            if isinstance(value, bool) or not isinstance(value, (int, float)) or not 0 <= value <= 1000:
-                raise Refused(f"{key} must be a number from 0 to 1000")
-            coords.append(float(value))
+        x, y = click_args(args)
         if self.viewport is None:
             raise Refused("take a screenshot first; click coordinates refer to the latest screenshot")
-        px, py = map_point(coords[0], coords[1], self.viewport)
-        detail.update(norm=coords, css=[px, py], viewport=list(self.viewport))
+        px, py = map_point(x, y, self.viewport)
+        detail.update(norm=[x, y], css=[px, py], viewport=list(self.viewport))
         raw = self._child_call("click_at", {"x": px, "y": py})
         return self._action_result(raw, "Clicked.")
 
     def _screen_type_text(self, args: dict[str, Any], detail: dict[str, Any]) -> dict[str, Any]:
-        text = args.get("text")
-        if set(args) - {"text"} or not isinstance(text, str) or not text:
-            raise Refused("type_text takes one non-empty string, text")
-        raw = self._child_call("type_text", {"text": text})
+        raw = self._child_call("type_text", {"text": text_arg(args)})
         return self._action_result(raw, "Typed.")
 
     def _screen_press_keys(self, args: dict[str, Any], detail: dict[str, Any]) -> dict[str, Any]:
-        keys = args.get("keys")
-        if isinstance(keys, str):
-            keys = [keys]
-        if (
-            set(args) - {"keys"}
-            or not isinstance(keys, list)
-            or not keys
-            or not all(isinstance(k, str) and k for k in keys)
-        ):
-            raise Refused("press_keys takes keys: a list of key names")
-        if len(keys) > MAX_KEYS:
-            raise Refused(f"press at most {MAX_KEYS} keys at a time")
-        for key in keys:  # every key is checked before the first is pressed
-            why = refused_key(key)
-            if why:
-                raise Refused(f"{key} is not allowed ({why})")
+        keys = keys_arg(args)
         pressed = []
         last: dict[str, Any] = {}
         for key in keys:
@@ -820,12 +933,7 @@ class Tap:
         return text_result("Pressed " + ", ".join(pressed) + ".")
 
     def _screen_scroll(self, args: dict[str, Any], detail: dict[str, Any]) -> dict[str, Any]:
-        direction = args.get("direction")
-        amount = args.get("amount", 1)
-        if set(args) - {"direction", "amount"} or direction not in ("down", "up"):
-            raise Refused('scroll takes direction ("down" or "up") and an optional amount')
-        if isinstance(amount, bool) or not isinstance(amount, int) or not 1 <= amount <= MAX_SCROLL_AMOUNT:
-            raise Refused(f"amount must be a whole number from 1 to {MAX_SCROLL_AMOUNT}")
+        direction, amount = scroll_args(args)
         key = "PageDown" if direction == "down" else "PageUp"
         for _ in range(amount):
             raw = self._child_call("press_key", {"key": key})
@@ -852,6 +960,131 @@ class Tap:
                 self._child_call("select_page", {"pageId": int(ids[-1]), "bringToFront": True})
             except ChildError:
                 pass
+
+    # S-cua arm
+    def _cua_call(self, name: str, args: dict[str, Any]) -> dict[str, Any]:
+        assert self.child is not None
+        return self.child.call_tool(name, {**args, "session": self.session})
+
+    def _cua_windows(self) -> tuple[list[dict[str, Any]], int | None]:
+        """The Chrome's top-level windows, and the Space on screen."""
+        raw = self._cua_call("list_windows", {"pid": self.chrome_pid})
+        if raw.get("isError"):
+            raise Refused("the browser window cannot be listed: " + result_text(raw)[:200])
+        data = raw.get("structuredContent") or {}
+        windows = [w for w in data.get("windows") or [] if w.get("layer", 0) == 0]
+        return windows, data.get("current_space_id")
+
+    def _cua_window(self) -> int:
+        """The browser window: the largest top-level window of the Chrome, which must be on the Space on screen."""
+        windows, current = self._cua_windows()
+        if self.space_id is None:
+            self.space_id = current
+        if current != self.space_id:
+            raise Refused("the browser's desktop is not on screen; the run cannot see the browser")
+
+        def area(w: dict[str, Any]) -> float:
+            bounds = w.get("bounds") or {}
+            return float(bounds.get("width", 0)) * float(bounds.get("height", 0))
+
+        visible = [w for w in windows if w.get("on_current_space") and area(w) > 0]
+        if not visible:
+            raise Refused("the browser has no window on the desktop on screen")
+        self.window_id = int(max(visible, key=area)["window_id"])
+        return self.window_id
+
+    def _cua_target(self) -> dict[str, Any]:
+        if self.image_size is None or self.window_id is None:
+            raise Refused("take a screenshot first; click coordinates refer to the latest screenshot")
+        windows, current = self._cua_windows()
+        if current != self.space_id:
+            raise Refused("the browser's desktop is not on screen; the run cannot see the browser")
+        if not any(int(w.get("window_id", -1)) == self.window_id for w in windows):
+            raise Refused("the browser window of the latest screenshot is gone; take a screenshot")
+        return {"pid": self.chrome_pid, "window_id": self.window_id}
+
+    def _cua_action(self, raw: dict[str, Any], ok_text: str) -> dict[str, Any]:
+        """A short result: cua-driver's text names elements of the page, which the screen arm must not see."""
+        if raw.get("isError"):
+            return text_result("Error: the action failed", True)
+        effect = (raw.get("structuredContent") or {}).get("effect")
+        if effect == "refused":
+            return text_result("Error: the action was refused", True)
+        return text_result(ok_text)
+
+    def _cua_screenshot(self, args: dict[str, Any], detail: dict[str, Any]) -> dict[str, Any]:
+        if args:
+            raise Refused("screenshot takes no arguments")
+        if self._workdir is None:
+            import tempfile
+
+            self._workdir = tempfile.mkdtemp(prefix="web-tap-")
+            self._cua_call("set_agent_cursor_enabled", {"enabled": False})
+        window = self._cua_window()
+        raw = self._cua_call(
+            "get_window_state",
+            {
+                "pid": self.chrome_pid,
+                "window_id": window,
+                "include_accessibility_tree": False,
+                "max_image_dimension": CUA_IMAGE_DIM,
+            },
+        )
+        block = first_image(raw)
+        if raw.get("isError") or block is None:
+            return text_result("Error: no screenshot of the browser window", True)
+        png = base64.b64decode(block["data"])
+        for quality in JPEG_QUALITIES:
+            data = png_to_jpeg(png, quality, self._workdir)
+            if len(data) <= MAX_IMAGE_BYTES:
+                break
+        else:
+            return text_result(
+                f"Error: the screenshot is over {MAX_IMAGE_BYTES // 1024} KB at JPEG quality {quality}", True
+            )
+        self.image_size = jpeg_size(data)
+        detail.update(quality=quality, bytes=len(data), image_size=self.image_size, window_id=window)
+        return {"content": [{"type": "image", "data": base64.b64encode(data).decode("ascii"), "mimeType": "image/jpeg"}]}
+
+    def _cua_click(self, args: dict[str, Any], detail: dict[str, Any]) -> dict[str, Any]:
+        x, y = click_args(args)
+        target = self._cua_target()
+        assert self.image_size is not None
+        px, py = map_point(x, y, self.image_size)
+        detail.update(norm=[x, y], px=[px, py], image_size=list(self.image_size))
+        raw = self._cua_call("click", {**target, "x": px, "y": py})
+        detail["route"] = (raw.get("structuredContent") or {}).get("route")
+        return self._cua_action(raw, "Clicked.")
+
+    def _cua_type_text(self, args: dict[str, Any], detail: dict[str, Any]) -> dict[str, Any]:
+        text = text_arg(args)
+        raw = self._cua_call("type_text", {**self._cua_target(), "text": text})
+        return self._cua_action(raw, "Typed.")
+
+    def _cua_press_keys(self, args: dict[str, Any], detail: dict[str, Any]) -> dict[str, Any]:
+        keys = keys_arg(args)
+        target = self._cua_target()
+        pressed = []
+        for key in keys:
+            combo = cua_key(key)
+            if len(combo) == 1:
+                raw = self._cua_call("press_key", {**target, "key": combo[0]})
+            else:
+                raw = self._cua_call("hotkey", {**target, "keys": combo})
+            result = self._cua_action(raw, "")
+            if result.get("isError"):
+                detail["pressed"] = pressed
+                return result
+            pressed.append(key)
+        detail["pressed"] = pressed
+        return text_result("Pressed " + ", ".join(pressed) + ".")
+
+    def _cua_scroll(self, args: dict[str, Any], detail: dict[str, Any]) -> dict[str, Any]:
+        direction, amount = scroll_args(args)
+        raw = self._cua_call("scroll", {**self._cua_target(), "direction": direction, "by": "page", "amount": amount})
+        result = self._cua_action(raw, f"Scrolled {direction} {amount} screen{'s' if amount != 1 else ''}.")
+        time.sleep(SCROLL_SETTLE_S)
+        return result
 
     # MCP plumbing
     def handle(self, message: dict[str, Any]) -> dict[str, Any] | None:
@@ -945,6 +1178,10 @@ class Tap:
     def close(self) -> None:
         if self.child is not None:
             self.child.close()
+        if self._workdir is not None:
+            import shutil
+
+            shutil.rmtree(self._workdir, ignore_errors=True)
         self.log.write(event="stop")
         self.log.close()
 
@@ -953,11 +1190,11 @@ def build_tap(args: argparse.Namespace, child_argv: list[str]) -> Tap:
     log = CallLog(args.log, args.mode)
     child = None
     if args.mode != "none":
-        cmd = child_argv or child_command(args.mode, args.browser_url, args.mcp_bin)
+        cmd = child_argv or child_command(args.mode, args.browser_url, args.mcp_bin, args.cua_bin)
         env = {**os.environ, **CHILD_ENV}
         child = Child(cmd, env, args.child_stderr)
-    log.write(event="start", pid=os.getpid(), child=(child.cmd if child else None))
-    return Tap(args.mode, log, child)
+    log.write(event="start", pid=os.getpid(), child=(child.cmd if child else None), chrome_pid=args.chrome_pid)
+    return Tap(args.mode, log, child, args.chrome_pid)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -967,20 +1204,29 @@ def main(argv: list[str] | None = None) -> int:
         split = argv.index("--")
         argv, child_argv = argv[:split], argv[split + 1 :]
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--mode", choices=("dom", "screen", "none"), default=os.environ.get("WEB_TAP_MODE"))
+    parser.add_argument("--mode", choices=("dom", "screen", "cua", "none"), default=os.environ.get("WEB_TAP_MODE"))
     parser.add_argument(
         "--log", default=os.environ.get("WEB_TAP_LOG"), help="JSONL file for every call (or WEB_TAP_LOG)"
     )
     parser.add_argument("--browser-url", default=os.environ.get("WEB_TAP_BROWSER_URL"), help="http://127.0.0.1:<port>")
     parser.add_argument("--mcp-bin", default=os.environ.get("WEB_TAP_MCP_BIN"), help="the chrome-devtools-mcp binary")
+    parser.add_argument("--cua-bin", default=os.environ.get("WEB_TAP_CUA_BIN"), help="the cua-driver binary")
+    parser.add_argument(
+        "--chrome-pid",
+        type=int,
+        default=int(os.environ["WEB_TAP_CHROME_PID"]) if os.environ.get("WEB_TAP_CHROME_PID") else None,
+        help="the headed Chrome whose window the cua mode drives (or WEB_TAP_CHROME_PID)",
+    )
     parser.add_argument(
         "--child-stderr", default=os.environ.get("WEB_TAP_CHILD_STDERR"), help="file for the child's stderr"
     )
     args = parser.parse_args(argv)
     if args.mode is None:
         parser.error("--mode (or WEB_TAP_MODE) is required")
-    if args.mode != "none" and not child_argv and not args.browser_url:
+    if args.mode in ("dom", "screen") and not child_argv and not args.browser_url:
         parser.error("--browser-url (or WEB_TAP_BROWSER_URL) is required for the dom and screen modes")
+    if args.mode == "cua" and not args.chrome_pid:
+        parser.error("--chrome-pid (or WEB_TAP_CHROME_PID) is required for the cua mode")
     sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
     sys.stdin.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
     tap = build_tap(args, child_argv)
