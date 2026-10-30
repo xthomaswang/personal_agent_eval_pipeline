@@ -218,8 +218,12 @@ start and at the end of the last session. `--tasks`, `--arms` and `--repeats` se
 
 The report has, per arm, the pass counts (per task and repeat), cache efficiency (cached / prompt tokens over
 each run's model calls except its first, pooled and as the median of the per-run values), prompt, uncached
-tokens, steps and wall time, reflection health (reflections, unreadable ones and their rate, found in the
-logged bodies), `attempts` and `n_aux`. Its decision rule picks the arm with the highest cache efficiency
+and output tokens (the output tokens are the `completion_tokens` of the same calls), steps and wall time,
+reflection health (reflections, unreadable ones and their rate, found in the logged bodies), `attempts` and
+`n_aux`. When S0 and another arm are both in the study, it also has a "Paired passes against S0" section: for
+each other arm, the tasks both passed at least once, and on them the mean output tokens, uncached tokens,
+steps and wall time of the passing runs for S0 and for the arm, with the arm/S0 ratio of output and of
+uncached tokens. Its decision rule picks the arm with the highest cache efficiency
 that loses no task S0 passed in every repeat and whose unreadable-reflection rate is at most 2 points above
 S0's, ties going to the simpler arm; it lists every (task, arm) pair whose pass count differs from S0's for a
 rerun. A reflection request is one whose last user message starts with localmelo's `REFLECTION_PROMPT`, or a

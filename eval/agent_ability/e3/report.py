@@ -10,6 +10,12 @@ Definitions:
 - cache efficiency: sum(cached_tokens) / sum(prompt_tokens) over a run's model calls except its first,
   from usage_raw of the proxy's calls.jsonl; per arm both pooled over its runs and the median of the
   per-run values;
+- output tokens: sum(completion_tokens) over the same calls as the prompt tokens (a call without
+  completion_tokens adds 0);
+- paired passes against S0: for each other arm, the tasks that S0 and the arm both passed at least once;
+  a task counts once per side, as the mean over that side's passing runs of its output tokens, uncached
+  tokens, steps (model calls) and wall s; the figures are means over the paired tasks, and the ratio is
+  the arm's mean over S0's, for output and for uncached tokens;
 - a reflection request is one whose last user message starts with localmelo's REFLECTION_PROMPT, or a
   tool-less one that carries that text in a system message (the default mode's, and the fixed-prefix
   mode's fallback and retry). Tool-less requests without the text are counted apart (toolless_other);
@@ -43,6 +49,8 @@ PROMPT_SOURCE = Path("melo") / "agent" / "_chat.py"
 # A tie in cache efficiency goes to the simpler arm
 SIMPLICITY = ("S0", "C1", "S2", "B1", "B2")
 UNREADABLE_MARGIN = 0.02
+# What the paired comparison with S0 averages, as keys of a task's "passing" means
+PAIRED_METRICS = ("output_tokens", "uncached_tokens", "steps", "wall_s")
 
 
 def reflection_prompt(localmelo: Path) -> str:
@@ -164,6 +172,13 @@ def _usage(call: dict[str, Any]) -> tuple[int, int] | None:
     return usage["prompt_tokens"], cached if isinstance(cached, int) else 0
 
 
+def _completion(call: dict[str, Any]) -> int:
+    """completion_tokens of a call, 0 when its usage_raw has none."""
+    usage = call.get("usage_raw")
+    tokens = usage.get("completion_tokens") if isinstance(usage, dict) else None
+    return tokens if isinstance(tokens, int) else 0
+
+
 def _body(run_dir: Path, call: dict[str, Any], kind: str) -> tuple[bytes, str] | None:
     rel = (call.get("bodies") or {}).get(kind)
     if not rel or not (run_dir / rel).is_file():
@@ -178,6 +193,7 @@ def run_metrics(run_dir: Path, prompt: str) -> dict[str, Any]:
     after_first = used[1:]
     prompt_tokens = sum(u[0] for _, u in used)
     cached_all = sum(u[1] for _, u in used)
+    output_tokens = sum(_completion(c) for c, _ in used)
     later_prompt = sum(u[0] for _, u in after_first)
     later_cached = sum(u[1] for _, u in after_first)
     reflection_requests = reflections = unreadable = other = 0
@@ -208,6 +224,7 @@ def run_metrics(run_dir: Path, prompt: str) -> dict[str, Any]:
         "model_calls": len(used),
         "prompt_tokens": prompt_tokens,
         "uncached_tokens": prompt_tokens - cached_all,
+        "output_tokens": output_tokens,
         "later_prompt_tokens": later_prompt,
         "later_cached_tokens": later_cached,
         "cache_efficiency": later_cached / later_prompt if later_prompt else None,
@@ -221,6 +238,10 @@ def run_metrics(run_dir: Path, prompt: str) -> dict[str, Any]:
 
 def _rate(num: float, den: float) -> float | None:
     return num / den if den else None
+
+
+def _ratio(num: float | None, den: float | None) -> float | None:
+    return num / den if num is not None and den else None
 
 
 def _median(values: Iterable[float | None]) -> float | None:
@@ -266,6 +287,16 @@ def load_runs(out: Path, state: dict[str, Any], prompt: str) -> list[dict[str, A
     return sorted(runs, key=lambda r: r["index"])
 
 
+def _passing_means(rows: Sequence[dict[str, Any]]) -> dict[str, float | None]:
+    """The paired comparison's metrics as means over some runs (None for a metric no run has)."""
+    return {
+        "output_tokens": _mean(r.get("output_tokens") for r in rows),
+        "uncached_tokens": _mean(r.get("uncached_tokens") for r in rows),
+        "steps": _mean(r.get("model_calls") for r in rows),
+        "wall_s": _mean(r.get("wall_s") for r in rows),
+    }
+
+
 def summarize_arm(rows: Sequence[dict[str, Any]], exercises: Sequence[str], repeats: int) -> dict[str, Any]:
     finished = [r for r in rows if r["state"] == "finished"]
     pass_by = {(r["exercise"], r["repeat"]): r["passed"] for r in rows}
@@ -282,8 +313,10 @@ def summarize_arm(rows: Sequence[dict[str, Any]], exercises: Sequence[str], repe
             "runs": len(task_rows),
             "prompt_tokens": _mean(r.get("prompt_tokens") for r in task_rows),
             "uncached_tokens": _mean(r.get("uncached_tokens") for r in task_rows),
+            "output_tokens": _mean(r.get("output_tokens") for r in task_rows),
             "steps": _mean(r.get("model_calls") for r in task_rows),
             "wall_s": _mean(r.get("wall_s") for r in task_rows),
+            "passing": _passing_means([r for r in task_rows if r["passed"]]),   # means over the passing runs only
         }
     return {
         "runs": len(rows),
@@ -293,6 +326,7 @@ def summarize_arm(rows: Sequence[dict[str, Any]], exercises: Sequence[str], repe
         "cache_efficiency_median": _median(r.get("cache_efficiency") for r in rows),
         "prompt_tokens_per_run": _mean(r.get("prompt_tokens") for r in finished),
         "uncached_tokens_per_run": _mean(r.get("uncached_tokens") for r in finished),
+        "output_tokens_per_run": _mean(r.get("output_tokens") for r in finished),
         "steps_per_run": _mean(r.get("model_calls") for r in finished),
         "wall_s_per_run": _mean(r.get("wall_s") for r in finished),
         "reflection_requests": sum(r.get("reflection_requests") or 0 for r in rows),
@@ -359,6 +393,31 @@ def decide(arms: dict[str, dict[str, Any]], exercises: Sequence[str], repeats: i
     }
 
 
+def paired_vs_s0(arms: dict[str, dict[str, Any]], exercises: Sequence[str]) -> dict[str, Any] | None:
+    """Each other arm against S0 on the tasks both passed at least once: a task counts once per side, as the
+    mean over that side's passing runs, and the figures are means over those tasks. None without S0 and
+    another arm."""
+    base = arms.get("S0")
+    others = [name for name in arms if name != "S0"]
+    if base is None or not others:
+        return None
+    compared: dict[str, Any] = {}
+    for name in others:
+        arm = arms[name]
+        tasks = [e for e in exercises if base["per_task"][e]["n_pass"] and arm["per_task"][e]["n_pass"]]
+        s0 = {m: _mean(base["per_task"][e]["passing"][m] for e in tasks) for m in PAIRED_METRICS}
+        mine = {m: _mean(arm["per_task"][e]["passing"][m] for e in tasks) for m in PAIRED_METRICS}
+        compared[name] = {
+            "tasks": tasks,
+            "n_tasks": len(tasks),
+            "s0": s0,
+            "arm": mine,
+            "output_ratio": _ratio(mine["output_tokens"], s0["output_tokens"]),
+            "uncached_ratio": _ratio(mine["uncached_tokens"], s0["uncached_tokens"]),
+        }
+    return {"baseline": "S0", "arms": compared}
+
+
 def build_report(out: Path, localmelo: Path = VENDOR) -> dict[str, Any]:
     state = json.loads((out / "e3.json").read_text())
     config = state["config"]
@@ -373,6 +432,7 @@ def build_report(out: Path, localmelo: Path = VENDOR) -> dict[str, Any]:
         "runs_recorded": len(runs),
         "runs_planned": len(exercises) * repeats * len(config["arms"]),
         "arms": arms,
+        "paired": paired_vs_s0(arms, exercises),
         "decision": decide(arms, exercises, repeats),
         "runs": runs,
     }
@@ -396,12 +456,43 @@ def _unreadable_section(runs: Sequence[dict[str, Any]]) -> list[str]:
     return ["### Unreadable reflection replies (first 200 characters)", "", *lines, ""] if lines else []
 
 
+def _paired_section(paired: dict[str, Any] | None) -> list[str]:
+    """Each other arm against S0 on the tasks both passed at least once; nothing without S0 and another arm."""
+    if paired is None:
+        return []
+
+    def both(p: dict[str, Any], metric: str, digits: int = 0) -> str:
+        return f"{_num(p['s0'][metric], digits)} / {_num(p['arm'][metric], digits)}"
+
+    return [
+        "## Paired passes against S0",
+        "",
+        (
+            "| Arm | Paired tasks | Output tokens (S0 / arm) | Output ratio | Uncached tokens (S0 / arm) | Uncached ratio "
+            "| Steps (S0 / arm) | Wall s (S0 / arm) |"
+        ),
+        "|---|---:|---:|---:|---:|---:|---:|---:|",
+        *[
+            f"| {name} | {p['n_tasks']} | {both(p, 'output_tokens')} | {_num(p['output_ratio'], 2)} | "
+            f"{both(p, 'uncached_tokens')} | {_num(p['uncached_ratio'], 2)} | {both(p, 'steps', 1)} | "
+            f"{both(p, 'wall_s')} |"
+            for name, p in paired["arms"].items()
+        ],
+        "",
+        (
+            "Paired tasks are those that S0 and the arm both passed at least once; each cell shows S0 / arm as the mean "
+            "over the paired tasks of a task's mean over its passing runs, and a ratio is the arm's mean divided by S0's."
+        ),
+        "",
+    ]
+
+
 def render_markdown(report: dict[str, Any]) -> str:
     cfg = report["config"]
     arms = report["arms"]
     exercises = cfg["exercises"]
     lines = [
-        "# E3: prompt-cache A/B of five localmelo flag sets",
+        f"# A/B of localmelo flag sets: {', '.join(arms)}",
         "",
         f"- localmelo `{cfg.get('localmelo_sha', 'unknown')[:7]}`; model `{cfg.get('model')}`; "
         f"{len(exercises)} tasks x {cfg['repeats']} repeats x {len(arms)} arms",
@@ -418,18 +509,23 @@ def render_markdown(report: dict[str, Any]) -> str:
         "",
         "Efficiency is cached / prompt tokens over each run's model calls except its first. Costs are means per run.",
         "",
-        "| Arm | Pass | Efficiency (pooled) | Efficiency (median run) | Prompt tokens | Uncached tokens | Steps | Wall s | Attempts | n_aux |",
-        "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+        (
+            "| Arm | Pass | Efficiency (pooled) | Efficiency (median run) | Prompt tokens | Uncached tokens | Output tokens "
+            "| Steps | Wall s | Attempts | n_aux |"
+        ),
+        "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
     ]
     for name, arm in arms.items():
         lines.append(
             f"| {name} | {arm['n_pass']}/{arm['runs']} | {_pct(arm['cache_efficiency'])} | "
             f"{_pct(arm['cache_efficiency_median'])} | {_num(arm['prompt_tokens_per_run'])} | "
-            f"{_num(arm['uncached_tokens_per_run'])} | {_num(arm['steps_per_run'], 1)} | "
-            f"{_num(arm['wall_s_per_run'])} | {_num(arm['attempts_per_run'], 2)} | {_num(arm['n_aux_per_run'], 1)} |"
+            f"{_num(arm['uncached_tokens_per_run'])} | {_num(arm['output_tokens_per_run'])} | "
+            f"{_num(arm['steps_per_run'], 1)} | {_num(arm['wall_s_per_run'])} | "
+            f"{_num(arm['attempts_per_run'], 2)} | {_num(arm['n_aux_per_run'], 1)} |"
         )
     lines += [
         "",
+        *_paired_section(report["paired"]),
         "## Reflection health",
         "",
         "| Arm | Reflections | Unreadable | Unreadable rate | Reflection requests | Tool-less, not a reflection |",
@@ -451,7 +547,7 @@ def render_markdown(report: dict[str, Any]) -> str:
         lines.append(f"| {e} | " + " | ".join(cells) + " |")
     lines += [
         "",
-        "## Per task (mean over finished repeats): prompt tokens / uncached tokens / steps / wall s",
+        "## Per task (mean over finished repeats): prompt tokens / uncached tokens / output tokens / steps / wall s",
         "",
         "| Task | " + " | ".join(arms) + " |",
         "|---|" + "---|" * len(arms),
@@ -461,7 +557,8 @@ def render_markdown(report: dict[str, Any]) -> str:
         for arm in arms.values():
             t = arm["per_task"][e]
             cells.append(
-                f"{_num(t['prompt_tokens'])} / {_num(t['uncached_tokens'])} / {_num(t['steps'], 1)} / {_num(t['wall_s'])}"
+                f"{_num(t['prompt_tokens'])} / {_num(t['uncached_tokens'])} / {_num(t['output_tokens'])} / "
+                f"{_num(t['steps'], 1)} / {_num(t['wall_s'])}"
             )
         lines.append(f"| {e} | " + " | ".join(cells) + " |")
     decision = report["decision"]
