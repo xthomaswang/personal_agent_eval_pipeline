@@ -1,0 +1,73 @@
+{
+  "run_id": "aider__pig-latin",
+  "harness": "localmelo",
+  "workspace": "ws/aider__pig-latin",
+  "started_at": 1793350797.678512,
+  "exit_code": 0,
+  "timed_out": false,
+  "wall_s": 18.89,
+  "harness_args": [
+    "--request-timeout",
+    "1800",
+    "--timeout",
+    "3540",
+    "--output-format",
+    "json"
+  ],
+  "steps": {
+    "n_llm": 7,
+    "n_llm_aux": 0,
+    "n_llm_err": 0,
+    "n_llm_post_submit": 0,
+    "n_tool": 7,
+    "images_new_sum": 0
+  },
+  "harness_report": {
+    "steps": 7,
+    "task_status": "completed",
+    "run_record": {
+      "task_id": "f318dd19e9c04af8985168ed94221269",
+      "status": "completed",
+      "error": "",
+      "steps": 7,
+      "attempts": 1,
+      "n_llm": 7,
+      "n_main": 7,
+      "n_aux": 0,
+      "n_tool": 7,
+      "llm_errors": 0,
+      "usage": {
+        "prompt_tokens": 19686,
+        "completion_tokens": 1391,
+        "total_tokens": 21077
+      },
+      "duration_s": 18.576243041985435,
+      "config": {
+        "max_steps": 30,
+        "attempt_policy": "reflect",
+        "steps_per_attempt": 10,
+        "max_attempts": 5,
+        "reflection_gate": "flags",
+        "tool_exposure": "retrieve",
+        "mode": "direct",
+        "builtins": [
+          "file_read",
+          "file_write",
+          "python_exec"
+        ],
+        "memory": true,
+        "timeout_s": 3540.0,
+        "window_eviction": "chunk",
+        "reflect_tool_guard": true,
+        "cache_layout": "v3",
+        "window_messages": 64
+      },
+      "prefix_cache": {
+        "version": "fixed-prefix-v2",
+        "schema_changes": 0,
+        "reported_cached_tokens": 15590
+      },
+      "localmelo_version": "6921912"
+    }
+  }
+}

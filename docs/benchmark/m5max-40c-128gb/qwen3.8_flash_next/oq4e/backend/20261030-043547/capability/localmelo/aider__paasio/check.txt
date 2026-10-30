@@ -1,0 +1,704 @@
+FFFFFFFFFFFF.............                                                [100%]
+=================================== FAILURES ===================================
+_________________ PaasioTest.test_meteredfile_context_manager __________________
+
+self = <paasio_test.PaasioTest testMethod=test_meteredfile_context_manager>
+super_mock = <SuperMock at 0x107080ec0 with mock object: <NonCallableMagicMock id='4412936208'>>
+
+    @patch("paasio.super", create=True, new_callable=SuperMock)
+    def test_meteredfile_context_manager(self, super_mock):
+        wrapped = MockFile(ZEN)
+        mock = NonCallableMagicMock(wraps=wrapped, autospec=True)
+        mock.__exit__.side_effect = wrapped.__exit__
+        super_mock.mock_object = mock
+        with MeteredFile() as file:
+            self.assertEqual(1, super_mock.init_called)
+            self.assertFalse(mock.__enter__.called)
+>           file.read()
+
+paasio_test.py:224: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <MeteredFile>, size = -1
+
+    def read(self, size=-1):
+        size = _metered_size("read", size, self.raw)
+>       data = self.raw.read(size)
+               ^^^^^^^^^^^^^
+E       AttributeError: 'NoneType' object has no attribute 'read'
+
+paasio.py:113: AttributeError
+
+During handling of the above exception, another exception occurred:
+
+self = <paasio_test.PaasioTest testMethod=test_meteredfile_context_manager>
+super_mock = <SuperMock at 0x107080ec0 with mock object: <NonCallableMagicMock id='4412936208'>>
+
+    @patch("paasio.super", create=True, new_callable=SuperMock)
+    def test_meteredfile_context_manager(self, super_mock):
+        wrapped = MockFile(ZEN)
+        mock = NonCallableMagicMock(wraps=wrapped, autospec=True)
+        mock.__exit__.side_effect = wrapped.__exit__
+        super_mock.mock_object = mock
+>       with MeteredFile() as file:
+             ^^^^^^^^^^^^^
+
+paasio_test.py:221: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <MeteredFile>, exc_type = <class 'AttributeError'>
+exc_val = AttributeError("'NoneType' object has no attribute 'read'")
+exc_tb = <traceback object at 0x1071e1580>
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        # The raw IO object is the one that knows how to shut down (and
+        # whether an error that left the with block should be swallowed),
+        # so it is asked exactly once and its verdict is reported to the
+        # with statement.  Afterwards the wrapper reports itself as closed
+        # as well, without touching the raw object a second time.
+>       suppressed = self.raw.__exit__(exc_type, exc_val, exc_tb)
+                     ^^^^^^^^^^^^^^^^^
+E       AttributeError: 'NoneType' object has no attribute '__exit__'. Did you mean: '__init__'?
+
+paasio.py:93: AttributeError
+_________ PaasioTest.test_meteredfile_context_manager_exception_raise __________
+
+self = <paasio_test.PaasioTest testMethod=test_meteredfile_context_manager_exception_raise>
+super_mock = <SuperMock at 0x1070e4b90 with mock object: <NonCallableMagicMock id='4412937888'>>
+
+    @patch("paasio.super", create=True, new_callable=SuperMock)
+    def test_meteredfile_context_manager_exception_raise(self, super_mock):
+        exception = MockException("Should raise")
+        wrapped = MockFile(ZEN, exception=exception)
+        mock = NonCallableMagicMock(wraps=wrapped, autospec=True)
+        mock.__exit__.side_effect = wrapped.__exit__
+        super_mock.mock_object = mock
+        with self.assertRaisesRegex(MockException, "Should raise") as err:
+            with MeteredFile() as file:
+                self.assertFalse(mock.__enter__.called)
+>               file.read()
+
+paasio_test.py:243: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <MeteredFile>, size = -1
+
+    def read(self, size=-1):
+        size = _metered_size("read", size, self.raw)
+>       data = self.raw.read(size)
+               ^^^^^^^^^^^^^
+E       AttributeError: 'NoneType' object has no attribute 'read'
+
+paasio.py:113: AttributeError
+
+During handling of the above exception, another exception occurred:
+
+self = <paasio_test.PaasioTest testMethod=test_meteredfile_context_manager_exception_raise>
+super_mock = <SuperMock at 0x1070e4b90 with mock object: <NonCallableMagicMock id='4412937888'>>
+
+    @patch("paasio.super", create=True, new_callable=SuperMock)
+    def test_meteredfile_context_manager_exception_raise(self, super_mock):
+        exception = MockException("Should raise")
+        wrapped = MockFile(ZEN, exception=exception)
+        mock = NonCallableMagicMock(wraps=wrapped, autospec=True)
+        mock.__exit__.side_effect = wrapped.__exit__
+        super_mock.mock_object = mock
+        with self.assertRaisesRegex(MockException, "Should raise") as err:
+>           with MeteredFile() as file:
+                 ^^^^^^^^^^^^^
+
+paasio_test.py:241: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        # The raw IO object is the one that knows how to shut down (and
+        # whether an error that left the with block should be swallowed),
+        # so it is asked exactly once and its verdict is reported to the
+        # with statement.  Afterwards the wrapper reports itself as closed
+        # as well, without touching the raw object a second time.
+>       suppressed = self.raw.__exit__(exc_type, exc_val, exc_tb)
+                     ^^^^^^^^^^^^^^^^^
+E       AttributeError: 'NoneType' object has no attribute '__exit__'. Did you mean: '__init__'?
+
+paasio.py:93: AttributeError
+________ PaasioTest.test_meteredfile_context_manager_exception_suppress ________
+
+self = <paasio_test.PaasioTest testMethod=test_meteredfile_context_manager_exception_suppress>
+super_mock = <SuperMock at 0x1070e5090 with mock object: <NonCallableMagicMock id='4412941248'>>
+
+    @patch("paasio.super", create=True, new_callable=SuperMock)
+    def test_meteredfile_context_manager_exception_suppress(self, super_mock):
+        exception = MockException("Should suppress")
+        wrapped = MockFile(ZEN, exception=exception)
+        mock = NonCallableMagicMock(wraps=wrapped, autospec=True)
+        mock.__exit__.side_effect = wrapped.__exit__
+        super_mock.mock_object = mock
+        with MeteredFile() as file:
+            self.assertFalse(mock.__enter__.called)
+>           file.read()
+
+paasio_test.py:261: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <MeteredFile>, size = -1
+
+    def read(self, size=-1):
+        size = _metered_size("read", size, self.raw)
+>       data = self.raw.read(size)
+               ^^^^^^^^^^^^^
+E       AttributeError: 'NoneType' object has no attribute 'read'
+
+paasio.py:113: AttributeError
+
+During handling of the above exception, another exception occurred:
+
+self = <paasio_test.PaasioTest testMethod=test_meteredfile_context_manager_exception_suppress>
+super_mock = <SuperMock at 0x1070e5090 with mock object: <NonCallableMagicMock id='4412941248'>>
+
+    @patch("paasio.super", create=True, new_callable=SuperMock)
+    def test_meteredfile_context_manager_exception_suppress(self, super_mock):
+        exception = MockException("Should suppress")
+        wrapped = MockFile(ZEN, exception=exception)
+        mock = NonCallableMagicMock(wraps=wrapped, autospec=True)
+        mock.__exit__.side_effect = wrapped.__exit__
+        super_mock.mock_object = mock
+>       with MeteredFile() as file:
+             ^^^^^^^^^^^^^
+
+paasio_test.py:259: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <MeteredFile>, exc_type = <class 'AttributeError'>
+exc_val = AttributeError("'NoneType' object has no attribute 'read'")
+exc_tb = <traceback object at 0x10732b340>
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        # The raw IO object is the one that knows how to shut down (and
+        # whether an error that left the with block should be swallowed),
+        # so it is asked exactly once and its verdict is reported to the
+        # with statement.  Afterwards the wrapper reports itself as closed
+        # as well, without touching the raw object a second time.
+>       suppressed = self.raw.__exit__(exc_type, exc_val, exc_tb)
+                     ^^^^^^^^^^^^^^^^^
+E       AttributeError: 'NoneType' object has no attribute '__exit__'. Did you mean: '__init__'?
+
+paasio.py:93: AttributeError
+____________________ PaasioTest.test_meteredfile_iteration _____________________
+
+self = <paasio_test.PaasioTest testMethod=test_meteredfile_iteration>
+super_mock = <SuperMock at 0x10705b360 with mock object: <NonCallableMagicMock id='4412942256'>>
+
+    @patch("paasio.super", create=True, new_callable=SuperMock)
+    def test_meteredfile_iteration(self, super_mock):
+        mock = NonCallableMagicMock(wraps=MockFile(ZEN), autospec=True)
+        super_mock.mock_object = mock
+        actual_reads = b""
+        file = MeteredFile()
+>       for line in file:
+                    ^^^^
+
+paasio_test.py:275: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <MeteredFile>
+
+    def __next__(self):
+>       line = self.raw.readline()
+               ^^^^^^^^^^^^^^^^^
+E       AttributeError: 'NoneType' object has no attribute 'readline'
+
+paasio.py:104: AttributeError
+__________________ PaasioTest.test_meteredfile_read_multiple ___________________
+
+self = <paasio_test.PaasioTest testMethod=test_meteredfile_read_multiple>
+super_mock = <SuperMock at 0x10705b5c0 with mock object: <NonCallableMagicMock id='4412942592'>>
+
+    @patch("paasio.super", create=True, new_callable=SuperMock)
+    def test_meteredfile_read_multiple(self, super_mock):
+        wrapped = MockFile(ZEN)
+        mock = NonCallableMagicMock(wraps=wrapped, autospec=True)
+        super_mock.mock_object = mock
+        actual_read = b""
+        with MeteredFile() as file:
+            for _ in range(5):
+>               actual_read += file.read(30)
+                               ^^^^^^^^^^^^^
+
+paasio_test.py:321: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <MeteredFile>, size = 30
+
+    def read(self, size=-1):
+        size = _metered_size("read", size, self.raw)
+>       data = self.raw.read(size)
+               ^^^^^^^^^^^^^
+E       AttributeError: 'NoneType' object has no attribute 'read'
+
+paasio.py:113: AttributeError
+
+During handling of the above exception, another exception occurred:
+
+self = <paasio_test.PaasioTest testMethod=test_meteredfile_read_multiple>
+super_mock = <SuperMock at 0x10705b5c0 with mock object: <NonCallableMagicMock id='4412942592'>>
+
+    @patch("paasio.super", create=True, new_callable=SuperMock)
+    def test_meteredfile_read_multiple(self, super_mock):
+        wrapped = MockFile(ZEN)
+        mock = NonCallableMagicMock(wraps=wrapped, autospec=True)
+        super_mock.mock_object = mock
+        actual_read = b""
+>       with MeteredFile() as file:
+             ^^^^^^^^^^^^^
+
+paasio_test.py:319: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <MeteredFile>, exc_type = <class 'AttributeError'>
+exc_val = AttributeError("'NoneType' object has no attribute 'read'")
+exc_tb = <traceback object at 0x1071f42c0>
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        # The raw IO object is the one that knows how to shut down (and
+        # whether an error that left the with block should be swallowed),
+        # so it is asked exactly once and its verdict is reported to the
+        # with statement.  Afterwards the wrapper reports itself as closed
+        # as well, without touching the raw object a second time.
+>       suppressed = self.raw.__exit__(exc_type, exc_val, exc_tb)
+                     ^^^^^^^^^^^^^^^^^
+E       AttributeError: 'NoneType' object has no attribute '__exit__'. Did you mean: '__init__'?
+
+paasio.py:93: AttributeError
+_______________ PaasioTest.test_meteredfile_read_multiple_chunk ________________
+
+self = <paasio_test.PaasioTest testMethod=test_meteredfile_read_multiple_chunk>
+super_mock = <SuperMock at 0x1070eee70 with mock object: <NonCallableMagicMock id='4412942928'>>
+
+    @patch("paasio.super", create=True, new_callable=SuperMock)
+    def test_meteredfile_read_multiple_chunk(self, super_mock):
+        wrapped = MockFile(ZEN, chunk=20)
+        mock = NonCallableMagicMock(wraps=wrapped, autospec=True)
+        super_mock.mock_object = mock
+        actual_read = b""
+        with MeteredFile() as file:
+            for _ in range(5):
+>               actual_read += file.read()
+                               ^^^^^^^^^^^
+
+paasio_test.py:335: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <MeteredFile>, size = -1
+
+    def read(self, size=-1):
+        size = _metered_size("read", size, self.raw)
+>       data = self.raw.read(size)
+               ^^^^^^^^^^^^^
+E       AttributeError: 'NoneType' object has no attribute 'read'
+
+paasio.py:113: AttributeError
+
+During handling of the above exception, another exception occurred:
+
+self = <paasio_test.PaasioTest testMethod=test_meteredfile_read_multiple_chunk>
+super_mock = <SuperMock at 0x1070eee70 with mock object: <NonCallableMagicMock id='4412942928'>>
+
+    @patch("paasio.super", create=True, new_callable=SuperMock)
+    def test_meteredfile_read_multiple_chunk(self, super_mock):
+        wrapped = MockFile(ZEN, chunk=20)
+        mock = NonCallableMagicMock(wraps=wrapped, autospec=True)
+        super_mock.mock_object = mock
+        actual_read = b""
+>       with MeteredFile() as file:
+             ^^^^^^^^^^^^^
+
+paasio_test.py:333: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <MeteredFile>, exc_type = <class 'AttributeError'>
+exc_val = AttributeError("'NoneType' object has no attribute 'read'")
+exc_tb = <traceback object at 0x10732f2c0>
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        # The raw IO object is the one that knows how to shut down (and
+        # whether an error that left the with block should be swallowed),
+        # so it is asked exactly once and its verdict is reported to the
+        # with statement.  Afterwards the wrapper reports itself as closed
+        # as well, without touching the raw object a second time.
+>       suppressed = self.raw.__exit__(exc_type, exc_val, exc_tb)
+                     ^^^^^^^^^^^^^^^^^
+E       AttributeError: 'NoneType' object has no attribute '__exit__'. Did you mean: '__init__'?
+
+paasio.py:93: AttributeError
+____________________ PaasioTest.test_meteredfile_read_once _____________________
+
+self = <paasio_test.PaasioTest testMethod=test_meteredfile_read_once>
+super_mock = <SuperMock at 0x107096be0 with mock object: <NonCallableMagicMock id='4412942592'>>
+
+    @patch("paasio.super", create=True, new_callable=SuperMock)
+    def test_meteredfile_read_once(self, super_mock):
+        mock = NonCallableMagicMock(wraps=MockFile(ZEN), autospec=True)
+        super_mock.mock_object = mock
+        with MeteredFile() as file:
+>           actual_read = file.read()
+                          ^^^^^^^^^^^
+
+paasio_test.py:291: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <MeteredFile>, size = -1
+
+    def read(self, size=-1):
+        size = _metered_size("read", size, self.raw)
+>       data = self.raw.read(size)
+               ^^^^^^^^^^^^^
+E       AttributeError: 'NoneType' object has no attribute 'read'
+
+paasio.py:113: AttributeError
+
+During handling of the above exception, another exception occurred:
+
+self = <paasio_test.PaasioTest testMethod=test_meteredfile_read_once>
+super_mock = <SuperMock at 0x107096be0 with mock object: <NonCallableMagicMock id='4412942592'>>
+
+    @patch("paasio.super", create=True, new_callable=SuperMock)
+    def test_meteredfile_read_once(self, super_mock):
+        mock = NonCallableMagicMock(wraps=MockFile(ZEN), autospec=True)
+        super_mock.mock_object = mock
+>       with MeteredFile() as file:
+             ^^^^^^^^^^^^^
+
+paasio_test.py:290: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <MeteredFile>, exc_type = <class 'AttributeError'>
+exc_val = AttributeError("'NoneType' object has no attribute 'read'")
+exc_tb = <traceback object at 0x106eaf840>
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        # The raw IO object is the one that knows how to shut down (and
+        # whether an error that left the with block should be swallowed),
+        # so it is asked exactly once and its verdict is reported to the
+        # with statement.  Afterwards the wrapper reports itself as closed
+        # as well, without touching the raw object a second time.
+>       suppressed = self.raw.__exit__(exc_type, exc_val, exc_tb)
+                     ^^^^^^^^^^^^^^^^^
+E       AttributeError: 'NoneType' object has no attribute '__exit__'. Did you mean: '__init__'?
+
+paasio.py:93: AttributeError
+_________________ PaasioTest.test_meteredfile_read_under_size __________________
+
+self = <paasio_test.PaasioTest testMethod=test_meteredfile_read_under_size>
+super_mock = <SuperMock at 0x107096360 with mock object: <NonCallableMagicMock id='4412942256'>>
+
+    @patch("paasio.super", create=True, new_callable=SuperMock)
+    def test_meteredfile_read_under_size(self, super_mock):
+        wrapped = MockFile(ZEN, chunk=257)  # largish odd number
+        mock = NonCallableMagicMock(wraps=wrapped, autospec=True)
+        super_mock.mock_object = mock
+        with MeteredFile() as file:
+>           actual_read = file.read()
+                          ^^^^^^^^^^^
+
+paasio_test.py:360: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <MeteredFile>, size = -1
+
+    def read(self, size=-1):
+        size = _metered_size("read", size, self.raw)
+>       data = self.raw.read(size)
+               ^^^^^^^^^^^^^
+E       AttributeError: 'NoneType' object has no attribute 'read'
+
+paasio.py:113: AttributeError
+
+During handling of the above exception, another exception occurred:
+
+self = <paasio_test.PaasioTest testMethod=test_meteredfile_read_under_size>
+super_mock = <SuperMock at 0x107096360 with mock object: <NonCallableMagicMock id='4412942256'>>
+
+    @patch("paasio.super", create=True, new_callable=SuperMock)
+    def test_meteredfile_read_under_size(self, super_mock):
+        wrapped = MockFile(ZEN, chunk=257)  # largish odd number
+        mock = NonCallableMagicMock(wraps=wrapped, autospec=True)
+        super_mock.mock_object = mock
+>       with MeteredFile() as file:
+             ^^^^^^^^^^^^^
+
+paasio_test.py:359: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <MeteredFile>, exc_type = <class 'AttributeError'>
+exc_val = AttributeError("'NoneType' object has no attribute 'read'")
+exc_tb = <traceback object at 0x106eaf600>
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        # The raw IO object is the one that knows how to shut down (and
+        # whether an error that left the with block should be swallowed),
+        # so it is asked exactly once and its verdict is reported to the
+        # with statement.  Afterwards the wrapper reports itself as closed
+        # as well, without touching the raw object a second time.
+>       suppressed = self.raw.__exit__(exc_type, exc_val, exc_tb)
+                     ^^^^^^^^^^^^^^^^^
+E       AttributeError: 'NoneType' object has no attribute '__exit__'. Did you mean: '__init__'?
+
+paasio.py:93: AttributeError
+_________________ PaasioTest.test_meteredfile_stats_read_only __________________
+
+self = <paasio_test.PaasioTest testMethod=test_meteredfile_stats_read_only>
+super_mock = <SuperMock at 0x107105050 with mock object: <NonCallableMagicMock id='4412941920'>>
+
+    @patch("paasio.super", create=True, new_callable=SuperMock)
+    def test_meteredfile_stats_read_only(self, super_mock):
+        mock = NonCallableMagicMock(wraps=MockFile(ZEN), autospec=True)
+        super_mock.mock_object = mock
+        with MeteredFile() as file:
+            self.assertEqual(0, file.read_ops)
+            self.assertEqual(0, file.read_bytes)
+            for _ in range(57):
+>               file.read(1)
+
+paasio_test.py:418: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <MeteredFile>, size = 1
+
+    def read(self, size=-1):
+        size = _metered_size("read", size, self.raw)
+>       data = self.raw.read(size)
+               ^^^^^^^^^^^^^
+E       AttributeError: 'NoneType' object has no attribute 'read'
+
+paasio.py:113: AttributeError
+
+During handling of the above exception, another exception occurred:
+
+self = <paasio_test.PaasioTest testMethod=test_meteredfile_stats_read_only>
+super_mock = <SuperMock at 0x107105050 with mock object: <NonCallableMagicMock id='4412941920'>>
+
+    @patch("paasio.super", create=True, new_callable=SuperMock)
+    def test_meteredfile_stats_read_only(self, super_mock):
+        mock = NonCallableMagicMock(wraps=MockFile(ZEN), autospec=True)
+        super_mock.mock_object = mock
+>       with MeteredFile() as file:
+             ^^^^^^^^^^^^^
+
+paasio_test.py:414: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <MeteredFile>, exc_type = <class 'AttributeError'>
+exc_val = AttributeError("'NoneType' object has no attribute 'read'")
+exc_tb = <traceback object at 0x1072bc740>
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        # The raw IO object is the one that knows how to shut down (and
+        # whether an error that left the with block should be swallowed),
+        # so it is asked exactly once and its verdict is reported to the
+        # with statement.  Afterwards the wrapper reports itself as closed
+        # as well, without touching the raw object a second time.
+>       suppressed = self.raw.__exit__(exc_type, exc_val, exc_tb)
+                     ^^^^^^^^^^^^^^^^^
+E       AttributeError: 'NoneType' object has no attribute '__exit__'. Did you mean: '__init__'?
+
+paasio.py:93: AttributeError
+__________________ PaasioTest.test_meteredfile_write_multiple __________________
+
+self = <paasio_test.PaasioTest testMethod=test_meteredfile_write_multiple>
+super_mock = <SuperMock at 0x107104250 with mock object: <NonCallableMagicMock id='4412941584'>>
+
+    @patch("paasio.super", create=True, new_callable=SuperMock)
+    def test_meteredfile_write_multiple(self, super_mock):
+        wrapped = MockFile()
+        mock = NonCallableMagicMock(wraps=wrapped, autospec=True)
+        super_mock.mock_object = mock
+        write_len = 0
+        expected = b"Tomorrow's victory is today's practice."
+        with MeteredFile() as file:
+>           write_len += file.write(b"Tomorro")
+                         ^^^^^^^^^^^^^^^^^^^^^^
+
+paasio_test.py:387: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <MeteredFile>, b = b'Tomorro'
+
+    def write(self, b):
+        # Writing is metered here rather than on the raw object: reads
+        # interleave with writes, and only the caller's view of the file
+        # corresponds to what the customer should be billed for.
+>       count = self.raw.write(b)
+                ^^^^^^^^^^^^^^
+E       AttributeError: 'NoneType' object has no attribute 'write'
+
+paasio.py:159: AttributeError
+
+During handling of the above exception, another exception occurred:
+
+self = <paasio_test.PaasioTest testMethod=test_meteredfile_write_multiple>
+super_mock = <SuperMock at 0x107104250 with mock object: <NonCallableMagicMock id='4412941584'>>
+
+    @patch("paasio.super", create=True, new_callable=SuperMock)
+    def test_meteredfile_write_multiple(self, super_mock):
+        wrapped = MockFile()
+        mock = NonCallableMagicMock(wraps=wrapped, autospec=True)
+        super_mock.mock_object = mock
+        write_len = 0
+        expected = b"Tomorrow's victory is today's practice."
+>       with MeteredFile() as file:
+             ^^^^^^^^^^^^^
+
+paasio_test.py:386: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <MeteredFile>, exc_type = <class 'AttributeError'>
+exc_val = AttributeError("'NoneType' object has no attribute 'write'")
+exc_tb = <traceback object at 0x1072bd180>
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        # The raw IO object is the one that knows how to shut down (and
+        # whether an error that left the with block should be swallowed),
+        # so it is asked exactly once and its verdict is reported to the
+        # with statement.  Afterwards the wrapper reports itself as closed
+        # as well, without touching the raw object a second time.
+>       suppressed = self.raw.__exit__(exc_type, exc_val, exc_tb)
+                     ^^^^^^^^^^^^^^^^^
+E       AttributeError: 'NoneType' object has no attribute '__exit__'. Did you mean: '__init__'?
+
+paasio.py:93: AttributeError
+____________________ PaasioTest.test_meteredfile_write_once ____________________
+
+self = <paasio_test.PaasioTest testMethod=test_meteredfile_write_once>
+super_mock = <SuperMock at 0x1070acc80 with mock object: <NonCallableMagicMock id='4412941248'>>
+
+    @patch("paasio.super", create=True, new_callable=SuperMock)
+    def test_meteredfile_write_once(self, super_mock):
+        wrapped = MockFile(chunk=257)  # largish odd number
+        mock = NonCallableMagicMock(wraps=wrapped, autospec=True)
+        super_mock.mock_object = mock
+        with MeteredFile() as file:
+>           write_len = file.write(ZEN)
+                        ^^^^^^^^^^^^^^^
+
+paasio_test.py:372: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <MeteredFile>
+b = b"Beautiful is better than ugly.\nExplicit is better than implicit.\nSimple is better than complex.\nComplex is better...ntation is easy to explain, it may be a good idea.\nNamespaces are one honking great idea -- let's do more of those!\n"
+
+    def write(self, b):
+        # Writing is metered here rather than on the raw object: reads
+        # interleave with writes, and only the caller's view of the file
+        # corresponds to what the customer should be billed for.
+>       count = self.raw.write(b)
+                ^^^^^^^^^^^^^^
+E       AttributeError: 'NoneType' object has no attribute 'write'
+
+paasio.py:159: AttributeError
+
+During handling of the above exception, another exception occurred:
+
+self = <paasio_test.PaasioTest testMethod=test_meteredfile_write_once>
+super_mock = <SuperMock at 0x1070acc80 with mock object: <NonCallableMagicMock id='4412941248'>>
+
+    @patch("paasio.super", create=True, new_callable=SuperMock)
+    def test_meteredfile_write_once(self, super_mock):
+        wrapped = MockFile(chunk=257)  # largish odd number
+        mock = NonCallableMagicMock(wraps=wrapped, autospec=True)
+        super_mock.mock_object = mock
+>       with MeteredFile() as file:
+             ^^^^^^^^^^^^^
+
+paasio_test.py:371: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <MeteredFile>, exc_type = <class 'AttributeError'>
+exc_val = AttributeError("'NoneType' object has no attribute 'write'")
+exc_tb = <traceback object at 0x1072bcc80>
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        # The raw IO object is the one that knows how to shut down (and
+        # whether an error that left the with block should be swallowed),
+        # so it is asked exactly once and its verdict is reported to the
+        # with statement.  Afterwards the wrapper reports itself as closed
+        # as well, without touching the raw object a second time.
+>       suppressed = self.raw.__exit__(exc_type, exc_val, exc_tb)
+                     ^^^^^^^^^^^^^^^^^
+E       AttributeError: 'NoneType' object has no attribute '__exit__'. Did you mean: '__init__'?
+
+paasio.py:93: AttributeError
+_________________ PaasioTest.test_meteredfile_write_under_size _________________
+
+self = <paasio_test.PaasioTest testMethod=test_meteredfile_write_under_size>
+super_mock = <SuperMock at 0x1070ac500 with mock object: <NonCallableMagicMock id='4412940912'>>
+
+    @patch("paasio.super", create=True, new_callable=SuperMock)
+    def test_meteredfile_write_under_size(self, super_mock):
+        wrapped = MockFile(chunk=257)  # largish odd number
+        mock = NonCallableMagicMock(wraps=wrapped, autospec=True)
+        super_mock.mock_object = mock
+        with MeteredFile() as file:
+>           write_len = file.write(ZEN[:123])
+                        ^^^^^^^^^^^^^^^^^^^^^
+
+paasio_test.py:403: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <MeteredFile>
+b = b'Beautiful is better than ugly.\nExplicit is better than implicit.\nSimple is better than complex.\nComplex is better than comp'
+
+    def write(self, b):
+        # Writing is metered here rather than on the raw object: reads
+        # interleave with writes, and only the caller's view of the file
+        # corresponds to what the customer should be billed for.
+>       count = self.raw.write(b)
+                ^^^^^^^^^^^^^^
+E       AttributeError: 'NoneType' object has no attribute 'write'
+
+paasio.py:159: AttributeError
+
+During handling of the above exception, another exception occurred:
+
+self = <paasio_test.PaasioTest testMethod=test_meteredfile_write_under_size>
+super_mock = <SuperMock at 0x1070ac500 with mock object: <NonCallableMagicMock id='4412940912'>>
+
+    @patch("paasio.super", create=True, new_callable=SuperMock)
+    def test_meteredfile_write_under_size(self, super_mock):
+        wrapped = MockFile(chunk=257)  # largish odd number
+        mock = NonCallableMagicMock(wraps=wrapped, autospec=True)
+        super_mock.mock_object = mock
+>       with MeteredFile() as file:
+             ^^^^^^^^^^^^^
+
+paasio_test.py:402: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <MeteredFile>, exc_type = <class 'AttributeError'>
+exc_val = AttributeError("'NoneType' object has no attribute 'write'")
+exc_tb = <traceback object at 0x1073411c0>
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        # The raw IO object is the one that knows how to shut down (and
+        # whether an error that left the with block should be swallowed),
+        # so it is asked exactly once and its verdict is reported to the
+        # with statement.  Afterwards the wrapper reports itself as closed
+        # as well, without touching the raw object a second time.
+>       suppressed = self.raw.__exit__(exc_type, exc_val, exc_tb)
+                     ^^^^^^^^^^^^^^^^^
+E       AttributeError: 'NoneType' object has no attribute '__exit__'. Did you mean: '__init__'?
+
+paasio.py:93: AttributeError
+=========================== short test summary info ============================
+FAILED paasio_test.py::PaasioTest::test_meteredfile_context_manager - Attribu...
+FAILED paasio_test.py::PaasioTest::test_meteredfile_context_manager_exception_raise
+FAILED paasio_test.py::PaasioTest::test_meteredfile_context_manager_exception_suppress
+FAILED paasio_test.py::PaasioTest::test_meteredfile_iteration - AttributeErro...
+FAILED paasio_test.py::PaasioTest::test_meteredfile_read_multiple - Attribute...
+FAILED paasio_test.py::PaasioTest::test_meteredfile_read_multiple_chunk - Att...
+FAILED paasio_test.py::PaasioTest::test_meteredfile_read_once - AttributeErro...
+FAILED paasio_test.py::PaasioTest::test_meteredfile_read_under_size - Attribu...
+FAILED paasio_test.py::PaasioTest::test_meteredfile_stats_read_only - Attribu...
+FAILED paasio_test.py::PaasioTest::test_meteredfile_write_multiple - Attribut...
+FAILED paasio_test.py::PaasioTest::test_meteredfile_write_once - AttributeErr...
+FAILED paasio_test.py::PaasioTest::test_meteredfile_write_under_size - Attrib...
+12 failed, 13 passed in 0.11s

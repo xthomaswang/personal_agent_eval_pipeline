@@ -94,3 +94,11 @@ def test_pins_absent_is_empty_and_epoch_id_forms(tmp_path):
     assert registry.epoch_id(registry.load_pins(tmp_path / "pins.toml")) == "e1"
     assert registry.epoch_id({"epoch": "e2"}) == "e2"
     assert registry.epoch_id({}) is None
+
+
+def test_capability_reference_lookup_is_keyed_by_protocol_and_epoch():
+    flash = "qwen3-8-flash-next-oq4e"
+    assert registry.capability_reference(2, "4271c2f4a925", None) == flash   # capability-2
+    assert registry.capability_reference(2, "8c545ce3471c", None) == flash   # capability-3
+    assert registry.capability_reference(2, "7582825160ad", None) is None    # protocol 1's epoch has none in protocol 2
+    assert registry.capability_reference(1, "8c545ce3471c", "legacy") == "legacy"   # protocol 1 keeps its reference

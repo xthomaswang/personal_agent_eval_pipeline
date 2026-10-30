@@ -1,0 +1,23 @@
+{
+  "run_id": "mcpmark__student_database__recommender_name",
+  "harness": "hermes",
+  "workspace": "ws/mcpmark__student_database__recommender_name",
+  "started_at": 1793350324.911285,
+  "exit_code": 0,
+  "timed_out": false,
+  "wall_s": 12.411,
+  "harness_args": [],
+  "steps": {
+    "n_llm": 5,
+    "n_llm_aux": 0,
+    "n_llm_err": 0,
+    "n_llm_post_submit": 0,
+    "n_tool": 4,
+    "images_new_sum": 0
+  },
+  "harness_report": {
+    "tool_use_events": 4,
+    "api_call_count": 5,
+    "exit_code": 0
+  }
+}

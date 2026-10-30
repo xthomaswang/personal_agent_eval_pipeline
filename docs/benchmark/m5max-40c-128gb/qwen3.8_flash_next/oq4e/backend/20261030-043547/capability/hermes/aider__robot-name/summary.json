@@ -1,0 +1,23 @@
+{
+  "run_id": "aider__robot-name",
+  "harness": "hermes",
+  "workspace": "ws/aider__robot-name",
+  "started_at": 1793350411.888073,
+  "exit_code": 0,
+  "timed_out": false,
+  "wall_s": 14.967,
+  "harness_args": [],
+  "steps": {
+    "n_llm": 6,
+    "n_llm_aux": 0,
+    "n_llm_err": 0,
+    "n_llm_post_submit": 0,
+    "n_tool": 6,
+    "images_new_sum": 0
+  },
+  "harness_report": {
+    "tool_use_events": 6,
+    "api_call_count": 6,
+    "exit_code": 0
+  }
+}

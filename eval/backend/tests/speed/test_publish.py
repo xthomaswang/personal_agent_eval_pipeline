@@ -87,6 +87,34 @@ def test_capability_reference_is_scoped_by_protocol_and_epoch(tmp_path):
     assert not report.capability_is_reference(runs["paused"])
 
 
+def test_capability_3_is_its_own_table_with_flash_next_as_its_reference(tmp_path):
+    root = tmp_path / "results"
+    flash = cap_run(root, "qwen3-8-flash-next-oq4e", "flash", {}, epoch="8c545ce3471c")
+    other = cap_run(root, "qwen3-8-27b-oq5", "other", {}, epoch="8c545ce3471c")
+    older = cap_run(root, "qwen3-8-flash-next-oq4e", "older", {}, epoch="4271c2f4a925")
+    for run_dir in (flash, other, older):
+        man = run_dir / "manifest.json"
+        man.write_text(json.dumps({**json.loads(man.read_text()), "protocol_version": 2}))
+    runs = {r.run_id: r for r in report.discover(root)}
+    rows = {name: publish.rows(run)[0][0][1] for name, run in runs.items()}
+    assert rows["flash"]["protocol"] == rows["other"]["protocol"] == "capability-3"
+    assert rows["older"]["protocol"] == "capability-2"
+    assert rows["flash"]["reference"] is True and rows["older"]["reference"] is True
+    assert "reference" not in rows["other"]
+    assert rows["flash"]["title"] == rows["older"]["title"]   # one title, but two protocol ids: two tables
+
+
+def test_a_run_note_is_appended_to_the_notes_of_its_capability_row(tmp_path, monkeypatch):
+    root = tmp_path / "results"
+    run_dir = cap_run(root, "qwen3-8-flash-next-oq4e", "noted", {}, epoch="8c545ce3471c", sets=("gate", "ranking"))
+    man = run_dir / "manifest.json"
+    man.write_text(json.dumps({**json.loads(man.read_text()), "protocol_version": 2}))
+    run = report.discover(root)[0]
+    assert "notes" not in publish.rows(run)[0][0][1]
+    monkeypatch.setitem(publish.CAP_RUN_NOTES, ("qwen3-8-flash-next-oq4e", "noted"), "Something happened.")
+    assert publish.rows(run)[0][0][1]["notes"] == "Something happened."
+
+
 def test_runs_in_progress_unverified_or_foreign_are_not_published(tmp_path):
     root = tmp_path / "results"
     ctx = speed_run(root, "20261027-010000")

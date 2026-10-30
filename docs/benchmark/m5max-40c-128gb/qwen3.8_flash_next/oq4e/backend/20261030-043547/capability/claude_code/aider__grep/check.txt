@@ -1,0 +1,65 @@
+..F.......F..............                                                [100%]
+=================================== FAILURES ===================================
+____________ GrepTest.test_multiple_files_one_match_multiple_flags _____________
+
+self = <grep_test.GrepTest testMethod=test_multiple_files_one_match_multiple_flags>
+mock_file = <MagicMock name='StringIO' id='4478243168'>
+mock_open = <MagicMock name='open' id='4478243504'>
+
+    def test_multiple_files_one_match_multiple_flags(self, mock_file, mock_open):
+>       self.assertMultiLineEqual(
+            grep(
+                "WITH LOSS OF EDEN, TILL ONE GREATER MAN",
+                "-n -i -x",
+                ["iliad.txt", "midsummer-night.txt", "paradise-lost.txt"],
+            ),
+            "paradise-lost.txt:4:With loss of Eden, till one greater Man\n",
+        )
+E       AssertionError: '4:paradise-lost.txt:With loss of Eden, till one greater Man\n' != 'paradise-lost.txt:4:With loss of Eden, till one greater Man\n'
+E       - 4:paradise-lost.txt:With loss of Eden, till one greater Man
+E       ? --
+E       + paradise-lost.txt:4:With loss of Eden, till one greater Man
+E       ?                   ++
+
+grep_test.py:231: AssertionError
+_____ GrepTest.test_multiple_files_several_matches_print_line_numbers_flag _____
+
+self = <grep_test.GrepTest testMethod=test_multiple_files_several_matches_print_line_numbers_flag>
+mock_file = <MagicMock name='StringIO' id='4478249216'>
+mock_open = <MagicMock name='open' id='4478249552'>
+
+    def test_multiple_files_several_matches_print_line_numbers_flag(
+        self, mock_file, mock_open
+    ):
+>       self.assertMultiLineEqual(
+            grep(
+                "that", "-n", ["iliad.txt", "midsummer-night.txt", "paradise-lost.txt"]
+            ),
+            "midsummer-night.txt:5:But I beseech your grace that I may know\n"
+            "midsummer-night.txt:6:The worst that may befall me in this case,\n"
+            "paradise-lost.txt:2:Of that Forbidden Tree, whose mortal tast\n"
+            "paradise-lost.txt:6:Sing Heav'nly Muse, that on the secret top\n",
+        )
+E       AssertionError: "5:midsummer-night.txt:But I beseech your [212 chars]op\n" != "midsummer-night.txt:5:But I beseech your [212 chars]op\n"
+E       - 5:midsummer-night.txt:But I beseech your grace that I may know
+E       ? --
+E       + midsummer-night.txt:5:But I beseech your grace that I may know
+E       ?                     ++
+E       - 6:midsummer-night.txt:The worst that may befall me in this case,
+E       ? --
+E       + midsummer-night.txt:6:The worst that may befall me in this case,
+E       ?                     ++
+E       - 2:paradise-lost.txt:Of that Forbidden Tree, whose mortal tast
+E       ? --
+E       + paradise-lost.txt:2:Of that Forbidden Tree, whose mortal tast
+E       ?                   ++
+E       - 6:paradise-lost.txt:Sing Heav'nly Muse, that on the secret top
+E       ? --
+E       + paradise-lost.txt:6:Sing Heav'nly Muse, that on the secret top
+E       ?                   ++
+
+grep_test.py:175: AssertionError
+=========================== short test summary info ============================
+FAILED grep_test.py::GrepTest::test_multiple_files_one_match_multiple_flags
+FAILED grep_test.py::GrepTest::test_multiple_files_several_matches_print_line_numbers_flag
+2 failed, 23 passed in 0.02s

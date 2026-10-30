@@ -1,0 +1,73 @@
+{
+  "run_id": "aider__beer-song",
+  "harness": "localmelo",
+  "workspace": "ws/aider__beer-song",
+  "started_at": 1793352846.895923,
+  "exit_code": 0,
+  "timed_out": false,
+  "wall_s": 14.358,
+  "harness_args": [
+    "--request-timeout",
+    "1800",
+    "--timeout",
+    "3540",
+    "--output-format",
+    "json"
+  ],
+  "steps": {
+    "n_llm": 5,
+    "n_llm_aux": 0,
+    "n_llm_err": 0,
+    "n_llm_post_submit": 0,
+    "n_tool": 4,
+    "images_new_sum": 0
+  },
+  "harness_report": {
+    "steps": 4,
+    "task_status": "completed",
+    "run_record": {
+      "task_id": "8d72fdcecd80490a8edb9c5c189a6e0a",
+      "status": "completed",
+      "error": "",
+      "steps": 5,
+      "attempts": 1,
+      "n_llm": 5,
+      "n_main": 5,
+      "n_aux": 0,
+      "n_tool": 4,
+      "llm_errors": 0,
+      "usage": {
+        "prompt_tokens": 38187,
+        "completion_tokens": 692,
+        "total_tokens": 38879
+      },
+      "duration_s": 14.060560375015484,
+      "config": {
+        "max_steps": 30,
+        "attempt_policy": "reflect",
+        "steps_per_attempt": 10,
+        "max_attempts": 5,
+        "reflection_gate": "flags",
+        "tool_exposure": "retrieve",
+        "mode": "direct",
+        "builtins": [
+          "file_read",
+          "file_write",
+          "python_exec"
+        ],
+        "memory": true,
+        "timeout_s": 3540.0,
+        "window_eviction": "chunk",
+        "reflect_tool_guard": true,
+        "cache_layout": "v3",
+        "window_messages": 64
+      },
+      "prefix_cache": {
+        "version": "fixed-prefix-v2",
+        "schema_changes": 0,
+        "reported_cached_tokens": 27918
+      },
+      "localmelo_version": "6921912"
+    }
+  }
+}

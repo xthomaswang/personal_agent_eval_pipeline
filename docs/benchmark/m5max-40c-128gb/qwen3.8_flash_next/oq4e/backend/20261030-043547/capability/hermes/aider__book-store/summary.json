@@ -1,0 +1,23 @@
+{
+  "run_id": "aider__book-store",
+  "harness": "hermes",
+  "workspace": "ws/aider__book-store",
+  "started_at": 1793352284.762112,
+  "exit_code": 1,
+  "timed_out": false,
+  "wall_s": 87.198,
+  "harness_args": [],
+  "steps": {
+    "n_llm": 30,
+    "n_llm_aux": 0,
+    "n_llm_err": 1,
+    "n_llm_post_submit": 0,
+    "n_tool": 31,
+    "images_new_sum": 0
+  },
+  "harness_report": {
+    "tool_use_events": 31,
+    "api_call_count": 30,
+    "exit_code": 1
+  }
+}

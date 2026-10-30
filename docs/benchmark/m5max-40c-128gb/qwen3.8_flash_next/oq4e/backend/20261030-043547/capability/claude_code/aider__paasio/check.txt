@@ -1,0 +1,413 @@
+FFFFFFFFFFFFFFFFFFFFFFFFF                                                [100%]
+=================================== FAILURES ===================================
+_________________ PaasioTest.test_meteredfile_context_manager __________________
+
+self = <paasio_test.PaasioTest testMethod=test_meteredfile_context_manager>
+super_mock = <SuperMock at 0x10aa3cec0 with mock object: <NonCallableMagicMock id='4473475088'>>
+
+    @patch("paasio.super", create=True, new_callable=SuperMock)
+    def test_meteredfile_context_manager(self, super_mock):
+        wrapped = MockFile(ZEN)
+        mock = NonCallableMagicMock(wraps=wrapped, autospec=True)
+        mock.__exit__.side_effect = wrapped.__exit__
+        super_mock.mock_object = mock
+        with MeteredFile() as file:
+>           self.assertEqual(1, super_mock.init_called)
+E           AssertionError: 1 != 0
+
+paasio_test.py:222: AssertionError
+_________ PaasioTest.test_meteredfile_context_manager_exception_raise __________
+
+self = <paasio_test.PaasioTest testMethod=test_meteredfile_context_manager_exception_raise>
+super_mock = <SuperMock at 0x10aa9c2d0 with mock object: <NonCallableMagicMock id='4473476432'>>
+
+    @patch("paasio.super", create=True, new_callable=SuperMock)
+    def test_meteredfile_context_manager_exception_raise(self, super_mock):
+        exception = MockException("Should raise")
+        wrapped = MockFile(ZEN, exception=exception)
+        mock = NonCallableMagicMock(wraps=wrapped, autospec=True)
+        mock.__exit__.side_effect = wrapped.__exit__
+        super_mock.mock_object = mock
+        with self.assertRaisesRegex(MockException, "Should raise") as err:
+            with MeteredFile() as file:
+                self.assertFalse(mock.__enter__.called)
+>               file.read()
+                ^^^^^^^^^
+E               AttributeError: 'NoneType' object has no attribute 'read'
+
+paasio_test.py:243: AttributeError
+________ PaasioTest.test_meteredfile_context_manager_exception_suppress ________
+
+self = <paasio_test.PaasioTest testMethod=test_meteredfile_context_manager_exception_suppress>
+super_mock = <SuperMock at 0x10aa9c690 with mock object: <NonCallableMagicMock id='4473479792'>>
+
+    @patch("paasio.super", create=True, new_callable=SuperMock)
+    def test_meteredfile_context_manager_exception_suppress(self, super_mock):
+        exception = MockException("Should suppress")
+        wrapped = MockFile(ZEN, exception=exception)
+        mock = NonCallableMagicMock(wraps=wrapped, autospec=True)
+        mock.__exit__.side_effect = wrapped.__exit__
+        super_mock.mock_object = mock
+        with MeteredFile() as file:
+            self.assertFalse(mock.__enter__.called)
+>           file.read()
+            ^^^^^^^^^
+E           AttributeError: 'NoneType' object has no attribute 'read'
+
+paasio_test.py:261: AttributeError
+____________________ PaasioTest.test_meteredfile_iteration _____________________
+
+self = <paasio_test.PaasioTest testMethod=test_meteredfile_iteration>
+super_mock = <SuperMock at 0x10aa169e0 with mock object: <NonCallableMagicMock id='4473480800'>>
+
+    @patch("paasio.super", create=True, new_callable=SuperMock)
+    def test_meteredfile_iteration(self, super_mock):
+        mock = NonCallableMagicMock(wraps=MockFile(ZEN), autospec=True)
+        super_mock.mock_object = mock
+        actual_reads = b""
+        file = MeteredFile()
+>       for line in file:
+                    ^^^^
+E       TypeError: iter() returned non-iterator of type 'NoneType'
+
+paasio_test.py:275: TypeError
+__________________ PaasioTest.test_meteredfile_read_multiple ___________________
+
+self = <paasio_test.PaasioTest testMethod=test_meteredfile_read_multiple>
+super_mock = <SuperMock at 0x10aa16d70 with mock object: <NonCallableMagicMock id='4473481136'>>
+
+    @patch("paasio.super", create=True, new_callable=SuperMock)
+    def test_meteredfile_read_multiple(self, super_mock):
+        wrapped = MockFile(ZEN)
+        mock = NonCallableMagicMock(wraps=wrapped, autospec=True)
+        super_mock.mock_object = mock
+        actual_read = b""
+        with MeteredFile() as file:
+            for _ in range(5):
+>               actual_read += file.read(30)
+                               ^^^^^^^^^
+E               AttributeError: 'NoneType' object has no attribute 'read'
+
+paasio_test.py:321: AttributeError
+_______________ PaasioTest.test_meteredfile_read_multiple_chunk ________________
+
+self = <paasio_test.PaasioTest testMethod=test_meteredfile_read_multiple_chunk>
+super_mock = <SuperMock at 0x10aa92b10 with mock object: <NonCallableMagicMock id='4473481472'>>
+
+    @patch("paasio.super", create=True, new_callable=SuperMock)
+    def test_meteredfile_read_multiple_chunk(self, super_mock):
+        wrapped = MockFile(ZEN, chunk=20)
+        mock = NonCallableMagicMock(wraps=wrapped, autospec=True)
+        super_mock.mock_object = mock
+        actual_read = b""
+        with MeteredFile() as file:
+            for _ in range(5):
+>               actual_read += file.read()
+                               ^^^^^^^^^
+E               AttributeError: 'NoneType' object has no attribute 'read'
+
+paasio_test.py:335: AttributeError
+____________________ PaasioTest.test_meteredfile_read_once _____________________
+
+self = <paasio_test.PaasioTest testMethod=test_meteredfile_read_once>
+super_mock = <SuperMock at 0x10aa51bf0 with mock object: <NonCallableMagicMock id='4473481136'>>
+
+    @patch("paasio.super", create=True, new_callable=SuperMock)
+    def test_meteredfile_read_once(self, super_mock):
+        mock = NonCallableMagicMock(wraps=MockFile(ZEN), autospec=True)
+        super_mock.mock_object = mock
+        with MeteredFile() as file:
+>           actual_read = file.read()
+                          ^^^^^^^^^
+E           AttributeError: 'NoneType' object has no attribute 'read'
+
+paasio_test.py:291: AttributeError
+_________________ PaasioTest.test_meteredfile_read_under_size __________________
+
+self = <paasio_test.PaasioTest testMethod=test_meteredfile_read_under_size>
+super_mock = <SuperMock at 0x10aa517b0 with mock object: <NonCallableMagicMock id='4473480800'>>
+
+    @patch("paasio.super", create=True, new_callable=SuperMock)
+    def test_meteredfile_read_under_size(self, super_mock):
+        wrapped = MockFile(ZEN, chunk=257)  # largish odd number
+        mock = NonCallableMagicMock(wraps=wrapped, autospec=True)
+        super_mock.mock_object = mock
+        with MeteredFile() as file:
+>           actual_read = file.read()
+                          ^^^^^^^^^
+E           AttributeError: 'NoneType' object has no attribute 'read'
+
+paasio_test.py:360: AttributeError
+_________________ PaasioTest.test_meteredfile_stats_read_only __________________
+
+self = <paasio_test.PaasioTest testMethod=test_meteredfile_stats_read_only>
+super_mock = <SuperMock at 0x10aab8750 with mock object: <NonCallableMagicMock id='4473480464'>>
+
+    @patch("paasio.super", create=True, new_callable=SuperMock)
+    def test_meteredfile_stats_read_only(self, super_mock):
+        mock = NonCallableMagicMock(wraps=MockFile(ZEN), autospec=True)
+        super_mock.mock_object = mock
+        with MeteredFile() as file:
+>           self.assertEqual(0, file.read_ops)
+                                ^^^^^^^^^^^^^
+E           AttributeError: 'NoneType' object has no attribute 'read_ops'
+
+paasio_test.py:415: AttributeError
+__________________ PaasioTest.test_meteredfile_write_multiple __________________
+
+self = <paasio_test.PaasioTest testMethod=test_meteredfile_write_multiple>
+super_mock = <SuperMock at 0x10aab8350 with mock object: <NonCallableMagicMock id='4473480128'>>
+
+    @patch("paasio.super", create=True, new_callable=SuperMock)
+    def test_meteredfile_write_multiple(self, super_mock):
+        wrapped = MockFile()
+        mock = NonCallableMagicMock(wraps=wrapped, autospec=True)
+        super_mock.mock_object = mock
+        write_len = 0
+        expected = b"Tomorrow's victory is today's practice."
+        with MeteredFile() as file:
+>           write_len += file.write(b"Tomorro")
+                         ^^^^^^^^^^
+E           AttributeError: 'NoneType' object has no attribute 'write'
+
+paasio_test.py:387: AttributeError
+____________________ PaasioTest.test_meteredfile_write_once ____________________
+
+self = <paasio_test.PaasioTest testMethod=test_meteredfile_write_once>
+super_mock = <SuperMock at 0x10aa609b0 with mock object: <NonCallableMagicMock id='4473479792'>>
+
+    @patch("paasio.super", create=True, new_callable=SuperMock)
+    def test_meteredfile_write_once(self, super_mock):
+        wrapped = MockFile(chunk=257)  # largish odd number
+        mock = NonCallableMagicMock(wraps=wrapped, autospec=True)
+        super_mock.mock_object = mock
+        with MeteredFile() as file:
+>           write_len = file.write(ZEN)
+                        ^^^^^^^^^^
+E           AttributeError: 'NoneType' object has no attribute 'write'
+
+paasio_test.py:372: AttributeError
+_________________ PaasioTest.test_meteredfile_write_under_size _________________
+
+self = <paasio_test.PaasioTest testMethod=test_meteredfile_write_under_size>
+super_mock = <SuperMock at 0x10aa62b70 with mock object: <NonCallableMagicMock id='4473479456'>>
+
+    @patch("paasio.super", create=True, new_callable=SuperMock)
+    def test_meteredfile_write_under_size(self, super_mock):
+        wrapped = MockFile(chunk=257)  # largish odd number
+        mock = NonCallableMagicMock(wraps=wrapped, autospec=True)
+        super_mock.mock_object = mock
+        with MeteredFile() as file:
+>           write_len = file.write(ZEN[:123])
+                        ^^^^^^^^^^
+E           AttributeError: 'NoneType' object has no attribute 'write'
+
+paasio_test.py:403: AttributeError
+________________ PaasioTest.test_meteredsocket_bufsize_required ________________
+
+self = <paasio_test.PaasioTest testMethod=test_meteredsocket_bufsize_required>
+
+    def test_meteredsocket_bufsize_required(self):
+        mock = NonCallableMagicMock(wraps=MockSock(), autospec=True)
+        with self.assertRaisesRegex(TypeError, "argument"):
+            with MeteredSocket(mock) as socket:
+>               socket.recv()
+                ^^^^^^^^^^^
+E               AttributeError: 'NoneType' object has no attribute 'recv'
+
+paasio_test.py:145: AttributeError
+________________ PaasioTest.test_meteredsocket_context_manager _________________
+
+self = <paasio_test.PaasioTest testMethod=test_meteredsocket_context_manager>
+
+    def test_meteredsocket_context_manager(self):
+        wrapped = MockSock()
+        mock = NonCallableMagicMock(wraps=wrapped, autospec=True)
+        mock.__exit__.side_effect = wrapped.__exit__
+        with MeteredSocket(mock) as socket:
+            self.assertFalse(mock.__enter__.called)
+>           socket.recv(30)
+            ^^^^^^^^^^^
+E           AttributeError: 'NoneType' object has no attribute 'recv'
+
+paasio_test.py:18: AttributeError
+________ PaasioTest.test_meteredsocket_context_manager_exception_raise _________
+
+self = <paasio_test.PaasioTest testMethod=test_meteredsocket_context_manager_exception_raise>
+
+    def test_meteredsocket_context_manager_exception_raise(self):
+        exception = MockException("Should raise")
+        wrapped = MockSock(exception=exception)
+        mock = NonCallableMagicMock(wraps=wrapped, autospec=True)
+        mock.__exit__.side_effect = wrapped.__exit__
+        with self.assertRaisesRegex(MockException, "Should raise") as err:
+            with MeteredSocket(mock) as socket:
+                self.assertFalse(mock.__enter__.called)
+>               socket.recv(4096)
+                ^^^^^^^^^^^
+E               AttributeError: 'NoneType' object has no attribute 'recv'
+
+paasio_test.py:35: AttributeError
+_______ PaasioTest.test_meteredsocket_context_manager_exception_suppress _______
+
+self = <paasio_test.PaasioTest testMethod=test_meteredsocket_context_manager_exception_suppress>
+
+    def test_meteredsocket_context_manager_exception_suppress(self):
+        exception = MockException("Should suppress")
+        wrapped = MockSock(exception=exception)
+        mock = NonCallableMagicMock(wraps=wrapped, autospec=True)
+        mock.__exit__.side_effect = wrapped.__exit__
+        with MeteredSocket(mock) as socket:
+            self.assertFalse(mock.__enter__.called)
+>           socket.recv(4096)
+            ^^^^^^^^^^^
+E           AttributeError: 'NoneType' object has no attribute 'recv'
+
+paasio_test.py:51: AttributeError
+_________________ PaasioTest.test_meteredsocket_flags_support __________________
+
+self = <paasio_test.PaasioTest testMethod=test_meteredsocket_flags_support>
+
+    def test_meteredsocket_flags_support(self):
+        mock = NonCallableMagicMock(wraps=MockSock(), autospec=True)
+        with MeteredSocket(mock) as socket:
+>           self.assertEqual(len(ZEN), socket.send(ZEN, 42))
+                                       ^^^^^^^^^^^
+E           AttributeError: 'NoneType' object has no attribute 'send'
+
+paasio_test.py:160: AttributeError
+_________________ PaasioTest.test_meteredsocket_recv_multiple __________________
+
+self = <paasio_test.PaasioTest testMethod=test_meteredsocket_recv_multiple>
+
+    def test_meteredsocket_recv_multiple(self):
+        wrapped = MockSock()
+        mock = NonCallableMagicMock(wraps=wrapped, autospec=True)
+        actual_recv = b""
+        with MeteredSocket(mock) as socket:
+            for _ in range(5):
+>               actual_recv += socket.recv(30)
+                               ^^^^^^^^^^^
+E               AttributeError: 'NoneType' object has no attribute 'recv'
+
+paasio_test.py:74: AttributeError
+______________ PaasioTest.test_meteredsocket_recv_multiple_chunk _______________
+
+self = <paasio_test.PaasioTest testMethod=test_meteredsocket_recv_multiple_chunk>
+
+    def test_meteredsocket_recv_multiple_chunk(self):
+        wrapped = MockSock(chunk=20)
+        mock = NonCallableMagicMock(wraps=wrapped, autospec=True)
+        actual_recv = b""
+        with MeteredSocket(mock) as socket:
+            for _ in range(5):
+>               actual_recv += socket.recv(4096)
+                               ^^^^^^^^^^^
+E               AttributeError: 'NoneType' object has no attribute 'recv'
+
+paasio_test.py:86: AttributeError
+___________________ PaasioTest.test_meteredsocket_recv_once ____________________
+
+self = <paasio_test.PaasioTest testMethod=test_meteredsocket_recv_once>
+
+    def test_meteredsocket_recv_once(self):
+        mock = NonCallableMagicMock(wraps=MockSock(), autospec=True)
+        with MeteredSocket(mock) as socket:
+>           actual_recv = socket.recv(4096)
+                          ^^^^^^^^^^^
+E           AttributeError: 'NoneType' object has no attribute 'recv'
+
+paasio_test.py:62: AttributeError
+________________ PaasioTest.test_meteredsocket_recv_under_size _________________
+
+self = <paasio_test.PaasioTest testMethod=test_meteredsocket_recv_under_size>
+
+    def test_meteredsocket_recv_under_size(self):
+        wrapped = MockSock(chunk=257)  # largish odd number
+        mock = NonCallableMagicMock(wraps=wrapped, autospec=True)
+        with MeteredSocket(mock) as socket:
+>           actual_recv = socket.recv(4096)
+                          ^^^^^^^^^^^
+E           AttributeError: 'NoneType' object has no attribute 'recv'
+
+paasio_test.py:97: AttributeError
+_________________ PaasioTest.test_meteredsocket_send_multiple __________________
+
+self = <paasio_test.PaasioTest testMethod=test_meteredsocket_send_multiple>
+
+    def test_meteredsocket_send_multiple(self):
+        wrapped = MockSock()
+        mock = NonCallableMagicMock(wraps=wrapped, autospec=True)
+        send_len = 0
+        expected = b"Tomorrow's victory is today's practice."
+        with MeteredSocket(mock) as socket:
+>           send_len += socket.send(b"Tomorro")
+                        ^^^^^^^^^^^
+E           AttributeError: 'NoneType' object has no attribute 'send'
+
+paasio_test.py:120: AttributeError
+___________________ PaasioTest.test_meteredsocket_send_once ____________________
+
+self = <paasio_test.PaasioTest testMethod=test_meteredsocket_send_once>
+
+    def test_meteredsocket_send_once(self):
+        wrapped = MockSock(chunk=257)  # largish odd number
+        mock = NonCallableMagicMock(wraps=wrapped, autospec=True)
+        with MeteredSocket(mock) as socket:
+>           send_len = socket.send(ZEN)
+                       ^^^^^^^^^^^
+E           AttributeError: 'NoneType' object has no attribute 'send'
+
+paasio_test.py:107: AttributeError
+________________ PaasioTest.test_meteredsocket_send_under_size _________________
+
+self = <paasio_test.PaasioTest testMethod=test_meteredsocket_send_under_size>
+
+    def test_meteredsocket_send_under_size(self):
+        wrapped = MockSock(chunk=257)  # largish odd number
+        mock = NonCallableMagicMock(wraps=wrapped, autospec=True)
+        with MeteredSocket(mock) as socket:
+>           send_len = socket.send(ZEN[:123])
+                       ^^^^^^^^^^^
+E           AttributeError: 'NoneType' object has no attribute 'send'
+
+paasio_test.py:134: AttributeError
+________________ PaasioTest.test_meteredsocket_stats_read_only _________________
+
+self = <paasio_test.PaasioTest testMethod=test_meteredsocket_stats_read_only>
+
+    def test_meteredsocket_stats_read_only(self):
+        mock = NonCallableMagicMock(wraps=MockSock(), autospec=True)
+        with MeteredSocket(mock) as socket:
+>           self.assertEqual(0, socket.send_ops)
+                                ^^^^^^^^^^^^^^^
+E           AttributeError: 'NoneType' object has no attribute 'send_ops'
+
+paasio_test.py:188: AttributeError
+=========================== short test summary info ============================
+FAILED paasio_test.py::PaasioTest::test_meteredfile_context_manager - Asserti...
+FAILED paasio_test.py::PaasioTest::test_meteredfile_context_manager_exception_raise
+FAILED paasio_test.py::PaasioTest::test_meteredfile_context_manager_exception_suppress
+FAILED paasio_test.py::PaasioTest::test_meteredfile_iteration - TypeError: it...
+FAILED paasio_test.py::PaasioTest::test_meteredfile_read_multiple - Attribute...
+FAILED paasio_test.py::PaasioTest::test_meteredfile_read_multiple_chunk - Att...
+FAILED paasio_test.py::PaasioTest::test_meteredfile_read_once - AttributeErro...
+FAILED paasio_test.py::PaasioTest::test_meteredfile_read_under_size - Attribu...
+FAILED paasio_test.py::PaasioTest::test_meteredfile_stats_read_only - Attribu...
+FAILED paasio_test.py::PaasioTest::test_meteredfile_write_multiple - Attribut...
+FAILED paasio_test.py::PaasioTest::test_meteredfile_write_once - AttributeErr...
+FAILED paasio_test.py::PaasioTest::test_meteredfile_write_under_size - Attrib...
+FAILED paasio_test.py::PaasioTest::test_meteredsocket_bufsize_required - Attr...
+FAILED paasio_test.py::PaasioTest::test_meteredsocket_context_manager - Attri...
+FAILED paasio_test.py::PaasioTest::test_meteredsocket_context_manager_exception_raise
+FAILED paasio_test.py::PaasioTest::test_meteredsocket_context_manager_exception_suppress
+FAILED paasio_test.py::PaasioTest::test_meteredsocket_flags_support - Attribu...
+FAILED paasio_test.py::PaasioTest::test_meteredsocket_recv_multiple - Attribu...
+FAILED paasio_test.py::PaasioTest::test_meteredsocket_recv_multiple_chunk - A...
+FAILED paasio_test.py::PaasioTest::test_meteredsocket_recv_once - AttributeEr...
+FAILED paasio_test.py::PaasioTest::test_meteredsocket_recv_under_size - Attri...
+FAILED paasio_test.py::PaasioTest::test_meteredsocket_send_multiple - Attribu...
+FAILED paasio_test.py::PaasioTest::test_meteredsocket_send_once - AttributeEr...
+FAILED paasio_test.py::PaasioTest::test_meteredsocket_send_under_size - Attri...
+FAILED paasio_test.py::PaasioTest::test_meteredsocket_stats_read_only - Attri...
+25 failed in 0.10s

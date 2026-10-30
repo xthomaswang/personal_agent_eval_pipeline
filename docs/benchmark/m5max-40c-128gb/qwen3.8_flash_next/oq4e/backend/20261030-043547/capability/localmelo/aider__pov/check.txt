@@ -1,0 +1,115 @@
+.....FFFF....F.                                                          [100%]
+=================================== FAILURES ===================================
+_____________ PovTest.test_can_reroot_a_complex_tree_with_cousins ______________
+
+self = <pov_test.PovTest testMethod=test_can_reroot_a_complex_tree_with_cousins>
+
+    def test_can_reroot_a_complex_tree_with_cousins(self):
+        tree = Tree(
+            "grandparent",
+            [
+                Tree(
+                    "parent",
+                    [
+                        Tree("x", [Tree("kid-0"), Tree("kid-1")]),
+                        Tree("sibling-0"),
+                        Tree("sibling-1"),
+                    ],
+                ),
+                Tree("uncle", [Tree("cousin-0"), Tree("cousin-1")]),
+            ],
+        )
+        expected = Tree(
+            "x",
+            [
+                Tree("kid-1"),
+                Tree("kid-0"),
+                Tree(
+                    "parent",
+                    [
+                        Tree("sibling-0"),
+                        Tree("sibling-1"),
+                        Tree(
+                            "grandparent",
+                            [Tree("uncle", [Tree("cousin-0"), Tree("cousin-1")])],
+                        ),
+                    ],
+                ),
+            ],
+        )
+>       self.assertTreeEquals(tree.from_pov("x"), expected)
+
+pov_test.py:77: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+pov_test.py:173: in assertTreeEquals
+    self.assertEqual(result, expected, "{} != {}".format(result, expected))
+E   AssertionError: <pov.Tree object at 0x108bc2ff0> != <pov.Tree object at 0x108bc2c30> : {"grandparent": [{"parent": [{"sibling-0": []}, {"sibling-1": []}, {"x": [{"kid-0": []}, {"kid-1": []}]}]}, {"uncle": [{"cousin-0": []}, {"cousin-1": []}]}]} != {"x": [{"kid-0": []}, {"kid-1": []}, {"parent": [{"grandparent": [{"uncle": [{"cousin-0": []}, {"cousin-1": []}]}]}, {"sibling-0": []}, {"sibling-1": []}]}]}
+________ PovTest.test_can_reroot_a_tree_with_a_parent_and_many_siblings ________
+
+self = <pov_test.PovTest testMethod=test_can_reroot_a_tree_with_a_parent_and_many_siblings>
+
+    def test_can_reroot_a_tree_with_a_parent_and_many_siblings(self):
+        tree = Tree("parent", [Tree("a"), Tree("x"), Tree("b"), Tree("c")])
+        expected = Tree("x", [Tree("parent", [Tree("a"), Tree("b"), Tree("c")])])
+>       self.assertTreeEquals(tree.from_pov("x"), expected)
+
+pov_test.py:26: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+pov_test.py:173: in assertTreeEquals
+    self.assertEqual(result, expected, "{} != {}".format(result, expected))
+E   AssertionError: <pov.Tree object at 0x108c34230> != <pov.Tree object at 0x108c34050> : {"parent": [{"a": []}, {"b": []}, {"c": []}, {"x": []}]} != {"x": [{"parent": [{"a": []}, {"b": []}, {"c": []}]}]}
+_________ PovTest.test_can_reroot_a_tree_with_a_parent_and_one_sibling _________
+
+self = <pov_test.PovTest testMethod=test_can_reroot_a_tree_with_a_parent_and_one_sibling>
+
+    def test_can_reroot_a_tree_with_a_parent_and_one_sibling(self):
+        tree = Tree("parent", [Tree("x"), Tree("sibling")])
+        expected = Tree("x", [Tree("parent", [Tree("sibling")])])
+>       self.assertTreeEquals(tree.from_pov("x"), expected)
+
+pov_test.py:21: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+pov_test.py:173: in assertTreeEquals
+    self.assertEqual(result, expected, "{} != {}".format(result, expected))
+E   AssertionError: <pov.Tree object at 0x108c34650> != <pov.Tree object at 0x108c34530> : {"parent": [{"sibling": []}, {"x": []}]} != {"x": [{"parent": [{"sibling": []}]}]}
+______ PovTest.test_can_reroot_a_tree_with_new_root_deeply_nested_in_tree ______
+
+self = <pov_test.PovTest testMethod=test_can_reroot_a_tree_with_new_root_deeply_nested_in_tree>
+
+    def test_can_reroot_a_tree_with_new_root_deeply_nested_in_tree(self):
+        tree = Tree(
+            "level-0",
+            [Tree("level-1", [Tree("level-2", [Tree("level-3", [Tree("x")])])])],
+        )
+        expected = Tree(
+            "x",
+            [Tree("level-3", [Tree("level-2", [Tree("level-1", [Tree("level-0")])])])],
+        )
+>       self.assertTreeEquals(tree.from_pov("x"), expected)
+
+pov_test.py:37: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+pov_test.py:173: in assertTreeEquals
+    self.assertEqual(result, expected, "{} != {}".format(result, expected))
+E   AssertionError: <pov.Tree object at 0x108c34950> != <pov.Tree object at 0x108c34cb0> : {"level-0": [{"level-1": [{"level-2": [{"level-3": [{"x": []}]}]}]}]} != {"x": [{"level-3": [{"level-2": [{"level-1": [{"level-0": []}]}]}]}]}
+__ PovTest.test_moves_children_of_the_new_root_to_same_level_as_former_parent __
+
+self = <pov_test.PovTest testMethod=test_moves_children_of_the_new_root_to_same_level_as_former_parent>
+
+    def test_moves_children_of_the_new_root_to_same_level_as_former_parent(self):
+        tree = Tree("parent", [Tree("x", [Tree("kid-0"), Tree("kid-1")])])
+        expected = Tree("x", [Tree("kid-0"), Tree("kid-1"), Tree("parent")])
+>       self.assertTreeEquals(tree.from_pov("x"), expected)
+
+pov_test.py:42: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+pov_test.py:173: in assertTreeEquals
+    self.assertEqual(result, expected, "{} != {}".format(result, expected))
+E   AssertionError: <pov.Tree object at 0x108c35070> != <pov.Tree object at 0x108c34ef0> : {"parent": [{"x": [{"kid-0": []}, {"kid-1": []}]}]} != {"x": [{"kid-0": []}, {"kid-1": []}, {"parent": []}]}
+=========================== short test summary info ============================
+FAILED pov_test.py::PovTest::test_can_reroot_a_complex_tree_with_cousins - As...
+FAILED pov_test.py::PovTest::test_can_reroot_a_tree_with_a_parent_and_many_siblings
+FAILED pov_test.py::PovTest::test_can_reroot_a_tree_with_a_parent_and_one_sibling
+FAILED pov_test.py::PovTest::test_can_reroot_a_tree_with_new_root_deeply_nested_in_tree
+FAILED pov_test.py::PovTest::test_moves_children_of_the_new_root_to_same_level_as_former_parent
+5 failed, 10 passed in 0.02s

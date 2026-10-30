@@ -1,0 +1,73 @@
+{
+  "run_id": "aider__robot-name",
+  "harness": "localmelo",
+  "workspace": "ws/aider__robot-name",
+  "started_at": 1793350848.988062,
+  "exit_code": 0,
+  "timed_out": false,
+  "wall_s": 7.711,
+  "harness_args": [
+    "--request-timeout",
+    "1800",
+    "--timeout",
+    "3540",
+    "--output-format",
+    "json"
+  ],
+  "steps": {
+    "n_llm": 4,
+    "n_llm_aux": 0,
+    "n_llm_err": 0,
+    "n_llm_post_submit": 0,
+    "n_tool": 4,
+    "images_new_sum": 0
+  },
+  "harness_report": {
+    "steps": 4,
+    "task_status": "completed",
+    "run_record": {
+      "task_id": "7f73334e93f14544ba40dde2b98e0407",
+      "status": "completed",
+      "error": "",
+      "steps": 4,
+      "attempts": 1,
+      "n_llm": 4,
+      "n_main": 4,
+      "n_aux": 0,
+      "n_tool": 4,
+      "llm_errors": 0,
+      "usage": {
+        "prompt_tokens": 5026,
+        "completion_tokens": 513,
+        "total_tokens": 5539
+      },
+      "duration_s": 7.4085406660160515,
+      "config": {
+        "max_steps": 30,
+        "attempt_policy": "reflect",
+        "steps_per_attempt": 10,
+        "max_attempts": 5,
+        "reflection_gate": "flags",
+        "tool_exposure": "retrieve",
+        "mode": "direct",
+        "builtins": [
+          "file_read",
+          "file_write",
+          "python_exec"
+        ],
+        "memory": true,
+        "timeout_s": 3540.0,
+        "window_eviction": "chunk",
+        "reflect_tool_guard": true,
+        "cache_layout": "v3",
+        "window_messages": 64
+      },
+      "prefix_cache": {
+        "version": "fixed-prefix-v2",
+        "schema_changes": 0,
+        "reported_cached_tokens": 3348
+      },
+      "localmelo_version": "6921912"
+    }
+  }
+}

@@ -1,0 +1,73 @@
+{
+  "run_id": "aider__paasio",
+  "harness": "localmelo",
+  "workspace": "ws/aider__paasio",
+  "started_at": 1793353059.7432709,
+  "exit_code": 2,
+  "timed_out": false,
+  "wall_s": 189.393,
+  "harness_args": [
+    "--request-timeout",
+    "1800",
+    "--timeout",
+    "3540",
+    "--output-format",
+    "json"
+  ],
+  "steps": {
+    "n_llm": 30,
+    "n_llm_aux": 0,
+    "n_llm_err": 1,
+    "n_llm_post_submit": 0,
+    "n_tool": 31,
+    "images_new_sum": 0
+  },
+  "harness_report": {
+    "steps": 31,
+    "task_status": "provider_error",
+    "run_record": {
+      "task_id": "8f39791791b14fca9fa539292f30f2d2",
+      "status": "provider_error",
+      "error": "POST /chat/completions failed with HTTP 400: {\"error\":{\"message\":\"bench proxy: bench_budget_exhausted: the run has used its 30 steps\",\"type\":\"bench_budget_exhausted\",\"code\":\"bench_budget_exhausted\"}}",
+      "steps": 29,
+      "attempts": 3,
+      "n_llm": 30,
+      "n_main": 28,
+      "n_aux": 2,
+      "n_tool": 31,
+      "llm_errors": 1,
+      "usage": {
+        "prompt_tokens": 526356,
+        "completion_tokens": 12166,
+        "total_tokens": 538522
+      },
+      "duration_s": 189.10974775001523,
+      "config": {
+        "max_steps": 30,
+        "attempt_policy": "reflect",
+        "steps_per_attempt": 10,
+        "max_attempts": 5,
+        "reflection_gate": "flags",
+        "tool_exposure": "retrieve",
+        "mode": "direct",
+        "builtins": [
+          "file_read",
+          "file_write",
+          "python_exec"
+        ],
+        "memory": true,
+        "timeout_s": 3540.0,
+        "window_eviction": "chunk",
+        "reflect_tool_guard": true,
+        "cache_layout": "v3",
+        "window_messages": 64
+      },
+      "prefix_cache": {
+        "version": "fixed-prefix-v2",
+        "schema_changes": 0,
+        "reported_cached_tokens": 479535
+      },
+      "localmelo_version": "6921912"
+    }
+  }
+}

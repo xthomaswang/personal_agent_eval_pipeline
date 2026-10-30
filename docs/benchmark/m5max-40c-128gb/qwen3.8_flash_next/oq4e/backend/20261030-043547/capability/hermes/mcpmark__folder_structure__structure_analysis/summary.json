@@ -1,0 +1,23 @@
+{
+  "run_id": "mcpmark__folder_structure__structure_analysis",
+  "harness": "hermes",
+  "workspace": "ws/mcpmark__folder_structure__structure_analysis",
+  "started_at": 1793350249.130121,
+  "exit_code": 0,
+  "timed_out": false,
+  "wall_s": 12.302,
+  "harness_args": [],
+  "steps": {
+    "n_llm": 4,
+    "n_llm_aux": 0,
+    "n_llm_err": 0,
+    "n_llm_post_submit": 0,
+    "n_tool": 3,
+    "images_new_sum": 0
+  },
+  "harness_report": {
+    "tool_use_events": 3,
+    "api_call_count": 4,
+    "exit_code": 0
+  }
+}

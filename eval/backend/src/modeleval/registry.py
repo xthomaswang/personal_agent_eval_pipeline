@@ -177,7 +177,10 @@ def reference(models: dict[str, Model]) -> Model:
     return next(m for m in models.values() if m.reference)
 
 
-CAPABILITY_REFERENCES = {(2, "4271c2f4a925"): "qwen3-8-flash-next-oq4e"}
+CAPABILITY_REFERENCES = {
+    (2, "4271c2f4a925"): "qwen3-8-flash-next-oq4e",
+    (2, "8c545ce3471c"): "qwen3-8-flash-next-oq4e",
+}
 
 
 def capability_reference(protocol: int, epoch: str | None, legacy_reference: str | None) -> str | None:

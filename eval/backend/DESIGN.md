@@ -10,6 +10,10 @@ change, protocol 2 uses a 12 GB hot cache and the custom memory guard with a 90 
 balanced guard, and 27B reference. Protocol 1 and 2 timings are not comparable; a run cannot resume across
 protocol versions. No protocol 2 speed row is defined until a speed reference is run.
 
+**Capability-3 update (2026-10-30).** Capability-3 (epoch `8c545ce3471c`, protocol 2) moves localmelo to
+`6921912` and runs it in its own HOME inside the run directory. Its reference is Qwen3.8-Flash-Next-oQ4e-mtp,
+run `20261030-043547`. Rows of different epochs are not compared.
+
 ## 1. Purpose
 
 One command evaluates a local model as an agent backend on this Mac (MacBook Pro M5 Max, 128 GB) and

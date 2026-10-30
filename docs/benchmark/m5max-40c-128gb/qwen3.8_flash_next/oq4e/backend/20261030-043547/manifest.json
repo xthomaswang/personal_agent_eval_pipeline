@@ -1,0 +1,400 @@
+{
+  "protocol_version": 2,
+  "run_id": "20261030-043547",
+  "status": "complete",
+  "reason": "",
+  "started": "2026-10-30T04:35:47-0400",
+  "ended": "2026-10-30T05:46:06-0400",
+  "model": {
+    "key": "qwen3-8-flash-next-oq4e",
+    "display": "Qwen3.8-Flash-Next oQ4e + MTP",
+    "served_id": "Qwen3.8-Flash-Next-oQ4e-mtp",
+    "path": "~/.omlx-0.7/models/Qwen3.8-Flash-Next-oQ4e-mtp",
+    "quant": "oQ4e",
+    "family": "qwen3.8_flash_next",
+    "quant_dir": "oq4e",
+    "spec": "mtp",
+    "vision": true,
+    "reference": false,
+    "sampling": {
+      "temperature": 1.0,
+      "top_p": 0.95,
+      "top_k": 20
+    },
+    "proxy_sampling": "inject:qwen3.8-gen-config",
+    "source": {
+      "hf_repo": "Jundot/Qwen3.8-Flash-Next-oQ4e-mtp",
+      "revision": "e878710debbe7b31b9cd5a5756af629c903eb91d",
+      "made_by": "published oQ4e build (oMLX 0.7.3.dev1, Better Low-Bit oQ), base Qwen/Qwen3.8-Flash-Next"
+    },
+    "model_settings": {
+      "qwen4_ple_ssd_offload": true,
+      "moe_expert_offload_enabled": false
+    },
+    "server_log_expect": [
+      "PLE mode for .*: mmap",
+      "Lightning MTP enabled",
+      "MTP path activated"
+    ],
+    "prepare": {},
+    "notes": [
+      "Read only: downloaded by another session into ~/.omlx-0.7/models; models/hf-bench links to it.",
+      "Closest published build (its BF16 is ~250 GB): oQ4e, not oQ5; disclosed in every table.",
+      "Its 29.8 GiB PLE table is mmapped and file-backed, so the server footprint excludes it; the system-wide memory delta includes it."
+    ]
+  },
+  "unverified": false,
+  "arm": {
+    "thinking": "off",
+    "only": [],
+    "harnesses": [],
+    "thinking_budget": 0
+  },
+  "options": {
+    "legs": [
+      "capability"
+    ],
+    "capability": "full",
+    "resumed": false,
+    "notice_wait_s": 60
+  },
+  "estimate": {
+    "factor": 1.5,
+    "functional_min": 6,
+    "quiet_min": 7.9,
+    "gate_min": 90,
+    "ranking_min": 180,
+    "source": "measured quiet window of the previous run; capability rough"
+  },
+  "server": {
+    "omlx": {
+      "path": "omlx",
+      "sha": "7a5a3d75ce7463300bdfa5fedccd34348f60ff46",
+      "dirty": false
+    },
+    "base_path": "omlx/.modeleval-home",
+    "port": 8703,
+    "settings": {
+      "version": "1.0",
+      "server": {
+        "host": "127.0.0.1",
+        "port": 8703,
+        "log_level": "info",
+        "cors_origins": [
+          "*"
+        ],
+        "sse_keepalive_mode": "chunk",
+        "auto_start_on_launch": true,
+        "burst_decode_mode": "balanced",
+        "preserve_mid_system_cache": true,
+        "distributed_inference_enabled": false,
+        "max_audio_upload_size": "100MB",
+        "max_image_upload_size": "50MB",
+        "max_request_body_size": "512MB",
+        "max_image_side_length": 2048,
+        "gpu_keep_warm_interval": 0.5
+      },
+      "model": {
+        "model_dirs": [
+          "omlx/.modeleval-home/empty-models"
+        ],
+        "model_dir": "omlx/.modeleval-home/empty-models",
+        "model_fallback": false,
+        "hide_helper_models": false
+      },
+      "memory": {
+        "prefill_memory_guard": true,
+        "memory_guard_tier": "custom",
+        "memory_guard_custom_ceiling_gb": 90.0,
+        "soft_threshold": 0.85,
+        "hard_threshold": 0.95,
+        "prefill_safe_zone_ratio": 0.8,
+        "prefill_min_chunk_tokens": 32
+      },
+      "scheduler": {
+        "max_concurrent_requests": 8,
+        "embedding_batch_size": 32,
+        "chunked_prefill": true,
+        "prefill_priority": "context",
+        "decode_fairness": true
+      },
+      "cache": {
+        "enabled": true,
+        "hot_cache_only": false,
+        "gdn_ssd_split_enabled": true,
+        "gdn_snapshot_storage": "auto",
+        "gdn_ssd_pending_max_size": "512MB",
+        "gdn_sidecar_precision": "fp32",
+        "ssd_cache_dir": "eval/backend/runs/qwen3-8-flash-next-oq4e/20261030-043547/ssd-cache",
+        "ssd_cache_max_size": "128GB",
+        "hot_cache_max_size": "12GB",
+        "hot_cache_write_through": false,
+        "ane_compile_cache": false,
+        "initial_cache_blocks": 256
+      },
+      "mcp": {
+        "config_path": null,
+        "expose_tools": true
+      },
+      "huggingface": {
+        "endpoint": "",
+        "hf_cache_enabled": false
+      },
+      "modelscope": {
+        "endpoint": ""
+      },
+      "network": {
+        "http_proxy": "",
+        "https_proxy": "",
+        "no_proxy": "",
+        "ca_bundle": ""
+      },
+      "sampling": {
+        "max_context_window": 32768,
+        "max_context_window_policy": null,
+        "max_tokens": 32768,
+        "temperature": 1.0,
+        "top_p": 0.95,
+        "top_k": 0,
+        "repetition_penalty": 1.0
+      },
+      "logging": {
+        "log_dir": null,
+        "retention_days": 7
+      },
+      "claude_code": {
+        "mode": "cloud",
+        "opus_model": null,
+        "sonnet_model": null,
+        "haiku_model": null
+      },
+      "integrations": {
+        "codex_model": null,
+        "opencode_model": null,
+        "openclaw_model": null,
+        "hermes_model": null,
+        "pi_model": null,
+        "vibe_model": null,
+        "copilot_model": null,
+        "dsh_model": null,
+        "openclaw_tools_profile": "coding",
+        "markitdown_enabled": true,
+        "markitdown_expose_model": false,
+        "markitdown_max_file_size_mb": 25,
+        "markitdown_max_files_per_request": 5,
+        "markitdown_pdf_processing_engine": "markitdown",
+        "web_search_provider": "ddgs",
+        "web_search_brave_api_key": "",
+        "web_search_searxng_url": "",
+        "web_search_ddgs_backends": "",
+        "web_search_max_results": 3,
+        "web_search_content_mode": "snippet",
+        "web_search_content_truncate": true,
+        "web_search_content_max_chars": 20000,
+        "splash_path": null,
+        "splash_kv_format": "int8",
+        "splash_max_memory_gb": null,
+        "splash_ssd_cache_gb": null,
+        "splash_ane_prefill": true
+      },
+      "ui": {
+        "language": "en",
+        "dashboard_layout": null
+      },
+      "usage": {
+        "usage_history": true
+      },
+      "idle_timeout": {
+        "idle_timeout_seconds": null
+      }
+    },
+    "model_settings": {
+      "version": 1,
+      "models": {
+        "Qwen3.8-27B-oQ5-mtp": {
+          "max_context_window": 131072,
+          "mtp_enabled": true
+        },
+        "Nanbeige4.3-33B-oQ5": {
+          "max_context_window": 131072
+        },
+        "Qwen3.8-Flash-Next-oQ4e-mtp": {
+          "max_context_window": 131072,
+          "mtp_enabled": true,
+          "qwen4_ple_ssd_offload": true,
+          "moe_expert_offload_enabled": false
+        }
+      }
+    }
+  },
+  "launches": [
+    {
+      "launch": 1,
+      "pid": 92947,
+      "started": "2026-10-30T04:36:48-0400",
+      "ready": "2026-10-30T04:37:08-0400",
+      "stopped": "2026-10-30T05:46:05-0400",
+      "effective_settings": {
+        "version": "0.7.1rc1",
+        "base_path": "omlx/.modeleval-home",
+        "model_dirs": "models/hf-bench",
+        "memory_guard": "on (tier: custom)",
+        "mode": "Multi-model serving (continuous batching + paged SSD cache)",
+        "hot_cache": "12.0GB",
+        "default_max_tokens": "32768",
+        "memory_enforcer": "tier=custom, ceiling=90.0GB, interval=1.0s",
+        "metal_cap": "Metal cap (107.5GB, Apple max_recommended_working_set_size) is below the oMLX static ceiling (126.0GB); leaving Apple's default Metal cap active because iogpu.wired_limit_mb is unset. Raise it with: sudo sysctl iogpu.wired_limit_mb=124518",
+        "ple_mode": "mmap",
+        "tool_parser": "qwen3_coder",
+        "ssd_cache": {
+          "dir": "eval/backend/runs/qwen3-8-flash-next-oq4e/20261030-043547/ssd-cache",
+          "max": "128.0GB"
+        },
+        "ssd_cache_manager": {
+          "dir": "eval/backend/runs/qwen3-8-flash-next-oq4e/20261030-043547/ssd-cache",
+          "max_size": "128.00 GB",
+          "hot_cache": "12.00 GB",
+          "auto_size": "False",
+          "existing_files": "0",
+          "disk_free": "438.83 GB",
+          "cache_used": "0 B",
+          "incompatible_files": "0"
+        },
+        "loaded_model": {
+          "id": "Qwen3.8-Flash-Next-oQ4e-mtp",
+          "detail": "actual: 70.58GB, local estimate: 73.77GB, full model: 105.06GB, total: 73.77GB"
+        },
+        "ple_forced_to_ssd": true,
+        "log_expect": {
+          "PLE mode for .*: mmap": "Qwen4-Exp PLE mode for models/hf-bench/Qwen3.8-Flash-Next-oQ4e-mtp: mmap",
+          "Lightning MTP enabled": "Qwen4-Exp Lightning MTP enabled for models/hf-bench/Qwen3.8-Flash-Next-oQ4e-mtp (checkpoint layout: mtp.)",
+          "MTP path activated": "MTP path activated for uid=0 (model has mtp_forward, batch=1, primed=15)"
+        }
+      },
+      "reason": "initial",
+      "battery": 68,
+      "phase": "capability",
+      "builds": {
+        "macos": "26B123",
+        "xcode": "27A9275"
+      }
+    }
+  ],
+  "memory": [
+    {
+      "samples": 2055,
+      "launch": 1,
+      "source": "footprint",
+      "after_load_tree_bytes": 79456894976,
+      "peak": {
+        "tree_bytes": 91268055040,
+        "system_delta_bytes": 93122805760,
+        "pressure": 1,
+        "swapouts_delta": 480
+      },
+      "by_label": {
+        "capability": {
+          "tree_bytes": 91268055040,
+          "system_delta_bytes": 93122805760,
+          "pressure": 1,
+          "swapouts_delta": 480
+        },
+        "idle": {
+          "tree_bytes": 88046829568,
+          "system_delta_bytes": 86379298816,
+          "pressure": 1,
+          "swapouts_delta": 480
+        }
+      },
+      "under_pressure": false,
+      "swapped_out": true
+    }
+  ],
+  "ssd_cache": {
+    "dir": "eval/backend/runs/qwen3-8-flash-next-oq4e/20261030-043547/ssd-cache",
+    "peak_bytes": 103215690584
+  },
+  "pins": {
+    "epoch": {
+      "id": "8c545ce3471c",
+      "equivalent": [
+        {
+          "new": "ce99c7b5d0bd",
+          "same_as": "7582825160ad",
+          "reason": "eval/bench/manifest.py: one comment line reworded (2026-10-26 history rewrite); no code change",
+          "trees": {
+            "bench": [
+              "40152a3feb446946d8a51fdfdf9934cb4376a8a9",
+              "f258c98991f52ac37e97a01d01aa086b623d3fc7"
+            ]
+          }
+        }
+      ]
+    },
+    "snapshot": {
+      "repo": ".",
+      "sha": "a9ad2e9a356735f31f76a589ecd7a0d5be5abe30",
+      "bench": "eval/bench",
+      "smoke": "eval/agent_ability/smoke",
+      "shims": "eval/agent_ability/shims"
+    },
+    "configs": {
+      "agent_root": "${agent_root}",
+      "claude_env": "configs/claude-code/claude-code.env",
+      "claude_settings": "homes/claude-code/settings.json",
+      "hermes_home": "homes/hermes"
+    },
+    "localmelo": {
+      "repo": "vendor/localmelo",
+      "sha": "69219122a771410aee27832fde08c6f52ba694d6",
+      "dist": "localmelo"
+    },
+    "hermes": {
+      "repo": "${agent_root}/hermes-agent",
+      "tag": "v0.22.2",
+      "sha": "d923a5eb487a17c0a68801bba9ef0f56c81040a8",
+      "bin": "${agent_root}/.venv/bin/hermes",
+      "dist": "hermes_agent"
+    },
+    "claude_code": {
+      "version": "2.1.312",
+      "bin": "vendor/claude-code/2.1.312"
+    },
+    "data": {
+      "root": "${datasets}",
+      "aider_polyglot": "7e0611e77b54e2dea774cdc0aa00cf9f7ed6144f",
+      "mcpmark": "cd45b7f57923b9b3985467f5139927575f83141c"
+    },
+    "envs": {
+      "capability": "envs/capability",
+      "agent_tools": "envs/agent-tools",
+      "shims": "envs/agent-tools/shims"
+    },
+    "workspace": {
+      "ws_root": "${ws_root}"
+    }
+  },
+  "epoch": "8c545ce3471c",
+  "machine": {
+    "sw_vers": {
+      "ProductName": "macOS",
+      "ProductVersion": "27.2",
+      "BuildVersion": "26B123"
+    },
+    "xcodebuild": "Xcode 27.1; Build version 27A9275",
+    "hw_model": "Mac17,7",
+    "memsize": "137438953472"
+  },
+  "repo": {
+    "path": "eval/backend",
+    "sha": "63441dc9aac3d9d5a5c046f268cbfe6936e6d3b7",
+    "dirty": true
+  },
+  "capability_results": "capability/results.json",
+  "gate_decision": {
+    "epoch": "8c545ce3471c",
+    "decision": null,
+    "action": "ranking",
+    "why": "no reference configured for protocol 2, epoch 8c545ce3471c"
+  }
+}

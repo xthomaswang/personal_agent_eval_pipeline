@@ -42,11 +42,21 @@ CAP_PROTOCOLS: dict[str, dict[str, Any]] = {
     "capability-2": {"protocol_version": 2, "epoch": "4271c2f4a925",
                      "title": "Claude Code, Hermes, localmelo on Aider 12 + MCPMark easy 10 (gate set) and "
                               "Aider 22 (ranking set); thinking off"},
+    "capability-3": {"protocol_version": 2, "epoch": "8c545ce3471c",
+                     "title": "Claude Code, Hermes, localmelo on Aider 12 + MCPMark easy 10 (gate set) and "
+                              "Aider 22 (ranking set); thinking off"},
 }
 SPEED_METRICS = ("64K cold TTFT", "Cached-prefix TTFT", "Decode 16K", "Decode 32K", "Decode 64K", "Decode 110K",
                  "20-step agent trajectory", "Peak server memory")
 CAP_METRICS = ("Claude Code (gate)", "Hermes (gate)", "localmelo (gate)", "Gate set", "Ranking set",
                "M7 tool-call cases")
+# One sentence about a run that its files cannot show (an event outside the pipeline), appended to the notes of its
+# capability row: (registry key, run id) -> sentence. `modeleval publish` writes it, so a rewrite of the row keeps it.
+CAP_RUN_NOTES: dict[tuple[str, str], str] = {
+    ("qwen3-8-flash-next-oq4e", "20261030-043547"):
+        "Xcode was updated from 27.1 (27A9275) to 27.2 (27B52) during the run; the capability tasks use no Xcode "
+        "tooling beyond git.",
+}
 DECODE_UNITS = ("m3-16k", "m3-32k", "g5+m3-64k", "m3-110k")
 M4_UNITS = ("m4-1", "m4-2", "m4-3")   # the trajectory column is the median of these runs
 # The SPEED_METRICS columns each timed unit (speed.UNIT_ORDER) feeds, so that notes name what a reader of the row
@@ -180,6 +190,8 @@ def cap_notes(run: report.Run, mapping: dict[str, str] | None = None) -> str:
         missing.append("the ranking set")
     if missing:
         notes.append(f"Not run: {', '.join(missing)}.")
+    if extra := CAP_RUN_NOTES.get((run.model_key, run.run_id)):
+        notes.append(extra)
     return " ".join(notes)
 
 
