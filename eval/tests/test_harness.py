@@ -131,42 +131,47 @@ def test_localmelo_persists_memory_per_run(tmp_path: Path) -> None:
     assert cmd[-2:] == ["--", "-do it"]  # a task text that starts with "-" is not read as an option
     assert harness._with_harness_args(cmd, "-do it", ["--x", "1"])[-4:] == ["--x", "1", "--", "-do it"]
     assert cmd[cmd.index("--base-url") + 1] == "http://127.0.0.1:43210/v1"
-    assert env == {"LOCALMELO_PERSIST_MEMORY": "1", "LOCALMELO_MEMORY_DIR": str(tmp_path / "mem")}
+    assert env == {
+        "LOCALMELO_PERSIST_MEMORY": "1", "LOCALMELO_MEMORY_DIR": str(tmp_path / "mem"),
+        "HOME": str(tmp_path / "localmelo-home"),
+    }
 
 
-def _checkout(root: Path, main_py: str | None) -> Path:
-    """A localmelo checkout as the bench sees it: a root __main__.py, or none at all when main_py is None."""
-    root.mkdir(parents=True)
-    if main_py is not None:
-        (root / "__main__.py").write_text(main_py)
-    return root
+def test_localmelo_runs_in_its_own_home_and_records_sessions_there(tmp_path: Path) -> None:
+    cmd, env = harness._localmelo("-do it", tmp_path, "http://127.0.0.1:43210", 30)
+
+    assert env["HOME"] == str(tmp_path / "localmelo-home")
+    assert (tmp_path / "localmelo-home").is_dir()
+    assert "--no-save-session" not in cmd  # the sessions are recorded, into the run's own HOME
 
 
-def test_localmelo_opts_out_of_session_recording_when_the_checkout_knows_the_option(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    checkout = _checkout(tmp_path / "localmelo", 'parser.add_argument("--no-save-session", action="store_true")\n')
-    monkeypatch.setattr(harness.manifest, "LOCALMELO_REPO", checkout)
+def test_localmelo_home_links_git_identity_and_uv_cache_from_the_real_home(tmp_path: Path) -> None:
+    real = tmp_path / "real-home"
+    (real / ".cache" / "uv").mkdir(parents=True)
+    (real / ".cache" / "localmelo").mkdir(parents=True)  # the session store: never linked
+    (real / ".gitconfig").write_text("[user]\n\tname = Test\n")
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
 
-    cmd, _ = harness._localmelo("-do it", tmp_path, "http://127.0.0.1:43210", 30)
+    home = harness._localmelo_home(run_dir, real_home=real)
 
-    assert cmd[-5:] == ["--chat-model", harness.MODEL, "--no-save-session", "--", "-do it"]
+    assert home == run_dir / "localmelo-home"
+    assert (home / ".gitconfig").readlink() == real / ".gitconfig"
+    assert (home / ".gitconfig").read_text() == "[user]\n\tname = Test\n"
+    assert (home / ".cache" / "uv").readlink() == real / ".cache" / "uv"
+    assert [p.name for p in (home / ".cache").iterdir()] == ["uv"]  # .cache/localmelo is not linked
 
 
-@pytest.mark.parametrize(
-    "main_py",
-    [pytest.param("parser.add_argument('--chat-model')\n", id="older-checkout"), pytest.param(None, id="no-main")],
-)
-def test_localmelo_older_checkout_gets_no_session_flag(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, main_py: str | None
-) -> None:
-    checkout = _checkout(tmp_path / "localmelo", main_py)
-    monkeypatch.setattr(harness.manifest, "LOCALMELO_REPO", checkout)
+def test_localmelo_home_makes_no_links_when_the_real_home_has_none(tmp_path: Path) -> None:
+    real = tmp_path / "empty-home"
+    real.mkdir()
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
 
-    cmd, _ = harness._localmelo("-do it", tmp_path, "http://127.0.0.1:43210", 30)
+    home = harness._localmelo_home(run_dir, real_home=real)
 
-    assert "--no-save-session" not in cmd
-    assert cmd[-2:] == ["--", "-do it"]
+    assert home.is_dir()
+    assert list(home.iterdir()) == []
 
 
 @pytest.mark.parametrize("prompt", ["", "  \n"])

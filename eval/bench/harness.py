@@ -119,13 +119,24 @@ def _hermes(prompt: str, run_dir: Path, base_url: str, max_turns: int) -> Comman
     return cmd, {"HERMES_HOME": str(home), "HERMES_DISABLE_LAZY_INSTALLS": "1"}
 
 
-def _accepts_no_save_session(repo: Path) -> bool:
-    """Whether the localmelo checkout at repo knows --no-save-session, i.e. its __main__.py names the option.
-    A checkout without a readable __main__.py is treated as one that does not know it."""
-    try:
-        return "--no-save-session" in (repo / "__main__.py").read_text(encoding="utf-8", errors="replace")
-    except OSError:
-        return False
+def _localmelo_home(run_dir: Path, real_home: Path | None = None) -> Path:
+    """Create the HOME that localmelo runs with, inside run_dir, and return it.
+
+    localmelo keeps its session store and default dirs under $HOME/.cache/localmelo, so the bench gives it an
+    empty HOME inside the run dir. It reads no user config there, and its recorded sessions (with their
+    reflection events) stay with the run. Its tool subprocesses inherit HOME, so git's identity (.gitconfig)
+    and uv's cache (.cache/uv) are linked from real_home (the user's home by default), as earlier runs saw
+    them. .cache/localmelo is never linked.
+    """
+    real_home = Path.home() if real_home is None else real_home
+    home = run_dir / "localmelo-home"
+    home.mkdir(parents=True, exist_ok=True)
+    for rel in (".gitconfig", ".cache/uv"):
+        src, dst = real_home / rel, home / rel
+        if src.exists() and not dst.is_symlink():
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            dst.symlink_to(src)
+    return home
 
 
 def _localmelo(prompt: str, run_dir: Path, base_url: str, max_turns: int) -> Command:
@@ -136,18 +147,17 @@ def _localmelo(prompt: str, run_dir: Path, base_url: str, max_turns: int) -> Com
     # refuse it here so it cannot pass as a run.
     if not prompt.strip():
         raise ValueError("localmelo needs a non-blank task text")
-    # localmelo records each direct run as a worker session in the user's cache directory by default
-    # (since the release that added --no-save-session), and the bench opts out whenever the checkout
-    # knows the option.
-    opt_out = ["--no-save-session"] if _accepts_no_save_session(manifest.LOCALMELO_REPO) else []
     cmd = [
         str(manifest.LOCALMELO_REPO / ".venv" / "bin" / "melo"),
         "--base-url", f"{base_url}/v1",
         "--chat-model", MODEL,
-        *opt_out,
         "--", prompt,
     ]  # fmt: skip
-    env = {"LOCALMELO_PERSIST_MEMORY": "1", "LOCALMELO_MEMORY_DIR": str(run_dir / "mem")}
+    env = {
+        "LOCALMELO_PERSIST_MEMORY": "1",
+        "LOCALMELO_MEMORY_DIR": str(run_dir / "mem"),
+        "HOME": str(_localmelo_home(run_dir)),
+    }
     return cmd, env
 
 
