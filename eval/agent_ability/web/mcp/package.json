@@ -1,0 +1,8 @@
+{
+  "name": "web-mcp",
+  "private": true,
+  "description": "Pinned chrome-devtools-mcp for the web search suite",
+  "dependencies": {
+    "chrome-devtools-mcp": "1.11.0"
+  }
+}
