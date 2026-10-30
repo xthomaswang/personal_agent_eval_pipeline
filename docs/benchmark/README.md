@@ -62,7 +62,7 @@ page and asset, including the data file.
 
 ## Additional public evidence
 
-For `capability-1`, the site derives per-harness pass counts and median model time/calls from the
+For every `capability-N` protocol, the site derives per-harness pass counts and median model time/calls from the
 published `backend/<run-id>/capability/results.json`. It uses the runner's final-record and solved
 accessors, excludes warm-ups, and verifies that totals match these summary rows.
 

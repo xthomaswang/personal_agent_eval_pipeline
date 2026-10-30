@@ -153,7 +153,8 @@ python3 scripts/build_docs.py            # at the repository root: writes docs/i
 
 `publish` writes `summary.json` next to the run's `manifest.json` (suite `backend`, protocol `speed-1`)
 and `docs/benchmark/<machine>/<family>/<quant>/agent_ability/<run-id>/summary.json` (protocol
-`capability-1`), from the numbers RESULTS.md shows. A run's write-up is its directory's `README.md`.
+`capability-N` of the run's harness epoch, `CAP_PROTOCOLS` in `src/modeleval/publish.py`), from the numbers RESULTS.md
+shows. A run's write-up is its directory's `README.md`.
 
 ```
 results/<model>/<run-id>/       committed (after scripts/redact.py --check passes in the pre-commit hook)

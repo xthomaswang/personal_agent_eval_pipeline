@@ -3,7 +3,7 @@
 // Editable component diagram, with connectors measured from the rendered nodes.
 window.benchmarkArchitecture = (() => {
   const suites = {
-    capability: { label: 'Agent ability', protocol: 'capability-1', selected: 'harnesses' },
+    capability: { label: 'Agent ability', protocol: 'capability-3', selected: 'harnesses' },
     ui: { label: 'UI ability', protocol: 'ui-real-1', selected: 'ui' },
     speed: { label: 'Serving performance', protocol: 'speed-1', selected: 'speed' },
     memory: { label: 'Evolution ability (memory)', protocol: 'In development', selected: 'memory' }

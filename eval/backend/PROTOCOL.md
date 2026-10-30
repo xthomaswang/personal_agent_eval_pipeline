@@ -7,7 +7,9 @@ rows also share a table only when their macOS and Xcode builds match, and capabi
 their harness epoch matches. Harness epochs that `pins.toml` declares equivalent (`[[epoch.equivalent]]`:
 a change to comments only, checked against git by `modeleval selftest`; DESIGN §6.5) count as one epoch,
 shown under the oldest id: `ce99c7b5d0bd` counts as `7582825160ad`. On the results page (`modeleval publish`, then the repository's
-`scripts/build_docs.py`) the speed leg is protocol `speed-1` and the capability leg `capability-1`. [DESIGN.md](DESIGN.md) explains why each
+`scripts/build_docs.py`) the speed leg is protocol `speed-1` and the capability leg `capability-N`, one per harness epoch
+(`capability-1` = `7582825160ad`, `capability-2` = `4271c2f4a925`, `capability-3` = `8c545ce3471c`; `CAP_PROTOCOLS` in
+`src/modeleval/publish.py`). [DESIGN.md](DESIGN.md) explains why each
 choice was made.
 
 ## Machine and server
