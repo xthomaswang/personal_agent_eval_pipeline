@@ -98,6 +98,7 @@ class Context:
     cua_bin: str | None = None  # S-cua: the cua-driver binary, and the Space its runs need on screen
     cua_space: int | None = None
     sleep: Callable[[float], None] = time.sleep
+    localmelo_extra: tuple[str, ...] = ()  # appended to the flags of every localmelo run
 
 
 def save(path: Path, value: Any) -> None:
@@ -548,6 +549,7 @@ def execute(item: dict[str, Any], ctx: Context) -> dict[str, Any]:
                     cua_bin=ctx.cua_bin,
                     model=ctx.model,
                     claude_bin=ctx.claude_bin,
+                    localmelo_extra=ctx.localmelo_extra,
                 ) as plan:
                     summary = ctx.harness.run(
                         name,
@@ -709,7 +711,11 @@ def identity(
     harnesses: Sequence[str],
     arm_names: Sequence[str],
     model: str = arms.DEFAULT_MODEL,
+    localmelo_extra: Sequence[str] = (),
+    localmelo_sha: str = arms.LOCALMELO_SHA,
 ) -> dict[str, Any]:
+    """What a resume must match. localmelo's flags include ``localmelo_extra``; ``localmelo_sha`` is the commit (or the
+    prefix) the study expects of its checkout, not the checkout's own hash (that is in environment.json)."""
     return {
         "protocol": PROTOCOL,
         "harnesses": list(harnesses),
@@ -718,8 +724,8 @@ def identity(
         "repeats": repeats,
         "budget": BUDGET,
         "wall_cap_s": {a: WALL_CAP_S[a] for a in arm_names},
-        "localmelo_flags": arms.harness_arg_templates(arm_names) if "localmelo" in harnesses else None,
-        "localmelo_sha": arms.LOCALMELO_SHA if "localmelo" in harnesses else None,
+        "localmelo_flags": arms.harness_arg_templates(arm_names, localmelo_extra) if "localmelo" in harnesses else None,
+        "localmelo_sha": localmelo_sha if "localmelo" in harnesses else None,
         "dataset_revision": pilot.source["revision"],
         "chrome_devtools_mcp": arms.mcp_versions()["pinned"],
         "model": model,
@@ -772,9 +778,14 @@ def run_study(
     cua_space: int | None = None,
     harness: ModuleType | None = None,
     sleep: Callable[[float], None] = time.sleep,
+    localmelo_extra: Sequence[str] = (),
 ) -> int:
-    """0 when every run is recorded, 2 when refused to start, 3 when stopped early."""
+    """0 when every run is recorded, 2 when refused to start, 3 when stopped early.
+
+    ``expect_sha`` is the commit (or a prefix of at least 7 digits) the localmelo checkout must be at, and
+    ``localmelo_extra`` is appended to every localmelo run's flags; both are part of the study's identity."""
     out = out.resolve()
+    localmelo_extra = arms.check_localmelo_extra(localmelo_extra)
     localmelo = localmelo.resolve()
     claude_bin = Path(claude_bin)
     if "S-cua" in arm_names and cua_space is None:
@@ -795,7 +806,8 @@ def run_study(
         if problems:
             print("Preflight failed:", *problems, sep="\n  - ", file=sys.stderr)
             return 2
-        state = load_state(out, identity(pilot, rows, repeats, harnesses, arm_names, model), planned)
+        config = identity(pilot, rows, repeats, harnesses, arm_names, model, localmelo_extra, expect_sha)
+        state = load_state(out, config, planned)
         uses_chrome = any(arms.NEEDS_CHROME[a] for a in arm_names)
         if uses_chrome:
             installed = installed_chrome_version()
@@ -834,6 +846,7 @@ def run_study(
             cua_bin,
             cua_space,
             sleep,
+            tuple(localmelo_extra),
         )
         stopped = False
 
@@ -949,6 +962,7 @@ def print_plan(
     model: str = arms.DEFAULT_MODEL,
     claude_bin: Path = arms.CLAUDE_BIN,
     cua_note: str | None = None,
+    localmelo_extra: Sequence[str] = (),
 ) -> None:
     caps = ", ".join(f"{a} {WALL_CAP_S[a]:g}" for a in arm_names)
     print(
@@ -973,7 +987,7 @@ def print_plan(
     if cua_note:
         print(cua_note)
     if "localmelo" in harnesses:
-        for arm, flags in arms.harness_arg_templates(arm_names).items():
+        for arm, flags in arms.harness_arg_templates(arm_names, localmelo_extra).items():
             print(f"localmelo {arm}: {' '.join(flags)}")
     for item in planned:
         retry = "" if item["attempt"] == 1 else " (retry)"
@@ -1015,7 +1029,20 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         "--questions", default="all", help="comma-separated pilot ids, easy, medium or all (default: all 24)"
     )
     ap.add_argument("--repeats", type=int, default=REPEATS, help=f"repeats per question (default {REPEATS})")
-    ap.add_argument("--localmelo", type=Path, default=arms.LOCALMELO, help="the pinned localmelo clone")
+    ap.add_argument("--localmelo", type=Path, default=arms.LOCALMELO, help="the localmelo clone (default: the pinned)")
+    ap.add_argument(
+        "--localmelo-sha",
+        default=arms.LOCALMELO_SHA,
+        help="the commit, in full or a prefix of at least 7 digits, that the --localmelo clone must be at "
+        f"(default {arms.LOCALMELO_SHA[:7]})",
+    )
+    ap.add_argument(
+        "--localmelo-args",
+        default="",
+        help="extra flags for every localmelo run, shell-quoted, appended after the arm's own "
+        '(e.g. "-X agent.reflection_gate=patient"; one flag without a space needs the = form, --localmelo-args=-v); '
+        "not --mcp, --mcp-only, -o, -m, -u or --",
+    )
     ap.add_argument(
         "--base-url", default=None, help="the model endpoint, http://host:port/v1 (default: the bench manifest's)"
     )
@@ -1059,6 +1086,9 @@ def main(argv: Sequence[str] | None = None, harness: ModuleType | None = None) -
         harnesses = parse_names(args.harnesses, arms.HARNESSES, "harness")
         arm_names = parse_names(args.arms, arms.ARMS, "arm", arms.DEFAULT_ARMS)
         planned = schedule(rows, args.repeats, harnesses, arm_names)
+        localmelo_extra = arms.parse_localmelo_extra(args.localmelo_args)
+        if "localmelo" not in harnesses and (localmelo_extra or args.localmelo_sha != arms.LOCALMELO_SHA):
+            raise ValueError("--localmelo-args and --localmelo-sha need localmelo among --harnesses")
     except ValueError as exc:
         raise SystemExit(str(exc)) from None
     if harness is None:
@@ -1070,8 +1100,8 @@ def main(argv: Sequence[str] | None = None, harness: ModuleType | None = None) -
         with bench_settings(harness, localmelo, args.base_url, args.model, args.claude_bin):
             problems = preflight(
                 harness, harnesses, arm_names, localmelo,
-                expected_chrome_version=args.expected_chrome_version, gpu_lock=not args.no_gpu_lock,
-                model=args.model, claude_bin=args.claude_bin, cua_space=args.cua_space,
+                expected_chrome_version=args.expected_chrome_version, expect_sha=args.localmelo_sha,
+                gpu_lock=not args.no_gpu_lock, model=args.model, claude_bin=args.claude_bin, cua_space=args.cua_space,
             )  # fmt: skip
             chrome_version = None
             if any(arms.NEEDS_CHROME[a] for a in arm_names):
@@ -1096,7 +1126,7 @@ def main(argv: Sequence[str] | None = None, harness: ModuleType | None = None) -
             print_plan(
                 args.run_dir.resolve(), planned, rows, args.repeats, harnesses, arm_names, localmelo,
                 args.base_url or harness.manifest.OMLX_BASE_URL, problems, snapshot, args.captcha_pause_s,
-                model=args.model, claude_bin=args.claude_bin, cua_note=cua_note,
+                model=args.model, claude_bin=args.claude_bin, cua_note=cua_note, localmelo_extra=localmelo_extra,
             )  # fmt: skip
         return 2 if problems else 0
     try:
@@ -1105,6 +1135,7 @@ def main(argv: Sequence[str] | None = None, harness: ModuleType | None = None) -
             localmelo=localmelo, base_url=args.base_url, expected_chrome_version=args.expected_chrome_version,
             captcha_pause_s=args.captcha_pause_s, gpu_lock=not args.no_gpu_lock, model=args.model,
             claude_bin=args.claude_bin, cua_space=args.cua_space, harness=harness,
+            expect_sha=args.localmelo_sha, localmelo_extra=localmelo_extra,
         )  # fmt: skip
     except ValueError as exc:
         print(exc, file=sys.stderr)

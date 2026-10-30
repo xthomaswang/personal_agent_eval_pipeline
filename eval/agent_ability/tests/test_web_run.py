@@ -30,6 +30,8 @@ CHROME_VERSION = "156.0.8078.80"
 ALL_HARNESSES = ("claude_code", "hermes", "localmelo")
 MODEL = "Some-Model-oQ4e"
 URL = "http://127.0.0.1:43999"
+EXTRA = ("-X", "agent.reflection_gate=patient", "-X", "agent.answer_on_stop=on")
+OTHER_SHA = "5fa22ee" + "1" * 33
 
 
 def gold(question: int) -> str:
@@ -625,6 +627,18 @@ def test_localmelo_gets_its_flags_and_its_config_file(rig: Rig) -> None:
     assert web_args[3:5] == ["--log", str(rig.out / "runs" / "002__q3503__r1__localmelo__D" / "tap.jsonl")]
 
 
+def test_extra_localmelo_flags_reach_every_localmelo_arm_and_no_other_harness(rig: Rig) -> None:
+    cells = [("localmelo", "D"), ("localmelo", "S"), ("localmelo", "C"), ("claude_code", "D"), ("hermes", "S")]
+    rig.script = lambda run_id: Scenario()
+    for index, (harness, arm) in enumerate(cells, 1):
+        web_run.execute(rig.item(harness=harness, arm=arm, index=index), rig.context(localmelo_extra=EXTRA))
+    d, s, c, claude, hermes = (call.kw["harness_args"] for call in rig.calls)
+    assert d[-4:] == s[-4:] == c[-4:] == EXTRA
+    assert s[-6:-4] == ("-X", "agent.tool_images=on")  # the arm's own flags stay in front
+    assert d[0] == "--mcp" and d[2:5] == ("--mcp-only", "-o", "json")
+    assert claude == hermes == ()
+
+
 def test_a_chrome_that_cannot_run_stops_the_study_and_leaves_no_record(rig: Rig) -> None:
     rig.chrome_error = chrome.ChromeVersionChanged("Chrome is 157.0.1.2, but 156.0.8078.80 was recorded")
     with pytest.raises(web_run.StopStudy, match="157.0.1.2"):
@@ -1115,6 +1129,60 @@ def test_the_command_line_reaches_the_study(tmp_path: Path, monkeypatch: pytest.
     assert seen["arm_names"] == ["D", "S", "C"] and seen["model"] == arms.DEFAULT_MODEL and seen["cua_space"] is None
 
 
+def test_the_localmelo_flags_and_sha_reach_the_study_and_the_dry_run(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    rig = Rig(tmp_path)
+    seen: dict[str, Any] = {}
+    monkeypatch.setattr(web_run, "run_study", lambda out, **kw: seen.update(out=out, **kw) or 0)
+    flags = "-X agent.reflection_gate=patient -X agent.answer_on_stop=on"
+    argv = ["--run-dir", str(tmp_path / "x"), "--questions", "easy", "--harnesses", "localmelo", "--arms", "D,S"]
+    melo = tmp_path / "melo"
+    assert web_run.main(argv, harness=rig.harness) == 0
+    assert seen["expect_sha"] == arms.LOCALMELO_SHA and seen["localmelo_extra"] == ()  # the defaults
+    given = ["--localmelo", str(melo), "--localmelo-sha", OTHER_SHA[:7], "--localmelo-args", flags]
+    assert web_run.main([*argv, *given], harness=rig.harness) == 0
+    assert (seen["expect_sha"], seen["localmelo_extra"], seen["localmelo"]) == (OTHER_SHA[:7], EXTRA, melo)
+
+    checked: dict[str, Any] = {}
+    dry_run_fakes(monkeypatch, [])
+    monkeypatch.setattr(web_run, "preflight", lambda *a, **k: checked.update(k) or [])
+    assert web_run.main([*argv, "--dry-run", *given], harness=rig.harness) == 0
+    shown = capsys.readouterr().out
+    assert checked["expect_sha"] == OTHER_SHA[:7]
+    assert f"localmelo D: --mcp <mcp.json> --mcp-only -o json {flags}\n" in shown
+    assert f"localmelo S: --mcp <mcp.json> --mcp-only -o json -X agent.tool_images=on {flags}\n" in shown
+    assert web_run.parse_args(["--run-dir", "x", "--localmelo-args=-v"]).localmelo_args == "-v"
+
+
+@pytest.mark.parametrize(
+    "extra",
+    [
+        ["--localmelo-args=--mcp=x.json"], ["--localmelo-args=-X agent.a=b -o text"], ["--localmelo-args=-ojson"],
+        ["--localmelo-args=-m Other-Model"], ["--localmelo-args=-u http://127.0.0.1:1/v1"],
+        ["--localmelo-args=-X a=b -- the task"], ["--localmelo-args=-X 'agent.note=open"],
+        ["--localmelo-sha", OTHER_SHA[:7]],  # the flags and the sha need localmelo among the harnesses
+    ],
+)  # fmt: skip
+def test_bad_localmelo_flags_exit_with_a_message(extra: list[str], tmp_path: Path) -> None:
+    harnesses = ["--harnesses", "claude_code,hermes" if extra[0] == "--localmelo-sha" else "localmelo"]
+    for mode in ([], ["--dry-run"]):
+        with pytest.raises(SystemExit) as stop:
+            web_run.main(["--run-dir", str(tmp_path), *mode, *harnesses, *extra])
+        assert isinstance(stop.value.code, str)  # our message, not argparse's usage error (exit code 2)
+
+
+def test_localmelo_options_without_localmelo_are_a_mistake_but_the_defaults_are_not(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    rig = Rig(tmp_path)
+    monkeypatch.setattr(web_run, "run_study", lambda out, **kw: 0)
+    argv = ["--run-dir", str(tmp_path / "x"), "--harnesses", "hermes", "--arms", "C"]
+    assert web_run.main(argv, harness=rig.harness) == 0
+    explicit = [*argv, "--localmelo-args", "", "--localmelo-sha", arms.LOCALMELO_SHA]
+    assert web_run.main(explicit, harness=rig.harness) == 0
+
+
 def test_bad_names_on_the_command_line_exit_with_a_message(tmp_path: Path) -> None:
     for argv in (["--questions", "9999"], ["--harnesses", "some_agent"], ["--arms", "Z"], ["--repeats", "0"]):
         with pytest.raises(SystemExit) as stop:
@@ -1202,6 +1270,27 @@ def test_preflight_collects_what_is_wrong(tmp_path: Path, monkeypatch: pytest.Mo
 
     c_only = web_run.preflight(rig.harness, ("hermes",), ("C",), tmp_path, gpu_lock=False)
     assert c_only == ["the model server is not reachable", "node is missing"]
+
+
+def test_preflight_refuses_a_localmelo_checkout_at_another_commit(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    rig = Rig(tmp_path)
+    monkeypatch.setattr(web_run.runner, "_binaries", lambda harness: {})
+    monkeypatch.setattr(web_run, "model_problem", lambda harness: None)
+    monkeypatch.setattr(arms, "mcp_problems", lambda names: [])
+    answers = {("rev-parse", "HEAD"): OTHER_SHA, ("status", "--porcelain"): ""}
+    monkeypatch.setattr(arms, "_git", lambda repo, *args: answers.get(args, ""))
+
+    def check(**kw: Any) -> list[str]:
+        return web_run.preflight(rig.harness, ("localmelo",), ("C",), tmp_path, gpu_lock=False, **kw)
+
+    problems = check()  # the pinned commit is the default
+    assert len(problems) == 1 and "5fa22ee" in problems[0] and f"not {arms.LOCALMELO_SHA}" in problems[0]
+    assert check(expect_sha=OTHER_SHA) == [] and check(expect_sha=OTHER_SHA[:7]) == []
+    assert "not a9fb42b" in check(expect_sha="a9fb42b")[0]
+    # other harnesses do not look at the localmelo checkout
+    assert web_run.preflight(rig.harness, ("hermes",), ("C",), tmp_path, gpu_lock=False) == []
 
 
 def test_preflight_refuses_a_claude_env_that_lost_a_safety_variable(
@@ -1292,6 +1381,44 @@ def test_a_different_model_is_a_different_study(rig: Rig) -> None:
     rig.go()
     with pytest.raises(ValueError, match="changed"):
         rig.go(model="Another-Model")
+
+
+def localmelo_study(rig: Rig, **kw: Any) -> int:
+    return rig.go(harnesses=("localmelo",), arm_names=("D", "C"), **kw)
+
+
+def test_the_extra_flags_and_the_expected_sha_are_part_of_the_study(rig: Rig, monkeypatch: pytest.MonkeyPatch) -> None:
+    seen: list[dict[str, Any]] = []
+    monkeypatch.setattr(web_run, "preflight", lambda *a, **k: seen.append(k) or [])
+    assert localmelo_study(rig, localmelo_extra=EXTRA, expect_sha=OTHER_SHA[:7]) == 0
+    assert seen[0]["expect_sha"] == OTHER_SHA[:7]  # preflight checks the checkout against it
+    config = rig.state()["config"]
+    assert config["localmelo_sha"] == OTHER_SHA[:7]
+    assert config["localmelo_flags"]["D"][-4:] == list(EXTRA) and config["localmelo_flags"]["C"][-4:] == list(EXTRA)
+    assert all(call.kw["harness_args"][-4:] == EXTRA for call in rig.calls) and len(rig.calls) == 4
+
+    rig.calls.clear()
+    assert localmelo_study(rig, localmelo_extra=EXTRA, expect_sha=OTHER_SHA[:7]) == 0  # the same study resumes
+    assert rig.executed == []
+    for other in ({"localmelo_extra": ()}, {"localmelo_extra": EXTRA[:2]}, {"expect_sha": arms.LOCALMELO_SHA}):
+        with pytest.raises(ValueError, match="changed"):
+            localmelo_study(rig, **{"localmelo_extra": EXTRA, "expect_sha": OTHER_SHA[:7], **other})
+
+
+def test_the_identity_changes_with_the_extra_flags_and_the_sha() -> None:
+    rows = [PILOT.by_id(EASY)]
+    base = web_run.identity(PILOT, rows, 1, ALL_HARNESSES, ("D", "S"), MODEL)
+    assert base["localmelo_sha"] == arms.LOCALMELO_SHA
+    assert base["localmelo_flags"] == arms.harness_arg_templates(("D", "S"))  # unchanged for a study without extras
+    flagged = web_run.identity(PILOT, rows, 1, ALL_HARNESSES, ("D", "S"), MODEL, EXTRA)
+    assert flagged != base and flagged["localmelo_flags"]["S"][-4:] == list(EXTRA)
+    assert {k for k in flagged if flagged[k] != base[k]} == {"localmelo_flags"}
+    assert flagged != web_run.identity(PILOT, rows, 1, ALL_HARNESSES, ("D", "S"), MODEL, EXTRA[:2])
+    moved = web_run.identity(PILOT, rows, 1, ALL_HARNESSES, ("D", "S"), MODEL, localmelo_sha=OTHER_SHA)
+    assert moved != base and {k for k in moved if moved[k] != base[k]} == {"localmelo_sha"}
+    assert moved["localmelo_sha"] == OTHER_SHA
+    no_melo = web_run.identity(PILOT, rows, 1, ("hermes",), ("D",), MODEL, EXTRA, OTHER_SHA)
+    assert no_melo["localmelo_flags"] is None and no_melo["localmelo_sha"] is None
 
 
 # --- S-cua ---

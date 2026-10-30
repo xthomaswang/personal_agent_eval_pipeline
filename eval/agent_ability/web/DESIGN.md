@@ -63,6 +63,10 @@ Options of `run.py`:
 - `--questions`: pilot ids, `easy`, `medium` or `all` (default `all`);
 - `--localmelo`: the clone; default `eval/agent_ability/e3/vendor/localmelo-a9fb42b`, whose commit is pinned and
   whose tree must be clean;
+- `--localmelo-sha` (default the pinned commit; a prefix of 7 digits or more) and `--localmelo-args "<shell-quoted
+  flags>"`, for a localmelo-only A/B: the commit preflight expects of the `--localmelo` clone, and flags appended to
+  every localmelo cell after the arm's own (never `--mcp`, `--mcp-only`, `-o`, `-m`, `-u` or `--`); both are part of
+  the study's identity, so a resume with other values is refused as a changed study;
 - `--base-url`: the model endpoint, `http://host:port/v1` (default: the bench manifest's);
 - `--model`: the model id (default `Qwen3.8-Flash-Next-oQ4e-mtp`). It reaches Hermes's config and localmelo's
   `--chat-model` through `bench.harness.MODEL`, and Claude Code through its per-run copies (section 5);

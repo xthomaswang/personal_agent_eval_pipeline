@@ -26,7 +26,8 @@ Per harness:
   and ``model.supports_vision: true``, which make Hermes hand a tool's screenshot to the model as an image.
 - localmelo: flags for ``bench.harness.run(harness_args=...)``, which puts them before the ``--`` that precedes the
   prompt: ``--mcp <mcp.json> --mcp-only -o json``, and ``-X agent.tool_images=on`` for the screenshot arms, which sends
-  the pictures a tool returns to the model.
+  the pictures a tool returns to the model. A localmelo-only A/B adds its own flags after these (``--localmelo-args``;
+  ``check_localmelo_extra`` refuses the ones the arms set) and may pin another commit (``--localmelo-sha``).
 
 The model id reaches the three harnesses through ``bench.harness.MODEL`` (Hermes's config and localmelo's
 ``--chat-model``; run.py sets it for the study) and, for Claude Code, through the per-run env and settings copies.
@@ -41,6 +42,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -85,6 +87,13 @@ LOCALMELO = AGENT_ABILITY / "e3" / "vendor" / "localmelo-a9fb42b"
 LOCALMELO_SHA = "a9fb42b6633f6da8a887b3a65bdb092f8f2c4605"
 LOCALMELO_COMMON_ARGS = ("--mcp-only", "-o", "json")  # --mcp <file> goes in front of these
 LOCALMELO_IMAGE_ARGS = ("-X", "agent.tool_images=on")  # the screenshot arms
+# What the arms and bench.harness set for localmelo, in every spelling its parser takes (melo's __main__ lists them):
+# the MCP config, the output format, the model and the endpoint. --localmelo-args may not repeat them.
+LOCALMELO_OWN_LONG = (
+    "--mcp", "--mcp-config", "--mcp-only", "--output-format", "--output",
+    "--chat-model", "--model", "--base-url", "--url",
+)  # fmt: skip
+LOCALMELO_OWN_SHORT = ("-o", "-m", "-u")
 
 Builder = adapters.Builder
 
@@ -189,10 +198,39 @@ def mcp_config(arm: str, run_dir: Path, browser_url: str | None, **browser: Any)
     return {"mcpServers": {SERVER: {"type": "stdio", **server_spec(arm, run_dir, browser_url, **browser)}}}
 
 
-def localmelo_args(arm: str, mcp_json: Path) -> tuple[str, ...]:
-    """localmelo's flags for ``harness.run(harness_args=...)``."""
+def check_localmelo_extra(flags: Sequence[str]) -> tuple[str, ...]:
+    """The extra localmelo flags of a study, or a ``ValueError`` naming one that collides with what the arms set.
+
+    A long flag collides when it is one of ``LOCALMELO_OWN_LONG``, with or without ``=value``, or an abbreviation of one
+    (argparse takes ``--chat`` for ``--chat-model``); a short one when it starts with ``-o``, ``-m`` or ``-u``
+    (``-ojson`` is ``-o json``). A bare ``--`` would end the options before the prompt that bench.harness puts after
+    its own.
+    """
+    for flag in flags:
+        if flag == "--":
+            raise ValueError("localmelo extra flags cannot contain `--`: bench.harness puts it before the task text")
+        own = None
+        if flag.startswith("--"):
+            name = flag.split("=", 1)[0]
+            own = next((o for o in LOCALMELO_OWN_LONG if o.startswith(name)), None)
+        elif flag[:2] in LOCALMELO_OWN_SHORT:
+            own = flag[:2]
+        if own:
+            raise ValueError(f"localmelo extra flag {flag!r} collides with {own}, which the arms or bench.harness set")
+    return tuple(flags)
+
+
+def parse_localmelo_extra(text: str) -> tuple[str, ...]:
+    """``--localmelo-args``: shell-quoted flags, split like a shell would and checked."""
+    return check_localmelo_extra(shlex.split(text))
+
+
+def localmelo_args(arm: str, mcp_json: Path, extra: Sequence[str] = ()) -> tuple[str, ...]:
+    """localmelo's flags for ``harness.run(harness_args=...)``: the arm's own, then ``extra`` (``--localmelo-args``)."""
     args = ("--mcp", str(mcp_json), *LOCALMELO_COMMON_ARGS)
-    return args + LOCALMELO_IMAGE_ARGS if arm in IMAGE_ARMS else args
+    if arm in IMAGE_ARMS:
+        args += LOCALMELO_IMAGE_ARGS
+    return args + tuple(extra)
 
 
 @dataclass(frozen=True)
@@ -474,14 +512,16 @@ def overrides(
     cua_bin: str | Path | None = None,
     model: str = DEFAULT_MODEL,
     claude_bin: Path = CLAUDE_BIN,
+    localmelo_extra: Sequence[str] = (),
 ) -> Iterator[Plan]:
     """Swap in the arm's builder for one run, then restore every original. Yields the run's ``Plan``.
 
     Claude Code and Hermes get a wrapped builder; Claude Code also gets ``CLAUDE_ENV`` pointed at a per-run copy of
     claude-code.env (``<run_dir>/claude-code.env``, with the binary and the model replaced and checked) and a home
-    whose settings.json names ``model``. localmelo's builder stays as it is: its flags are the plan's ``harness_args``,
-    and its MCP config is written to ``<run_dir>/mcp.json``. The model id itself reaches Hermes and localmelo through
-    ``harness_module.MODEL``, which run.py sets for the study.
+    whose settings.json names ``model``. localmelo's builder stays as it is: its flags are the plan's ``harness_args``
+    (the arm's, then ``localmelo_extra``; no other harness gets them), and its MCP config is written to
+    ``<run_dir>/mcp.json``. The model id itself reaches Hermes and localmelo through ``harness_module.MODEL``, which
+    run.py sets for the study.
     """
     if harness not in HARNESSES:
         raise ValueError(f"unknown harness {harness!r}; choose from {', '.join(HARNESSES)}")
@@ -502,7 +542,7 @@ def overrides(
             mcp_json = run_dir / "mcp.json"
             config = mcp_config(arm, run_dir, browser_url, chrome_pid=chrome_pid, cua_bin=cua_bin)
             mcp_json.write_text(json.dumps(config, indent=2) + "\n")
-            plan = Plan(harness, arm, server, localmelo_args(arm, mcp_json), mcp_json)
+            plan = Plan(harness, arm, server, localmelo_args(arm, mcp_json, localmelo_extra), mcp_json)
         yield plan
     finally:
         harness_module.BUILDERS.clear()
@@ -527,7 +567,10 @@ def localmelo_sha(localmelo: Path) -> str:
 
 
 def localmelo_problems(localmelo: Path, expect_sha: str = LOCALMELO_SHA) -> list[str]:
-    """A localmelo checkout other than the pinned commit, or one with uncommitted changes, makes the study invalid."""
+    """A localmelo checkout other than ``expect_sha`` (the pinned commit, or a ``--localmelo-sha``), or one with
+    uncommitted changes, makes the study invalid."""
+    if not re.fullmatch(r"[0-9a-f]{7,40}", expect_sha):
+        return [f"--localmelo-sha {expect_sha!r} is not 7 to 40 lowercase hex digits"]
     sha = localmelo_sha(localmelo)
     if not sha.startswith(expect_sha):
         return [f"localmelo at {localmelo} is {sha or 'not a git checkout'}, not {expect_sha}"]
@@ -561,6 +604,6 @@ def mcp_versions() -> dict[str, str | None]:
     return {"pinned": pinned, "installed": have}
 
 
-def harness_arg_templates(arm_names: Sequence[str]) -> dict[str, list[str]]:
+def harness_arg_templates(arm_names: Sequence[str], extra: Sequence[str] = ()) -> dict[str, list[str]]:
     """localmelo's flags per arm with the config file left as ``<mcp.json>``: the shape a plan or a checkpoint records."""
-    return {arm: list(localmelo_args(arm, Path("<mcp.json>"))) for arm in arm_names}
+    return {arm: list(localmelo_args(arm, Path("<mcp.json>"), extra)) for arm in arm_names}

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import queue
+import shlex
 import stat
 import subprocess
 import sys
@@ -516,6 +517,57 @@ def test_the_flag_templates_for_a_checkpoint() -> None:
     }
 
 
+EXTRA = ("-X", "agent.reflection_gate=patient", "-X", "agent.answer_on_stop=on")
+
+
+@pytest.mark.parametrize("arm", arms.ARMS)
+def test_extra_localmelo_flags_come_after_the_arms_own(arm: str) -> None:
+    own = arms.localmelo_args(arm, Path("m.json"))
+    assert arms.localmelo_args(arm, Path("m.json"), EXTRA) == (*own, *EXTRA)
+    assert arms.localmelo_args(arm, Path("m.json"), ()) == own
+
+
+def test_extra_localmelo_flags_are_in_the_templates_of_a_checkpoint() -> None:
+    plain = arms.harness_arg_templates(("D", "S", "C"))
+    extended = arms.harness_arg_templates(("D", "S", "C"), EXTRA)
+    assert extended == {arm: [*flags, *EXTRA] for arm, flags in plain.items()}
+    assert extended["S"][:7] == ["--mcp", "<mcp.json>", "--mcp-only", "-o", "json", "-X", "agent.tool_images=on"]
+
+
+def test_localmelo_args_text_is_split_like_a_shell() -> None:
+    assert arms.parse_localmelo_extra("-X agent.reflection_gate=patient -X 'agent.note=two words'") == (
+        "-X", "agent.reflection_gate=patient", "-X", "agent.note=two words",
+    )  # fmt: skip
+    assert arms.parse_localmelo_extra("") == () == arms.parse_localmelo_extra("  ")
+    with pytest.raises(ValueError, match="quotation"):
+        arms.parse_localmelo_extra("-X 'agent.note=open")
+
+
+@pytest.mark.parametrize(
+    "flag",
+    [
+        "--mcp", "--mcp=x.json", "--mcp-config", "--mcp-only", "--mc",
+        "-o", "-ojson", "--output-format", "--output-format=text", "--output",
+        "-m", "-mOther-Model", "--chat-model", "--chat-model=Other-Model", "--model",
+        "-u", "-uhttp://127.0.0.1:1/v1", "--base-url", "--base-url=http://127.0.0.1:1/v1", "--url",
+        "--",
+    ],
+)  # fmt: skip
+def test_flags_the_arms_set_are_refused(flag: str) -> None:
+    for text in (shlex.quote(flag), f"-X agent.a=b {shlex.quote(flag)}"):
+        with pytest.raises(ValueError, match=r"collides|cannot contain"):
+            arms.parse_localmelo_extra(text)
+    with pytest.raises(ValueError):
+        arms.check_localmelo_extra([flag])
+
+
+@pytest.mark.parametrize(
+    "flags", [["-X", "agent.model=other"], ["--max-steps=5"], ["--tool-exposure", "full"], ["-t", "60"]]
+)
+def test_other_flags_pass(flags: list[str]) -> None:
+    assert arms.check_localmelo_extra(flags) == tuple(flags)
+
+
 @needs_bench
 @pytest.mark.parametrize("arm", ["D", "S", "C"])
 def test_localmelo_flags_land_before_the_double_dash(arm: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -525,10 +577,11 @@ def test_localmelo_flags_land_before_the_double_dash(arm: str, tmp_path: Path, m
     run_dir = tmp_path / "run"
     run_dir.mkdir()
     cmd, _ = harness._localmelo("the task", run_dir, "http://127.0.0.1:43210", 40)
-    args = arms.localmelo_args(arm, run_dir / "mcp.json")
+    args = arms.localmelo_args(arm, run_dir / "mcp.json", EXTRA)
     full = harness._with_harness_args(cmd, "the task", args)
     assert full[-2:] == ["--", "the task"]
     assert full[full.index("--") - len(args) : full.index("--")] == list(args)
+    assert full[full.index("--") - len(EXTRA) : full.index("--")] == list(EXTRA)  # the last flags before the prompt
     assert "--mcp-only" in full[: full.index("--")]
 
 
@@ -567,6 +620,28 @@ def test_localmelo_gets_its_flags_and_a_config_file_and_its_builder_stays(tmp_pa
         assert json.loads(plan.mcp_json.read_text()) == arms.mcp_config("S", run_dir, URL)
         assert plan.server == arms.server_spec("S", run_dir, URL)
     assert dict(harness.BUILDERS) == before
+
+
+@needs_bench
+@pytest.mark.parametrize("arm", arms.DEFAULT_ARMS)
+def test_extra_flags_reach_the_localmelo_plan_of_every_arm_and_no_other_harness(
+    arm: str, tmp_path: Path, nvm: Path, claude_files: SimpleNamespace
+) -> None:
+    from bench import harness
+
+    before = dict(harness.BUILDERS)
+    for name in arms.HARNESSES:
+        run_dir = tmp_path / name
+        with arms.overrides(
+            harness, name, arm, run_dir=run_dir, browser_url=URL, claude_bin=claude_files.binary, localmelo_extra=EXTRA
+        ) as plan:
+            if name == "localmelo":
+                assert plan.harness_args == (*arms.localmelo_args(arm, run_dir / "mcp.json"), *EXTRA)
+                assert plan.harness_args[-len(EXTRA) :] == EXTRA
+            else:
+                assert plan.harness_args == () and plan.mcp_json is None
+                assert not any(flag in json.dumps(plan.server) for flag in EXTRA[1::2])
+    assert harness.BUILDERS == before
 
 
 @needs_bench
@@ -610,6 +685,28 @@ def test_localmelo_is_pinned_like_e3(tmp_path: Path, monkeypatch: pytest.MonkeyP
 
     answers[("rev-parse", "HEAD")] = ""
     assert "not a git checkout" in arms.localmelo_problems(tmp_path)[0]
+
+
+def test_a_checkout_at_another_commit_is_refused_and_a_prefix_is_enough(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    other = "5fa22ee" + "1" * 33
+    answers: dict[tuple[str, ...], str] = {("rev-parse", "HEAD"): other, ("status", "--porcelain"): ""}
+    monkeypatch.setattr(arms, "_git", lambda repo, *args: answers.get(args, ""))
+    assert arms.localmelo_problems(tmp_path, other) == []
+    assert arms.localmelo_problems(tmp_path, other[:7]) == []  # the sha7 of the checkout's directory name
+    problem = arms.localmelo_problems(tmp_path)[0]  # the pinned default
+    assert "5fa22ee" in problem and f"not {arms.LOCALMELO_SHA}" in problem
+    assert "not a9fb42b" in arms.localmelo_problems(tmp_path, "a9fb42b")[0]
+    answers[("status", "--porcelain")] = " M melo/agent/agent.py"
+    assert "uncommitted changes" in arms.localmelo_problems(tmp_path, other[:7])[0]
+
+
+@pytest.mark.parametrize("sha", ["", "a9fb42", "A9FB42B", "a9fb42b" + "0" * 34, "not-a-sha"])
+def test_a_malformed_sha_is_refused_not_matched(sha: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    answers = {("rev-parse", "HEAD"): arms.LOCALMELO_SHA, ("status", "--porcelain"): ""}
+    monkeypatch.setattr(arms, "_git", lambda repo, *args: answers.get(args, ""))
+    assert "7 to 40 lowercase hex" in arms.localmelo_problems(tmp_path, sha)[0]  # "" would match every checkout
 
 
 def test_missing_node_and_the_missing_child_are_reported_for_d_and_s_only(
