@@ -1,0 +1,420 @@
+# The pilot set of the web search suite: 24 rows of SimpleQA Verified, 12 easy and 12 medium, pinned by
+# original_index. Dataset fields are copied from the CSV at the pinned revision; data.py checks them against it
+# when the CSV is in the Hugging Face cache (fetch.py downloads it).
+#
+# Hand-set fields, per row:
+#   tier        easy or medium
+#   kind        how score.py compares: number, year, date, string or list
+#   aliases     extra answers that count as correct, added only where a correct short answer would fail the gold
+#               (identifiers such as 3352 and 3635 are strings, because a number tolerance would accept a
+#               neighbouring alloy or order number)
+#   unordered   lists only: the order of the elements does not matter
+
+source:
+  dataset: google/simpleqa-verified
+  file: simpleqa_verified.csv
+  revision: 0dc97e0d28d8233463e005cdc4475cc2a13ba2dc
+  csv_sha256: b5db21155444763543fe31b67e7cf28ce2bb225742a5b889421c5f182e2f92f5
+  paper: https://arxiv.org/abs/2509.07968
+  license: MIT
+  license_notice: SimpleQA Verified is distributed under the MIT License (the license field of the dataset card
+    of google/simpleqa-verified). The problem, answer, topic, answer_type, multi_step, requires_reasoning and urls
+    fields of each row below are copied from the dataset unchanged. The fields original_index (the row id in the
+    dataset), tier, kind, aliases and unordered are this suite's own.
+  citation: |
+    @misc{haas2025simpleqaverifiedreliablefactuality,
+      title={SimpleQA Verified: A Reliable Factuality Benchmark to Measure Parametric Knowledge},
+      author={Lukas Haas and Gal Yona and Giovanni D'Antonio and Sasha Goldshtein and Dipanjan Das},
+      year={2025},
+      eprint={2509.07968},
+      archivePrefix={arXiv},
+      primaryClass={cs.CL},
+      url={https://arxiv.org/abs/2509.07968},
+    }
+rows:
+- original_index: 3503
+  tier: easy
+  kind: string
+  problem: What is the name and surname of the former President of South Africa who received a state funeral when
+    he died on January 4, 2007?
+  answer: Marais Viljoen
+  aliases: []
+  topic: Politics
+  answer_type: Person
+  multi_step: false
+  requires_reasoning: false
+  urls:
+  - https://www.gov.za/news/media-programme-funeral-former-state-president-m-viljoen-10-jan-2007
+  - https://www.gov.za/news/p-mlambo-ngcuka-attend-funeral-former-state-president-m-viljoen-13-jan-06-jan-2007
+  - https://en.wikipedia.org/wiki/Marais_Viljoen
+- original_index: 1337
+  tier: easy
+  kind: string
+  problem: What is the name of the zoologist who formally described the brown cuckoo-dove in 1821?
+  answer: Coenraad Jacob Temminck
+  aliases:
+  - Coenraad Temminck
+  - C. J. Temminck
+  - Temminck
+  topic: Science and technology
+  answer_type: Person
+  multi_step: false
+  requires_reasoning: false
+  urls:
+  - https://en.wikipedia.org/wiki/Brown_cuckoo-dove
+  - https://apps.des.qld.gov.au/species-search/details/?id=1791
+  - https://www.inaturalist.org/taxa/144551-Macropygia-phasianella
+- original_index: 3531
+  tier: easy
+  kind: string
+  problem: Which Prime Minister of Italy was named 'Iron Baron'?
+  answer: Bettino Ricasoli
+  aliases:
+  - Baron Bettino Ricasoli
+  - Ricasoli
+  topic: Politics
+  answer_type: Person
+  multi_step: false
+  requires_reasoning: false
+  urls:
+  - https://en.wikipedia.org/wiki/Bettino_Ricasoli
+  - https://dobianchi.com/2009/06/06/what-would-the-iron-baron-ricasoli-say-if-he-were-alive-today/
+  - https://www.ethicawines.com/cantine/ricasoli/
+- original_index: 3010
+  tier: easy
+  kind: string
+  problem: From which university did Louise M. Antony (American philosopher) receive her bachelor's degree in philosophy?
+  answer: Syracuse University
+  aliases:
+  - Syracuse
+  topic: Other
+  answer_type: Place
+  multi_step: false
+  requires_reasoning: false
+  urls:
+  - https://www.amherst.edu/news/news_releases/2003/10_2003/node/9417
+  - https://en.wikipedia.org/wiki/Louise_Antony
+  - https://www.umass.edu/philosophy/about/directory/louise-antony
+- original_index: 3561
+  tier: easy
+  kind: string
+  problem: Nilgai is widely seen as the state animal of which Union Territory of India?
+  answer: Delhi
+  aliases:
+  - NCT of Delhi
+  - National Capital Territory of Delhi
+  topic: Geography
+  answer_type: Place
+  multi_step: false
+  requires_reasoning: false
+  urls:
+  - https://www.careerpower.in/state-animals-in-india.html
+  - https://unacademy.com/content/general-awareness/list-of-indian-state-animals/
+  - https://en.wikipedia.org/wiki/List_of_Indian_state_animals
+  - https://en.wikipedia.org/wiki/List_of_Indian_state_symbols
+- original_index: 302
+  tier: easy
+  kind: string
+  problem: In what district was the English songwriter Robert Patrick Weston born?
+  answer: Islington
+  aliases:
+  - Islington, London
+  - London Borough of Islington
+  topic: Music
+  answer_type: Place
+  multi_step: false
+  requires_reasoning: false
+  urls:
+  - https://alchetron.com/R-P-Weston
+  - https://wikiroulette.co/?p=R._P._Weston
+  - https://music.metason.net/artistinfo?name=Robert%20Patrick%20Weston
+  - https://en.wikipedia.org/wiki/R._P._Weston
+- original_index: 3181
+  tier: easy
+  kind: number
+  problem: How many players on the Winnipeg Falcons hockey team died in WWI?
+  answer: '2'
+  aliases: []
+  topic: Sports
+  answer_type: Number
+  multi_step: false
+  requires_reasoning: false
+  urls:
+  - https://valourcanada.ca/military-history-library/winnipeg-falcons-champions/
+  - https://en.wikipedia.org/wiki/Winnipeg_Falcons
+  - https://parks.canada.ca/culture/designation/evenement-event/winnipeg-falcons
+  - https://globalnews.ca/news/1659197/olympic-hockey-heroes-honoured-in-war-themed-heritage-minute/
+- original_index: 3635
+  tier: easy
+  kind: string
+  problem: What is the number of the executive order that created the Federal Theatre Project?
+  answer: '7034'
+  aliases:
+  - Executive Order 7034
+  - Executive Order No. 7034
+  - EO 7034
+  topic: Politics
+  answer_type: Number
+  multi_step: false
+  requires_reasoning: false
+  urls:
+  - https://www.loc.gov/collections/federal-theatre-project-1935-to-1939/articles-and-essays/wpa-federal-theatre-project/
+  - https://sign.moveon.org/petitions/reestablish-federal-theatre-project
+  - https://fraser.stlouisfed.org/author/united-states-works-progress-administration
+  - https://www.loc.gov/collections/federal-theatre-project-1935-to-1939/about-this-collection/
+- original_index: 2923
+  tier: easy
+  kind: year
+  problem: In what year was Glipodes dietrichi described by Franciscolo?
+  answer: '1962'
+  aliases: []
+  topic: Science and technology
+  answer_type: Date
+  multi_step: false
+  requires_reasoning: false
+  urls:
+  - https://en.wikipedia.org/wiki/Glipodes_dietrichi
+  - https://en.wikipedia.org/wiki/Glipodes
+  - https://www.gbif.org/species/7003367
+- original_index: 3372
+  tier: easy
+  kind: year
+  problem: What year was the alabaster sculpture known as the "Teotihuacan Ocelot" found?
+  answer: '1889'
+  aliases: []
+  topic: Art
+  answer_type: Date
+  multi_step: false
+  requires_reasoning: false
+  urls:
+  - https://en.wikipedia.org/wiki/Teotihuacan_Ocelot
+  - https://artsandculture.google.com/asset/calcite-onyx-ritual-container-in-the-form-of-a-feline/HAG5aOKpLtNKkw?hl=en
+- original_index: 1442
+  tier: easy
+  kind: string
+  problem: What's the first typhoon of the 2019 Pacific typhoon season called?
+  answer: Wutip
+  aliases:
+  - Typhoon Wutip
+  topic: Geography
+  answer_type: Other
+  multi_step: false
+  requires_reasoning: false
+  urls:
+  - https://en.wikipedia.org/wiki/Typhoon_Wutip_(2019)
+  - https://en.wikipedia.org/wiki/2019_Pacific_typhoon_season
+  - https://www.wunderground.com/cat6/Early-Start-2019-Typhoon-Season-Category-2-Wutip-Heads-Towards-Guam
+- original_index: 3538
+  tier: easy
+  kind: list
+  problem: According to Georg Wilhelm Friedrich Hegel, what are the three Romantic arts?
+  answer: Painting, music, and poetry.
+  aliases:
+  - Painting, music, poetry
+  - Painting, music and poetry
+  unordered: true
+  topic: Art
+  answer_type: Other
+  multi_step: false
+  requires_reasoning: false
+  urls:
+  - https://en.wikipedia.org/wiki/Painting
+  - https://www.marxists.org/reference/archive/hegel/works/ae/ch03.htm
+  - https://faculty.fiu.edu/~harrisk/Notes/Aesthetics/1238%20PHI3800%20Sequential%20Lectures/PHI3800%20Lecture%2012%20-%20Hegel's%20Romantic%20Theory%20of%20Art%20and%20Rejection%20of%20Dance.htm
+  - https://en.wikipedia.org/wiki/Lectures_on_Aesthetics
+- original_index: 1934
+  tier: medium
+  kind: string
+  problem: Name the person who became the president of Entertainment at Fox Broadcasting in September 1995 but left
+    Fox in 1996 and soon became the president of HBO.
+  answer: John Matoian
+  aliases: []
+  topic: TV shows
+  answer_type: Person
+  multi_step: true
+  requires_reasoning: false
+  urls:
+  - https://en.wikipedia.org/wiki/Fox_Broadcasting_Company
+  - https://en.wikipedia.org/wiki/John_Matoian
+  - https://prabook.com/web/john.matoian/2232303
+  - https://armenianbd.com/news/view/john-matoian.html
+- original_index: 378
+  tier: medium
+  kind: string
+  problem: Who was Ghana's Minister of Information at the time of the Kulungugu bomb attack?
+  answer: Tawia Adamafio
+  aliases: []
+  topic: Politics
+  answer_type: Person
+  multi_step: true
+  requires_reasoning: false
+  urls:
+  - https://time.com/archive/6626385/ghana-dealing-with-enemies/
+  - https://en.wikipedia.org/wiki/Kulungugu_bomb_attack
+  - https://www.ghanacelebrities.com/2020/08/01/today-in-history-exactly-58-years-ago-today-kwame-nkrumah-survives-a-deadly-bomb-attack-in-kulungugu/
+- original_index: 2146
+  tier: medium
+  kind: string
+  problem: What was the name and surname of the judge in the 'Miss World' pageant of 1958, who was a photojournalist
+    and editor?
+  answer: Charles Jacobs
+  aliases: []
+  topic: Other
+  answer_type: Person
+  multi_step: true
+  requires_reasoning: false
+  urls:
+  - https://en.wikipedia.org/wiki/Miss_World_1958
+  - https://rodriguezmatute.home.blog/2019/11/24/miss-world-1958/
+- original_index: 1963
+  tier: medium
+  kind: string
+  problem: Which city was the first in the Southern Hemisphere and the second in the world after Philadelphia, Pennsylvania,
+    in the United States to integrate electric street lights into its infrastructure?
+  answer: Kimberley
+  aliases:
+  - Kimberley, South Africa
+  - Kimberley, Northern Cape
+  topic: Geography
+  answer_type: Place
+  multi_step: true
+  requires_reasoning: true
+  urls:
+  - https://en.wikipedia.org/wiki/Street_light
+  - https://www.kimberley.org.za/wiki/
+  - https://en.wikipedia.org/wiki/Kimberley
+- original_index: 2849
+  tier: medium
+  kind: string
+  problem: Which village in Ontario was first settled in 1824 by Mr. A. Hurd, and had the Post Office established
+    in 1836, with Mr. J. Leach being the first Postmaster, according to "Conner & Coltson's Directory of the County
+    of Ontario for 1869-70"?
+  answer: Prince Albert.
+  aliases:
+  - Prince Albert
+  - Prince Albert, Ontario
+  topic: Geography
+  answer_type: Place
+  multi_step: true
+  requires_reasoning: false
+  urls:
+  - https://www.canadiana.ca/view/oocihm.33815/74
+  - https://freepages.rootsweb.com/~wjmartin/genealogy/ontario.htm
+- original_index: 1608
+  tier: medium
+  kind: number
+  problem: How many birthdays did "Granny D" Haddock have during her famous cross-country walk that began in California
+    in 1999?
+  answer: '2'
+  aliases: []
+  topic: Politics
+  answer_type: Number
+  multi_step: false
+  requires_reasoning: true
+  urls:
+  - https://en.wikipedia.org/wiki/Doris_Haddock
+  - https://www.democracynow.org/2010/3/11/dorris_granny_d_haddock_1910_2010
+  - https://americanswhotellthetruth.org/portraits/doris-granny-d-haddock/
+- original_index: 2783
+  tier: medium
+  kind: number
+  problem: For how many years was the original Omsund Bridge in Kristiansund, Norway, in use?
+  answer: '41'
+  aliases: []
+  topic: Geography
+  answer_type: Number
+  multi_step: false
+  requires_reasoning: true
+  urls:
+  - https://en.wikipedia.org/wiki/Omsund_Bridge
+  - https://en-academic.com/dic.nsf/enwiki/1288382
+  - '''https://en.wikipedia.org/wiki/Omsund_Bridge'''
+- original_index: 323
+  tier: medium
+  kind: number
+  problem: How many years was the attraction Horizons at EPCOT sponsored by General Electric?
+  answer: '10'
+  aliases: []
+  topic: Other
+  answer_type: Number
+  multi_step: false
+  requires_reasoning: true
+  urls:
+  - https://en.wikipedia.org/wiki/Horizons_(Epcot)
+  - https://d23.com/a-to-z/horizons/
+  - https://www.horizons1.com/history.htm
+- original_index: 3157
+  tier: medium
+  kind: year
+  problem: In which year did Jamia win its first gold and silver medals in wrestling at the All India Inter University
+    Championship?
+  answer: '1977'
+  aliases: []
+  topic: Sports
+  answer_type: Date
+  multi_step: true
+  requires_reasoning: false
+  urls:
+  - https://jmicoe.in/pdf24/REVISED%20PROSPECTUS%202024-25%20(19.02.2024)_Final%20(2).pdf
+  - https://jmi.ac.in/ACADEMICS/Games-&-Sports/Introduction
+  - https://en.wikipedia.org/wiki/Jamia_Millia_Islamia
+- original_index: 1059
+  tier: medium
+  kind: string
+  problem: What was the name of the pre-2000s band with which the author of *Batman R.I.P.* toured and recorded?
+  answer: The Mixers
+  aliases: []
+  topic: Music
+  answer_type: Other
+  multi_step: true
+  requires_reasoning: false
+  urls:
+  - https://www.eruditorumpress.com/blog/last-war-in-albion-book-two-chapter-eleven-by-another-mans-look-upon-my-works-ye-mighty
+  - https://en.wikipedia.org/wiki/Grant_Morrison
+  - https://www.discogs.com/artist/453013-The-Mixers
+- original_index: 69
+  tier: medium
+  kind: string
+  problem: What position was Everton in when Rafael Benítez was sacked in the 2021-22 Premier League season?
+  answer: 15th place
+  aliases:
+  - 15th
+  - '15'
+  - 15th position
+  - fifteenth
+  - fifteenth place
+  topic: Sports
+  answer_type: Other
+  multi_step: true
+  requires_reasoning: false
+  urls:
+  - https://www.espn.com/soccer/story/_/id/37624476/rafa-benitez-everton-six-months-charge
+  - https://en.wikipedia.org/wiki/Rafael_Ben%C3%ADtez
+  - https://en.wikipedia.org/wiki/2021%E2%80%9322_Premier_League
+- original_index: 3352
+  tier: medium
+  kind: string
+  problem: In the paper "Aluminium Metal Matrix Composites – A Review," which alloy of aluminium was evaluated for
+    physical properties by Mahendra Boopathi M. et al.?
+  answer: 2,024
+  aliases:
+  - '2024'
+  - Al 2024
+  - AA 2024
+  - 2024 alloy
+  - Al 2024 alloy
+  - Aluminium 2024
+  - Aluminum 2024
+  - Aluminium alloy 2024
+  - Aluminum alloy 2024
+  - 2024 aluminium alloy
+  - 2024 aluminum alloy
+  topic: Science and technology
+  answer_type: Other
+  multi_step: true
+  requires_reasoning: false
+  urls:
+  - https://www.researchgate.net/publication/319901238_Aluminium_Metal_Matrix_Composites_-_A_Review'
+  - https://thescipub.com/abstract/10.3844/ajassp.2013.219.229
+  - https://scholar.google.co.in/citations?view_op=view_citation&hl=en&user=E7mW770AAAAJ&citation_for_view=E7mW770AAAAJ:u-x6o8ySG0sC
+  - https://thescipub.com/pdf/ajassp.2013.219.229.pdf
