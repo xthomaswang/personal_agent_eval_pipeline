@@ -119,6 +119,15 @@ def _hermes(prompt: str, run_dir: Path, base_url: str, max_turns: int) -> Comman
     return cmd, {"HERMES_HOME": str(home), "HERMES_DISABLE_LAZY_INSTALLS": "1"}
 
 
+def _accepts_no_save_session(repo: Path) -> bool:
+    """Whether the localmelo checkout at repo knows --no-save-session, i.e. its __main__.py names the option.
+    A checkout without a readable __main__.py is treated as one that does not know it."""
+    try:
+        return "--no-save-session" in (repo / "__main__.py").read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return False
+
+
 def _localmelo(prompt: str, run_dir: Path, base_url: str, max_turns: int) -> Command:
     # Direct mode has no turn limit of its own; its hard cap is 30 steps, plus the proxy's --max-steps.
     # Persisting memory per run gives history.db, whose steps table is localmelo's own step count.
@@ -127,10 +136,15 @@ def _localmelo(prompt: str, run_dir: Path, base_url: str, max_turns: int) -> Com
     # refuse it here so it cannot pass as a run.
     if not prompt.strip():
         raise ValueError("localmelo needs a non-blank task text")
+    # localmelo records each direct run as a worker session in the user's cache directory by default
+    # (since the release that added --no-save-session), and the bench opts out whenever the checkout
+    # knows the option.
+    opt_out = ["--no-save-session"] if _accepts_no_save_session(manifest.LOCALMELO_REPO) else []
     cmd = [
         str(manifest.LOCALMELO_REPO / ".venv" / "bin" / "melo"),
         "--base-url", f"{base_url}/v1",
         "--chat-model", MODEL,
+        *opt_out,
         "--", prompt,
     ]  # fmt: skip
     env = {"LOCALMELO_PERSIST_MEMORY": "1", "LOCALMELO_MEMORY_DIR": str(run_dir / "mem")}

@@ -42,12 +42,28 @@ def test_only_the_allowlist_is_exported_with_home_paths_rewritten(tmp_path: Path
         assert HOME not in path.read_text()
     summary = json.loads((dest / "summary.json").read_text())
     assert summary["workspace"] == "ws/aider__transpose"   # relative to its declared root (paths.portable)
-    assert summary["harness_report"]["run_record"]["config"]["memory_dir"] == "~/runs/x/mem"
+    assert summary["harness_report"]["run_record"]["config"] == {}  # memory_dir is not an allowlisted key
     calls = [json.loads(line) for line in (dest / "calls.jsonl").read_text().splitlines()]
     assert [c["call_index"] for c in calls] == [0, 1]  # the truncated record is dropped
     assert calls[0]["warnings"] == ["read ~/Developer/x"]
     assert (dest / "check.txt").read_text().startswith("rootdir: ~/runs/x/check")
     assert "in: ws/mcpmark__x\n" in (dest / "check.txt").read_text()
+
+
+def test_summary_config_keeps_only_the_allowlisted_localmelo_fields(tmp_path: Path) -> None:
+    run = tmp_path / "run"
+    run.mkdir()
+    config = {"memory_dir": f"{HOME}/runs/x/mem", "tools": ["installed-server"], "window_eviction": "lru",
+              "unknown_key": 1}
+    summary = {"exit_code": 0, "harness_report": {"steps": 3, "run_record": {"status": "stuck", "config": config}}}
+    (run / "summary.json").write_text(json.dumps(summary))
+    export.export_run(run, tmp_path / "out")
+    text = (tmp_path / "out" / "summary.json").read_text()
+    assert HOME not in text
+    exported = json.loads(text)
+    assert exported["harness_report"]["run_record"]["config"] == {"window_eviction": "lru"}
+    assert exported["harness_report"]["run_record"]["status"] == "stuck"
+    assert exported["exit_code"] == 0 and exported["harness_report"]["steps"] == 3
 
 
 def test_bodies_are_refused(tmp_path: Path) -> None:

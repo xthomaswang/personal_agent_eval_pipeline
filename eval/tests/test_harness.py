@@ -134,6 +134,41 @@ def test_localmelo_persists_memory_per_run(tmp_path: Path) -> None:
     assert env == {"LOCALMELO_PERSIST_MEMORY": "1", "LOCALMELO_MEMORY_DIR": str(tmp_path / "mem")}
 
 
+def _checkout(root: Path, main_py: str | None) -> Path:
+    """A localmelo checkout as the bench sees it: a root __main__.py, or none at all when main_py is None."""
+    root.mkdir(parents=True)
+    if main_py is not None:
+        (root / "__main__.py").write_text(main_py)
+    return root
+
+
+def test_localmelo_opts_out_of_session_recording_when_the_checkout_knows_the_option(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    checkout = _checkout(tmp_path / "localmelo", 'parser.add_argument("--no-save-session", action="store_true")\n')
+    monkeypatch.setattr(harness.manifest, "LOCALMELO_REPO", checkout)
+
+    cmd, _ = harness._localmelo("-do it", tmp_path, "http://127.0.0.1:43210", 30)
+
+    assert cmd[-5:] == ["--chat-model", harness.MODEL, "--no-save-session", "--", "-do it"]
+
+
+@pytest.mark.parametrize(
+    "main_py",
+    [pytest.param("parser.add_argument('--chat-model')\n", id="older-checkout"), pytest.param(None, id="no-main")],
+)
+def test_localmelo_older_checkout_gets_no_session_flag(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, main_py: str | None
+) -> None:
+    checkout = _checkout(tmp_path / "localmelo", main_py)
+    monkeypatch.setattr(harness.manifest, "LOCALMELO_REPO", checkout)
+
+    cmd, _ = harness._localmelo("-do it", tmp_path, "http://127.0.0.1:43210", 30)
+
+    assert "--no-save-session" not in cmd
+    assert cmd[-2:] == ["--", "-do it"]
+
+
 @pytest.mark.parametrize("prompt", ["", "  \n"])
 def test_localmelo_refuses_a_blank_task(tmp_path: Path, prompt: str) -> None:
     with pytest.raises(ValueError, match="non-blank"):

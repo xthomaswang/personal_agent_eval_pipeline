@@ -10,6 +10,9 @@ after the fact is not a safe filter, so this module copies an allowlist instead:
                                      .../summary.json  bench.harness's summary
                                      .../check.txt     the checker's output
 
+Of localmelo's run config, summary.json keeps only the keys in LOCALMELO_CONFIG_FIELDS, so memory_dir and
+tools never reach the public repo.
+
 Every string is rewritten so a path names its declared root, not this machine (paths.portable: ws/<task>,
 eval/backend/..., models/...), and any other home path reads `~`; a calls.jsonl written with --log-bodies
 is refused. Never exported: prompt.md (its sha256 is in the row), manifest.json, stdout/stderr,
@@ -42,6 +45,14 @@ ROW_FIELDS = (
 CHECK_FIELDS = (
     "kind", "passed", "returncode", "timed_out", "duration_s", "detail",
     "tests_modified", "modified_test_files", "extra_files", "missing_solution_files",
+)  # fmt: skip
+
+# The localmelo run config keys that summary.json keeps (run_record.config in bench/harness.py).
+# memory_dir is a machine path and tools can name installed tool servers, so neither is kept.
+LOCALMELO_CONFIG_FIELDS = (
+    "max_steps", "attempt_policy", "steps_per_attempt", "max_attempts", "reflection_gate", "tool_exposure",
+    "mode", "builtins", "memory", "timeout_s", "window_eviction", "fixed_prefix", "reflect_tool_guard",
+    "cache_layout", "window_messages", "brief_items",
 )  # fmt: skip
 
 
@@ -118,6 +129,17 @@ def _export_calls(src: Path, dest: Path) -> None:
     _write_atomic(dest, text)
 
 
+def _allowlist_run_config(summary: Any) -> Any:
+    """summary with harness_report.run_record.config cut down to LOCALMELO_CONFIG_FIELDS.
+    Each level must exist and be a dict; anything else is returned unchanged."""
+    report = summary.get("harness_report") if isinstance(summary, dict) else None
+    record = report.get("run_record") if isinstance(report, dict) else None
+    config = record.get("config") if isinstance(record, dict) else None
+    if isinstance(config, dict):
+        record["config"] = {key: value for key, value in config.items() if key in LOCALMELO_CONFIG_FIELDS}
+    return summary
+
+
 def export_run(run_dir: Path, dest: Path) -> list[Path]:
     """Copy one harness run's allowlisted files from runs/ into results/; returns what was written."""
     written = []
@@ -125,7 +147,7 @@ def export_run(run_dir: Path, dest: Path) -> list[Path]:
         _export_calls(run_dir / "calls.jsonl", dest / "calls.jsonl")
         written.append(dest / "calls.jsonl")
     if (run_dir / "summary.json").exists():
-        summary = scrub(json.loads((run_dir / "summary.json").read_text()))
+        summary = scrub(_allowlist_run_config(json.loads((run_dir / "summary.json").read_text())))
         text = json.dumps(summary, indent=2, ensure_ascii=False) + "\n"
         _assert_clean(text, str(dest / "summary.json"))
         _write_atomic(dest / "summary.json", text)
