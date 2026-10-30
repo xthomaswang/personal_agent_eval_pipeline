@@ -107,6 +107,27 @@ def test_reflection_prompt_is_read_from_the_clone_source(clone: Path) -> None:
         e3_report.reflection_prompt(clone)
 
 
+def test_reflection_prompt_folds_concatenation_and_keeps_the_opening_shared_with_the_lean_prompt(clone: Path) -> None:
+    """A build with lean output builds both prompts from a shared intro; requests of either start with it."""
+    intro = "The current attempt has ended without a final answer. Reflect on it.\n"
+    source = (
+        f"_INTRO = (\n    {intro[:30]!r}\n    {intro[30:]!r}\n)\n"
+        "REFLECTION_PROMPT = _INTRO + (\n    '{\"summary\": ..., \"progress_made\": true/false}'\n)\n"
+        "LEAN_REFLECTION_PROMPT = _INTRO + '{\"summary\": ..., \"recommended_action\": ...}'\n"
+        "OTHER = len(_INTRO)\n"
+    )
+    (clone / "melo" / "agent" / "_chat.py").write_text(source)
+    shared = e3_report.reflection_prompt(clone)
+    assert shared.startswith(intro) and shared == intro + '{"summary": ..., "'
+    # without the lean prompt it is REFLECTION_PROMPT itself
+    (clone / "melo" / "agent" / "_chat.py").write_text(source.replace("LEAN_REFLECTION_PROMPT", "UNUSED"))
+    assert e3_report.reflection_prompt(clone) == intro + '{"summary": ..., "progress_made": true/false}'
+    # a prompt that is not a string expression is not found
+    (clone / "melo" / "agent" / "_chat.py").write_text("REFLECTION_PROMPT = build()\n")
+    with pytest.raises(ValueError):
+        e3_report.reflection_prompt(clone)
+
+
 @pytest.mark.parametrize(
     ("text", "readable"),
     [

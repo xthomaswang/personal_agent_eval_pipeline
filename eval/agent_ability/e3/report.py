@@ -31,6 +31,7 @@ from __future__ import annotations
 import argparse
 import ast
 import json
+import os
 import statistics
 import sys
 from collections.abc import Iterable, Sequence
@@ -53,15 +54,45 @@ UNREADABLE_MARGIN = 0.02
 PAIRED_METRICS = ("output_tokens", "uncached_tokens", "steps", "wall_s")
 
 
-def reflection_prompt(localmelo: Path) -> str:
-    """REFLECTION_PROMPT, read from the clone's source without importing it."""
-    tree = ast.parse((localmelo / PROMPT_SOURCE).read_text())
+# The reflection prompts of a clone; a build with lean output has a second one that shares the first one's opening
+PROMPT_NAMES = ("REFLECTION_PROMPT", "LEAN_REFLECTION_PROMPT")
+MIN_PROMPT_CHARS = 40
+
+
+def _module_strings(tree: ast.Module) -> dict[str, str]:
+    """The module's top-level names bound to a string: a literal, an earlier such name, or a + of those."""
+    strings: dict[str, str] = {}
+
+    def value(node: ast.expr) -> str | None:
+        if isinstance(node, ast.Constant) and isinstance(node.value, str):
+            return node.value
+        if isinstance(node, ast.Name):
+            return strings.get(node.id)
+        if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
+            left, right = value(node.left), value(node.right)
+            return left + right if left is not None and right is not None else None
+        return None
+
     for node in tree.body:
-        if isinstance(node, ast.Assign) and any(getattr(t, "id", None) == "REFLECTION_PROMPT" for t in node.targets):
-            value = ast.literal_eval(node.value)
-            if isinstance(value, str) and value:
-                return value
-    raise ValueError(f"REFLECTION_PROMPT not found in {localmelo / PROMPT_SOURCE}")
+        if isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
+            found = value(node.value)
+            if found is not None:
+                strings[node.targets[0].id] = found
+    return strings
+
+
+def reflection_prompt(localmelo: Path) -> str:
+    """What every reflection request of the clone starts with, read from its source without importing it:
+    REFLECTION_PROMPT, or, when the clone also has LEAN_REFLECTION_PROMPT (lean output), the opening the
+    two share."""
+    strings = _module_strings(ast.parse((localmelo / PROMPT_SOURCE).read_text()))
+    prompts = [strings[name] for name in PROMPT_NAMES if strings.get(name)]
+    if "REFLECTION_PROMPT" not in strings or not prompts:
+        raise ValueError(f"REFLECTION_PROMPT not found in {localmelo / PROMPT_SOURCE}")
+    shared = os.path.commonprefix(prompts)
+    if len(shared) < MIN_PROMPT_CHARS:
+        raise ValueError(f"the reflection prompts in {localmelo / PROMPT_SOURCE} share only {len(shared)} characters")
+    return shared
 
 
 def _text(content: Any) -> str:
