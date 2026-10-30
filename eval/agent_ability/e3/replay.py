@@ -15,6 +15,8 @@ interleave and a stopped replay has a similar count for every reflection. Each r
 - no_json: anything else;
 - error: the request failed (retried on the next run).
 
+A reply that is not readable is kept in full (`reply`), so a repair of it can be checked offline.
+
 The output file is appended to and read back on a rerun, so a stopped replay resumes. The operator takes the
 GPU lock and starts the server; this only checks that the lock is held by agent-benchmark. It stops before the
 next request when a STOP file is next to the output file, and after three failed requests in a row.
@@ -56,6 +58,17 @@ def classify(reply: dict[str, Any]) -> str:
     if not text.strip() and message.get("tool_calls"):
         return "tool_call"
     return "invalid" if "recommended_action" in text else "no_json"
+
+
+def full_reply(reply: dict[str, Any]) -> str:
+    """The reply as text: its content, then one line per tool call with the full arguments."""
+    message = ((reply.get("choices") or [{}])[0]).get("message") or {}
+    text = rp._text(message.get("content"))
+    lines = [text] if text else []
+    for call in message.get("tool_calls") or []:
+        fn = call.get("function") or {}
+        lines.append(f"[tool_call] {fn.get('name')}({str(fn.get('arguments') or '')})")
+    return "\n".join(lines)
 
 
 def _json(raw: tuple[bytes, str] | None) -> Any:
@@ -138,13 +151,15 @@ def replay(
             except (OSError, ValueError) as exc:  # urllib's errors are OSErrors; a bad JSON reply is a ValueError
                 reply, error = {}, f"{type(exc).__name__}: {exc}"
             choice = (reply.get("choices") or [{}])[0]
+            cls = "error" if error else classify(reply)
             row = {
                 **{k: item[k] for k in ("study", "run_id", "arm", "exercise", "body", "recorded")},
                 "repeat": repeat,
-                "class": "error" if error else classify(reply),
+                "class": cls,
                 "finish_reason": choice.get("finish_reason"),
                 "completion_tokens": (reply.get("usage") or {}).get("completion_tokens"),
                 "excerpt": None if error else rp.reply_excerpt(json.dumps(reply).encode(), "reply.json"),
+                "reply": None if cls in ("readable", "error") else full_reply(reply),
                 "seconds": round(time.monotonic() - started, 3),
                 "error": error,
             }

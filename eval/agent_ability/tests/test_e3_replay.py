@@ -151,6 +151,25 @@ def test_replay_is_repeat_major_and_resumes(tmp_path: Path) -> None:
     assert len(sent) == 3 and len(replay.load(out)) == 9
 
 
+def test_a_reply_that_is_not_readable_is_kept_in_full(tmp_path: Path) -> None:
+    items = replay.reflections(make_study(tmp_path), ("S0", "V64"), PROMPT)
+    out = tmp_path / "out" / "replies.jsonl"
+    out.parent.mkdir()
+    # It names the decision but never closes its JSON object: invalid, and longer than the 200-character excerpt.
+    truncated = "Here is my reflection: " + "the last attempt failed again. " * 8 + '{"recommended_action": "continue"'
+    # The excerpt keeps only 80 characters of the arguments; the reply keeps all of them.
+    arguments = json.dumps({"command": "ls " + "-l " * 80})
+    tool_calls = [{"function": {"name": "bash", "arguments": arguments}}]
+    post, _ = poster([completion(DECISION), completion(truncated), completion("", tool_calls)])
+    assert replay.replay(items, 1, out, "http://server/v1", post) is None
+    rows = replay.load(out)
+    assert [r["class"] for r in rows] == ["readable", "invalid", "tool_call"]
+    assert rows[0]["reply"] is None
+    assert len(truncated) > 200 and rows[1]["excerpt"] == truncated[:200]
+    assert rows[1]["reply"] == truncated
+    assert f"[tool_call] bash({arguments})" in rows[2]["reply"]
+
+
 def test_stop_file_and_failed_requests_stop_it_and_failures_are_retried(tmp_path: Path) -> None:
     items = replay.reflections(make_study(tmp_path), ("S0", "V64"), PROMPT)
     out = tmp_path / "out" / "replies.jsonl"
@@ -166,6 +185,7 @@ def test_stop_file_and_failed_requests_stop_it_and_failures_are_retried(tmp_path
     stopped = replay.replay(items, 2, out, "http://server/v1", post)
     assert stopped is not None and stopped.startswith("3 failed requests in a row")
     assert [r["class"] for r in replay.load(out)] == ["readable", "error", "error", "error"]
+    assert [r["reply"] for r in replay.load(out)] == [None] * 4
 
     post, sent = poster([completion("I would stop.")] * 5)
     assert replay.replay(items, 2, out, "http://server/v1", post) is None
