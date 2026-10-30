@@ -173,3 +173,68 @@ CPU-only checks (no oMLX or GPU lock required):
 ```sh
 nice -n 19 uv run python -I -m pytest memory/tests/test_d11.py
 ```
+
+## Memory across chats (`across/`)
+
+Does localmelo recall what you told it in another chat, and what does the recall cost? Four arms on one chat model:
+**M2** (plus an embedding model; BM25 and cosine fused), **L1** (the chat model alone picks from BM25 candidates),
+**B0** (BM25 only) and **N0** (memory off). The arms are the `ARMS` table in `across/run.py`, the `-X` settings each
+passes to `melo serve` (`memory.retriever=embedding|llm|bm25`, `memory.across_chats=false`). The study is pinned to
+localmelo **5f1498f4** (`--localmelo-sha` changes it); the preflight checks the sha, a clean tree, the settings
+(`melo config get`) and that the endpoint lists both models.
+
+Files: `data/tasks_v1.yaml` (43 fictional facts in EN and ZH, 60 questions: exact 20, paraphrase 15, crosslang 10,
+superseded 5, lookalike 5, nothing to recall 5), `data.py` (validator), `score.py` (grading, hit@k), `client.py`
+(console API), `server.py` (one `melo serve` per cell, model-server probes), `proxy.py` (timing proxy), `run.py`
+(driver), `report.py`.
+
+A **cell** is one arm in one repeat: a fresh HOME (own memory files, token and config; the real `~/.cache/localmelo`
+is never touched), `melo serve` on a free port with stdin closed and no browser, 43 teaching messages each in a new
+chat (an old value always before its replacement), then 60 questions each in a new chat, deleted once its answer is
+read so a question never feeds the next. Arms rotate across repeats (4 arms x 3 repeats = 12 cells of 103 turns).
+The last three teaching messages are long fillers on purpose: localmelo pins the newest "about" and "preferences"
+quotes (600 characters) into every chat's system prompt, and the fillers fill that window so no asked fact is pinned.
+The gateway config sets temperature 0 and thinking off (`--extra-body`). The model also has a `search_memory` tool;
+`turn.memory` reports only the automatic recall.
+
+**Two things the driver does to the chats.** When the chat model also tries to save a fact to a file, the tool call
+asks for approval and the turn stays `running` (this build adds a "kept" line to a stated fact's message and tells the
+model not to save it in a file; the report's first table, teaching turns that still asked for approval, checks that);
+the driver denies every approval request (`POST /api/approvals/{id}`,
+`deny`) and stops a teaching turn after 60 s (`--teach-timeout`; questions get `--turn-timeout`). Both are counted per
+turn, per cell (`cell.json` `counts`) and per arm in the report. **Timing proxy:** the gateway's chat and embedding URLs
+point at a stdlib proxy in the driver that forwards to `--base-url` unchanged and writes one line per request to
+`cells/<cell>/proxy.jsonl` (path, model, stream, tools, `t_start`, `t_headers`, `t_first_byte`, `t_end`, status,
+bytes). The report turns it into chat time to first byte per arm and, for M2, relates each turn's `embed_ms` and the
+embeddings requests that overlap the chat request to it. A reply the gateway does not stream is sent whole, so its
+first byte is about its end; the report says how many requests stream. Warm-up requests go straight to the server,
+and only to the models the arm uses (the embedding model only in M2).
+
+```sh
+cd eval
+uv run python -m memory.across.run --run-dir memory/runs/across-<name> --localmelo <checkout> \
+    --base-url http://127.0.0.1:8500/v1 --dry-run     # plan and preflight, nothing started
+# without --dry-run, plus --arms L1 --repeats 1 --questions Q01,Q21,Q36,Q46,Q56: one arm, once, five questions
+# without --arms, --repeats and --questions: all 12 cells; the same command again resumes
+uv run python -m memory.across.report memory/runs/across-<name>     # report.md and report.json
+```
+
+The operator holds the GPU lock (`holder: agent-benchmark`); the driver only reads it. It stops before the next turn
+when `<run-dir>/STOP` exists, the lock is gone or the battery is below 20% (no cell starts below 40%). A stopped cell
+continues in its own HOME on the next run; a cell that died in a turn is set aside (`cells/<cell>.aborted-N`) and run
+again. The journal `cells/<cell>/turns.jsonl` keeps per turn the answer, `turn.memory` (`used`, `remembered`,
+`refused`, `recall`; also `result.memory_recall`), the wall time from the POST to `turn.finished`, the time to the first
+event, the gateway's own event clock and the turn's window in epoch seconds. `environment.json` has `sw_vers`,
+`xcodebuild -version`, the localmelo sha and the model server's `/v1/models`. **Cost of the second model:** before each cell the driver asks the server to unload the embedding model if
+`/v1/models/status` shows it loaded (`POST /v1/models/{id}/unload`, then waits up to `--unload-timeout` 60 s for "not
+loaded"; a model that stays loaded, or a server that does not say, stops the run like a failed preflight; the chat
+model is never unloaded; `--no-cold-start` skips it), so every cell starts without the embedding model and M2's warm-up
+times its load. Around each cell (before, after warm-up, after teaching, after the cell) `cell.json` records the oMLX
+process rss and the models it reports loaded (`GET /api/status` and `/v1/models/status`, at the server root); the report
+says whether every cell started cold and shows per arm whether the embedding model was loaded and what the cell added.
+
+The task data was checked offline against localmelo 5f1498f4's own code (no run): each message makes exactly one note,
+only the five replacing facts supersede another, no look-alike pair does, only the fillers fit the pinned window, exact
+questions pass the BM25 gate on their note alone, and paraphrase, cross-language and nothing-to-recall questions pass it
+on nothing (so `llm` finds no candidates for a paraphrase with no shared word, by design).
+Tests: `uv run pytest -q -p no:cacheprovider memory/tests/test_across_*.py`.

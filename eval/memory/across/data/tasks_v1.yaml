@@ -1,0 +1,160 @@
+# Memory across chats, task set v1 (see eval/memory/README.md, "Memory across chats").
+#
+# Everything here is fictional: "you" is a made-up user and no fact is about a real person.
+#
+# facts      taught in `order`, each in its own new chat (one teaching message per chat). `block` groups
+#            the order into ten themed batches; it has no effect on the chats.
+#            role: plain (asked directly), old/new (a value and the value that replaces it; `supersedes` names
+#            the old fact), target/lookalike (a fact and its look-alike; `twin` names the other), filler.
+#            The three fillers come last and are long on purpose: localmelo pins the newest "about" and
+#            "preferences" quotes (600 characters) into every chat's system prompt, and the fillers fill that
+#            window so no asked fact is pinned.
+# questions  each asked in a new chat after all teaching.
+#            kind: exact (the fact's own words), paraphrase (other words, same language), crosslang (the other
+#            language), superseded (the newer value must win), lookalike (a similar fact must not be used),
+#            nothing (never taught; the right reply says so).
+#            answer + aliases: any of them in the reply is correct. reject: strings that must not appear
+#            (stale or look-alike values). wrong_facts: facts whose recall counts as wrong recall.
+#
+# The ask order is a fixed shuffle: questions sorted by sha256("<ask_seed>:<id>").
+version: 1
+protocol: across-v1
+ask_seed: 7
+
+facts:
+  # B01
+  - {id: F01, order: 1,  block: B01, lang: en, role: plain,  text: "My favourite tea is genmaicha.", value: "genmaicha"}
+  - {id: F02, order: 2,  block: B01, lang: zh, role: plain,  text: "我的快递取件点是三号楼门口的蜂巢柜。", value: "蜂巢柜"}
+  - {id: F03, order: 3,  block: B01, lang: en, role: old,    text: "I live in Lisbon.", value: "Lisbon"}
+  - {id: F04, order: 4,  block: B01, lang: en, role: old,    text: "My name is Pip.", value: "Pip"}
+  # B02
+  - {id: F05, order: 5,  block: B02, lang: en, role: plain,  text: "My cat is called Biscuit.", value: "Biscuit"}
+  - {id: F06, order: 6,  block: B02, lang: zh, role: plain,  text: "我习惯在湖边公园跑步。", value: "湖边公园"}
+  - {id: F07, order: 7,  block: B02, lang: en, role: target, twin: F08, text: "I use a ThinkPad X1 laptop at work.", value: "ThinkPad"}
+  - {id: F08, order: 8,  block: B02, lang: en, role: lookalike, twin: F07, text: "I use a Framework 13 laptop at home.", value: "Framework"}
+  # B03
+  - {id: F09, order: 9,  block: B03, lang: en, role: plain,  text: "My dentist is Marta Halvorsen.", value: "Halvorsen"}
+  - {id: F10, order: 10, block: B03, lang: zh, role: plain,  text: "我的室友是小满。", value: "小满"}
+  - {id: F11, order: 11, block: B03, lang: zh, role: old,    text: "我在云杉科技工作。", value: "云杉科技"}
+  - {id: F12, order: 12, block: B03, lang: en, role: old,    text: "My weekly sync is on Wednesday.", value: "Wednesday"}
+  # B04
+  - {id: F13, order: 13, block: B04, lang: en, role: plain,  text: "My locker at the climbing gym is number 214.", value: "214"}
+  - {id: F14, order: 14, block: B04, lang: zh, role: plain,  text: "我的手机壳是橙色的。", value: "橙色"}
+  - {id: F15, order: 15, block: B04, lang: en, role: target, twin: F16, text: "My flight to Porto is at gate 22.", value: "gate 22"}
+  - {id: F16, order: 16, block: B04, lang: en, role: lookalike, twin: F15, text: "My flight to Faro is at gate 9.", value: "gate 9"}
+  - {id: F17, order: 17, block: B04, lang: zh, role: old,    text: "我的健身教练是阿凯。", value: "阿凯"}
+  # B05
+  - {id: F18, order: 18, block: B05, lang: en, role: plain,  text: "My wedding anniversary is on 21 June.", value: "21 June"}
+  - {id: F19, order: 19, block: B05, lang: zh, role: plain,  text: "我习惯早餐吃豆浆配油条。", value: "豆浆"}
+  - {id: F20, order: 20, block: B05, lang: zh, role: target, twin: F21, text: "我的书法课是每周三晚上八点。", value: "周三"}
+  - {id: F21, order: 21, block: B05, lang: zh, role: lookalike, twin: F20, text: "我的游泳课是每周六早上九点。", value: "周六"}
+  # B06
+  - {id: F22, order: 22, block: B06, lang: en, role: plain,  text: "I use Neovim for editing code.", value: "Neovim"}
+  - {id: F23, order: 23, block: B06, lang: zh, role: plain,  text: "我的母校是青山大学。", value: "青山大学"}
+  - {id: F24, order: 24, block: B06, lang: en, role: target, twin: F25, text: "My parking spot at work is C14.", value: "C14"}
+  - {id: F25, order: 25, block: B06, lang: en, role: lookalike, twin: F24, text: "My parking spot at the airport is L7.", value: "L7"}
+  # B07
+  - {id: F26, order: 26, block: B07, lang: en, role: plain,  text: "I'm allergic to cashews.", value: "cashews"}
+  - {id: F27, order: 27, block: B07, lang: zh, role: plain,  text: "我的睡前读物是一本叫《雾港纪事》的小说。", value: "雾港纪事"}
+  - {id: F28, order: 28, block: B07, lang: zh, role: target, twin: F29, text: "记住，我妈妈的生日是三月九号。", value: "三月九号"}
+  - {id: F29, order: 29, block: B07, lang: zh, role: lookalike, twin: F28, text: "记住，我姐姐的生日是八月二十号。", value: "八月二十号"}
+  - {id: F30, order: 30, block: B07, lang: en, role: plain,  text: "I prefer cardamom in my coffee.", value: "cardamom"}
+  # B08
+  - {id: F31, order: 31, block: B08, lang: en, role: plain,  text: "We always book the corner table at Cafe Marigold.", value: "Marigold"}
+  - {id: F32, order: 32, block: B08, lang: zh, role: plain,  text: "我的练习乐器是大提琴。", value: "大提琴"}
+  - {id: F33, order: 33, block: B08, lang: en, role: new,    supersedes: F03, text: "I live in Utrecht.", value: "Utrecht"}
+  - {id: F34, order: 34, block: B08, lang: zh, role: new,    supersedes: F11, text: "我在北辰数据工作。", value: "北辰数据"}
+  - {id: F35, order: 35, block: B08, lang: en, role: new,    supersedes: F04, text: "My name is Juno.", value: "Juno"}
+  # B09
+  - {id: F36, order: 36, block: B09, lang: en, role: plain,  text: "My landlady is Gwen Pennywhistle.", value: "Pennywhistle"}
+  - {id: F37, order: 37, block: B09, lang: zh, role: plain,  text: "我的信箱是三楼的18号。", value: "18"}
+  - {id: F38, order: 38, block: B09, lang: zh, role: plain,  text: "我的导师是周教授。", value: "周教授"}
+  - {id: F39, order: 39, block: B09, lang: en, role: new,    supersedes: F12, text: "My weekly sync is on Friday.", value: "Friday"}
+  - {id: F40, order: 40, block: B09, lang: zh, role: new,    supersedes: F17, text: "我的健身教练是小宇。", value: "小宇"}
+  # B10, fillers (long on purpose, never asked)
+  - id: F41
+    order: 41
+    block: B10
+    lang: en
+    role: filler
+    text: "I prefer that your summaries of long documents start with a one-line verdict, followed by a short list of the three most important points, and that you keep any background material, definitions and caveats until the very end of the reply, where I can skip them easily if I do not need them."
+  - id: F42
+    order: 42
+    block: B10
+    lang: en
+    role: filler
+    text: "I prefer that when you explain a technical topic to me you choose plain everyday words and one small example done step by step before any formal definition, and that you tell me clearly at the start of the reply whether you are sure of the answer or only fairly confident about it."
+  - id: F43
+    order: 43
+    block: B10
+    lang: en
+    role: filler
+    text: "I prefer that every list you write for me has no more than six items, that dates are written out in full with the weekday, and that you never start a reply with an apology or a compliment, because I would rather get straight to the content of the answer."
+
+questions:
+  # exact words (20): the fact's own words, in its language
+  - {id: Q01, kind: exact, lang: en, facts: [F01], text: "What is my favourite tea?", answer: "genmaicha"}
+  - {id: Q02, kind: exact, lang: en, facts: [F05], text: "What is my cat called?", answer: "Biscuit"}
+  - {id: Q03, kind: exact, lang: en, facts: [F09], text: "Who is my dentist?", answer: "Halvorsen"}
+  - {id: Q04, kind: exact, lang: en, facts: [F13], text: "What is my locker number at the climbing gym?", answer: "214"}
+  - {id: Q05, kind: exact, lang: en, facts: [F18], text: "When is my wedding anniversary?", answer: "21 June", aliases: ["June 21", "21st June", "21st of June", "June 21st"]}
+  - {id: Q06, kind: exact, lang: en, facts: [F22], text: "What do I use for editing code?", answer: "Neovim", aliases: ["nvim"]}
+  - {id: Q07, kind: exact, lang: en, facts: [F26], text: "What am I allergic to?", answer: "cashews", aliases: ["cashew"]}
+  - {id: Q08, kind: exact, lang: en, facts: [F31], text: "Where do we always book the corner table?", answer: "Marigold"}
+  - {id: Q09, kind: exact, lang: en, facts: [F36], text: "Who is my landlady?", answer: "Pennywhistle"}
+  - {id: Q10, kind: exact, lang: en, facts: [F30], text: "What do I prefer in my coffee?", answer: "cardamom"}
+  - {id: Q11, kind: exact, lang: zh, facts: [F02], text: "我的快递取件点是哪里？", answer: "蜂巢柜", aliases: ["三号楼"]}
+  - {id: Q12, kind: exact, lang: zh, facts: [F06], text: "我习惯在哪里跑步？", answer: "湖边公园", aliases: ["湖边"]}
+  - {id: Q13, kind: exact, lang: zh, facts: [F10], text: "我的室友是谁？", answer: "小满"}
+  - {id: Q14, kind: exact, lang: zh, facts: [F14], text: "我的手机壳是什么颜色？", answer: "橙色", aliases: ["橙"]}
+  - {id: Q15, kind: exact, lang: zh, facts: [F19], text: "我习惯早餐吃什么？", answer: "豆浆", aliases: ["油条"]}
+  - {id: Q16, kind: exact, lang: zh, facts: [F23], text: "我的母校是哪里？", answer: "青山大学"}
+  - {id: Q17, kind: exact, lang: zh, facts: [F27], text: "我的睡前读物是什么？", answer: "雾港纪事"}
+  - {id: Q18, kind: exact, lang: zh, facts: [F32], text: "我的练习乐器是什么？", answer: "大提琴"}
+  - {id: Q19, kind: exact, lang: zh, facts: [F37], text: "我的信箱是几号？", answer: "18"}
+  - {id: Q20, kind: exact, lang: zh, facts: [F38], text: "我的导师是谁？", answer: "周教授", aliases: ["周老师"]}
+  # paraphrase (15): other words, same language
+  - {id: Q21, kind: paraphrase, lang: en, facts: [F01], text: "Which leaves do I like to steep the most?", answer: "genmaicha"}
+  - {id: Q22, kind: paraphrase, lang: en, facts: [F05], text: "What is the name of my pet?", answer: "Biscuit"}
+  - {id: Q23, kind: paraphrase, lang: en, facts: [F09], text: "Which doctor looks after my teeth?", answer: "Halvorsen"}
+  - {id: Q24, kind: paraphrase, lang: en, facts: [F13], text: "Which cubby do I get when I go bouldering?", answer: "214"}
+  - {id: Q25, kind: paraphrase, lang: en, facts: [F18], text: "On what date do my spouse and I celebrate our marriage each year?", answer: "21 June", aliases: ["June 21", "21st June", "21st of June", "June 21st"]}
+  - {id: Q26, kind: paraphrase, lang: en, facts: [F22], text: "Which text editor is my go-to for programming?", answer: "Neovim", aliases: ["nvim"]}
+  - {id: Q27, kind: paraphrase, lang: en, facts: [F26], text: "Which nuts should I stay away from?", answer: "cashews", aliases: ["cashew"]}
+  - {id: Q28, kind: paraphrase, lang: en, facts: [F31], text: "What is our usual spot when we eat out?", answer: "Marigold"}
+  - {id: Q29, kind: paraphrase, lang: en, facts: [F36], text: "Who do I pay the rent to?", answer: "Pennywhistle"}
+  - {id: Q30, kind: paraphrase, lang: zh, facts: [F02], text: "我的包裹一般去哪里领？", answer: "蜂巢柜", aliases: ["三号楼"]}
+  - {id: Q31, kind: paraphrase, lang: zh, facts: [F06], text: "我一般去哪儿慢跑？", answer: "湖边公园", aliases: ["湖边"]}
+  - {id: Q32, kind: paraphrase, lang: zh, facts: [F10], text: "和我合租的人是谁？", answer: "小满"}
+  - {id: Q33, kind: paraphrase, lang: zh, facts: [F14], text: "我的手机保护套是什么色？", answer: "橙色", aliases: ["橙"]}
+  - {id: Q34, kind: paraphrase, lang: zh, facts: [F19], text: "早上我通常用什么填饱肚子？", answer: "豆浆", aliases: ["油条"]}
+  - {id: Q35, kind: paraphrase, lang: zh, facts: [F27], text: "晚上睡觉前我在看哪本书？", answer: "雾港纪事"}
+  # cross-language (10): taught in one language, asked in the other
+  - {id: Q36, kind: crosslang, lang: zh, facts: [F01], text: "我最喜欢喝的茶是什么？", answer: "genmaicha", aliases: ["玄米茶", "genmai"]}
+  - {id: Q37, kind: crosslang, lang: zh, facts: [F05], text: "我的猫叫什么名字？", answer: "Biscuit", aliases: ["饼干"]}
+  - {id: Q38, kind: crosslang, lang: zh, facts: [F18], text: "我的结婚纪念日是哪一天？", answer: "21 June", aliases: ["June 21", "6月21", "六月二十一", "21st June", "21st of June", "June 21st"]}
+  - {id: Q39, kind: crosslang, lang: zh, facts: [F26], text: "我对什么食物过敏？", answer: "cashews", aliases: ["cashew", "腰果"]}
+  - {id: Q40, kind: crosslang, lang: zh, facts: [F30], text: "我喝咖啡喜欢加什么香料？", answer: "cardamom", aliases: ["豆蔻", "小豆蔻", "荳蔻"]}
+  - {id: Q41, kind: crosslang, lang: en, facts: [F10], text: "Who is my roommate?", answer: "小满", aliases: ["Xiaoman", "Xiao Man"]}
+  - {id: Q42, kind: crosslang, lang: en, facts: [F23], text: "Which university is my alma mater?", answer: "青山大学", aliases: ["Qingshan University", "Qingshan"]}
+  - {id: Q43, kind: crosslang, lang: en, facts: [F32], text: "Which instrument am I practising?", answer: "大提琴", aliases: ["cello"]}
+  - {id: Q44, kind: crosslang, lang: en, facts: [F37], text: "Which number is my mailbox?", answer: "18"}
+  - {id: Q45, kind: crosslang, lang: en, facts: [F38], text: "Who is my academic advisor?", answer: "周教授", aliases: ["Professor Zhou", "Prof. Zhou", "Prof Zhou", "Zhou"]}
+  # superseded value (5): the newer value must win
+  - {id: Q46, kind: superseded, lang: en, facts: [F33], wrong_facts: [F03], text: "Where do I live?", answer: "Utrecht", reject: ["Lisbon"]}
+  - {id: Q47, kind: superseded, lang: zh, facts: [F34], wrong_facts: [F11], text: "我在哪里工作？", answer: "北辰数据", aliases: ["北辰"], reject: ["云杉"]}
+  - {id: Q48, kind: superseded, lang: en, facts: [F35], wrong_facts: [F04], text: "What is my name?", answer: "Juno", reject: ["Pip"]}
+  - {id: Q49, kind: superseded, lang: en, facts: [F39], wrong_facts: [F12], text: "Which day is my weekly sync?", answer: "Friday", reject: ["Wednesday"]}
+  - {id: Q50, kind: superseded, lang: zh, facts: [F40], wrong_facts: [F17], text: "我的健身教练是谁？", answer: "小宇", reject: ["阿凯"]}
+  # look-alike distractor (5): a similar fact must not be used
+  - {id: Q51, kind: lookalike, lang: en, facts: [F07], wrong_facts: [F08], text: "Which laptop do I use at work?", answer: "ThinkPad", aliases: ["X1"], reject: ["Framework"]}
+  - {id: Q52, kind: lookalike, lang: en, facts: [F15], wrong_facts: [F16], text: "Which gate is my flight to Porto at?", answer: "gate 22", aliases: ["22"], reject: ["gate 9", "Faro"]}
+  - {id: Q53, kind: lookalike, lang: en, facts: [F24], wrong_facts: [F25], text: "Where is my parking spot at work?", answer: "C14", reject: ["L7"]}
+  - {id: Q54, kind: lookalike, lang: zh, facts: [F20], wrong_facts: [F21], text: "我的书法课是每周几？", answer: "周三", aliases: ["星期三", "礼拜三"], reject: ["周六", "星期六", "礼拜六"]}
+  - {id: Q55, kind: lookalike, lang: zh, facts: [F28], wrong_facts: [F29], text: "我妈妈的生日是哪天？", answer: "三月九", aliases: ["3月9", "三月9"], reject: ["八月二十", "8月20", "8月二十"]}
+  # nothing to recall (5): never taught, the right reply says so
+  - {id: Q56, kind: nothing, lang: en, facts: [], text: "What is my favourite board game?", reject: ["genmaicha"]}
+  - {id: Q57, kind: nothing, lang: en, facts: [], text: "Which airline do I usually fly with?", reject: ["Porto", "Faro", "gate 22"]}
+  - {id: Q58, kind: nothing, lang: en, facts: [], text: "What is my brother's name?"}
+  - {id: Q59, kind: nothing, lang: zh, facts: [], text: "我最喜欢的电影是什么？"}
+  - {id: Q60, kind: nothing, lang: zh, facts: [], text: "我的家庭医生是谁？", reject: ["Halvorsen"]}
