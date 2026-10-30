@@ -61,6 +61,11 @@ ARMS: dict[str, tuple[str, ...]] = {
     # E5, on a build whose defaults are the v3 layout and a 64-message window (S0 then means those defaults);
     # O20 opts out to the previous v2 layout and a 20-message window
     "O20": ("--cache-layout", "v2", "--window-messages", "20"),
+    # E6 (output tokens), on a build that has agent.lean_output: shell_exec added to the three default built-in
+    # tools, the lean output option, and both
+    "SH": ("--builtins", "file_read,file_write,python_exec,shell_exec"),
+    "L": ("-X", "agent.lean_output=true"),
+    "LSH": ("-X", "agent.lean_output=true", "--builtins", "file_read,file_write,python_exec,shell_exec"),
 }
 DEFAULT_ARMS = ("S0", "C1", "B1", "B2", "S2")   # E3's five
 EXERCISES = (

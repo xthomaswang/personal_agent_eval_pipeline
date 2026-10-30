@@ -66,6 +66,9 @@ def test_arms_are_the_agreed_flag_sets() -> None:
         "V3": ("--cache-layout", "v3"),
         "V64": ("--cache-layout", "v3", "--window-messages", "64"),
         "O20": ("--cache-layout", "v2", "--window-messages", "20"),
+        "SH": ("--builtins", "file_read,file_write,python_exec,shell_exec"),
+        "L": ("-X", "agent.lean_output=true"),
+        "LSH": ("-X", "agent.lean_output=true", "--builtins", "file_read,file_write,python_exec,shell_exec"),
     }
     assert e3_run.DEFAULT_ARMS == ("S0", "C1", "B1", "B2", "S2")
     assert e3_run.arm_args("B2")[:2] == ["--output-format", "json"]
