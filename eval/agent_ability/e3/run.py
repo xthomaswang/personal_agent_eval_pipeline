@@ -54,6 +54,10 @@ ARMS: dict[str, tuple[str, ...]] = {
     "C2": ("--window-eviction", "chunk", "--fixed-prefix", "on"),
     # C2 + the reflect request keeps the plan's tools and asks for JSON only (needs a build that has the flag)
     "C3": ("--window-eviction", "chunk", "--fixed-prefix", "on", "--reflect-tool-guard", "on"),
+    # E4, on a build whose defaults are C3 (S0 then means "the defaults"): the v3 cache layout, alone and with a
+    # 64-message window
+    "V3": ("--cache-layout", "v3"),
+    "V64": ("--cache-layout", "v3", "--window-messages", "64"),
 }
 DEFAULT_ARMS = ("S0", "C1", "B1", "B2", "S2")   # E3's five
 EXERCISES = (

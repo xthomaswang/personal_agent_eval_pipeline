@@ -7,7 +7,8 @@ from pathlib import Path
 
 SMOKE_ROOT = Path(__file__).resolve().parent.parent
 PAB_ROOT = Path(os.environ.get("PAB_ROOT", SMOKE_ROOT.parent / "personal-agent-bench")).resolve()
-GPU_LOCK = SMOKE_ROOT.parent / ".gpu-lock"
+# The lock shared by every GPU user lives in <mlsys>/experiments, above this repository's eval/ directory
+GPU_LOCK = SMOKE_ROOT.parent.parent.parent / ".gpu-lock"
 # The holder line personal-agent-bench/scripts/gpu-lock.sh writes (serve-omlx.sh checks the same prefix)
 GPU_LOCK_HOLDER = "holder: agent-benchmark"
 
