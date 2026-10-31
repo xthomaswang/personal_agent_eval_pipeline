@@ -49,18 +49,18 @@ ABSTAIN_ZH = (
     "还没告诉", "还没有告诉", "还没提", "没有这方面", "无从得知",
 )
 
-_THINK = re.compile(r"<think>.*?</think>", re.DOTALL | re.IGNORECASE)
+_THINK = re.compile(r"<(think|thinking)>.*?</\1>", re.DOTALL | re.IGNORECASE)
+_THINK_OPEN = re.compile(r"<think(?:ing)?>", re.IGNORECASE)
+_THINK_CLOSE = re.compile(r"</think(?:ing)?>", re.IGNORECASE)
 _PUNCT_OR_SYMBOL = ("P", "S")
 
 
 def strip_thinking(text: str | None) -> str:
-    """The reply without a reasoning block: closed ``<think>`` blocks, or everything up to a lone ``</think>``."""
-    text = text or ""
-    text = _THINK.sub("", text)
-    if "</think>" in text.lower():
-        text = re.split(r"</think>", text, flags=re.IGNORECASE)[-1]
-    if "<think>" in text.lower():  # an unfinished block: there is no answer after it
-        text = re.split(r"<think>", text, flags=re.IGNORECASE)[0]
+    """The reply without a reasoning block: closed ``<think>`` or ``<thinking>`` blocks, or everything up to a lone
+    closing tag. localmelo keeps a leading ``<thinking>`` block in the stored answer, so both spellings are read."""
+    text = _THINK.sub("", text or "")
+    text = _THINK_CLOSE.split(text)[-1]
+    text = _THINK_OPEN.split(text)[0]  # an unfinished block: there is no answer after it
     return text.strip()
 
 

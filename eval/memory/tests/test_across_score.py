@@ -34,6 +34,10 @@ def test_strip_thinking():
     assert score.strip_thinking("hidden reasoning</think>The answer.") == "The answer."
     assert score.strip_thinking("<think>never closed, 21 June") == ""
     assert score.strip_thinking(None) == ""
+    assert score.strip_thinking("<thinking>It was Lisbon before.</thinking>You live in Utrecht.") == "You live in Utrecht."
+    assert score.strip_thinking("<THINKING>old: Pip</THINKING> Your name is Juno.") == "Your name is Juno."
+    assert score.strip_thinking("<thinking>never closed, Lisbon") == ""
+    assert score.strip_thinking("<think>a</think><thinking>b</thinking>c") == "c"
 
 
 def test_grade_correct_wrong_empty_and_alias():
