@@ -76,9 +76,10 @@ class Gateway:
             headers["Content-Type"] = "application/json"
         return headers
 
-    def request(self, method: str, path: str, body: Any = None) -> tuple[int, Any]:
+    def request(self, method: str, path: str, body: Any = None, *, timeout: float | None = None) -> tuple[int, Any]:
+        """One request; ``timeout`` (seconds) replaces the client's own for a route that takes long, such as a sleep."""
         data = None if body is None else json.dumps(body).encode()
-        conn = self._connection()
+        conn = self._connection(timeout)
         try:
             conn.request(method, path, body=data, headers=self._headers(data))
             resp = conn.getresponse()
@@ -91,8 +92,8 @@ class Gateway:
             parsed = {"raw": raw.decode("utf-8", "replace")[:500]}
         return resp.status, parsed
 
-    def call(self, method: str, path: str, body: Any = None, ok: tuple[int, ...] = (200,)) -> Any:
-        status, parsed = self.request(method, path, body)
+    def call(self, method: str, path: str, body: Any = None, ok: tuple[int, ...] = (200,), *, timeout: float | None = None) -> Any:
+        status, parsed = self.request(method, path, body, timeout=timeout)
         if status not in ok:
             raise GatewayError(status, f"{method} {path}: {json.dumps(parsed, ensure_ascii=False)[:300]}", parsed)
         return parsed

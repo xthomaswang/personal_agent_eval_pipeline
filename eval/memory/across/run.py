@@ -64,6 +64,10 @@ BATTERY_STOP_PCT = 20  # stop before the next turn on battery below this
 REPEATS = 3
 TEACH_TIMEOUT_S = 60.0  # a teaching turn that takes longer is stopped and counted
 LONG_TIMEOUT_S = 120.0  # so is a turn of a long chat (v2)
+# The gateway client waits 10 s per request; a memory sleep with the model (a dozen to a hundred model calls) and an
+# import that embeds its notes take longer, and a sleep the client gave up on goes on in the gateway while day 2 asks.
+SLEEP_TIMEOUT_S = 1800.0
+IMPORT_TIMEOUT_S = 300.0
 LOCALMELO_SHA = "5f1498f4"  # the retriever switch, the recall timings, and a chat told not to save stated facts in files
 CHAT_MODEL = "Qwen3.8-Flash-Next-oQ4e-mtp"
 EMBEDDING_MODEL = "Qwen3-Embedding-0.6B"
@@ -171,7 +175,7 @@ def sleep_memory(
     body = {"variant": variant, **dict(options or {})}
     doc: dict[str, Any] = {"variant": variant, "request": body}
     try:
-        doc["report"] = gw.call("POST", "/api/memory/sleep", body)
+        doc["report"] = gw.call("POST", "/api/memory/sleep", body, timeout=SLEEP_TIMEOUT_S)
     except (client.GatewayError, OSError, http.client.HTTPException) as exc:
         doc["error"] = f"{type(exc).__name__}: {exc}"
     doc["s"] = round(time.monotonic() - started, 3)
@@ -244,12 +248,13 @@ def import_memory(gw: client.Gateway, cell_dir: Path) -> dict[str, Any]:
     started = time.monotonic()
     doc: dict[str, Any] = {}
     try:
-        doc["scan"] = gw.call("GET", "/api/memory/import/scan")
+        doc["scan"] = gw.call("GET", "/api/memory/import/scan", timeout=IMPORT_TIMEOUT_S)
         doc["scan_s"] = round(time.monotonic() - started, 3)
         ids = [s["id"] for s in doc["scan"].get("sources", [])]
         if ids:
             started = time.monotonic()
-            doc["apply"] = gw.call("POST", "/api/memory/import", {"batch_id": doc["scan"]["batch_id"], "source_ids": ids})
+            doc["apply"] = gw.call(
+                "POST", "/api/memory/import", {"batch_id": doc["scan"]["batch_id"], "source_ids": ids}, timeout=IMPORT_TIMEOUT_S)
             doc["apply_s"] = round(time.monotonic() - started, 3)
     except (client.GatewayError, OSError, http.client.HTTPException, KeyError, TypeError) as exc:
         doc["error"] = f"{type(exc).__name__}: {exc}"

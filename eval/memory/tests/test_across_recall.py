@@ -109,10 +109,11 @@ def test_an_arms_file_reads_the_seed_relative_to_itself_and_the_import_switch(tm
 
 class StubGateway:
     def __init__(self, fail=None):
-        self.calls, self.fail = [], fail
+        self.calls, self.fail, self.timeouts = [], fail, []
 
-    def call(self, method, path, body=None, ok=(200,)):
+    def call(self, method, path, body=None, ok=(200,), timeout=None):
         self.calls.append((method, path, body))
+        self.timeouts.append(timeout)
         if self.fail == path:
             raise run.client.GatewayError(400, "invalid_request")
         if path.endswith("/scan"):
@@ -127,6 +128,7 @@ def test_import_memory_brings_in_every_source_and_keeps_the_scan(tmp_path):
     assert {k: summary[k] for k in ("sources", "kept", "written", "skipped", "partial")} == {"sources": 2, "kept": 3, "written": 3, "skipped": 0, "partial": False}
     doc = json.loads((tmp_path / "import.json").read_text())
     assert doc["scan"]["batch_id"] == "b7" and doc["apply"]["written_ids"] == [1, 2, 3] and "error" not in doc
+    assert gw.timeouts == [run.IMPORT_TIMEOUT_S, run.IMPORT_TIMEOUT_S]  # longer than the client's 10 s
 
 
 def test_a_failed_import_is_recorded_not_raised(tmp_path):

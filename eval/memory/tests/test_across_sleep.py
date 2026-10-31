@@ -159,3 +159,18 @@ def test_the_round_two_sleep_arms_load():
     arms = run.load_arms(data_v2.DATA_FILE.parent / "arms_sleep2.json")
     assert {k: (a.sleep, dict(a.sleep_options)) for k, a in arms.items()} == {
         "S0": ("", {}), "S1": ("rules", {}), "S2": ("model", {}), "S3": ("model+tags", {}), "S2max": ("model", {"budget": 100})}
+
+
+def test_a_sleep_waits_longer_than_the_client_s_ten_seconds(tmp_path):
+    class SlowGateway:
+        def __init__(self):
+            self.timeouts = []
+
+        def call(self, method, path, body=None, ok=(200,), timeout=None):
+            self.timeouts.append(timeout)
+            return {"changes": [], "model_calls": 12, "refused": 0, "refusals": [], "ms": 61000, "processed": []}
+
+    gw, home = SlowGateway(), tmp_path / "home"
+    home.mkdir()
+    summary = run.sleep_memory(gw, tmp_path, home, "model")
+    assert gw.timeouts == [run.SLEEP_TIMEOUT_S] and run.SLEEP_TIMEOUT_S >= 600 and summary["ms"] == 61000
