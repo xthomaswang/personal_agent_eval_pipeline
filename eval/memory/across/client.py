@@ -184,6 +184,11 @@ class TurnResult:
     ended_epoch: float = 0.0
 
     @property
+    def last_event_id(self) -> int:
+        """The newest event id this turn's events hold, for the ``after`` of the next turn of the chat; 0 if none."""
+        return max((e["id"] for e in self.events if isinstance(e.get("id"), int)), default=0)
+
+    @property
     def ttfe_ms(self) -> float | None:
         """Milliseconds from the POST to the first event frame; only a stream measures it."""
         return self.events[0].get("t_ms") if self.events and self.wall_source == "stream" else None
@@ -230,6 +235,7 @@ def run_turn(
     timeout_s: float = 900.0,
     poll_s: float = 0.25,
     use_stream: bool = True,
+    after: int = 0,
     deny_approvals: bool = True,
     clock: Callable[[], float] = time.perf_counter,
     sleep: Callable[[float], None] = time.sleep,
@@ -240,7 +246,8 @@ def run_turn(
     The wall time runs from just before the POST to the ``turn.finished`` frame (stream) or to the poll that
     saw the row finished. A turn that does not end in ``timeout_s`` is asked to stop and comes back with status
     ``timeout``. With ``deny_approvals`` every approval request of the turn is denied, so a tool call cannot
-    keep the turn waiting; the denials are in ``TurnResult.denied``.
+    keep the turn waiting; the denials are in ``TurnResult.denied``. ``after`` is the id of the newest event of the chat
+    seen so far: the stream starts there, so a later turn of a long chat does not replay (and wait for) the earlier ones.
     """
     if not KEY_RE.fullmatch(key):
         raise ValueError(f"client_request_id {key!r} breaks the gateway's grammar")
@@ -270,7 +277,7 @@ def run_turn(
 
     finished_at: float | None = None
     if use_stream:
-        frames = gw.stream(session_id, timeout=min(60.0, timeout_s))
+        frames = gw.stream(session_id, after=after, timeout=min(60.0, timeout_s))
         try:
             for event in frames:
                 now = clock()

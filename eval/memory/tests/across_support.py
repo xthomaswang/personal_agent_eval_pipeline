@@ -2,10 +2,12 @@
 import os
 import subprocess
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 
-from memory.across import client, data, run
-from memory.tests.across_fake import FakeGateway, mini_raw
+import pytest
+from memory.across import client, data, data_v2, run, server
+from memory.tests.across_fake import MINI_SAVE_ONLY, MINI_TOOL_WORDS, FakeGateway, FakeModelServer, mini_raw, mini_raw_v2
 
 EVAL_ROOT = Path(__file__).resolve().parents[2]
 ARMS3 = ("M2", "L1", "N0")
@@ -35,7 +37,10 @@ class Launcher:
         self.kw, self.gateways, self.cells = kw, [], []
 
     def __call__(self, spec):
-        gateway = FakeGateway(spec.home, spec.x_pairs, port=spec.port, **self.kw)
+        try:
+            gateway = FakeGateway(spec.home, spec.x_pairs, port=spec.port, **self.kw)
+        except ValueError as exc:  # `melo serve` refusing a setting exits at once
+            raise server.LaunchError(f"melo serve exited with 2:\n{exc}") from exc
         self.gateways.append(gateway)
         self.cells.append(spec.home.parent.name)
         return FakeProc(gateway, spec)
@@ -76,4 +81,48 @@ def make_study(tmp_path, repo, models, launcher=None, tasks=None, **kw):
     options.update(kw)
     return run.Study(**options)
 
+
+def v2_launcher(**kw):
+    """A launcher whose gateways keep the SQLite store, call read-tier tools on the filler and save only the mini set's notes."""
+    return Launcher(**{"store": True, "tool_words": MINI_TOOL_WORDS, "save_only": MINI_SAVE_ONLY, "delay": 0.002, **kw})
+
+
+def v2_study(tmp_path, repo, models, launcher=None, **kw):
+    """A study of the mini v2 set (two long-range and two follow-up items) on N0, M2 and FC."""
+    kw.setdefault("arm_names", ("N0", "M2", "FC"))
+    return make_study(tmp_path, repo, models, launcher or v2_launcher(), tasks=data_v2.parse(mini_raw_v2(), None), **kw)
+
+
+@dataclass
+class V2Run:
+    study: run.Study
+    launcher: Launcher
+    tasks: data_v2.TaskSet
+    code: int
+
+
+_V2_RUN: V2Run | None = None
+
+
+def v2_run(tmp_path_factory) -> V2Run:
+    """One study of the mini v2 set on N0, M2, B0 and FC, run once per pytest session (a few seconds, with the timing
+    proxy and request bodies that hold the window) and read, never changed, by several test modules."""
+    global _V2_RUN
+    if _V2_RUN is None:
+        base = tmp_path_factory.mktemp("v2run")
+        home = base / "realhome"
+        home.mkdir()
+        patch = pytest.MonkeyPatch()
+        patch.setenv("HOME", str(home))
+        models = FakeModelServer(["chat-model", "embed-model"])
+        try:
+            launcher = v2_launcher(model_calls=True)
+            study = v2_study(base, make_repo(base), models, launcher, arm_names=("N0", "M2", "B0", "FC"))
+            code = run.run_study(study)
+        finally:
+            models.stop()
+            patch.undo()
+        assert list(home.iterdir()) == []  # the real HOME was never used
+        _V2_RUN = V2Run(study, launcher, study.tasks, code)
+    return _V2_RUN
 

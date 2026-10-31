@@ -167,3 +167,79 @@ def recall_score(
     ranks = [sources.index(g) + 1 for g in gold if g in sources]
     out["gold_rank"] = max(ranks) if gold and len(ranks) == len(gold) else None
     return out
+
+
+# --- in-chat kinds (tasks_v2): where a right answer came from, and why a wrong one was wrong ---
+
+# Why a wrong answer was wrong. With memory off (N0, FC) the working window decides: the fact had left it, or it was
+# still in it and not used. With memory on: if the chat's item is in ``turn.memory.used`` the answer is wrong
+# although the fact was recalled, whether as a note or, on builds that recall a chat's own evicted turns, as the
+# turn itself (so no note is needed); if it is not, the note was never made (no record from the chat that said the
+# fact holds the gold string) or it was made and the recall did not bring it.
+MISS_NOT_SAVED = "not saved"
+MISS_NOT_RECALLED = "not recalled"
+MISS_NOT_USED = "recalled but not used"
+MISS_OUT_OF_WINDOW = "out of window"
+MISS_IN_WINDOW = "in window but not used"
+MISS_MEMORY_OFF = "memory off"  # memory off and no window to look at (a follow-up item)
+MISS_FAILED = "turn failed"
+MISS_UNCHECKED = "unchecked"  # the cell's stores were not read
+MISS_CLASSES = (
+    MISS_NOT_SAVED, MISS_NOT_RECALLED, MISS_NOT_USED, MISS_OUT_OF_WINDOW, MISS_IN_WINDOW, MISS_MEMORY_OFF, MISS_FAILED,
+    MISS_UNCHECKED)
+
+# Where a right answer came from, as far as the events say: a recalled note (a ``record`` item of ``turn.memory.used``
+# that holds the gold; its source reads "you said it ..."), the chat's own turn (a ``chat`` item whose source reads
+# "this chat, <day>", which newer builds recall after the turn has left the window; or the turn still in the window),
+# a recalled turn of another chat, or unknown. localmelo's legacy step memory (a summary per tool step, recalled by an
+# embedding model; M2 only) sends no event, so for an arm with an embedding model "unknown" can be that.
+THIS_CHAT = "this chat"  # the start of the source line of a used item that is a turn of the question's own chat
+SRC_NOTE = "note"
+SRC_CHAT = "chat turn"
+SRC_WINDOW = "own-chat turn"
+SRC_UNKNOWN = "unknown"
+SRC_STEP = "unknown (step summary possible)"
+SOURCES = (SRC_NOTE, SRC_CHAT, SRC_WINDOW, SRC_UNKNOWN, SRC_STEP)
+
+
+def miss_class(*, memory_on: bool, failed: bool, saved: bool | None, recalled: bool, in_window: bool | None) -> str:
+    """The class of one wrong answer: ``saved`` (a note with the gold exists; None: stores not read), ``recalled`` (the
+    gold chat's item is in ``used``), ``in_window`` (the fact turn is in the working window; None: not known).
+
+    Order: a failed turn; memory off (the window classes); recalled (not used, whatever notes exist); then not recalled,
+    which is "not saved" without a note and "not recalled" with one."""
+    if failed:
+        return MISS_FAILED
+    if not memory_on:
+        return MISS_MEMORY_OFF if in_window is None else MISS_IN_WINDOW if in_window else MISS_OUT_OF_WINDOW
+    if recalled:
+        return MISS_NOT_USED
+    if saved is None:
+        return MISS_UNCHECKED
+    return MISS_NOT_RECALLED if saved else MISS_NOT_SAVED
+
+
+def answer_source(memory: Mapping[str, Any] | None, targets: Sequence[str], *, in_window: bool | None, step_memory: bool) -> str:
+    """Where a right answer came from; ``step_memory``: the arm has an embedding model, so legacy step memory runs."""
+    held = [i for i in used_items(memory) if any(contains(str(i.get("text") or ""), t) for t in targets)]
+    if any(i.get("kind") == "record" for i in held):
+        return SRC_NOTE
+    if any(str(i.get("source") or "").startswith(THIS_CHAT) for i in held):
+        return SRC_WINDOW
+    if any(i.get("kind") == "chat" for i in held):
+        return SRC_CHAT
+    if in_window:
+        return SRC_WINDOW
+    return SRC_STEP if step_memory else SRC_UNKNOWN
+
+
+def block_chars(memory: Mapping[str, Any] | None, recall: Mapping[str, Any] | None) -> tuple[int | None, bool]:
+    """(characters of the recall block, whether that is an estimate). localmelo reports ``recall.block_chars``; a build
+    that does not gets an estimate, the used items' text plus their source lines; None when there was no recall."""
+    reported = (recall or {}).get("block_chars")
+    if isinstance(reported, (int, float)) and not isinstance(reported, bool):
+        return int(reported), False
+    if memory is None:
+        return None, False
+    return sum(len(str(i.get("text") or "")) + len(str(i.get("source") or "")) for i in used_items(memory)), True
+

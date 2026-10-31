@@ -65,20 +65,33 @@ def toml_lines(table: Mapping[str, Any], prefix: str = "") -> list[str]:
 
 
 def config_document(
-    base_url: str, model: str, embedding_model: str | None, extra_body: Mapping[str, Any] | None
+    base_url: str, model: str, embedding_model: str | None, extra_body: Mapping[str, Any] | None,
+    settings: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """The gateway's config.toml as data: an oMLX chat backend, with its embedding model for the mixed arm only."""
+    """The gateway's config.toml as data: an oMLX chat backend, with its embedding model for the mixed arm only.
+
+    ``settings`` are an arm's dotted config keys (``agent.window_messages``), written into their tables. A setting
+    that `melo serve -X` refuses goes here: a gateway session takes its window cap from ``[agent] window_messages``."""
     section: dict[str, Any] = {"chat_url": base_url, "chat_model": model}
     if embedding_model:
         section.update(embedding_url=base_url, embedding_model=embedding_model)
     if extra_body:
         section["extra_body"] = dict(extra_body)
-    return {
+    document: dict[str, Any] = {
         "chat_backend": "omlx",
         "embedding_backend": "omlx" if embedding_model else "none",
         "request_timeout_s": 600,
         "vllm": section,
     }
+    for key, value in (settings or {}).items():
+        *tables, leaf = key.split(".")
+        table = document
+        for name in tables:
+            table = table.setdefault(name, {})
+            if not isinstance(table, dict):
+                raise ValueError(f"config key {key} runs into a value that is not a table")
+        table[leaf] = value
+    return document
 
 
 def write_config(home: Path, document: Mapping[str, Any]) -> Path:

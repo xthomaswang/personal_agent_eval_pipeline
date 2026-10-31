@@ -7,6 +7,15 @@ statement (any message that is not a question) becomes a record, a finished turn
 its chat, and a question recalls records and the documents of other chats that share enough words. The
 arm comes from the ``-X`` settings it is started with. ``melo_main`` is the same thing behind the
 ``melo`` command line, for tests that start a real subprocess.
+
+With ``store=True`` it also keeps what the real gateway keeps in SQLite and the in-chat checks read: a working window
+per chat (the ``[agent] window_messages`` of the cell's config.toml, default 64, dropped in chunks of 8 down from the cap) in the ``windows`` table of
+``gateway/sessions.db`` next to the stored ``events`` (``run.finished`` carries the cap), and a ``long_term`` row per
+note in ``memory/records.db``. ``tool_words`` makes turns whose text holds a key call that read-tier tool (four
+messages instead of two), ``save_only`` limits which statements become notes, and ``answers`` scripts replies. A
+question the memory does not answer is answered from the chat's own window when a user message in it matches.
+``memory.context_query=on`` makes its recall looser (one shared word is enough, so a pronoun follow-up finds its
+note); ``new_build=True`` reports ``recall.context`` and ``recall.block_chars`` as newer localmelo builds do.
 """
 
 from __future__ import annotations
@@ -16,6 +25,7 @@ import json
 import os
 import re
 import signal
+import sqlite3
 import sys
 import threading
 import time
@@ -29,7 +39,7 @@ from urllib.parse import parse_qs, urlsplit
 KEY_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}")
 STOP_WORDS = {"what", "when", "where", "which", "who", "the", "and", "for", "are", "was", "does", "have", "with", "from"}
 TOKEN = "fake-token"
-KNOWN_SETTINGS = {"memory.retriever": "auto", "memory.across_chats": "true"}
+KNOWN_SETTINGS = {"memory.retriever": "auto", "memory.across_chats": "true", "agent.window_messages": "64", "memory.context_query": "off"}
 
 
 def terms(text: str) -> set[str]:
@@ -44,10 +54,18 @@ class FakeGateway:
         recall_timings: bool = True, synonyms: Mapping[str, str] | None = None, drop_stream: bool = False,
         busy_deletes: int = 0, fail_texts: Sequence[str] = (), token: str = TOKEN, model_calls: bool = False,
         approval_texts: Sequence[str] = (), hang_texts: Sequence[str] = (), hang_seconds: float = 3.0,
+        store: bool = False, tool_words: Mapping[str, str] | None = None, save_only: Sequence[str] | None = None,
+        answers: Mapping[str, str] | None = None, new_build: bool = False,
     ) -> None:
         settings = dict(p.split("=", 1) for p in x_pairs)
         self.retriever = settings.get("memory.retriever", "auto")
         self.across = settings.get("memory.across_chats", "true") != "false"
+        if "agent.window_messages" in settings:  # as `melo serve` answers it: the cap is a config.toml entry for a gateway
+            raise ValueError("melo: error: only for direct mode (a query without --serve): --window-messages")
+        self.store, self.tool_words, self.save_only = store, dict(tool_words or {}), None if save_only is None else tuple(save_only)
+        self.answers = dict(answers or {})
+        self.context_query = settings.get("memory.context_query")  # None: the build has no such setting
+        self.new_build = new_build
         self.x_pairs = tuple(x_pairs)
         self.home = Path(home)
         self.delay, self.recall_timings, self.synonyms = delay, recall_timings, dict(synonyms or {})
@@ -60,12 +78,15 @@ class FakeGateway:
         self.chat_url = self.embedding_url = ""
         self.chat_model = self.embedding_model = ""
         config = self.home / ".cache" / "localmelo" / "config.toml"
+        document = tomllib.loads(config.read_text()) if config.exists() else {}
+        self.window_cap = int(document.get("agent", {}).get("window_messages", 64))
         if model_calls and config.exists():  # the model calls go where the driver's config says, as localmelo's do
-            section = tomllib.loads(config.read_text()).get("vllm", {})
+            section = document.get("vllm", {})
             self.chat_url, self.chat_model = section.get("chat_url", ""), section.get("chat_model", "")
             self.embedding_url, self.embedding_model = section.get("embedding_url", ""), section.get("embedding_model", "")
         self.stopped = False
         self.sessions: dict[str, dict[str, Any]] = {}
+        self.created = 0
         self.requests: list[tuple[str, str]] = []
         self.lock = threading.Condition()
         self.memory_path = self.home / ".cache" / "localmelo" / "memory" / "memory.json"
@@ -102,6 +123,40 @@ class FakeGateway:
             self.server.shutdown()
             self.server.server_close()
 
+    # --- the SQLite store (store=True) ---
+
+    @property
+    def sessions_db(self) -> Path:
+        return self.home / ".cache" / "localmelo" / "gateway" / "sessions.db"
+
+    @property
+    def records_db(self) -> Path:
+        return self.home / ".cache" / "localmelo" / "memory" / "records.db"
+
+    SCHEMAS = {
+        "sessions": (
+            "CREATE TABLE IF NOT EXISTS windows (session_id TEXT PRIMARY KEY, turn INTEGER NOT NULL, version INTEGER NOT NULL, "
+            "data TEXT NOT NULL, created_at REAL NOT NULL, thinking_since REAL)",
+            "CREATE TABLE IF NOT EXISTS events (id INTEGER PRIMARY KEY AUTOINCREMENT, session_id TEXT NOT NULL, turn INTEGER, "
+            "type TEXT NOT NULL, event TEXT NOT NULL)"),
+        "records": (
+            "CREATE TABLE IF NOT EXISTS long_term (id INTEGER PRIMARY KEY AUTOINCREMENT, text TEXT NOT NULL, "
+            "kind TEXT NOT NULL DEFAULT 'profile', source TEXT NOT NULL DEFAULT 'user', status TEXT NOT NULL DEFAULT 'active', "
+            "session_id TEXT NOT NULL DEFAULT '')",),
+    }
+
+    def sql(self, db: Path, statement: str, args: Sequence[Any] = ()) -> None:
+        """One write on its own connection, closed at once, so the file is whole on disk for a read-only reader."""
+        db.parent.mkdir(parents=True, exist_ok=True)
+        conn = sqlite3.connect(db)
+        try:
+            for create in self.SCHEMAS["sessions" if db == self.sessions_db else "records"]:
+                conn.execute(create)
+            conn.execute(statement, tuple(args))
+            conn.commit()
+        finally:
+            conn.close()
+
     # --- memory ---
 
     def load(self) -> dict[str, list[dict[str, Any]]]:
@@ -119,7 +174,7 @@ class FakeGateway:
         query = terms(text)
         if self.retriever == "embedding":
             query |= {extra for t in list(query) for extra in terms(self.synonyms.get(t, ""))}
-        need = max(1, int(0.6 * len(query) + 0.999)) if query else 1
+        need = max(1, int(0.6 * len(query) + 0.999)) if query and self.context_query != "on" else 1
         used = []
         for record in memory["records"]:
             if len(query & terms(record["text"])) >= need:
@@ -189,6 +244,8 @@ class FakeGateway:
                         memory["documents"] = [d for d in memory["documents"] if d["session_id"] != sid]
                         self.save(memory)
                     del self.sessions[sid]
+                    if self.store:
+                        self.sql(self.sessions_db, "DELETE FROM windows WHERE session_id = ?", (sid,))
                 h.send_response(204)
                 h.send_header("Content-Length", "0")
                 h.end_headers()
@@ -213,7 +270,8 @@ class FakeGateway:
             return self.reply(h, 400, {"error": {"code": "invalid_request"}})
         with self.lock:
             if sid is None:
-                sid = f"s{len(self.sessions) + 1:03d}x{os.getpid() % 1000}"
+                self.created += 1  # never reused, like the real gateway's random ids: a deleted chat's id is gone for good
+                sid = f"s{self.created:03d}x{os.getpid() % 1000}"
                 self.sessions[sid] = {"id": sid, "turns": [], "events": [], "workspace": workspace}
             session = self.sessions[sid]
             row = {"id": f"t{sid}-{len(session['turns']) + 1}", "turn": len(session["turns"]) + 1, "user_text": text, "status": "running", "cause": "", "answer": "", "result": None, "client_request_id": key}
@@ -227,8 +285,32 @@ class FakeGateway:
 
     def add(self, session: dict[str, Any], row: Mapping[str, Any], type_: str, data: Mapping[str, Any]) -> None:
         with self.lock:
-            session["events"].append({"id": len(session["events"]) + 1, "session_id": session["id"], "turn": row["turn"], "v": 1, "type": type_, "run_id": "", "seq": None, "ts": time.time(), "data": dict(data)})
+            event = {"id": len(session["events"]) + 1, "session_id": session["id"], "turn": row["turn"], "v": 1, "type": type_, "run_id": "", "seq": None, "ts": time.time(), "data": dict(data)}
+            session["events"].append(event)
+            if self.store:
+                self.sql(self.sessions_db, "INSERT INTO events (session_id, turn, type, event) VALUES (?, ?, ?, ?)", (session["id"], row["turn"], type_, json.dumps(event)))
             self.lock.notify_all()
+
+    # --- the working window (store=True) ---
+
+    def push(self, session: dict[str, Any], *messages: Mapping[str, Any]) -> None:
+        """Append one unit (a tool call with its result, or one message) to the chat's window and drop the oldest units
+        when it holds more than the cap: down to cap - 8 (at most half the cap), whole units, never the newest."""
+        units = session.setdefault("units", [])
+        units.append([dict(m) for m in messages])
+        if sum(len(u) for u in units) > self.window_cap:
+            target = self.window_cap - min(8, self.window_cap // 2)
+            while sum(len(u) for u in units) > target and len(units) > 1:
+                units.pop(0)
+
+    def window(self, session: Mapping[str, Any]) -> list[dict[str, Any]]:
+        return [m for u in session.get("units", []) for m in u]
+
+    def window_match(self, session: Mapping[str, Any], text: str) -> str | None:
+        """The newest user message in the chat's window, other than ``text``, that shares enough words with it."""
+        query = terms(text)
+        need = max(1, int(0.6 * len(query) + 0.999))
+        return next((m["content"] for m in reversed(self.window(session)) if m["role"] == "user" and m["content"] != text and len(query & terms(m["content"])) >= need), None)
 
     def call_model(self, base: str, path: str, body: Mapping[str, Any], *, stream: bool = False) -> float:
         """One request to the model server named in the config (through the driver's proxy); milliseconds taken."""
@@ -248,6 +330,8 @@ class FakeGateway:
         text, sid = row["user_text"], session["id"]
         cancel = self.cancels[row["id"]]
         self.add(session, row, "turn.started", {"turn": row["turn"], "user_text": text})
+        if self.store:
+            self.push(session, {"role": "user", "content": text})
         time.sleep(self.delay)
         statement = not text.rstrip().endswith(("?", "？"))
         used: list[dict[str, Any]] = []
@@ -265,17 +349,21 @@ class FakeGateway:
                 select_ms = int(self.call_model(self.chat_url, "/chat/completions", {"model": self.chat_model, "messages": []})) if self.model_calls else 800
             with self.lock:
                 memory = self.load()
-                if statement:
+                if statement and (self.save_only is None or any(w in text for w in self.save_only)):
                     subject = text.lower().split()[:2]
                     memory["records"] = [r for r in memory["records"] if r["text"].lower().split()[:2] != subject]
                     record = {"id": max([r["id"] for r in memory["records"]] + [0]) + 1, "text": text, "session_id": sid}
                     memory["records"].append(record)
                     remembered.append({"id": record["id"], "text": text, "topic": "about"})
                     self.save(memory)
+                    if self.store:
+                        self.sql(self.records_db, "INSERT INTO long_term (text, session_id) VALUES (?, ?)", (text, sid))
             shown = self.retriever if self.retriever != "auto" else ("embedding" if embeds else "bm25")
             recall = {"retriever": shown, "fallback": "none", "embed_ms": embed_ms, "search_ms": 1, "select_ms": select_ms,
                       "select_tokens": {"prompt": 640 if self.retriever == "llm" else 0, "completion": 12 if self.retriever == "llm" else 0},
                       "candidates": len(used), "used": len(used)}
+            if self.new_build:
+                recall.update(context="used" if self.context_query == "on" else "off", block_chars=sum(len(u["text"]) + len(u["source"]) for u in used))
             if self.recall_timings or used or remembered:  # a build without the timings sent the event only for something
                 data: dict[str, Any] = {"turn": row["turn"], "turn_id": row["id"], "used": used, "remembered": remembered, "refused": ""}
                 if self.recall_timings:
@@ -296,11 +384,31 @@ class FakeGateway:
         cancelled = False
         if any(m in text for m in self.hang_texts):  # a turn that does not come back
             cancelled = cancel.wait(self.hang_seconds)
+        tool = next((name for word, name in self.tool_words.items() if word in text), "")
+        step = 1
+        if tool:  # a read-tier tool call: the call, its result, and then the answer
+            call = {"id": f"call_{sid}_{row['turn']}", "name": tool, "arguments": {}}
+            self.add(session, row, "assistant.message", {"step": 1, "content": "", "tool_calls": [call], "usage": {"completion_tokens": 7}, "duration_s": self.delay})
+            self.add(session, row, "tool.started", {"step": 1, "call_id": call["id"], "name": tool, "arguments": {}})
+            self.add(session, row, "tool.finished", {"step": 1, "call_id": call["id"], "name": tool, "status": "success", "output": "ok", "error": ""})
+            if self.store:
+                self.push(session, {"role": "assistant", "content": "", "tool_calls": [call]}, {"role": "tool", "content": "ok", "tool_call_id": call["id"]})
+            step = 2
         if self.model_calls and self.chat_url and not cancelled:
-            self.call_model(self.chat_url, "/chat/completions", {"model": self.chat_model, "messages": [], "tools": [{"type": "function"}]}, stream=True)
+            window = self.window(session) if self.store else []
+            self.call_model(self.chat_url, "/chat/completions", {"model": self.chat_model, "messages": window, "tools": [{"type": "function"}]}, stream=True)
         failed = any(f in text for f in self.fail_texts) or (bool(self.approval_texts) and any(m in text for m in self.approval_texts) and not denied)
-        answer = "" if failed or cancelled else (f"From my notes: {used[0]['text']}" if used else ("Noted." if statement else "I don't know."))
-        self.add(session, row, "assistant.message", {"step": 1, "content": answer, "usage": {"completion_tokens": 7}, "duration_s": self.delay})
+        scripted = next((reply for key, reply in self.answers.items() if key in text), None)
+        own = self.window_match(session, text) if self.store and not statement and not used else None
+        if failed or cancelled:
+            answer = ""
+        elif scripted is not None:
+            answer = scripted
+        else:
+            answer = f"From my notes: {used[0]['text']}" if used else f"From this chat: {own}" if own else ("Noted." if statement else "I don't know.")
+        self.add(session, row, "assistant.message", {"step": step, "content": answer, "usage": {"completion_tokens": 7}, "duration_s": self.delay})
+        if self.store:
+            self.push(session, {"role": "assistant", "content": answer})
         with self.lock:
             if self.across and answer:
                 memory = self.load()
@@ -310,6 +418,10 @@ class FakeGateway:
             if recall is not None:
                 result["memory_recall"] = recall
             row.update(status="cancelled" if cancelled else "failed" if failed else "completed", cause="run", answer=answer, result=result)
+        if self.store:  # the end of a turn: run.finished (with the cap the chat ran with) and the window checkpoint
+            self.add(session, row, "run.finished", {"result": {"status": row["status"], "config": {"window_messages": self.window_cap}}})
+            self.sql(self.sessions_db, "INSERT OR REPLACE INTO windows (session_id, turn, version, data, created_at, thinking_since) VALUES (?, ?, 1, ?, ?, NULL)",
+                     (sid, row["turn"], json.dumps({"v": 1, "messages": self.window(session)}), time.time()))
         self.add(session, row, "turn.finished", {"turn": row["turn"], "status": row["status"], "cause": "run"})
         cancel.set()  # a finished turn can no longer be cancelled (409)
         if self.model_calls and embeds and answer and self.across:  # the finished turn is indexed in the background
@@ -493,5 +605,44 @@ def mini_raw() -> dict[str, Any]:
             question(3, "crosslang", "en", ["F2"], "Who is my roommate?", "小满", aliases=["Xiaoman"]),
             question(4, "superseded", "en", ["F4"], "Where do I live?", "Utrecht", wrong_facts=["F3"], reject=["Lisbon"]),
             question(5, "nothing", "en", [], "What is my favourite board game?"),
+        ],
+    }
+
+
+MINI_TOOL_WORDS = {"Read ": "file_read", "List ": "list_files"}  # for FakeGateway(tool_words=...)
+MINI_SAVE_ONLY = ("Priya", "advisor", "Ortiz", "班主任", "周老师")  # the fake saves only these statements: "Today's call is in room 4B." is not a note
+
+
+def mini_raw_v2() -> dict[str, Any]:
+    """A small valid v2 task set (2 long-range and 2 follow-up items, one filler set of 30 turns) for the driver and
+    report tests. Run it with ``FakeGateway(store=True, tool_words=MINI_TOOL_WORDS, save_only=MINI_SAVE_ONLY)``."""
+    files = ["todo.md", "notes.txt", "docs/faq.md"]
+    tools = [{"id": f"ft{n:02d}", "lang": "en", "tool": "file_read", "text": f"Read {files[n % 3]} and report line {n}. Answer in one sentence."} for n in range(12)]
+    tools += [{"id": f"ft{12 + n:02d}", "lang": "en", "tool": "list_files", "text": f"List the files, check number {n}. Answer in one sentence."} for n in range(4)]
+    plain = [{"id": f"fp{n:02d}", "lang": "en", "text": f"Quick fact number {n}, what is it? Answer in one sentence."} for n in range(14)]
+    order = []
+    for n in range(16):  # a plain turn after every tool turn while there are plain turns
+        order.append(tools[n]["id"])
+        if n < 14:
+            order.append(plain[n]["id"])
+
+    def ask(text: str, answer: str, **extra: Any) -> dict[str, Any]:
+        return {"text": text, "answer": answer, **extra}
+
+    return {
+        "version": 2, "protocol": "mini-v2", "ask_seed": 5,
+        "fixtures": [{"path": p, "text": f"Sample {p}.\n"} for p in files],
+        "filler": tools + plain, "sets": {"en": order},
+        "items": [
+            {"id": "L1", "kind": "longrange", "lang": "en", "note_expected": False, "filler": "en",
+             "opener": "Hi, long day of calls ahead. Yesterday's was in room 2A.", "fact": "Today's call is in room 4B.",
+             "asks": [ask("Which room is today's call in?", "4B", reject=["2A"])]},
+            {"id": "L2", "kind": "longrange", "lang": "en", "note_expected": True, "filler": "en",
+             "opener": "Hey, got a minute?", "bridge": "Quick one: what is a synonym for big? Answer in one sentence.",
+             "fact": "My sister's name is Priya.", "asks": [ask("What is my sister's name?", "Priya")]},
+            {"id": "P1", "kind": "followup", "lang": "en", "facts": ["My advisor is Dr. Lena Ortiz.", "Dr. Ortiz's office is room 512."],
+             "asks": [ask("Who is my advisor?", "Ortiz"), ask("And where is her office?", "512")]},
+            {"id": "P2", "kind": "followup", "lang": "zh", "facts": ["我的班主任是周老师。", "周老师的办公室在文科楼305。"],
+             "asks": [ask("我的班主任是谁？", "周老师"), ask("那她的办公室在哪儿？", "305", aliases=["文科楼"])]},
         ],
     }

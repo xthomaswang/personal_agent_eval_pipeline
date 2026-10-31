@@ -238,3 +238,78 @@ only the five replacing facts supersede another, no look-alike pair does, only t
 questions pass the BM25 gate on their note alone, and paraphrase, cross-language and nothing-to-recall questions pass it
 on nothing (so `llm` finds no candidates for a paraphrase with no shared word, by design).
 Tests: `uv run pytest -q -p no:cacheprovider memory/tests/test_across_*.py`.
+
+### Memory bench v2: in-chat kinds (`data/tasks_v2.yaml`)
+
+v2 adds kinds that need a chat of their own; `--tasks memory/across/data/tasks_v2.yaml` selects the v2 protocol
+(`across-run-v3`; v1 runs keep their protocol and identity). The file holds the two kinds built so far, 20 items each,
+about a third Chinese. The `KINDS` table in `across/data_v2.py` says, per kind, which arms run it and what the
+working window must look like at the question; a cell runs only the items whose kind lists its arm.
+
+| kind | what it asks | arms (window rule at the question) |
+|---|---|---|
+| `longrange` | one chat: an opener, the fact at turn 2 or 3, 30 filler turns, then the question in the same chat. At least 14 of 20 facts are details of the conversation the note rules should not save (`note_expected: false`: "the draft I'm editing is called river.md"); the rest are note-worthy facts as a control. | N0 `out`, M2 `out`, FC `in` |
+| `followup` | two facts, each taught in its own chat; then one chat with Q1 ("Who is my advisor?") and a pronoun follow-up Q2 ("And where is her office?"), deleted afterwards (unless `--keep-ask-chats`). Q1 and Q2 are scored apart. | M2, B0, N0 |
+
+The filler is about 30 messages per chat (16 tool turns that read a file or list the files, 14 plain ones), each
+asking for a one-sentence answer, about 92 messages between the fact and the question. The driver writes the small
+fixture files of the task file (each at most 300 characters) into `work/<item>/` for each long chat, so the read-tier
+tools the gateway offers (`file_read` and `list_files`, neither of which asks for approval) have something to read;
+no gold string occurs in any filler message or fixture file (the loader checks). The report's tools table shows what
+the chats called.
+Turns of a long chat, the question included, stop after `--long-timeout` (120 s); teaching turns keep 60 s and the
+questions of follow-up chats 900 s.
+
+**Arms.** FC (full context) is N0 with a 256-message window (the maximum) and no embedding model; the settings that
+mean "memory off" are `MEMORY_OFF_X` in `across/run.py`, one place for N0 and FC. `melo serve -X agent.window_messages=N`
+exits ("only for direct mode"): a gateway session takes its cap from `[agent] window_messages` of config.toml, so an
+arm carries config entries (`Arm.config`; `"config": {"agent.window_messages": 256}` in an arms file) that the driver
+writes into the cell's config.toml. The plan line shows them (`[config.toml: agent.window_messages=256]`) and so do
+`across.json`, `cell.json` and the report's arm table. N0 and FC run in-chat kinds only (FC is not run on v1
+questions). An arms file (`--arms-file`) may give an arm a `base`, the arm whose row in each kind's table it
+follows: `{"M2-on": {"x": ["memory.retriever=embedding", "memory.context_query=on"], "embedding": true, "base":
+"M2"}}` runs the kinds M2 runs, with M2's window rule.
+
+**Valid items.** A long-range item counts for an arm only when, at the question, the fact turn is out of the window
+(N0, M2) or still in it (FC). The check reads the cell's `gateway/sessions.db` after the cell ends, read-only
+(`file:...?immutable=1`). Its `windows` table keeps one row per chat, the working window as the chat's newest turn
+left it, so there is no row for "the turn before the question"; the row of the question's turn is used. A message
+in that window was in it for every model call of the turn; a message that is absent was out of the window when the
+question arrived if at least the cap (64 for N0 and M2) messages were added between the end of the fact turn and the
+question (the window then held the newest 64 or fewer, and the fact is older than all of them), counted from the
+stored `events`. It does not matter where in the chat the fact turn began. Otherwise the item is invalid for that arm
+("the fact may still have been in the window"). FC items must also keep every request of the chat under 100,000 bytes
+(localmelo's prompt cap is 100,000 characters; `req_bytes` of `proxy.jsonl`, mapped to turns by time). An item whose
+fact or teaching turn did not finish, or whose cell has not finished, is invalid too. Invalid items are listed in
+the report with the reason and left out of every table.
+
+**Report** (`report.py` sends a v2 run to `report_v2.py`): accuracy per kind and arm with Wilson 95% intervals (long
+range also by `note_expected`; follow-up as Q1, Q2 and Q2 given Q1 right); the class of every miss -- `not saved`
+(no note from the chat that said the fact holds the gold string in `records.db`, `long_term.session_id`), `not
+recalled` (saved, the chat's item is not in `turn.memory.used`), `recalled but not used`, and for N0 and FC `out of
+window` or `in window but not used`; where right long-range answers came from (a used note, the chat's own turn --
+a used item with source `this chat, <day>`, or the turn still in the window -- or unknown; M2's legacy step
+summaries send no event, so an unexplained M2 answer is marked as possibly one); notes made against `note_expected`;
+the tools the long chats called; exact McNemar between the arms of each kind; turn wall, recall, first-event time,
+request bytes and recall-block characters (`recall.block_chars` when the build reports it, otherwise an estimate from
+the used items, labelled ESTIMATE); and `recall.context` per question. `report ... --compare <other run dir> [arm]`
+pairs the same asks of the same arm in two runs of one task file (two localmelo builds) with McNemar per kind and the
+asks whose verdict differs.
+
+```sh
+cd eval
+# smoke: two items per kind (L01 and L15 are long-range, P01 and P14 follow-up), all four arms, plan and preflight first
+uv run python -m memory.across.run --run-dir memory/runs/bench2-smoke --localmelo <checkout> --localmelo-sha <sha> \
+    --base-url http://127.0.0.1:8500/v1 --tasks memory/across/data/tasks_v2.yaml --arms M2,B0,N0,FC \
+    --questions L01,L15,P01,P14 --dry-run
+# the same without --dry-run runs it; with --repeats 1 (the default for v2) it is one cell per arm
+# the full set: 40 items, 1 repeat, the same four arms (a second command resumes)
+uv run python -m memory.across.run --run-dir memory/runs/bench2-<name> --localmelo <checkout> --localmelo-sha <sha> \
+    --base-url http://127.0.0.1:8500/v1 --tasks memory/across/data/tasks_v2.yaml --arms M2,B0,N0,FC
+uv run python -m memory.across.report memory/runs/bench2-<name> [--compare memory/runs/bench2-<other> M2]
+```
+
+GPU time on the bench's chat model: the follow-up kind is about 3 minutes per arm (8 teaching and 40 question turns of
+a few seconds); the long-range kind is about 600 turns per arm (20 chats of 33 turns), 35-50 minutes per arm. Per
+run: M2 and N0 run both kinds, FC only long range, B0 only follow-up, so the full set is about 2.5 hours at one repeat.
+The operator holds the GPU lock as for v1; the driver never starts a model server.

@@ -1,0 +1,459 @@
+# Memory across chats, task set v2 (see eval/memory/README.md, "Memory bench v2").
+#
+# Everything here is fictional: "you" is a made-up user and no fact is about a real person.
+#
+# This file holds the kinds built so far (longrange, followup); later steps add more. Kinds, the arms that run
+# them and the window rule per arm are the KINDS table in across/data_v2.py.
+#
+# fixtures  small files (each at most 300 characters) the driver writes into the workspace of every long chat, then
+#           so the read-tier tools have something to read.
+# filler    the shared pool of filler messages. `tool` names the read-tier tool a message is meant to use
+#           (file_read or list_files; neither ever asks for approval); no `tool` is a plain turn.
+#           Every filler message asks for a one-sentence answer. No gold string of any item occurs in a filler
+#           message or fixture file (the loader checks).
+# sets      named orders of the filler pool: 16 tool turns and 14 plain turns, about 92 messages in a chat.
+# items     kind longrange: one chat. opener (turn 1), an optional bridge (turn 2; then the fact is turn 3), the
+#             fact, the filler set, then the one ask, in the same chat. note_expected says whether localmelo's
+#             note rules are expected to save the fact (false: a detail of the conversation, tracked as such).
+#             `reject` strings occur in the opener or bridge (a stale value the answer must not give).
+#           kind followup: `facts` are two teaching messages, each in its own new chat; then one chat with the two
+#             asks: Q1 recalls the first fact, Q2 is a pronoun follow-up whose answer is the second fact. `wrong`
+#             names the items whose facts hold the reject strings.
+#           answer + aliases: any of them in the reply is correct; reject: strings that must not appear.
+#
+# The order items run in is a fixed shuffle: sorted by sha256("<ask_seed>:<id>").
+version: 2
+protocol: across-v2
+ask_seed: 11
+
+fixtures:
+  - {path: "todo.md", text: "# Todo\n- water the plants\n- renew the library card\n- book a haircut\n- call the plumber\n"}
+  - {path: "notes.txt", text: "Shopping list for the weekend: oat milk, lemons, rice, basil, olive oil, matches.\n"}
+  - {path: "readme.txt", text: "This folder holds small sample files for practice. Nothing here is important.\n"}
+  - {path: "config.ini", text: "[display]\ntheme = dark\nfont_size = 12\n\n[sync]\ninterval_minutes = 30\nenabled = true\n"}
+  - {path: "inventory.csv", text: "item,count\npens,12\nstaplers,3\nnotebooks,7\ntape,5\n"}
+  - {path: "schedule.txt", text: "Monday: gym\nTuesday: language class\nThursday: choir\nSaturday: market\n"}
+  - {path: "recipe.txt", text: "Tomato soup: onion, garlic, tomatoes, stock. Simmer for 20 minutes, then blend.\n"}
+  - {path: "changelog.md", text: "# Changelog\n## 0.2\n- faster start-up\n## 0.1\n- first release\n"}
+  - {path: "poem.txt", text: "Rain on the roof,\nthe kettle sings low,\nan evening unhurried,\nthe lamps all aglow.\n"}
+  - {path: "docs/guide.md", text: "# Guide\nStep one: open the box. Step two: read the card. Step three: plug it in.\n"}
+  - {path: "docs/faq.md", text: "# FAQ\nQ: Does it need a battery? A: No.\nQ: Is it waterproof? A: No.\n"}
+
+filler:
+  # English, tool turns
+  - {id: ft01, lang: en, tool: file_read, text: "Please read todo.md and tell me the first item on the list. Answer in one sentence."}
+  - {id: ft02, lang: en, tool: file_read, text: "Open notes.txt and tell me the first thing on the shopping list. Answer in one sentence."}
+  - {id: ft03, lang: en, tool: file_read, text: "Read config.ini and tell me which theme is set. Answer in one sentence."}
+  - {id: ft04, lang: en, tool: file_read, text: "Read inventory.csv and tell me how many staplers there are. Answer in one sentence."}
+  - {id: ft05, lang: en, tool: file_read, text: "Read schedule.txt and tell me what is planned for Thursday. Answer in one sentence."}
+  - {id: ft06, lang: en, tool: file_read, text: "Read recipe.txt and tell me how long the soup simmers. Answer in one sentence."}
+  - {id: ft07, lang: en, tool: file_read, text: "Read changelog.md and tell me what the newest version added. Answer in one sentence."}
+  - {id: ft08, lang: en, tool: file_read, text: "Read poem.txt and tell me what sings low. Answer in one sentence."}
+  - {id: ft09, lang: en, tool: file_read, text: "Read docs/guide.md and tell me what the last step is. Answer in one sentence."}
+  - {id: ft10, lang: en, tool: file_read, text: "Read docs/faq.md and tell me whether the device needs a battery. Answer in one sentence."}
+  - {id: ft11, lang: en, tool: list_files, text: "List the files in this folder and tell me how many there are. Answer in one sentence."}
+  - {id: ft12, lang: en, tool: list_files, text: "List what is inside the docs folder. Answer in one sentence."}
+  - {id: ft13, lang: en, tool: list_files, text: "Which csv file is in this folder? List the files to check. Answer in one sentence."}
+  - {id: ft14, lang: en, tool: file_read, text: "Open readme.txt and tell me what the folder is for. Answer in one sentence."}
+  - {id: ft15, lang: en, tool: list_files, text: "List the files in this folder and tell me whether there is a poem among them. Answer in one sentence."}
+  - {id: ft16, lang: en, tool: list_files, text: "Which file in this folder has the .ini extension? List the files to check. Answer in one sentence."}
+  # English, plain turns
+  - {id: fp01, lang: en, text: "What is the capital of Portugal? Answer in one sentence."}
+  - {id: fp02, lang: en, text: "What does the word 'idempotent' mean? Answer in one sentence."}
+  - {id: fp03, lang: en, text: "Is a tomato a fruit or a vegetable? Answer in one sentence."}
+  - {id: fp04, lang: en, text: "Give me a synonym for 'quick'. Answer in one sentence."}
+  - {id: fp05, lang: en, text: "How many minutes are in a day? Answer in one sentence."}
+  - {id: fp06, lang: en, text: "What is the boiling point of water at sea level in Celsius? Answer in one sentence."}
+  - {id: fp07, lang: en, text: "Which planet is known as the red planet? Answer in one sentence."}
+  - {id: fp08, lang: en, text: "What is the plural of 'cactus'? Answer in one sentence."}
+  - {id: fp09, lang: en, text: "Why is the sky blue? Answer in one sentence."}
+  - {id: fp10, lang: en, text: "What is a good name for a small herb garden? Answer in one sentence."}
+  - {id: fp11, lang: en, text: "Who wrote 'Pride and Prejudice'? Answer in one sentence."}
+  - {id: fp12, lang: en, text: "What is the opposite of 'generous'? Answer in one sentence."}
+  - {id: fp13, lang: en, text: "How many sides does a hexagon have? Answer in one sentence."}
+  - {id: fp14, lang: en, text: "What does HTTP stand for? Answer in one sentence."}
+  # Chinese, tool turns
+  - {id: zt01, lang: zh, tool: file_read, text: "请读一下 todo.md，告诉我清单上的第一项是什么。请用一句话回答。"}
+  - {id: zt02, lang: zh, tool: file_read, text: "打开 notes.txt，告诉我购物清单上的第一样东西。请用一句话回答。"}
+  - {id: zt03, lang: zh, tool: file_read, text: "读一下 config.ini，告诉我设置的主题是什么。请用一句话回答。"}
+  - {id: zt04, lang: zh, tool: file_read, text: "读一下 inventory.csv，告诉我订书机有几个。请用一句话回答。"}
+  - {id: zt05, lang: zh, tool: file_read, text: "读一下 schedule.txt，告诉我周四安排了什么。请用一句话回答。"}
+  - {id: zt06, lang: zh, tool: file_read, text: "读一下 recipe.txt，告诉我汤要炖多久。请用一句话回答。"}
+  - {id: zt07, lang: zh, tool: file_read, text: "读一下 changelog.md，告诉我最新版本新增了什么。请用一句话回答。"}
+  - {id: zt08, lang: zh, tool: file_read, text: "读一下 poem.txt，告诉我诗里什么在低声歌唱。请用一句话回答。"}
+  - {id: zt09, lang: zh, tool: file_read, text: "读一下 docs/guide.md，告诉我最后一步是什么。请用一句话回答。"}
+  - {id: zt10, lang: zh, tool: file_read, text: "读一下 docs/faq.md，告诉我这个设备需不需要电池。请用一句话回答。"}
+  - {id: zt11, lang: zh, tool: list_files, text: "列出这个文件夹里的文件，告诉我一共有几个。请用一句话回答。"}
+  - {id: zt12, lang: zh, tool: list_files, text: "列出 docs 文件夹里有什么。请用一句话回答。"}
+  - {id: zt13, lang: zh, tool: list_files, text: "这个文件夹里有哪个 csv 文件？请列出文件来确认。请用一句话回答。"}
+  - {id: zt14, lang: zh, tool: file_read, text: "打开 readme.txt，告诉我这个文件夹是做什么用的。请用一句话回答。"}
+  - {id: zt15, lang: zh, tool: list_files, text: "列出这个文件夹里的文件，告诉我里面有没有诗。请用一句话回答。"}
+  - {id: zt16, lang: zh, tool: list_files, text: "这个文件夹里哪个文件是 .ini 结尾的？请列出文件来确认。请用一句话回答。"}
+  # Chinese, plain turns
+  - {id: zp01, lang: zh, text: "葡萄牙的首都是哪里？请用一句话回答。"}
+  - {id: zp02, lang: zh, text: "“幂等”是什么意思？请用一句话回答。"}
+  - {id: zp03, lang: zh, text: "番茄是水果还是蔬菜？请用一句话回答。"}
+  - {id: zp04, lang: zh, text: "给我一个“快”的近义词。请用一句话回答。"}
+  - {id: zp05, lang: zh, text: "一天有多少分钟？请用一句话回答。"}
+  - {id: zp06, lang: zh, text: "水在海平面的沸点是多少摄氏度？请用一句话回答。"}
+  - {id: zp07, lang: zh, text: "哪颗行星被称为红色星球？请用一句话回答。"}
+  - {id: zp08, lang: zh, text: "“仙人掌”用英文怎么说？请用一句话回答。"}
+  - {id: zp09, lang: zh, text: "天空为什么是蓝色的？请用一句话回答。"}
+  - {id: zp10, lang: zh, text: "给一个小香草花园起个名字吧。请用一句话回答。"}
+  - {id: zp11, lang: zh, text: "《红楼梦》的作者是谁？请用一句话回答。"}
+  - {id: zp12, lang: zh, text: "“慷慨”的反义词是什么？请用一句话回答。"}
+  - {id: zp13, lang: zh, text: "六边形有几条边？请用一句话回答。"}
+  - {id: zp14, lang: zh, text: "HTTP 是什么的缩写？请用一句话回答。"}
+
+sets:
+  en_a: ["fp04", "ft15", "fp10", "ft02", "fp14", "ft03", "ft04", "ft09", "fp07", "ft07", "ft14", "fp01", "fp11", "fp13", "fp03", "fp06", "fp08", "ft01", "fp12", "ft08", "fp05", "ft12", "ft16", "ft05", "fp02", "ft13", "ft10", "fp09", "ft06", "ft11"]
+  en_b: ["fp09", "ft05", "ft02", "fp08", "ft09", "fp10", "fp05", "fp03", "ft01", "ft13", "fp13", "ft15", "ft06", "fp01", "fp11", "ft10", "fp12", "ft03", "ft16", "ft11", "fp07", "ft14", "ft12", "fp14", "fp04", "ft04", "fp06", "ft07", "ft08", "fp02"]
+  en_c: ["fp01", "ft13", "fp11", "ft15", "fp03", "fp12", "fp14", "ft05", "fp04", "ft11", "ft02", "fp05", "ft10", "fp02", "ft03", "ft12", "fp09", "ft16", "fp07", "ft08", "ft06", "fp13", "fp06", "ft14", "ft01", "fp08", "ft07", "ft04", "ft09", "fp10"]
+  zh_a: ["zp06", "zp03", "zt04", "zt05", "zp11", "zp04", "zt02", "zt10", "zt03", "zp08", "zt01", "zt09", "zp13", "zt11", "zp07", "zp14", "zp05", "zp10", "zt06", "zt13", "zt07", "zp09", "zt15", "zt08", "zp02", "zt16", "zt14", "zp12", "zt12", "zp01"]
+  zh_b: ["zp02", "zt12", "zt02", "zp03", "zp09", "zp14", "zt03", "zp04", "zp01", "zp11", "zt05", "zt08", "zp06", "zt14", "zt07", "zp10", "zt15", "zt13", "zp05", "zt06", "zp07", "zt11", "zt16", "zp13", "zt10", "zp08", "zt01", "zt09", "zp12", "zt04"]
+
+items:
+  # kind longrange
+  - id: L01
+    kind: longrange
+    lang: en
+    note_expected: false
+    opener: "Morning! I'm settling in to edit a report. Yesterday I finished a different draft, lake.md."
+    fact: "The draft I'm editing is called river.md."
+    filler: en_a
+    asks:
+      - {"text": "What is the draft I'm editing called?", "answer": "river.md", "aliases": ["river"], "reject": ["lake"]}
+  - id: L02
+    kind: longrange
+    lang: en
+    note_expected: false
+    opener: "Hi! Long day of calls ahead. Yesterday's call was in room 2A."
+    fact: "Today's call is in room 4B."
+    filler: en_b
+    asks:
+      - {"text": "Which room is today's call in?", "answer": "4B", "reject": ["2A"]}
+  - id: L03
+    kind: longrange
+    lang: en
+    note_expected: false
+    opener: "Hey, I'm working on my novel today."
+    bridge: "Quick question: is it 'practise' or 'practice' for the verb in US English? Answer in one sentence."
+    fact: "I'm on the 3rd chapter."
+    filler: en_c
+    asks:
+      - {"text": "Which chapter am I on?", "answer": "3rd", "aliases": ["third", "chapter 3", "chapter three"]}
+  - id: L04
+    kind: longrange
+    lang: en
+    note_expected: false
+    opener: "Good morning, stand-up in a few minutes."
+    fact: "The dial-in code for the stand-up is 7421."
+    filler: en_a
+    asks:
+      - {"text": "What is the dial-in code for the stand-up?", "answer": "7421"}
+  - id: L05
+    kind: longrange
+    lang: en
+    note_expected: false
+    opener: "Starting a coding session. Yesterday I was on the branch feature-harbor."
+    fact: "I'm working on the branch feature-lantern."
+    filler: en_b
+    asks:
+      - {"text": "Which branch am I working on?", "answer": "feature-lantern", "aliases": ["lantern"], "reject": ["harbor"]}
+  - id: L06
+    kind: longrange
+    lang: en
+    note_expected: false
+    opener: "Hello! Time to clear some tickets."
+    bridge: "Before I start: what is a polite way to say no to a meeting? Answer in one sentence."
+    fact: "The ticket I'm on is TKT-5528."
+    filler: en_c
+    asks:
+      - {"text": "Which ticket am I on?", "answer": "TKT-5528", "aliases": ["5528"]}
+  - id: L07
+    kind: longrange
+    lang: en
+    note_expected: false
+    opener: "Hi, I've got a busy afternoon."
+    fact: "I need to finish this by 4:45 pm today."
+    filler: en_a
+    asks:
+      - {"text": "When do I need to finish by?", "answer": "4:45", "aliases": ["16:45", "quarter to five"]}
+  - id: L08
+    kind: longrange
+    lang: en
+    note_expected: false
+    opener: "Morning. I need to print a few pages today."
+    fact: "I'm printing on printer P-22 at the end of the hall."
+    filler: en_b
+    asks:
+      - {"text": "Which printer am I using?", "answer": "P-22", "aliases": ["p22"]}
+  - id: L09
+    kind: longrange
+    lang: en
+    note_expected: false
+    opener: "Hi there, starting the afternoon block."
+    bridge: "Random one: what is a good word for 'very tired'? Answer in one sentence."
+    fact: "My pair-programming partner this afternoon is Dana."
+    filler: en_c
+    asks:
+      - {"text": "Who is my pair-programming partner this afternoon?", "answer": "Dana"}
+  - id: L10
+    kind: longrange
+    lang: zh
+    note_expected: false
+    opener: "早上好，我准备开始今天的工作了。昨天我改完的是山风.docx。"
+    fact: "我现在在改的文档叫河湾.docx。"
+    filler: zh_a
+    asks:
+      - {"text": "我现在在改的文档叫什么？", "answer": "河湾.docx", "aliases": ["河湾"], "reject": ["山风"]}
+  - id: L11
+    kind: longrange
+    lang: zh
+    note_expected: false
+    opener: "嗨，今天要开好几个会。昨天的会议在二楼的海鸥厅。"
+    fact: "今天的会议在四楼的白鹭厅。"
+    filler: zh_b
+    asks:
+      - {"text": "今天的会议在哪个厅？", "answer": "白鹭厅", "aliases": ["白鹭"], "reject": ["海鸥"]}
+  - id: L12
+    kind: longrange
+    lang: zh
+    note_expected: false
+    opener: "你好，我今天想继续写小说。"
+    bridge: "先问一个小问题：“练习”和“演练”有什么区别？请用一句话回答。"
+    fact: "我现在写到第三章了。"
+    filler: zh_a
+    asks:
+      - {"text": "我现在写到第几章了？", "answer": "第三章", "aliases": ["三章", "第3章"]}
+  - id: L13
+    kind: longrange
+    lang: zh
+    note_expected: false
+    opener: "早，今天要跑一批测试。上一批的编号是 B-5120。"
+    fact: "这次测试的编号是 B-6093。"
+    filler: zh_b
+    asks:
+      - {"text": "这次测试的编号是多少？", "answer": "B-6093", "aliases": ["6093"], "reject": ["5120"]}
+  - id: L14
+    kind: longrange
+    lang: zh
+    note_expected: false
+    opener: "下午好，我要准备一个分享。"
+    bridge: "顺便问一下，做分享时开场白一般多长合适？请用一句话回答。"
+    fact: "我今天借了一支绿色的激光笔。"
+    filler: zh_a
+    asks:
+      - {"text": "我今天借的激光笔是什么颜色的？", "answer": "绿色"}
+  - id: L15
+    kind: longrange
+    lang: en
+    note_expected: true
+    opener: "Hey, got a minute to chat while I tidy up?"
+    fact: "My sister's name is Priya."
+    filler: en_a
+    asks:
+      - {"text": "What is my sister's name?", "answer": "Priya"}
+  - id: L16
+    kind: longrange
+    lang: en
+    note_expected: true
+    opener: "Hi! Quiet evening here."
+    bridge: "Can you suggest a one-word title for a cooking blog? Answer in one sentence."
+    fact: "I'm allergic to penicillin."
+    filler: en_b
+    asks:
+      - {"text": "What am I allergic to?", "answer": "penicillin"}
+  - id: L17
+    kind: longrange
+    lang: en
+    note_expected: true
+    opener: "Hello again, I'm sorting out some paperwork."
+    fact: "My landlord is Mr. Okafor."
+    filler: en_c
+    asks:
+      - {"text": "Who is my landlord?", "answer": "Okafor"}
+  - id: L18
+    kind: longrange
+    lang: en
+    note_expected: true
+    opener: "Good evening, planning the week."
+    fact: "My daughter's school is Maple Grove Primary."
+    filler: en_a
+    asks:
+      - {"text": "What is my daughter's school called?", "answer": "Maple Grove", "aliases": ["Maple Grove Primary"]}
+  - id: L19
+    kind: longrange
+    lang: zh
+    note_expected: true
+    opener: "晚上好，今天有点空闲。"
+    fact: "我的猫叫团子。"
+    filler: zh_b
+    asks:
+      - {"text": "我的猫叫什么名字？", "answer": "团子"}
+  - id: L20
+    kind: longrange
+    lang: zh
+    note_expected: true
+    opener: "嗨，我在整理日程。"
+    bridge: "顺便问一下，“日程”和“议程”有什么不同？请用一句话回答。"
+    fact: "我的生日是十一月三号。"
+    filler: zh_a
+    asks:
+      - {"text": "我的生日是哪天？", "answer": "十一月三号", "aliases": ["11月3日", "11月3号", "十一月三日"]}
+
+  # kind followup
+  - id: P01
+    kind: followup
+    lang: en
+    facts: ["My advisor is Dr. Lena Ortiz.", "Dr. Ortiz's office is room 512."]
+    asks:
+      - {"text": "Who is my advisor?", "answer": "Ortiz"}
+      - {"text": "And where is her office?", "answer": "512", "reject": ["9C"]}
+    wrong: ["P02"]
+  - id: P02
+    kind: followup
+    lang: en
+    facts: ["My manager is Tom Briggs.", "Tom Briggs's office is in room 9C."]
+    asks:
+      - {"text": "Who is my manager?", "answer": "Briggs"}
+      - {"text": "And where is his office?", "answer": "9C", "reject": ["512"]}
+    wrong: ["P01"]
+  - id: P03
+    kind: followup
+    lang: en
+    facts: ["My dentist is Dr. Anna Kowalski.", "Dr. Kowalski's office is on Pine Street."]
+    asks:
+      - {"text": "Who is my dentist?", "answer": "Kowalski"}
+      - {"text": "And where is her office?", "answer": "Pine Street", "aliases": ["Pine St"], "reject": ["Harlow"]}
+    wrong: ["P04"]
+  - id: P04
+    kind: followup
+    lang: en
+    facts: ["My accountant is Mr. Ravi Menon.", "Mr. Menon's office is in the Harlow Building."]
+    asks:
+      - {"text": "Who is my accountant?", "answer": "Menon"}
+      - {"text": "And where is his office?", "answer": "Harlow", "reject": ["Pine"]}
+    wrong: ["P03"]
+  - id: P05
+    kind: followup
+    lang: en
+    facts: ["My thesis reader is Prof. Ines Duarte.", "Prof. Duarte's office is in the Atrium Wing."]
+    asks:
+      - {"text": "Who is my thesis reader?", "answer": "Duarte"}
+      - {"text": "And where is her office?", "answer": "Atrium", "reject": ["Pine", "Harlow"]}
+    wrong: ["P03", "P04"]
+  - id: P06
+    kind: followup
+    lang: en
+    facts: ["My brother is called Marcus.", "Marcus's phone number ends in 4086."]
+    asks:
+      - {"text": "What is my brother called?", "answer": "Marcus"}
+      - {"text": "And what is his phone number?", "answer": "4086", "reject": ["0147", "0230", "0318"]}
+    wrong: ["P07", "P08", "P09"]
+  - id: P07
+    kind: followup
+    lang: en
+    facts: ["My plumber is Gerald Holt.", "Gerald's phone number is 555-0147."]
+    asks:
+      - {"text": "Who is my plumber?", "answer": "Holt", "aliases": ["Gerald"]}
+      - {"text": "And what is his number?", "answer": "0147", "aliases": ["555-0147"], "reject": ["4086"]}
+    wrong: ["P06"]
+  - id: P08
+    kind: followup
+    lang: en
+    facts: ["My vet is Dr. Yuki Tanaka.", "Dr. Tanaka's phone number is 555-0230."]
+    asks:
+      - {"text": "Who is my vet?", "answer": "Tanaka"}
+      - {"text": "And what is her phone number?", "answer": "0230", "aliases": ["555-0230"], "reject": ["0147"]}
+    wrong: ["P07"]
+  - id: P09
+    kind: followup
+    lang: en
+    facts: ["My neighbour is Mrs. Caldwell.", "Mrs. Caldwell's phone number is 555-0318."]
+    asks:
+      - {"text": "Who is my neighbour?", "answer": "Caldwell"}
+      - {"text": "And what is her phone number?", "answer": "0318", "aliases": ["555-0318"], "reject": ["0230"]}
+    wrong: ["P08"]
+  - id: P10
+    kind: followup
+    lang: en
+    facts: ["My running coach is Elena Petrova.", "Elena's birthday is on 14 March."]
+    asks:
+      - {"text": "Who is my running coach?", "answer": "Petrova", "aliases": ["Elena"]}
+      - {"text": "And when is her birthday?", "answer": "14 March", "aliases": ["March 14"], "reject": ["August", "November"]}
+    wrong: ["P11", "P12"]
+  - id: P11
+    kind: followup
+    lang: en
+    facts: ["My cousin is Felix Brandt.", "Felix's birthday is on 2 August."]
+    asks:
+      - {"text": "Who is my cousin?", "answer": "Brandt", "aliases": ["Felix"]}
+      - {"text": "And when is his birthday?", "answer": "2 August", "aliases": ["August 2"], "reject": ["March", "November"]}
+    wrong: ["P10", "P12"]
+  - id: P12
+    kind: followup
+    lang: en
+    facts: ["My mentor is Sana Qureshi.", "Sana's birthday is on 27 November."]
+    asks:
+      - {"text": "Who is my mentor?", "answer": "Qureshi", "aliases": ["Sana"]}
+      - {"text": "And when is her birthday?", "answer": "27 November", "aliases": ["November 27"], "reject": ["March", "August"]}
+    wrong: ["P10", "P11"]
+  - id: P13
+    kind: followup
+    lang: en
+    facts: ["My piano teacher is Mr. Bellamy.", "Mr. Bellamy's studio is above the bakery on Mill Lane."]
+    asks:
+      - {"text": "Who is my piano teacher?", "answer": "Bellamy"}
+      - {"text": "And where is his studio?", "answer": "Mill Lane"}
+  - id: P14
+    kind: followup
+    lang: zh
+    facts: ["我的班主任是周老师。", "周老师的办公室在文科楼305。"]
+    asks:
+      - {"text": "我的班主任是谁？", "answer": "周老师"}
+      - {"text": "那她的办公室在哪儿？", "answer": "305", "aliases": ["文科楼"], "reject": ["八楼"]}
+    wrong: ["P15"]
+  - id: P15
+    kind: followup
+    lang: zh
+    facts: ["我的项目负责人是陈磊。", "陈磊的办公室在八楼东区。"]
+    asks:
+      - {"text": "我的项目负责人是谁？", "answer": "陈磊"}
+      - {"text": "那他的办公室在哪里？", "answer": "八楼", "aliases": ["8楼"], "reject": ["305", "文科楼"]}
+    wrong: ["P14"]
+  - id: P16
+    kind: followup
+    lang: zh
+    facts: ["我的验光师是林医生。", "林医生的诊所在梧桐路。"]
+    asks:
+      - {"text": "我的验光师是谁？", "answer": "林医生"}
+      - {"text": "那她的诊所在哪条路？", "answer": "梧桐路"}
+  - id: P17
+    kind: followup
+    lang: zh
+    facts: ["我的理发师是吴先生。", "吴先生的电话尾号是7761。"]
+    asks:
+      - {"text": "我的理发师是谁？", "answer": "吴先生"}
+      - {"text": "那他的电话尾号是多少？", "answer": "7761"}
+  - id: P18
+    kind: followup
+    lang: zh
+    facts: ["我的书法老师是方老师。", "方老师的生日是六月十二号。"]
+    asks:
+      - {"text": "我的书法老师是谁？", "answer": "方老师"}
+      - {"text": "那她的生日是哪天？", "answer": "六月十二号", "aliases": ["6月12日", "六月十二日", "6月12号"]}
+  - id: P19
+    kind: followup
+    lang: zh
+    facts: ["我的室友是阿杰。", "阿杰的老家在宜昌。"]
+    asks:
+      - {"text": "我的室友是谁？", "answer": "阿杰"}
+      - {"text": "那他的老家在哪儿？", "answer": "宜昌"}
+  - id: P20
+    kind: followup
+    lang: zh
+    facts: ["我的摄影老师是马可。", "马可的工作室在中山路88号。"]
+    asks:
+      - {"text": "我的摄影老师是谁？", "answer": "马可"}
+      - {"text": "那他的工作室在哪里？", "answer": "中山路"}

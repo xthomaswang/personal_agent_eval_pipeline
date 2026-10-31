@@ -20,6 +20,8 @@ or the data needs no new run. Sections:
   by the timeout;
 - a paired comparison of two arms (M2 against L1 by default) by question: wins and losses, an exact McNemar
   test, a bootstrap interval of the accuracy difference, and the paired latency.
+
+A run on a v2 task file (the in-chat kinds) is reported by report_v2.py instead.
 """
 
 from __future__ import annotations
@@ -379,6 +381,9 @@ def proxy_turns(run: Mapping[str, Any]) -> tuple[list[dict[str, Any]], dict[str,
             rec = t.get("recall") if isinstance(t.get("recall"), Mapping) else None
             rows.append({
                 "arm": arm, "repeat": cell["info"]["cell"]["repeat"], "phase": t["phase"], "item": t["item"], "state": t.get("state"),
+                # the size of the agent's chat request (the first one with tools), and of the biggest one in the turn
+                "req_bytes": num(main.get("req_bytes")) if main else None,
+                "req_bytes_max": max((num(r.get("req_bytes")) or 0 for r in agent), default=None),
                 "ttft_ms": round((first - main["t_start"]) * 1000.0, 1) if main and first else None,
                 "stream": bool(main.get("stream")) if main else None, "n_embed": len(mine), "embed_ms": num((rec or {}).get("embed_ms")),
                 "overlap": any(e["t_start"] < first and (num(e.get("t_end")) or e["t_start"]) > main["t_start"] for e in embeds) if main and first else None,
@@ -407,13 +412,16 @@ def ttft_table(turns: Sequence[Mapping[str, Any]], counts: Mapping[str, Mapping[
     return out
 
 
-def paired(rows: Sequence[Mapping[str, Any]], a: str, b: str, tasks: data.TaskSet) -> dict[str, Any] | None:
-    """Arm ``a`` against arm ``b`` question by question (the same repeat of the same question)."""
+def paired(
+    rows: Sequence[Mapping[str, Any]], a: str, b: str, tasks: data.TaskSet, kinds: Sequence[str] = data.KINDS,
+) -> dict[str, Any] | None:
+    """Arm ``a`` against arm ``b`` question by question (the same repeat of the same question). ``tasks`` is anything
+    with ``questions`` (``id``, ``kind``, ``text``); ``kinds`` are the kinds to break the pairs down by."""
     by = {(r["arm"], r["repeat"], r["qid"]): r for r in rows}
     keys = sorted({(rep, q) for (arm, rep, q) in by if arm == a} & {(rep, q) for (arm, rep, q) in by if arm == b})
     if not keys:
         return None
-    kinds = {q.id: q.kind for q in tasks.questions}
+    kind_of = {q.id: q.kind for q in tasks.questions}
     text = {q.id: q.text for q in tasks.questions}
 
     def summary(selected: Sequence[tuple[int, str]]) -> dict[str, Any]:
@@ -426,7 +434,7 @@ def paired(rows: Sequence[Mapping[str, Any]], a: str, b: str, tasks: data.TaskSe
             "diff_pp": 100.0 * (sum(x for x, _ in pairs) - sum(y for _, y in pairs)) / len(pairs),
         }
 
-    by_kind = {k: summary([key for key in keys if kinds[key[1]] == k]) for k in data.KINDS if any(kinds[q] == k for _, q in keys)}
+    by_kind = {k: summary([key for key in keys if kind_of[key[1]] == k]) for k in kinds if any(kind_of[q] == k for _, q in keys)}
     per_question: dict[str, list[float]] = defaultdict(list)
     wall: dict[str, list[tuple[float, float]]] = defaultdict(list)
     rec: dict[str, list[tuple[float, float]]] = defaultdict(list)
@@ -629,17 +637,27 @@ def render(rep: Mapping[str, Any]) -> str:
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("run_dir", type=Path)
-    ap.add_argument("--tasks", type=Path, default=data.DATA_FILE)
-    ap.add_argument("--pair", default=",".join(PAIR), help="the two arms to compare question by question (default %(default)s)")
+    ap.add_argument("--tasks", type=Path, default=None, help="the task file the run used (default: tasks_v1.yaml, or tasks_v2.yaml for a v2 run)")
+    ap.add_argument("--pair", default=",".join(PAIR), help="v1: the two arms to compare question by question (default %(default)s)")
+    ap.add_argument(
+        "--compare", nargs="+", metavar=("OTHER_RUN_DIR", "ARM"),
+        help="v2: pair this run with another run of the same task file, ask by ask: the arm in both (default: every arm both have)")
     return ap.parse_args(argv)
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = parse_args(argv)
+    protocol = json.loads((args.run_dir / "across.json").read_text(encoding="utf-8")).get("config", {}).get("protocol")
+    if protocol == "across-run-v3":  # a run on tasks_v2.yaml (run.PROTOCOL_V2): report_v2 reads it
+        from . import data_v2, report_v2
+
+        return report_v2.main(args.run_dir, args.tasks or data_v2.DATA_FILE, args.compare)
+    if args.compare:
+        raise SystemExit("--compare reads runs of the v2 task file")
     pair = tuple(a.strip() for a in args.pair.split(","))
     if len(pair) != 2:
         raise SystemExit("--pair takes two arms")
-    rep = analyse(args.run_dir, data.load(args.tasks), pair)
+    rep = analyse(args.run_dir, data.load(args.tasks or data.DATA_FILE), pair)
     (args.run_dir / "report.json").write_text(json.dumps(rep, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     (args.run_dir / "report.md").write_text(render(rep), encoding="utf-8")
     print(f"wrote {args.run_dir / 'report.md'} and report.json")
