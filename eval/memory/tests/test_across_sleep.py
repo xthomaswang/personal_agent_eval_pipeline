@@ -130,3 +130,11 @@ def test_the_shipped_sleep_file_and_its_arms_load():
     assert 0.30 <= sum(i.lang == "zh" for i in ts.items) / len(ts.items) <= 0.40
     arms = run.load_arms(data_v2.DATA_FILE.parent / "arms_sleep.json")
     assert (arms["S0"].sleep, arms["S1"].sleep) == ("", "rules") and all(a.settings() == {"ui.mode": "developer"} for a in arms.values())
+
+
+def test_the_report_finds_a_v2_run_s_task_file_by_its_fingerprint():
+    from memory.across import report
+    sleep_file = data_v2.DATA_FILE.parent / "tasks_sleep.yaml"
+    assert report.v2_task_file(data_v2.load(sleep_file).sha256()) == sleep_file
+    assert report.v2_task_file(data_v2.load().sha256()) == data_v2.DATA_FILE
+    assert report.v2_task_file("not-a-known-file") == data_v2.DATA_FILE and report.v2_task_file(None) == data_v2.DATA_FILE

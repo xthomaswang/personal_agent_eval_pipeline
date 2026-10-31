@@ -645,13 +645,27 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     return ap.parse_args(argv)
 
 
+def v2_task_file(sha256: str | None) -> Path:
+    """The shipped v2 task file (``data/*.yaml`` with ``version: 2``) whose fingerprint is ``sha256``, so a run on
+    tasks_sleep.yaml is read with that file; tasks_v2.yaml when none matches (the report then says the file differs)."""
+    from . import data_v2
+
+    for path in sorted(data_v2.DATA_FILE.parent.glob("*.yaml")):
+        try:
+            if sha256 and data_v2.load(path).sha256() == sha256:
+                return path
+        except (data.DataError, ValueError, OSError):
+            continue
+    return data_v2.DATA_FILE
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     args = parse_args(argv)
-    protocol = json.loads((args.run_dir / "across.json").read_text(encoding="utf-8")).get("config", {}).get("protocol")
-    if protocol == "across-run-v3":  # a run on tasks_v2.yaml (run.PROTOCOL_V2): report_v2 reads it
+    config = json.loads((args.run_dir / "across.json").read_text(encoding="utf-8")).get("config", {})
+    if config.get("protocol") == "across-run-v3":  # a run on a v2 task file (run.PROTOCOL_V2): report_v2 reads it
         from . import data_v2, report_v2
 
-        return report_v2.main(args.run_dir, args.tasks or data_v2.DATA_FILE, args.compare)
+        return report_v2.main(args.run_dir, args.tasks or v2_task_file(config.get("tasks_sha256")), args.compare)
     if args.compare:
         raise SystemExit("--compare reads runs of the v2 task file")
     pair = tuple(a.strip() for a in args.pair.split(","))
