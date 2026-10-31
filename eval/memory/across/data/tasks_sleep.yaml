@@ -163,8 +163,8 @@ items:
     kind: sleep
     category: control
     lang: zh
-    facts: ["我的钢琴课在周三。", "我的游泳课在周五。"]
-    asks: [{text: "我的游泳课在哪天？", answer: "周五", reject: ["周三"]}]
+    facts: ["我的钢琴课在周三。", "我的舞蹈课在周五。"]
+    asks: [{text: "我的舞蹈课在哪天？", answer: "周五", reject: ["周三"]}]
   # --- abstain: never said ---
   - id: A1
     kind: sleep
