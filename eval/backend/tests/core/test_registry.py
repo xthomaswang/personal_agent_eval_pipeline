@@ -102,3 +102,6 @@ def test_capability_reference_lookup_is_keyed_by_protocol_and_epoch():
     assert registry.capability_reference(2, "8c545ce3471c", None) == flash   # capability-3
     assert registry.capability_reference(2, "7582825160ad", None) is None    # protocol 1's epoch has none in protocol 2
     assert registry.capability_reference(1, "8c545ce3471c", "legacy") == "legacy"   # protocol 1 keeps its reference
+    # protocol 3 (2026-10-31) has no capability reference yet, whatever the epoch: nothing is invented
+    assert registry.capability_reference(3, "8c545ce3471c", flash) is None
+    assert not [k for k in registry.CAPABILITY_REFERENCES if k[0] == 3]

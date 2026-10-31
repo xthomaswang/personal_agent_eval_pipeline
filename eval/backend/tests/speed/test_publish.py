@@ -104,6 +104,33 @@ def test_capability_3_is_its_own_table_with_flash_next_as_its_reference(tmp_path
     assert rows["flash"]["title"] == rows["older"]["title"]   # one title, but two protocol ids: two tables
 
 
+def _set_protocol(run_dir, protocol: int) -> None:
+    man = run_dir / "manifest.json"
+    man.write_text(json.dumps({**json.loads(man.read_text()), "protocol_version": protocol}))
+
+
+def test_protocol_3_rows_without_a_reference_or_protocol_id_are_skipped_not_crashed(tmp_path):
+    """No protocol 3 speed or capability reference has been run: the rows have no id yet, publish says so and
+    writes nothing, and report.py marks no run as the capability reference (DESIGN, protocol 3 update)."""
+    root = tmp_path / "results"
+    ctx = speed_run(root, "20261031-010000", protocol=3)                         # speed: no speed-N id for protocol 3
+    cap = cap_run(root, "qwen3-8-flash-next-oq4e", "20261031-020000", {}, epoch="8c545ce3471c")
+    other = cap_run(root, "qwen3-8-27b-oq5", "20261031-030000", {}, epoch="8c545ce3471c", reference=True)
+    for run_dir in (cap, other):
+        _set_protocol(run_dir, 3)
+    lines = publish.publish(root)
+    assert not any(line.startswith("wrote ") for line in lines)
+    assert any("no speed protocol id for protocol 3" in line for line in lines)
+    assert sum("no capability protocol id for protocol 3" in line for line in lines) == 2
+    assert not list(root.rglob("summary.json"))
+    assert ctx.run_dir.is_dir()
+    runs = {r.run_id: r for r in report.discover(root)}
+    assert not any(report.capability_is_reference(r) for r in runs.values())      # not even the registry's legacy flag
+    md = report.build_report(root)                                                 # and the report still builds
+    assert "## Speed on mac (protocol 3," in md and "## Capability on mac: gate set (protocol 3," in md
+    assert "No reference run in this epoch" in md
+
+
 def test_a_run_note_is_appended_to_the_notes_of_its_capability_row(tmp_path, monkeypatch):
     root = tmp_path / "results"
     run_dir = cap_run(root, "qwen3-8-flash-next-oq4e", "noted", {}, epoch="8c545ce3471c", sets=("gate", "ranking"))

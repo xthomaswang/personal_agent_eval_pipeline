@@ -117,10 +117,16 @@ PROTOCOL_V1_SETTINGS: dict[str, object] = {
     "huggingface.hf_cache_enabled": False,
     "idle_timeout.idle_timeout_seconds": None,
 }
+# Protocol 2: 12 GB hot cache, custom guard with a 90 GB ceiling. Protocol 3 (2026-10-31): the production backend's
+# values after an A/B (the 90 GB / 12 GB pair warned in prefill, paused on LRU eviction and made the chat and
+# embedding models evict each other): 100 GB ceiling, 8 GB hot cache. Every version stays reproducible.
+_PROTOCOL_V2_SETTINGS: dict[str, object] = {
+    **PROTOCOL_V1_SETTINGS, "cache.hot_cache_max_size": "12GB", "memory.memory_guard_tier": "custom",
+    "memory.memory_guard_custom_ceiling_gb": 90.0}
 PROTOCOL_SETTINGS = {
     1: PROTOCOL_V1_SETTINGS,
-    2: {**PROTOCOL_V1_SETTINGS, "cache.hot_cache_max_size": "12GB", "memory.memory_guard_tier": "custom",
-        "memory.memory_guard_custom_ceiling_gb": 90.0},
+    2: _PROTOCOL_V2_SETTINGS,
+    3: {**_PROTOCOL_V2_SETTINGS, "cache.hot_cache_max_size": "8GB", "memory.memory_guard_custom_ceiling_gb": 100.0},
 }
 
 

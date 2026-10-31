@@ -14,6 +14,15 @@ protocol versions. No protocol 2 speed row is defined until a speed reference is
 `6921912` and runs it in its own HOME inside the run directory. Its reference is Qwen3.8-Flash-Next-oQ4e-mtp,
 run `20261030-043547`. Rows of different epochs are not compared.
 
+**Protocol 3 update (2026-10-31).** The production backend moved to a custom memory guard with a 100 GB ceiling
+and an 8 GB hot cache after an A/B test: under the earlier 90 GB ceiling and 12 GB hot cache, prefill raised
+memory warnings, LRU pauses slowed long prefills, and the chat and embedding models evicted each other.
+Protocol 3 mirrors that (hot cache 8 GB, guard `custom` at 100 GB, soft 0.85, hard 0.95); everything else in the
+fixed setting is unchanged. Protocol 2 and 3 timings are not comparable, and a run cannot resume across protocol
+versions. No protocol 3 speed or capability reference has been run yet, so no protocol 3 row is published until
+one is: a capability run in protocol 3 has no reference gate set to compare against and goes on to the ranking
+set.
+
 ## 1. Purpose
 
 One command evaluates a local model as an agent backend on this Mac (MacBook Pro M5 Max, 128 GB) and

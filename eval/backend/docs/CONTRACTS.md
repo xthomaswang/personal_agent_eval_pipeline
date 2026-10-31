@@ -21,7 +21,7 @@ RESULTS = MONOREPO / "docs/benchmark"; SUITE = "backend"
 UNVERIFIED = REPO / "results/_unverified"; RUNS = REPO / "runs"; VENDOR = REPO / "vendor"
 FIXTURES = REPO / "fixtures"; SCRIPTS = REPO / "scripts"; HOLD_FILE = RUNS / "hold"
 FOREIGN_PORTS = (8500,) + tuple(range(8600, 8700))    # other sessions' servers: never used here
-PROTOCOL_VERSION = 1
+PROTOCOL_VERSION = 3
 def machine_id() -> str                               # $MODELEVAL_MACHINE, CONFIG [machine] id, or <chip>-<cores>c-<ram>gb
 def results_dir(family, quant_dir, suite=SUITE, machine=None) -> Path   # RESULTS/<machine>/<family>/<quant_dir>/<suite>
 def run_parts(run_dir) -> (machine, family, quant, suite, run_id)

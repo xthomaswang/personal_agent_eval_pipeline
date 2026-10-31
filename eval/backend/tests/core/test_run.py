@@ -132,9 +132,9 @@ def test_unverified_end_to_end_hold_and_server_lost(orch, capsys):
     assert [c["code"] for c in caps] == [75, 76, 0, 0]
     assert [c["resume"] for c in caps] == [False, True, True, True]
     assert caps[0]["server_pid"] == caps[1]["server_pid"] != caps[2]["server_pid"]   # relaunched after 76
-    # The fake epoch has no protocol 2 reference, so the ranking set follows.
+    # The fake epoch has no protocol 3 reference, so the ranking set follows.
     assert caps[0]["epoch"] == "test-epoch" and [c["sets"] for c in caps] == [["gate"]] * 3 + [["ranking"]]
-    assert "GATE-DECISION" in tags and 'why="no reference configured for protocol 2, epoch test-epoch"' in out and "action=ranking" in out
+    assert "GATE-DECISION" in tags and 'why="no reference configured for protocol 3, epoch test-epoch"' in out and "action=ranking" in out
     assert man["gate_decision"]["action"] == "ranking"
     assert caps[0]["server_log"] == str(o.env.runs / "fake-1b" / res.name / "server.log")
     assert (res / "capability/results.json").exists()
@@ -529,8 +529,24 @@ def test_resume_refuses_a_different_protocol(orch):
     r.results.mkdir(parents=True)
     (r.results / "manifest.json").write_text(json.dumps({"protocol_version": 1}))
     r.load_state()
-    with pytest.raises(run.Stop, match="protocol 1 differs from current protocol 2"):
+    with pytest.raises(run.Stop, match="protocol 1 differs from current protocol 3"):
         r.check_resume()
+
+
+@pytest.mark.parametrize("stored", [1, 2])
+def test_resume_across_protocol_versions_is_refused_up_to_protocol_3(orch, stored):
+    """Protocol 3 changed the memory settings: a run started under 1 or 2 cannot go on under 3, and one that
+    started under 3 can."""
+    assert paths.PROTOCOL_VERSION == 3
+    r = run.Run(run.Options(model="fake-1b", legs=("capability",), resume="old"), {"fake-1b": orch.env.model})
+    r.results.mkdir(parents=True)
+    (r.results / "manifest.json").write_text(json.dumps({"protocol_version": stored}))
+    r.load_state()
+    with pytest.raises(run.Stop, match=f"protocol {stored} differs from current protocol 3"):
+        r.check_resume()
+    (r.results / "manifest.json").write_text(json.dumps({"protocol_version": 3}))
+    r.load_state()
+    r.check_resume()
 
 
 def test_a_worse_gate_set_skips_the_ranking_set(orch, newmodel, capsys):
@@ -890,6 +906,8 @@ def test_without_the_gpu_lock_protocol_there_is_no_lock_and_no_notice(orch, caps
 def test_plan_names_the_settings_of_its_protocol(orch, monkeypatch):
     def plan() -> str:
         return "\n".join(run.plan_lines(run.Options(model="fake-1b"), orch.env.models))
+    monkeypatch.setattr(paths, "PROTOCOL_VERSION", 3)
+    assert "protocol 3: hot cache 8GB, memory guard custom (ceiling 100 GB), SSD cache 128GB" in plan()
     monkeypatch.setattr(paths, "PROTOCOL_VERSION", 2)
     assert "protocol 2: hot cache 12GB, memory guard custom (ceiling 90 GB), SSD cache 128GB" in plan()
     monkeypatch.setattr(paths, "PROTOCOL_VERSION", 1)

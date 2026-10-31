@@ -28,10 +28,11 @@ def test_write_settings_sets_every_protocol_value(env):
     assert st["server"]["server_aliases"] == ["localhost", "127.0.0.1"]
     assert st["scheduler"] == {"max_concurrent_requests": 8, "embedding_batch_size": 32, "chunked_prefill": True,
                                "prefill_priority": "context", "decode_fairness": True}
-    assert st["cache"]["hot_cache_max_size"] == "12GB" and st["cache"]["ssd_cache_max_size"] == "128GB"
+    assert paths.PROTOCOL_VERSION == 3
+    assert st["cache"]["hot_cache_max_size"] == "8GB" and st["cache"]["ssd_cache_max_size"] == "128GB"
     assert st["cache"]["ssd_cache_dir"] == str(s.ssd_cache) and s.ssd_cache.is_dir()
     assert st["memory"]["memory_guard_tier"] == "custom"
-    assert st["memory"]["memory_guard_custom_ceiling_gb"] == 90.0
+    assert st["memory"]["memory_guard_custom_ceiling_gb"] == 100.0
     assert (st["memory"]["soft_threshold"], st["memory"]["hard_threshold"]) == (0.85, 0.95)
     assert st["server"]["burst_decode_mode"] == "balanced"
     assert st["sampling"]["max_tokens"] == 32768 and st["sampling"]["top_k"] == 0
@@ -50,16 +51,25 @@ def test_write_settings_sets_every_protocol_value(env):
 
 
 def test_protocol_v1_settings_remain_reproducible(tmp_path):
-    from modeleval.server import protocol_settings
+    from modeleval.server import PROTOCOL_SETTINGS, protocol_settings
 
     v1 = protocol_settings(tmp_path, 8703, tmp_path / "ssd", version=1)
     v2 = protocol_settings(tmp_path, 8703, tmp_path / "ssd", version=2)
+    v3 = protocol_settings(tmp_path, 8703, tmp_path / "ssd", version=3)
     assert v1["cache"]["hot_cache_max_size"] == "20GB"
     assert v1["memory"]["memory_guard_tier"] == "balanced"
     assert v1["memory"]["memory_guard_custom_ceiling_gb"] == 0.0
     assert v2["cache"]["hot_cache_max_size"] == "12GB"
     assert v2["memory"]["memory_guard_tier"] == "custom"
     assert v2["memory"]["memory_guard_custom_ceiling_gb"] == 90.0
+    # protocol 3 (2026-10-31): the production backend's 8 GB hot cache and 100 GB ceiling, nothing else changed
+    assert v3["cache"]["hot_cache_max_size"] == "8GB"
+    assert v3["memory"]["memory_guard_tier"] == "custom"
+    assert v3["memory"]["memory_guard_custom_ceiling_gb"] == 100.0
+    assert (v3["memory"]["soft_threshold"], v3["memory"]["hard_threshold"]) == (0.85, 0.95)
+    changed = {k for k in PROTOCOL_SETTINGS[2] if PROTOCOL_SETTINGS[2][k] != PROTOCOL_SETTINGS[3][k]}
+    assert changed == {"cache.hot_cache_max_size", "memory.memory_guard_custom_ceiling_gb"}
+    assert PROTOCOL_SETTINGS[2]["cache.hot_cache_max_size"] == "12GB"   # protocol 2 stays reproducible
 
 
 def test_model_settings_per_spec_and_no_max_tokens(env):
@@ -94,7 +104,7 @@ def test_start_warm_up_log_checks_and_stop(env):
         assert "chat Fake-1B-mtp" in reqs   # the 8-token warm-up loaded the model
         eff = s.effective_settings
         assert eff["version"] == "0.7.1rc1" and eff["memory_guard"] == "on (tier: custom)"
-        assert eff["ssd_cache"]["max"] == "128.0GB" and eff["hot_cache"] == "12.0GB"
+        assert eff["ssd_cache"]["max"] == "128.0GB" and eff["hot_cache"] == "8.0GB"
         assert eff["ssd_cache_manager"]["auto_size"] == "False"
         assert eff["loaded_model"]["id"] == "Fake-1B-mtp"
         assert set(eff["log_expect"]) == set(env.model.server_log_expect)
