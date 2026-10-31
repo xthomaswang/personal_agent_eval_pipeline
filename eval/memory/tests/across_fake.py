@@ -209,6 +209,15 @@ class FakeGateway:
         if method == "POST" and path == "/api/sessions":
             turn = (body or {}).get("turn") or {}
             return self.start(h, None, turn, 201, (body or {}).get("workspace"))
+        if method == "GET" and path == "/api/memory/import/scan":
+            return self.reply(h, 200, self.import_scan())
+        if method == "POST" and path == "/api/memory/import":
+            if not self.across:
+                return self.reply(h, 400, {"error": {"code": "invalid_request"}})
+            ids = list((body or {}).get("source_ids") or [])
+            kept = {src["id"]: src["items_kept"] for src in self.import_scan()["sources"]}
+            return self.reply(h, 200, {"batch_id": (body or {}).get("batch_id"), "skipped": 0,
+                                       "written_ids": list(range(1, 1 + sum(kept.get(i, 0) for i in ids)))})
         if method == "POST" and len(parts) == 3 and parts[:2] == ["api", "approvals"]:
             return self.answer(h, parts[2], body or {})
         if method == "POST" and len(parts) == 4 and parts[:2] == ["api", "turns"] and parts[3] == "cancel":
@@ -251,6 +260,19 @@ class FakeGateway:
                 h.end_headers()
                 return None
         return self.reply(h, 404, {"error": {"code": "not_found"}})
+
+    def import_scan(self) -> dict[str, Any]:
+        """What localmelo's memory import would find in this HOME: the instruction files and the folders of notes, one
+        kept item per non-empty line."""
+        found = [self.home / ".claude" / "CLAUDE.md", self.home / ".codex" / "AGENTS.md",
+                 *sorted((self.home / ".claude" / "projects").glob("*/memory"))]
+        sources = []
+        for n, path in enumerate(f for f in found if f.exists()):
+            files = sorted(path.glob("*.md")) if path.is_dir() else [path]
+            lines = [x for f in files for x in f.read_text(encoding="utf-8").splitlines() if x.strip()]
+            sources.append({"id": f"claude-{n}", "harness": "claude", "path": str(path), "scope": "user",
+                            "workspace": "", "items_found": len(lines), "items_kept": len(lines), "filtered": {}, "sample": lines[:3]})
+        return {"batch_id": "b1", "sources": sources, "partial": False}
 
     def answer(self, h: BaseHTTPRequestHandler, request_id: str, body: Mapping[str, Any]) -> None:
         with self.lock:

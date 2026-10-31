@@ -118,7 +118,8 @@ def serve_command(melo: Path, port: int, x_pairs: Sequence[str]) -> list[str]:
 def serve_env(home: Path, base: Mapping[str, str] | None = None) -> dict[str, str]:
     """The environment of a gateway: no credentials, its own HOME and TMPDIR, no browser, no terminal."""
     env = {k: v for k, v in (os.environ if base is None else base).items() if not SECRET_ENV.match(k)}
-    for name in ("LOCALMELO_APP_INSTANCE", "SSH_CONNECTION", "SSH_CLIENT", "SSH_TTY"):
+    # the other assistants' folders of the real user: localmelo's memory import reads what these name
+    for name in ("LOCALMELO_APP_INSTANCE", "SSH_CONNECTION", "SSH_CLIENT", "SSH_TTY", "CLAUDE_CONFIG_DIR", "CODEX_HOME", "HERMES_HOME"):
         env.pop(name, None)
     tmp = Path(home) / "tmp"
     tmp.mkdir(parents=True, exist_ok=True)

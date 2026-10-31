@@ -79,9 +79,24 @@ class Arm:
     v1: bool = True  # whether the arm runs the v1 questions (an in-chat-only arm does not)
     base: str = ""  # tasks_v2: the arm whose row in each kind's arm table this one follows (a variant of M2 says "M2")
     config: tuple[tuple[str, Any], ...] = ()  # dotted config.toml entries the driver writes for the cell, e.g. agent.window_messages
+    seed: str = ""  # a folder copied into the cell's HOME before the gateway starts (see seed_home)
+    import_all: bool = False  # bring in every source localmelo's memory import finds in that HOME before the questions
 
     def settings(self) -> dict[str, Any]:
         return dict(self.config)
+
+    def identity(self) -> dict[str, Any]:
+        """How the arm runs, as a study's identity records it."""
+        doc: dict[str, Any] = {"x": list(self.x), "embedding": self.embedding}
+        if self.base:
+            doc["base"] = self.base
+        if self.config:
+            doc["config"] = self.settings()
+        if self.seed:
+            doc["seed_sha256"] = seed_sha256(Path(self.seed))
+        if self.import_all:
+            doc["import"] = True
+        return doc
 
 
 # What "memory off" sets. N0 and FC both use it, so a change to what they switch off is made here, once. With
@@ -114,17 +129,89 @@ def memory_is_off(x: Sequence[str]) -> bool:
 
 
 def load_arms(path: Path) -> dict[str, Arm]:
-    """Arms from a JSON file ``{name: {"label", "x": [...], "embedding": bool, "v1": bool, "base": str, "config": {...}}}``,
-    in place of ARMS. ``config`` maps dotted config.toml keys to values, e.g. ``{"agent.window_messages": 256}``.
+    """Arms from a JSON file ``{name: {"label", "x": [...], "embedding": bool, "v1": bool, "base": str, "config": {...},
+    "seed": str, "import": bool}}``, in place of ARMS. ``config`` maps dotted config.toml keys to values, e.g.
+    ``{"agent.window_messages": 256}``. ``seed`` is a folder, relative to the JSON file, that seed_home copies into each
+    cell's HOME; ``import`` brings in what localmelo's memory import finds there before the first question.
 
     An arm that is a variant of another, such as M2 with one more `-X` setting, gives that arm as ``base``: on a v2 task
     file it then runs the kinds, and meets the window rule, that the base's row in the kind's arm table says."""
     raw = json.loads(Path(path).read_text(encoding="utf-8"))
+    here = Path(path).resolve().parent
     return {
         name: Arm(
             name, str(row.get("label", name)), tuple(row["x"]), bool(row.get("embedding", False)), bool(row.get("v1", True)),
-            str(row.get("base", "")), tuple(sorted(dict(row.get("config") or {}).items())))
+            str(row.get("base", "")), tuple(sorted(dict(row.get("config") or {}).items())),
+            str((here / row["seed"]).resolve()) if row.get("seed") else "", bool(row.get("import", False)))
         for name, row in raw.items()
+    }
+
+
+# --- a seeded HOME ---
+
+SEED_MANIFEST = "seed.json"  # {"workspaces": {"<placeholder folder name>": "<folder relative to HOME>"}}
+
+
+def project_folder_name(path: Path) -> str:
+    """The name of a project's notes folder under ``.claude/projects/``: the project's absolute path, every character
+    that is not a letter or digit turned into ``-``."""
+    return re.sub(r"[^A-Za-z0-9]", "-", str(path))
+
+
+def seed_files(seed: Path) -> list[Path]:
+    return sorted(p for p in seed.rglob("*") if p.is_file() and p.relative_to(seed).as_posix() != SEED_MANIFEST)
+
+
+def seed_sha256(seed: Path) -> str:
+    """A fingerprint of a seed folder: every file's relative path and bytes, and the manifest."""
+    h = hashlib.sha256()
+    for f in [*seed_files(seed), *([seed / SEED_MANIFEST] if (seed / SEED_MANIFEST).exists() else [])]:
+        h.update(f.relative_to(seed).as_posix().encode() + b"\0" + f.read_bytes() + b"\0")
+    return h.hexdigest()
+
+
+def seed_home(home: Path, seed: Path) -> list[str]:
+    """Copy the files of ``seed`` into ``home`` at the same relative paths; answer the paths written, relative to it.
+
+    A path part that the manifest names as a workspace placeholder becomes the project folder name of that workspace
+    under ``home`` (so ``.claude/projects/@app/memory/x.md`` lands where the notes of ``<home>/<workspace>``
+    are kept), and the workspace folder itself is created, so a reader that decodes the name finds it."""
+    manifest = seed / SEED_MANIFEST
+    spaces = dict(json.loads(manifest.read_text(encoding="utf-8")).get("workspaces") or {}) if manifest.exists() else {}
+    for rel in spaces.values():
+        (home / rel).mkdir(parents=True, exist_ok=True)
+    written = []
+    for src in seed_files(seed):
+        parts = [project_folder_name(home.resolve() / spaces[x]) if x in spaces else x for x in src.relative_to(seed).parts]
+        dst = home.joinpath(*parts)
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(src, dst)
+        written.append(dst.relative_to(home).as_posix())
+    return written
+
+
+def import_memory(gw: client.Gateway, cell_dir: Path) -> dict[str, Any]:
+    """Scan the cell's HOME with localmelo's memory import and bring in every source it found. The whole scan and
+    the answer of the import go to ``import.json`` of the cell; the summary is answered."""
+    started = time.monotonic()
+    doc: dict[str, Any] = {}
+    try:
+        doc["scan"] = gw.call("GET", "/api/memory/import/scan")
+        doc["scan_s"] = round(time.monotonic() - started, 3)
+        ids = [s["id"] for s in doc["scan"].get("sources", [])]
+        if ids:
+            started = time.monotonic()
+            doc["apply"] = gw.call("POST", "/api/memory/import", {"batch_id": doc["scan"]["batch_id"], "source_ids": ids})
+            doc["apply_s"] = round(time.monotonic() - started, 3)
+    except (client.GatewayError, OSError, http.client.HTTPException, KeyError, TypeError) as exc:
+        doc["error"] = f"{type(exc).__name__}: {exc}"
+    save(cell_dir / "import.json", doc)
+    scan, apply = doc.get("scan") or {}, doc.get("apply") or {}
+    return {
+        "sources": len(scan.get("sources", [])), "partial": bool(scan.get("partial")),
+        "kept": sum(s.get("items_kept", 0) for s in scan.get("sources", [])),
+        "written": len(apply.get("written_ids", [])), "skipped": apply.get("skipped", 0),
+        "scan_s": doc.get("scan_s"), "apply_s": doc.get("apply_s"), **({"error": doc["error"]} if "error" in doc else {}),
     }
 
 
@@ -319,8 +406,7 @@ class Study:
         doc = {
             "protocol": PROTOCOL,
             "tasks_sha256": self.tasks.sha256(),
-            "arms": {a: {"x": list(self.arms[a].x), "embedding": self.arms[a].embedding, **({"base": self.arms[a].base} if self.arms[a].base else {}),
-                    **({"config": self.arms[a].settings()} if self.arms[a].config else {})} for a in self.arm_names},
+            "arms": {a: self.arms[a].identity() for a in self.arm_names},
             "repeats": self.repeats,
             "questions": [q.id for q in self.asked()] if not self.v2 else [i.id for i in self.items()],
             "localmelo_sha": server.git_sha(self.localmelo),
@@ -501,6 +587,7 @@ class Live:
     work: Path
     done: dict[str, Any]  # journal_state at the start of this run of the cell
     send: Callable[..., dict[str, Any]]
+    home: Path | None = None  # the cell's HOME: a recall question's workspace is a folder below it
 
 
 def prepare_workspace(tasks: data_v2.TaskSet, path: Path) -> None:
@@ -603,8 +690,28 @@ def run_followup(live: Live, items: Sequence[data_v2.Item]) -> bool:
     return False
 
 
+def run_recall(live: Live, items: Sequence[data_v2.Item]) -> bool:
+    """One new chat per question (in its workspace under the cell's HOME when it names one), deleted afterwards
+    (unless --keep-ask-chats). True when a guard stopped the cell."""
+    study = live.study
+    for item in items:
+        step = study.tasks.ask_steps(item)[0]
+        row = live.done["turns"].get((step.phase, step.label))
+        if row is None:
+            if study.turn_guard():
+                return True
+            workspace = (live.home / item.workspace) if item.workspace and live.home else None
+            row = live.send(step.phase, step.label, step.text, workspace=workspace)
+        session = row.get("session_id")
+        if session and not study.keep_ask_chats and session not in live.done["deleted"]:
+            ok = delete_chat(live.gw, session, study.sleep)
+            live.journal.append({"event": "deleted", "item": item.id, "session_id": session, "ok": ok})
+    return False
+
+
 # one runner per kind of data_v2.KINDS: (live cell, the items of that kind this arm runs) -> stopped by a guard
-KIND_RUNNERS: dict[str, Callable[[Live, Sequence[data_v2.Item]], bool]] = {"longrange": run_longrange, "followup": run_followup}
+KIND_RUNNERS: dict[str, Callable[[Live, Sequence[data_v2.Item]], bool]] = {
+    "longrange": run_longrange, "followup": run_followup, "recall": run_recall}
 
 
 def run_items(live: Live) -> bool:
@@ -635,6 +742,8 @@ def run_cell(study: Study, cell: Mapping[str, Any]) -> str:
             "home": "home", "started_at": now_iso(), "state": "started", "rss": {},
             **({"config": arm.settings()} if arm.config else {}),
         }
+        if arm.seed:  # before the gateway's first start, so it never sees a HOME without the seed
+            info["seed"] = {"sha256": seed_sha256(Path(arm.seed)), "files": seed_home(home, Path(arm.seed))}
     info["state"] = "started"
     save(cell_dir / "cell.json", info)
     # Each step runs once per cell, in this order, and is kept in cell.json: a cell that stopped before one of them
@@ -669,6 +778,9 @@ def run_cell(study: Study, cell: Mapping[str, Any]) -> str:
         if timing:
             info["proxy"] = {"log": "proxy.jsonl", "upstream": study.base_url}
         done = journal_state(journal.read())
+        if arm.import_all and "import" not in info:
+            info["import"] = import_memory(gw, cell_dir)
+            save(cell_dir / "cell.json", info)
 
         seen: dict[str, int] = {}  # the newest event id read per chat: the next turn's stream starts after it
 
@@ -727,7 +839,7 @@ def run_cell(study: Study, cell: Mapping[str, Any]) -> str:
             return False
 
         if study.v2:
-            stopped = run_items(Live(study, arm, cell, gw, journal, work, done, send))
+            stopped = run_items(Live(study, arm, cell, gw, journal, work, done, send, home))
         else:
             stopped = teach()
             if not stopped:
@@ -878,7 +990,8 @@ def print_plan(study: Study, planned: list[dict[str, Any]], problems: list[str])
         total = sum(sum(per_arm[c["arm"]].values()) for c in planned)
         print(
             f"Memory-bench-v2 plan: {len(planned)} cells = {len(study.arm_names)} arms x {study.repeats} repeats, "
-            f"{len(study.items())} items ({', '.join(f'{k} {sum(1 for i in study.items() if i.kind == k)}' for k in data_v2.KINDS)}), {total} turns in all."
+            f"{len(study.items())} items ({', '.join(f'{k} {n}' for k in data_v2.KINDS if (n := sum(1 for i in study.items() if i.kind == k)))}), "
+            f"{total} turns in all."
         )
         for name in study.arm_names:
             t = per_arm[name]

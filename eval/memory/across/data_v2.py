@@ -12,6 +12,11 @@ that list it.
   are expected to save the fact (at least 70% of the items are details of the conversation it should not save).
 - ``followup``: two facts, each taught in its own chat, then one chat with two questions: Q1 recalls the first
   fact, Q2 is a pronoun follow-up whose answer is the second fact.
+- ``recall``: one question in a new chat, nothing taught: what memory holds before the cell starts (an arm's seeded
+  HOME and memory import) is all there is to recall. ``category`` says what the question tests (``RECALL_CATEGORIES``);
+  an ``abstain`` question has no gold (the reply must say it does not know) and a ``harm`` one asks something unrelated
+  whose reply must not drag in remembered trivia (its reject strings). ``workspace`` puts the chat in that folder
+  under the cell's HOME. The shipped file has no recall items: private task files hold them.
 
 ``load()`` returns a ``TaskSet`` or raises ``DataError`` with every problem it found. Checks: the schema; ids unique;
 per kind the fields, the number of asks and the language mix; every gold string occurs in the text that holds it, and
@@ -68,7 +73,9 @@ KINDS: dict[str, Kind] = {
     "longrange": Kind(
         20, {"N0": "out", "M2": "out", "FC": "in"}, ("note_expected", "opener", "fact", "filler"), ("bridge",), asks=1),
     "followup": Kind(20, {"M2": "", "B0": "", "N0": ""}, ("facts",), ("wrong",), asks=2),
+    "recall": Kind(0, {"M2": "", "B0": "", "N0": ""}, ("category",), ("workspace",), asks=1),
 }
+RECALL_CATEGORIES = ("habit", "preference", "project", "abstain", "harm")
 # the shipped file: items per kind, the Chinese share of each kind, and the share of long-range items whose fact
 # localmelo's note rules are expected NOT to save
 V2 = {"kinds": {k: v.count for k, v in KINDS.items()}, "zh_share": (0.30, 0.40), "no_note_share": 0.70}
@@ -121,6 +128,8 @@ class Item:
     filler: str = ""  # longrange: the name of the filler set
     facts: tuple[str, ...] = ()  # followup: the teaching messages, one chat each
     wrong: tuple[str, ...] = ()  # followup: the items whose facts hold the reject strings
+    category: str = ""  # recall: one of RECALL_CATEGORIES
+    workspace: str = ""  # recall: the chat's folder, relative to the cell's HOME ("" for the shared one)
 
     @property
     def fact_turn(self) -> int:
@@ -187,7 +196,7 @@ class TaskSet:
         for i in self.items:
             parts.append("|".join([
                 "item", i.id, i.kind, i.lang, str(i.note_expected), i.opener, i.bridge, i.fact, i.filler,
-                "/".join(i.facts), ",".join(i.wrong)]))
+                "/".join(i.facts), ",".join(i.wrong), *([i.category, i.workspace] if i.kind == "recall" else [])]))
             parts += [f"ask|{a.id}|{a.text}|{a.answer}|{','.join(a.aliases)}|{','.join(a.reject)}" for a in i.asks]
         return hashlib.sha256("\n".join(parts).encode()).hexdigest()
 
@@ -202,7 +211,10 @@ def _typed(row: Mapping[str, Any], key: str, kind: type, where: str, problems: l
     return True
 
 
-def _parse_ask(row: Any, item_id: str, kind: str, lang: str, n: int, problems: list[str]) -> Ask | None:
+def _parse_ask(
+    row: Any, item_id: str, kind: str, lang: str, n: int, problems: list[str], *, abstain: bool = False,
+) -> Ask | None:
+    """One ask. With ``abstain`` the answer is "" and the ask is graded as one with nothing to recall (kind "nothing")."""
     where = f"item {item_id} ask {n}"
     if not isinstance(row, Mapping):
         problems.append(f"{where}: not a mapping")
@@ -211,11 +223,14 @@ def _parse_ask(row: Any, item_id: str, kind: str, lang: str, n: int, problems: l
     if extra or missing:
         problems.append(f"{where}: unknown keys {sorted(extra)}, missing keys {sorted(missing)}")
         return None
-    if not all(isinstance(row[k], str) and row[k].strip() for k in ("text", "answer")):
+    if not (isinstance(row["text"], str) and row["text"].strip() and isinstance(row["answer"], str)):
         problems.append(f"{where}: text and answer must be non-empty strings")
         return None
+    if bool(row["answer"].strip()) == abstain:
+        problems.append(f"{where}: " + ("an abstain question has no answer" if abstain else "text and answer must be non-empty strings"))
+        return None
     return Ask(
-        id=f"{item_id}.q{n}", kind=kind, lang=lang, text=row["text"], answer=row["answer"],
+        id=f"{item_id}.q{n}", kind="nothing" if abstain else kind, lang=lang, text=row["text"], answer=row["answer"],
         aliases=data._str_list(row, "aliases", where, problems), reject=data._str_list(row, "reject", where, problems))
 
 
@@ -234,7 +249,8 @@ def _parse_item(row: Any, index: int, problems: list[str]) -> Item | None:
     if extra or missing:
         problems.append(f"{where}: unknown keys {sorted(extra)}, missing keys {sorted(missing)}")
         return None
-    ok = all(_typed(row, k, str, where, problems) for k in ("id", "kind", "lang", "opener", "bridge", "fact", "filler"))
+    ok = all(_typed(row, k, str, where, problems) for k in (
+        "id", "kind", "lang", "opener", "bridge", "fact", "filler", "category", "workspace"))
     ok = _typed(row, "note_expected", bool, where, problems) and ok
     if not ok:
         return None
@@ -244,13 +260,15 @@ def _parse_item(row: Any, index: int, problems: list[str]) -> Item | None:
     if not isinstance(raw_asks, list) or len(raw_asks) != kind.asks:
         problems.append(f"{where}: a {row['kind']} item has {kind.asks} ask(s)")
         return None
-    asks = [_parse_ask(a, row["id"], row["kind"], row["lang"], n, problems) for n, a in enumerate(raw_asks, 1)]
+    abstain = row["kind"] == "recall" and row.get("category") == "abstain"
+    asks = [_parse_ask(a, row["id"], row["kind"], row["lang"], n, problems, abstain=abstain) for n, a in enumerate(raw_asks, 1)]
     if None in asks:
         return None
     return Item(
         id=row["id"], kind=row["kind"], lang=row["lang"], asks=tuple(a for a in asks if a), note_expected=row.get("note_expected"),
         opener=row.get("opener", ""), bridge=row.get("bridge", ""), fact=row.get("fact", ""), filler=row.get("filler", ""),
-        facts=data._str_list(row, "facts", where, problems), wrong=data._str_list(row, "wrong", where, problems))
+        facts=data._str_list(row, "facts", where, problems), wrong=data._str_list(row, "wrong", where, problems),
+        category=row.get("category", ""), workspace=row.get("workspace", ""))
 
 
 def _parse_filler(rows: Any, problems: list[str]) -> dict[str, FillerTurn]:
@@ -358,7 +376,23 @@ def _check_followup(ts: TaskSet, item: Item, problems: list[str]) -> None:
         problems.append(f"{where}: Q2 names the answer of Q1, so it is not a pronoun follow-up")
 
 
-_CHECKS: dict[str, Callable[[TaskSet, Item, list[str]], None]] = {"longrange": _check_longrange, "followup": _check_followup}
+def _check_recall(ts: TaskSet, item: Item, problems: list[str]) -> None:
+    where = f"item {item.id}"
+    if item.category not in RECALL_CATEGORIES:
+        problems.append(f"{where}: category {item.category!r} is not one of {RECALL_CATEGORIES}")
+    ask = item.asks[0]
+    if item.category == "harm" and not ask.reject:
+        problems.append(f"{where}: a harm question lists the remembered trivia its reply must not bring in (reject)")
+    for r in ask.reject:
+        if any(score.contains(t, r) or score.contains(r, t) for t in ask.targets if t):
+            problems.append(f"{ask.id}: answer or alias and reject {r!r} contain one another")
+    ws = Path(item.workspace)
+    if item.workspace and (ws.is_absolute() or ".." in ws.parts):
+        problems.append(f"{where}: workspace {item.workspace!r} must be a folder below the cell's HOME")
+
+
+_CHECKS: dict[str, Callable[[TaskSet, Item, list[str]], None]] = {
+    "longrange": _check_longrange, "followup": _check_followup, "recall": _check_recall}
 
 
 def _check_fillers(ts: TaskSet, problems: list[str]) -> None:
@@ -391,7 +425,7 @@ def _check_cross(ts: TaskSet, expect: Mapping[str, Any] | None, problems: list[s
         firsts = [i.asks[0].text for i in mine]
         if len(set(firsts)) != len(firsts):
             problems.append(f"{kind}: two items have the same first question")
-        golds = [i.asks[0].answer.casefold() for i in mine]
+        golds = [i.asks[0].answer.casefold() for i in mine if i.asks[0].answer]  # an abstain question has none
         if len(set(golds)) != len(golds):
             problems.append(f"{kind}: two items have the same first answer")
     hidden = [t.text for t in ts.filler.values()] + [f"{f.path}\n{f.text}" for f in ts.fixtures]
@@ -415,7 +449,7 @@ def _check_cross(ts: TaskSet, expect: Mapping[str, Any] | None, problems: list[s
     for kind in KINDS:
         mine = [i for i in ts.items if i.kind == kind]
         share = sum(1 for i in mine if i.lang == "zh") / len(mine) if mine else 0.0
-        if not lo <= share <= hi:
+        if mine and not lo <= share <= hi:
             problems.append(f"{kind}: {share:.0%} of the items are Chinese, expected {lo:.0%} to {hi:.0%}")
     long = [i for i in ts.items if i.kind == "longrange"]
     if long and sum(1 for i in long if i.note_expected is False) < expect["no_note_share"] * len(long):

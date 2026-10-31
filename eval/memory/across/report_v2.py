@@ -186,7 +186,26 @@ def followup_rows(ctx: Ctx, item: data_v2.Item) -> tuple[dict[str, Any], list[di
     return chat, [r for r in rows if r]
 
 
-ROW_BUILDERS = {"longrange": longrange_rows, "followup": followup_rows}
+def recall_rows(ctx: Ctx, item: data_v2.Item) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    """A recall question: nothing was taught, so it is always valid, and a miss is classed by whether an item that holds
+    the gold string was in ``turn.memory.used``."""
+    chat = {
+        "arm": ctx.arm, "repeat": ctx.repeat, "item": item.id, "kind": item.kind, "lang": item.lang, "note_expected": None,
+        "rule": "", "valid": True, "reason": "", "session_id": None, "window": None, "teach_sessions": [], "tools": {}, "denied": 0,
+    }
+    row = ask_row(ctx, item, 0, chat, None, None)
+    if row is None:
+        return chat, []
+    t = ctx.turns.get(("ask", item.asks[0].id)) or {}
+    used = score.used_items(t.get("memory"))
+    holds = [u for u in used if any(x and score.contains(str(u.get("text") or ""), x) for x in item.asks[0].targets)]
+    row.update(category=item.category, used_sources=[str(u.get("source") or "")[:80] for u in used])
+    if not row["correct"]:
+        row["miss"] = "failed" if t.get("state") != "finished" else ("recalled but not used" if holds else "not recalled")
+    return chat, [row]
+
+
+ROW_BUILDERS = {"longrange": longrange_rows, "followup": followup_rows, "recall": recall_rows}
 
 
 def cell_rows(
@@ -232,7 +251,13 @@ def accuracy(rows: Sequence[Mapping[str, Any]], arms: Sequence[str], tasks: data
                 continue
             by_label = {label: [r for r in mine if r["label"] == label] for label in dict.fromkeys(r["label"] for r in mine)}
             table: dict[str, dict[str, Any]] = {}
-            if kind == "longrange":
+            if kind == "recall":
+                table["all"] = rate(sum(r["correct"] for r in mine), len(mine))
+                for category in data_v2.RECALL_CATEGORIES:
+                    sub = [r for r in mine if r.get("category") == category]
+                    if sub:
+                        table[category] = rate(sum(r["correct"] for r in sub), len(sub))
+            elif kind == "longrange":
                 table["all"] = rate(sum(r["correct"] for r in mine), len(mine))
                 for flag, name in ((False, "note not expected"), (True, "note expected")):
                     sub = [r for r in mine if r["note_expected"] is flag]
@@ -400,7 +425,9 @@ def analyse(run_dir: Path, tasks: data_v2.TaskSet) -> dict[str, Any]:
     return {
         "run_dir": str(run_dir.name), "config": config, "arms": arms, "notes": notes,
         "environment": {k: (loaded["environment"].get(k) or {}) for k in ("start", "end")},
-        "kinds": {k: dict(spec.arms) for k, spec in data_v2.KINDS.items()}, "bases": {a: b for a, b in bases.items() if a in arms and b != a},
+        "kinds": {k: dict(spec.arms) for k, spec in data_v2.KINDS.items() if any(i.kind == k for i in tasks.items)},
+        "bases": {a: b for a, b in bases.items() if a in arms and b != a},
+        "imports": {c["id"]: c["info"]["import"] for c in loaded["cells"] if c["info"].get("import")},
         "ran": {a: {"items": sum(1 for c in chats if c["arm"] == a), "valid": sum(1 for c in chats if c["arm"] == a and c["valid"])} for a in arms},
         "invalid": invalid, "accuracy": accuracy(asks, arms, tasks), "misses": misses, "sources": sources,
         "latency": latency(asks, arms), "paired": pairs(asks, arms, tasks, bases), "contexts": contexts(asks, arms), "chats": chats, "rows": asks,
@@ -443,6 +470,13 @@ def render(rep: Mapping[str, Any]) -> str:
          "yes" if (specs.get(a) or {}).get("embedding") else "no"] for a in arms])
     out += ["Window rule `out`: the fact turn has left the working window; `in`: it is still in it. An item that fails its arm's rule, "
             "or whose fact or teaching turn did not finish, is invalid for that arm: it is listed below and left out of everything after it.", ""]
+    if rep.get("imports"):
+        out += ["## Memory import", "", "What localmelo's memory import found in the cell's seeded HOME and brought in before the first question "
+                "(the whole scan is in the cell's `import.json`).", ""]
+        out += table(["cell", "sources", "lines kept", "notes written", "skipped", "scan s", "import s", "partial scan", "error"], [
+            [cid, str(i.get("sources", 0)), str(i.get("kept", 0)), str(i.get("written", 0)), str(i.get("skipped", 0)),
+             str(i.get("scan_s", "-")), str(i.get("apply_s", "-")), "yes" if i.get("partial") else "no", i.get("error") or "-"]
+            for cid, i in rep["imports"].items()])
     out += ["## Items run and invalid items", ""]
     out += table(["", *arms], [
         ["items run", *(str(rep["ran"][a]["items"]) for a in arms)], ["valid", *(str(rep["ran"][a]["valid"]) for a in arms)],

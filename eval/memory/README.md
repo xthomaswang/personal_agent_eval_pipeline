@@ -250,6 +250,7 @@ working window must look like at the question; a cell runs only the items whose 
 |---|---|---|
 | `longrange` | one chat: an opener, the fact at turn 2 or 3, 40 filler turns, then the question in the same chat. At least 14 of 20 facts are details of the conversation the note rules should not save (`note_expected: false`: "the draft I'm editing is called river.md"); the rest are note-worthy facts as a control. | N0 `out`, M2 `out`, FC `in` |
 | `followup` | two facts, each taught in its own chat; then one chat with Q1 ("Who is my advisor?") and a pronoun follow-up Q2 ("And where is her office?"), deleted afterwards (unless `--keep-ask-chats`). Q1 and Q2 are scored apart. | M2, B0, N0 |
+| `recall` | one question in a new chat, nothing taught: what memory holds when the cell starts (a seeded HOME and a memory import, below) is all there is. `category` is `habit`, `preference`, `project`, `abstain` (no gold: the reply must say it does not know) or `harm` (an unrelated question whose reply must not bring in remembered trivia, its `reject` strings); `workspace` puts the chat in that folder under the cell's HOME. The shipped file has none; private task files hold them. | M2, B0, N0 |
 
 The filler is 40 turns per chat (22 tool turns that read a file or list the files, 18 plain ones), each asking for a
 one-sentence answer. A tool turn is 4 messages when the model calls its tool (user, call, result, answer) and 2 when it
@@ -285,6 +286,20 @@ writes into the cell's config.toml. The plan line shows them (`[config.toml: age
 questions). An arms file (`--arms-file`) may give an arm a `base`, the arm whose row in each kind's table it
 follows: `{"M2-on": {"x": ["memory.retriever=embedding", "memory.context_query=on"], "embedding": true, "base":
 "M2"}}` runs the kinds M2 runs, with M2's window rule.
+
+**Seeded HOME and memory import.** An arm in an arms file may carry `"seed": "<folder>"` (relative to the arms file)
+and `"import": true`. Before a new cell's gateway first starts, the driver copies the seed folder into the cell's HOME
+at the same relative paths (`seed_home` in `across/run.py`). A `seed.json` at the folder's top maps placeholder folder
+names to workspaces, `{"workspaces": {"@app": "Developer/app"}}`: a path part `@app` becomes the name a coding
+assistant gives the notes folder of `<HOME>/Developer/app` under `.claude/projects/` (the absolute path with every character that is not a letter or digit
+turned into `-`), and that workspace folder is created, so `.claude/projects/@app/memory/x.md` lands where a reader
+of those notes looks. With `import`, the driver then calls `GET /api/memory/import/scan` and
+`POST /api/memory/import` with every source the scan found, once per cell, before the first question; the scan and the
+answer go to the cell's `import.json`, a summary (sources, lines kept, notes written, skipped, times, partial scan,
+error) to `cell.json` and the report's import table. A failed import is recorded, not raised. The seed's fingerprint
+and the import switch are part of the study's identity. The gateway never sees `CLAUDE_CONFIG_DIR`, `CODEX_HOME` or
+`HERMES_HOME`, so an import reads only the seeded HOME. The recall report adds accuracy per category and, per
+question, the sources of the used items.
 
 **Valid items.** A long-range item counts for an arm only when, at the question, the fact turn is out of the window
 (N0, M2) or still in it (FC). The check reads the cell's `gateway/sessions.db` after the cell ends, read-only
