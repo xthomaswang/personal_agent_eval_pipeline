@@ -112,3 +112,11 @@ def test_recall_false_recall_on_nothing():
     assert (r["false_recall"], r["false_recall_taught"]) == (True, False)
     assert score.recall_score(used("a"), [], taught_sessions=["a"], nothing=True)["false_recall_taught"]
     assert "hit_at_3" not in r
+
+
+@pytest.mark.parametrize("reply", [
+    "I'm fairly confident there's nothing to find: I checked my memory and there's no note about your usual airline.",
+    "你告诉过我的信息里没有你的生日。",
+])
+def test_abstain_phrasings_seen_in_runs_are_detected(reply):
+    assert score.abstained(reply)

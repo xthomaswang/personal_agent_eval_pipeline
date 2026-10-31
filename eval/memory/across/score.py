@@ -42,11 +42,12 @@ ABSTAIN_EN = (
     "don t recall", "do not recall", "don t see", "do not see", "no memory", "nothing in my memory",
     "not in my memory", "no way of knowing", "no way to know", "can t tell", "cannot tell",
     "i m not certain", "i do not see", "never told me", "not told me", "has not come up", "hasn t come up",
+    "nothing to find", "no note about", "no note of", "no notes about",
 )
 ABSTAIN_ZH = (
     "不知道", "不清楚", "不确定", "无法确定", "没有告诉", "没告诉", "没有提过", "没提过", "没有提到", "没提到",
     "未提及", "没有记录", "没有相关", "没有关于", "没有找到", "找不到", "记不得", "不记得", "尚未告诉",
-    "还没告诉", "还没有告诉", "还没提", "没有这方面", "无从得知",
+    "还没告诉", "还没有告诉", "还没提", "没有这方面", "无从得知", "没有你的",
 )
 
 _THINK = re.compile(r"<(think|thinking)>.*?</\1>", re.DOTALL | re.IGNORECASE)
