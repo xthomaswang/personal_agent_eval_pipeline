@@ -19,7 +19,8 @@ def observed_fact(messages: list[dict]) -> str:
     for message in reversed(messages):
         if message["role"] != "tool":
             continue
-        data = json.loads(message["content"])
+        # localmelo may append a "[localmelo recall: ...]" line after the tool's JSON; read the JSON alone.
+        data, _ = json.JSONDecoder().raw_decode(message["content"])
         if not isinstance(data, dict) or not data.get("results"):
             continue
         record = data["results"][0]
