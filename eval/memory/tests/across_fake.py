@@ -85,6 +85,7 @@ class FakeGateway:
         self.window_cap = int(document.get("agent", {}).get("window_messages", 64))
         self.developer = document.get("ui", {}).get("mode") == "developer"  # POST /api/memory/sleep answers only then
         self.sleeps: list[Any] = []
+        self.sleep_bodies: list[dict[str, Any]] = []
         if model_calls and config.exists():  # the model calls go where the driver's config says, as localmelo's do
             section = document.get("vllm", {})
             self.chat_url, self.chat_model = section.get("chat_url", ""), section.get("chat_model", "")
@@ -218,6 +219,7 @@ class FakeGateway:
             if not self.developer:
                 return self.reply(h, 404, {"error": {"code": "not_found"}})
             self.sleeps.append((body or {}).get("variant"))
+            self.sleep_bodies.append(dict(body or {}))
             return self.reply(h, 200, {"run_id": f"z{len(self.sleeps)}", "variant": (body or {}).get("variant"), "model_calls": 0,
                                        "aborted": False, "capped": False, "changes": list(self.sleep_changes)})
         if method == "GET" and path == "/api/memory/import/scan":

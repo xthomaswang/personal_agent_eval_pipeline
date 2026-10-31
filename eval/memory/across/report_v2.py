@@ -522,9 +522,11 @@ def render(rep: Mapping[str, Any]) -> str:
         out += ["## Memory sleep", "", "The night of each cell: what the sleep changed (O1 duplicates merged, O2 a newer value written over "
                 "older ones, O3 a lost fact written), with the texts of the notes it touched, for judging each change against the teaching "
                 "turns. After it: per sleep item, the active notes that hold the gold string and those that hold a reject (old) string.", ""]
-        out += table(["cell", "variant", "changes", "by op", "model calls", "s", "capped", "active notes after", "error"], [
-            [cid, d["summary"].get("variant", ""), str(d["summary"].get("changes", 0)), ", ".join(f"{k} {v}" for k, v in d["summary"].get("by_op", {}).items()) or "-",
-             str(d["summary"].get("model_calls")), str(d["summary"].get("s")), str(d["summary"].get("capped")), str(d["active_notes"]), d["summary"].get("error") or "-"]
+        out += table(["cell", "variant", "changes", "by op", "model calls", "refused", "refusals", "ms", "capped", "active notes after", "error"], [
+            [cid, d["summary"].get("variant", "") + "".join(f" {k}={v}" for k, v in (d["summary"].get("options") or {}).items()),
+             str(d["summary"].get("changes", 0)), ", ".join(f"{k} {v}" for k, v in d["summary"].get("by_op", {}).items()) or "-",
+             str(d["summary"].get("model_calls")), str(d["summary"].get("refused", "-")), str(d["summary"].get("refusals", "-")),
+             str(d["summary"].get("ms", "-")), str(d["summary"].get("capped")), str(d["active_notes"]), d["summary"].get("error") or "-"]
             for cid, d in rep["sleeps"].items()])
         for cid, d in rep["sleeps"].items():
             if d["changes"]:

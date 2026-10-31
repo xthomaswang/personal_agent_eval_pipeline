@@ -1,0 +1,12 @@
+{
+  "S0": {"label": "no sleep (M2, developer mode)", "x": ["memory.retriever=embedding"], "embedding": true, "base": "M2",
+         "config": {"ui.mode": "developer"}},
+  "S1": {"label": "sleep by rules", "x": ["memory.retriever=embedding"], "embedding": true, "base": "M2",
+         "config": {"ui.mode": "developer"}, "sleep": "rules"},
+  "S2": {"label": "sleep by the model, default budget", "x": ["memory.retriever=embedding"], "embedding": true, "base": "M2",
+         "config": {"ui.mode": "developer"}, "sleep": "model"},
+  "S3": {"label": "sleep by the model with tags, default budget", "x": ["memory.retriever=embedding"], "embedding": true, "base": "M2",
+         "config": {"ui.mode": "developer"}, "sleep": "model+tags"},
+  "S2max": {"label": "sleep by the model, budget 100", "x": ["memory.retriever=embedding"], "embedding": true, "base": "M2",
+            "config": {"ui.mode": "developer"}, "sleep": "model", "sleep_options": {"budget": 100}}
+}

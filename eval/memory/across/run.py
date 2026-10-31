@@ -84,6 +84,7 @@ class Arm:
     seed: str = ""  # a folder copied into the cell's HOME before the gateway starts (see seed_home)
     import_all: bool = False  # bring in every source localmelo's memory import finds in that HOME before the questions
     sleep: str = ""  # a sleep variant ("rules", ...) run once per cell after the teaching and before the questions
+    sleep_options: tuple[tuple[str, Any], ...] = ()  # more fields of the sleep request, e.g. ("budget", 100)
 
     def settings(self) -> dict[str, Any]:
         return dict(self.config)
@@ -101,6 +102,8 @@ class Arm:
             doc["import"] = True
         if self.sleep:
             doc["sleep"] = self.sleep
+        if self.sleep_options:
+            doc["sleep_options"] = dict(self.sleep_options)
         return doc
 
 
@@ -135,11 +138,11 @@ def memory_is_off(x: Sequence[str]) -> bool:
 
 def load_arms(path: Path) -> dict[str, Arm]:
     """Arms from a JSON file ``{name: {"label", "x": [...], "embedding": bool, "v1": bool, "base": str, "config": {...},
-    "seed": str, "import": bool, "sleep": str}}``, in place of ARMS. ``config`` maps dotted config.toml keys to values, e.g.
+    "seed": str, "import": bool, "sleep": str, "sleep_options": {...}}}``, in place of ARMS. ``config`` maps dotted config.toml keys to values, e.g.
     ``{"agent.window_messages": 256}``. ``seed`` is a folder, relative to the JSON file, that seed_home copies into each
     cell's HOME; ``import`` brings in what localmelo's memory import finds there before the first question; ``sleep``
     names the variant of one memory sleep between the teaching and the questions (it needs ``"config": {"ui.mode":
-    "developer"}``).
+    "developer"}``), and ``sleep_options`` more fields of that request (``{"budget": 100}``).
 
     An arm that is a variant of another, such as M2 with one more `-X` setting, gives that arm as ``base``: on a v2 task
     file it then runs the kinds, and meets the window rule, that the base's row in the kind's arm table says."""
@@ -149,7 +152,8 @@ def load_arms(path: Path) -> dict[str, Arm]:
         name: Arm(
             name, str(row.get("label", name)), tuple(row["x"]), bool(row.get("embedding", False)), bool(row.get("v1", True)),
             str(row.get("base", "")), tuple(sorted(dict(row.get("config") or {}).items())),
-            str((here / row["seed"]).resolve()) if row.get("seed") else "", bool(row.get("import", False)), str(row.get("sleep", "")))
+            str((here / row["seed"]).resolve()) if row.get("seed") else "", bool(row.get("import", False)), str(row.get("sleep", "")),
+            tuple(sorted(dict(row.get("sleep_options") or {}).items())))
         for name, row in raw.items()
     }
 
@@ -157,14 +161,17 @@ def load_arms(path: Path) -> dict[str, Arm]:
 # --- a memory sleep between the teaching and the questions ---
 
 
-def sleep_memory(gw: client.Gateway, cell_dir: Path, home: Path, variant: str) -> dict[str, Any]:
-    """Run one memory sleep of ``variant``. Its report goes to the cell's ``sleep.json`` and the notes as the night
+def sleep_memory(
+    gw: client.Gateway, cell_dir: Path, home: Path, variant: str, options: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Run one memory sleep of ``variant`` (``options`` are more fields of the request, such as a budget). Its report goes to the cell's ``sleep.json`` and the notes as the night
     left them to ``after_sleep_records.db`` (a copy, made through SQLite while the gateway runs); a summary is
     answered. A failed sleep is recorded, not raised."""
     started = time.monotonic()
-    doc: dict[str, Any] = {"variant": variant}
+    body = {"variant": variant, **dict(options or {})}
+    doc: dict[str, Any] = {"variant": variant, "request": body}
     try:
-        doc["report"] = gw.call("POST", "/api/memory/sleep", {"variant": variant})
+        doc["report"] = gw.call("POST", "/api/memory/sleep", body)
     except (client.GatewayError, OSError, http.client.HTTPException) as exc:
         doc["error"] = f"{type(exc).__name__}: {exc}"
     doc["s"] = round(time.monotonic() - started, 3)
@@ -180,9 +187,11 @@ def sleep_memory(gw: client.Gateway, cell_dir: Path, home: Path, variant: str) -
     changes = (doc.get("report") or {}).get("changes") or []
     report_ = doc.get("report") or {}
     return {
-        "variant": variant, "changes": len(changes), "by_op": dict(sorted(Counter(c.get("op") for c in changes).items())),
-        "model_calls": report_.get("model_calls"), "capped": report_.get("capped"), "aborted": report_.get("aborted"),
-        "s": doc["s"], **({"error": doc["error"]} if "error" in doc else {}),
+        "variant": variant, **({"options": dict(options)} if options else {}), "changes": len(changes),
+        "by_op": dict(sorted(Counter(c.get("op") for c in changes).items())),
+        "model_calls": report_.get("model_calls"), "refused": report_.get("refused"), "refusals": len(report_.get("refusals") or []),
+        "ms": report_.get("ms"), "processed": len(report_.get("processed") or []), "capped": report_.get("capped"),
+        "aborted": report_.get("aborted"), "s": doc["s"], **({"error": doc["error"]} if "error" in doc else {}),
     }
 
 
@@ -845,7 +854,7 @@ def run_cell(study: Study, cell: Mapping[str, Any]) -> str:
         def night() -> None:
             """The arm's memory sleep, once per cell: a cell that continues after it does not sleep again."""
             if arm.sleep and "sleep" not in info:
-                info["sleep"] = sleep_memory(gw, cell_dir, home, arm.sleep)
+                info["sleep"] = sleep_memory(gw, cell_dir, home, arm.sleep, dict(arm.sleep_options))
                 save(cell_dir / "cell.json", info)
 
         seen: dict[str, int] = {}  # the newest event id read per chat: the next turn's stream starts after it
@@ -1085,7 +1094,7 @@ def print_plan(study: Study, planned: list[dict[str, Any]], problems: list[str])
         config = f" [config.toml: {', '.join(f'{k}={v}' for k, v in arm.config)}]" if arm.config else ""
         steps = "".join([
             f" [seed: {arm.seed}]" if arm.seed else "", " [memory import before the questions]" if arm.import_all else "",
-            f" [sleep: {arm.sleep}, after the teaching]" if arm.sleep else ""])
+            f" [sleep: {arm.sleep}{''.join(f', {k}={v}' for k, v in arm.sleep_options)}, after the teaching]" if arm.sleep else ""])
         print(f"Arm {name}: melo serve {' '.join(f'-X {x}' for x in arm.x)}{config}{embedding}{steps}  # {arm.label}")
     for cell in planned:
         print(f"{cell['index']:3d}. {cell['cell_id']}")

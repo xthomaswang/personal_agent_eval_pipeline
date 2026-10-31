@@ -138,3 +138,24 @@ def test_the_report_finds_a_v2_run_s_task_file_by_its_fingerprint():
     assert report.v2_task_file(data_v2.load(sleep_file).sha256()) == sleep_file
     assert report.v2_task_file(data_v2.load().sha256()) == data_v2.DATA_FILE
     assert report.v2_task_file("not-a-known-file") == data_v2.DATA_FILE and report.v2_task_file(None) == data_v2.DATA_FILE
+
+
+def test_sleep_options_go_into_the_request_and_the_summary(tmp_path, models):
+    path = tmp_path / "arms.json"
+    path.write_text(json.dumps({"S2max": {"x": ["memory.retriever=embedding"], "embedding": True, "base": "M2",
+                                          "config": {"ui.mode": "developer"}, "sleep": "model", "sleep_options": {"budget": 100}}}))
+    arms = run.load_arms(path)
+    assert arms["S2max"].identity()["sleep_options"] == {"budget": 100}
+    launcher = Launcher(store=True, delay=0.002)
+    study = make_study(tmp_path, make_repo(tmp_path), models, launcher, tasks=data_v2.parse(sleep_raw(), None), arms=arms, arm_names=("S2max",))
+    assert run.run_study(study) == 0
+    assert launcher.gateways[0].sleep_bodies == [{"variant": "model", "budget": 100}]
+    info = json.loads((study.run_dir / "cells" / "r1__S2max" / "cell.json").read_text())
+    assert info["sleep"]["options"] == {"budget": 100} and info["sleep"]["refusals"] == 0
+    assert json.loads((study.run_dir / "cells" / "r1__S2max" / "sleep.json").read_text())["request"] == {"variant": "model", "budget": 100}
+
+
+def test_the_round_two_sleep_arms_load():
+    arms = run.load_arms(data_v2.DATA_FILE.parent / "arms_sleep2.json")
+    assert {k: (a.sleep, dict(a.sleep_options)) for k, a in arms.items()} == {
+        "S0": ("", {}), "S1": ("rules", {}), "S2": ("model", {}), "S3": ("model+tags", {}), "S2max": ("model", {"budget": 100})}
