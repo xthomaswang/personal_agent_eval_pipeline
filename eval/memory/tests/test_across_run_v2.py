@@ -97,7 +97,7 @@ def test_each_kind_lists_the_arms_that_run_it(ran, models, repo, tmp_path):
     assert [i.kind for i in study.items("M2")] == ["longrange", "longrange", "followup", "followup"]  # kinds in the table's order
     assert study.items("L1") == ()  # no kind lists it
     assert {c: sum(r["phase"] == "long" for r in turns(ran.study, c)) for c in ("r1__N0", "r1__M2", "r1__B0", "r1__FC")} == {
-        "r1__N0": 65, "r1__M2": 65, "r1__B0": 0, "r1__FC": 65}
+        "r1__N0": 85, "r1__M2": 85, "r1__B0": 0, "r1__FC": 85}
     only = v2_study(tmp_path / "x", repo, models, question_ids=("L2", "P1"))
     assert [i.id for i in only.items()] == ["L2", "P1"] and [i.id for i in only.items("FC")] == ["L2"]
 
@@ -121,11 +121,11 @@ def test_a_v2_study_finishes_and_each_cell_runs_its_kinds(ran):
     state = json.loads((study.run_dir / "across.json").read_text())
     assert state["complete"] and sorted(state["cells"]) == ["r1__B0", "r1__FC", "r1__M2", "r1__N0"]
     by_phase = lambda cell: {p: sum(r["phase"] == p for r in turns(study, cell)) for p in ("long", "teach", "ask")}
-    assert by_phase("r1__N0") == by_phase("r1__M2") == {"long": 65, "teach": 4, "ask": 6}  # L1: 32+1, L2: 33+1, two follow-ups: 2+2 each
-    assert by_phase("r1__B0") == {"long": 0, "teach": 4, "ask": 4} and by_phase("r1__FC") == {"long": 65, "teach": 0, "ask": 2}
+    assert by_phase("r1__N0") == by_phase("r1__M2") == {"long": 85, "teach": 4, "ask": 6}  # L1: 42+1, L2: 43+1, two follow-ups: 2+2 each
+    assert by_phase("r1__B0") == {"long": 0, "teach": 4, "ask": 4} and by_phase("r1__FC") == {"long": 85, "teach": 0, "ask": 2}
     assert all(r["state"] == "finished" for c in ("r1__N0", "r1__M2", "r1__B0", "r1__FC") for r in turns(study, c))
     info = json.loads((cell_dir(study, "r1__FC") / "cell.json").read_text())
-    assert info["counts"]["long"] == {"turns": 65, "failed": 0, "timed_out": 0, "approvals_denied": 0, "turns_with_denied": 0}
+    assert info["counts"]["long"] == {"turns": 85, "failed": 0, "timed_out": 0, "approvals_denied": 0, "turns_with_denied": 0}
     assert info["counts"]["teach"]["turns"] == 0 and info["counts"]["ask"]["turns"] == 2
     assert "after_teach" not in info["rss"]  # there is no single teaching phase
 
@@ -137,7 +137,7 @@ def test_a_long_chat_is_one_chat_in_its_own_workspace_and_stays(ran):
     for item in ("L1", "L2"):
         mine = [r for r in rows if r["item"].startswith(item + ".")]
         sessions = {r["session_id"] for r in mine}
-        assert len(sessions) == 1 and len(mine) in (33, 34)  # the opener, the fact, 30 filler turns and the question in one chat
+        assert len(sessions) == 1 and len(mine) in (43, 44)  # the opener, the fact, 40 filler turns and the question in one chat
         session = sessions.pop()
         assert [r["item"] for r in mine][-1] == f"{item}.q1" and session in n0.sessions  # the chat is kept, not deleted
         assert n0.sessions[session]["workspace"] == str((cell_dir(study, "r1__N0") / "work" / item).resolve())
@@ -168,7 +168,7 @@ def test_a_long_chat_turn_records_the_tools_it_used_and_v1_rows_do_not(ran, tmp_
     rows = turns(ran.study, "r1__N0")
     filler = [r for r in rows if r["phase"] == "long" and r["item"].startswith("L1.")]
     used = [t for r in filler for t in r["tools"]]
-    assert set(used) == {"file_read", "list_files"} and len(used) == 16 and all(r["tools"] == [] for r in rows if r["phase"] != "long")
+    assert set(used) == {"file_read", "list_files"} and len(used) == 22 and all(r["tools"] == [] for r in rows if r["phase"] != "long")
     v1 = make_study(tmp_path, repo, models, arm_names=("L1",), question_ids=("Q1",))
     assert run.run_study(v1) == 0
     assert all("tools" not in r for r in turns(v1, "r1__L1"))
@@ -296,8 +296,8 @@ def test_the_v2_dry_run_plans_by_arm_and_writes_nothing(tmp_path, repo, models, 
     for line in ("Arm M2: melo serve -X memory.retriever=embedding (+ embed-model)", "Arm B0: melo serve -X memory.retriever=bm25",
                  "Arm N0: melo serve -X memory.across_chats=false", "Arm FC: melo serve -X memory.across_chats=false [config.toml: agent.window_messages=256]"):
         assert line in out
-    assert "  FC: 66 turns (64 in long chats, 0 teaching, 2 questions); kinds longrange" in out and "  B0: 8 turns (0 in long chats, 4 teaching, 4 questions); kinds followup" in out
-    assert "  M2: 74 turns" in out and "222 turns in all" in out and "Preflight: ok" in out and not (tmp_path / "run").exists()
+    assert "  FC: 86 turns (84 in long chats, 0 teaching, 2 questions); kinds longrange" in out and "  B0: 8 turns (0 in long chats, 4 teaching, 4 questions); kinds followup" in out
+    assert "  M2: 94 turns" in out and "282 turns in all" in out and "Preflight: ok" in out and not (tmp_path / "run").exists()
     assert run.main([*argv, "--arms", "FC", "--long-timeout", "30", "--repeats", "2"]) == 0
     assert "2 cells = 1 arms x 2 repeats" in capsys.readouterr().out
     assert run.parse_args(["--run-dir", "x", "--localmelo", "y", "--base-url", "z"]).long_timeout == 120.0
@@ -319,7 +319,7 @@ def test_an_arms_file_with_variants_of_m2_works_on_a_v2_task_file(tmp_path, repo
     assert "Arm M2-on: melo serve -X memory.retriever=embedding -X memory.context_query=on (+ embed-model)" in out and "Preflight: ok" in out
     assert "Arm FC: melo serve -X memory.across_chats=false [config.toml: agent.window_messages=256]" in out
     assert run.load_arms(arms)["FC"].config == (("agent.window_messages", 256),) and run.load_arms(arms)["N0"].config == ()
-    assert "  M2-off: 37 turns" in out and "  M2-on: 37 turns" in out and "  FC: 33 turns" in out  # L01 (33 turns) and P01 (4): the variants follow M2's row
+    assert "  M2-off: 47 turns" in out and "  M2-on: 47 turns" in out and "  FC: 43 turns" in out  # L01 (43 turns) and P01 (4): the variants follow M2's row
     with pytest.raises(SystemExit, match="unknown arm M2"):
         run.main([*argv, "--arms", "M2"])  # the arms file replaces the built-in table
 

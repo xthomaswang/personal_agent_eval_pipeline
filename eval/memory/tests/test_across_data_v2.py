@@ -98,14 +98,15 @@ def test_fixtures_are_small_and_the_filler_uses_only_read_tier_tools(tasks):
     assert tasks.fixtures and all(len(f.text) <= 300 for f in tasks.fixtures)
     assert data_v2.READ_TOOLS == ("file_read", "list_files")  # git_status is not a builtin of a gateway chat
     assert {t.tool for t in tasks.filler.values()} - {""} == set(data_v2.READ_TOOLS)
-    assert sum(bool(t.tool) for t in tasks.filler.values() if t.lang == "en") == 16
+    assert sum(bool(t.tool) for t in tasks.filler.values() if t.lang == "en") == 22
     assert all(any(s in t.text.lower() for s in data_v2.SHORT_ANSWER) for t in tasks.filler.values())
     paths = [f.path for f in tasks.fixtures]
     assert all(any(p in t.text for p in paths) for t in tasks.filler.values() if t.tool == "file_read")
     for name, ids in tasks.sets.items():
         turns = [tasks.filler[i] for i in ids]
-        assert len(turns) >= 28 and 2 * sum(bool(t.tool) for t in turns) >= len(turns), name
-        assert sum(4 if t.tool else 2 for t in turns) >= 90, name  # messages between the fact and the question
+        assert len(turns) >= 35 and 2 * sum(bool(t.tool) for t in turns) >= len(turns), name
+        assert 2 * len(turns) >= 64 + 6, name  # the floor: even when no tool is called (2 messages a turn) the window cap + 6 follow the fact
+        assert sum(4 if t.tool else 2 for t in turns) >= 110, name  # the aim, with the tool turns at 4 messages
         assert {t.lang for t in turns} == {name[:2]}
 
 
@@ -114,11 +115,11 @@ def test_a_long_chat_is_opener_fact_filler_question(tasks):
         steps = tasks.long_steps(item)
         roles = [s.role for s in steps]
         assert roles[0] == "opener" and roles[-1] == "question" and roles.index("fact") + 1 == item.fact_turn in (2, 3)
-        assert roles.count("filler") == 30 and ("bridge" in roles) == (item.fact_turn == 3)
+        assert roles.count("filler") == 40 and ("bridge" in roles) == (item.fact_turn == 3)
         assert [s.phase for s in steps] == ["long"] * (len(steps) - 1) + ["ask"]
         assert steps[0].label == f"{item.id}.t01" and steps[-1].label == f"{item.id}.q1" and len({s.label for s in steps}) == len(steps)
         assert steps[item.fact_turn - 1].text == item.fact
-        assert len(steps) >= 33  # more than 90 messages sit between the fact and the question (see the filler test)
+        assert len(steps) >= 43  # the opener, the fact, 40 filler turns and the question (the filler test counts the messages)
 
 
 def test_a_followup_item_teaches_two_facts_and_asks_a_pronoun_question(tasks):
@@ -179,11 +180,24 @@ def test_refuses_filler_that_is_not_read_tier_or_not_short():
 
 
 def test_refuses_a_filler_set_that_is_short_or_mostly_plain():
-    refuses(lambda d: d["sets"]["en_a"].__delitem__(slice(0, 6)), "needs at least 28")
+    refuses(lambda d: d["sets"]["en_a"].__delitem__(slice(0, 6)), "needs at least 35 turns")
 
     def plain_only(d):
         d["sets"]["en_b"] = [i["id"] for i in d["filler"] if i["lang"] == "en" and "tool" not in i] * 2
     refuses(plain_only, "at least half of the turns must be tool turns")
+
+
+def test_refuses_a_filler_set_under_the_floor_of_two_messages_a_turn_and_accepts_it_at_the_floor():
+    """34 turns of mostly tools are 112 messages with tools, over the aim, but 68 when the model calls none: under 70."""
+    def tools_first(d, plain):
+        ids = d["sets"]["en_a"]
+        d["sets"]["en_a"] = [i for i in ids if i.startswith("ft")] + [i for i in ids if i.startswith("fp")][:plain]
+
+    refuses(lambda d: tools_first(d, 12), "34 turns are 68 messages at 2 per turn, the floor is 70 (the 64-message window plus 6): needs at least 35 turns")
+    doc = raw()
+    tools_first(doc, 13)  # 35 turns: 70 messages at 2 per turn, 114 with the tools
+    assert len(data_v2.parse(doc).sets["en_a"]) == 35
+    assert data_v2.FILLER_FLOOR == 70 and data_v2.MIN_FILLER_TURNS == 35
 
 
 def test_refuses_a_chat_too_short_to_push_the_fact_out_of_the_window():

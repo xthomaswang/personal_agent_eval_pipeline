@@ -127,7 +127,7 @@ def test_pairs_of_arms_per_kind(rep):
 
 def test_tools_and_notes_of_the_long_chats(rep):
     tools = {c["arm"]: c["tools"] for c in rep["chats"] if c["item"] == "L1"}
-    assert tools["M2"] == {"file_read": 12, "list_files": 4} == tools["FC"]
+    assert tools["M2"] == {"file_read": 16, "list_files": 6} == tools["FC"]
     assert all(c["denied"] == 0 for c in rep["chats"])
 
 

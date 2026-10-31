@@ -6,7 +6,7 @@ run it, and for each arm what the working window must look like at the question 
 ``"in"``: it is still in it, ``""``: no condition). The arms table is data, so a run asks an arm only for the kinds
 that list it.
 
-- ``longrange``: one chat. Turn 1 is an opener, the fact is said at turn 2 or 3, about 30 filler turns follow (at
+- ``longrange``: one chat. Turn 1 is an opener, the fact is said at turn 2 or 3, about 40 filler turns follow (at
   least half use only the read-tier tools ``file_read`` and ``list_files``, each asking for a one
   sentence answer), then the question comes in the same chat. ``note_expected`` says whether localmelo's note rules
   are expected to save the fact (at least 70% of the items are details of the conversation it should not save).
@@ -16,9 +16,10 @@ that list it.
 ``load()`` returns a ``TaskSet`` or raises ``DataError`` with every problem it found. Checks: the schema; ids unique;
 per kind the fields, the number of asks and the language mix; every gold string occurs in the text that holds it, and
 a reject string occurs in the wrong text and not in the gold one; for ``longrange``, no gold string (answer or alias)
-occurs in any filler message or fixture file, the filler is long enough to push the fact out of
-a 64-message window (at least 90 messages after it), each fixture is at most 300 characters and the whole chat fits
-the prompt cap with room to spare (about 60,000 characters).
+occurs in any filler message or fixture file, the filler pushes the fact out of a 64-message window even when the
+model answers every turn without a tool (a turn is then 2 messages: at least cap + 6 = 70 messages follow the fact, so
+35 turns) and is meant to give 110 messages with the tool turns at 4, each fixture is at most 300 characters and the
+whole chat fits the prompt cap with room to spare (about 60,000 characters).
 """
 
 from __future__ import annotations
@@ -40,10 +41,14 @@ LANGS = data.LANGS
 READ_TOOLS = ("file_read", "list_files")  # tier "read" in localmelo, and builtins of its gateway chats: they never ask for approval
 SHORT_ANSWER = ("one sentence", "一句话")  # every filler message asks for one of these
 FIXTURE_MAX_CHARS = 300
-MIN_FILLER_TURNS = 28
+WINDOW_MESSAGES = 64  # localmelo's default window cap, the cap N0 and M2 run with
 MESSAGES_PER_TOOL_TURN = 4  # user, assistant tool call, tool result, assistant
-MESSAGES_PER_PLAIN_TURN = 2
-MIN_MESSAGES_AFTER_FACT = 90  # past a 64-message window with room to spare
+MESSAGES_PER_PLAIN_TURN = 2  # user, assistant: what any turn is when the model calls no tool
+# The floor: counted at 2 messages per turn, at least the window cap + 6 messages follow the fact turn. A model that
+# answers a tool-meant turn without the tool (13% of them in the first real runs) must not leave a long chat short.
+FILLER_FLOOR = WINDOW_MESSAGES + 6
+MIN_FILLER_TURNS = -(-FILLER_FLOOR // MESSAGES_PER_PLAIN_TURN)
+MIN_MESSAGES_AFTER_FACT = 110  # the design aim, with the tool turns at 4 messages
 FC_CHAT_CHARS = 60_000  # localmelo's prompt cap is 100,000 characters and its fit drops to 70% of that
 CHARS_PER_REPLY = 300  # what a tool result or an answer adds, at most, for the estimate of a chat's size
 FACT_TURNS = (2, 3)
@@ -363,8 +368,12 @@ def _check_fillers(ts: TaskSet, problems: list[str]) -> None:
             problems.append(f"set {name}: unknown filler ids {unknown}")
             continue
         turns = [ts.filler[i] for i in ids]
-        if len(set(ids)) != len(ids) or len(ids) < MIN_FILLER_TURNS:
-            problems.append(f"set {name}: needs at least {MIN_FILLER_TURNS} different turns, has {len(set(ids))}")
+        if len(set(ids)) != len(ids):
+            problems.append(f"set {name}: a turn is repeated")
+        if MESSAGES_PER_PLAIN_TURN * len(ids) < FILLER_FLOOR:
+            problems.append(
+                f"set {name}: {len(ids)} turns are {MESSAGES_PER_PLAIN_TURN * len(ids)} messages at {MESSAGES_PER_PLAIN_TURN} per turn, "
+                f"the floor is {FILLER_FLOOR} (the {WINDOW_MESSAGES}-message window plus 6): needs at least {MIN_FILLER_TURNS} turns")
         if 2 * sum(1 for t in turns if t.tool) < len(turns):
             problems.append(f"set {name}: at least half of the turns must be tool turns")
     paths = [f.path for f in ts.fixtures]

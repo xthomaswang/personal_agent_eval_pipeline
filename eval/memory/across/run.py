@@ -21,7 +21,7 @@ a teaching turn after 60 s; both are counted per turn.
 
 A task file of version 2 (``--tasks data/tasks_v2.yaml``, see data_v2.py) selects the other protocol: items that need a
 chat of their own. Each kind lists the arms that run it (the KINDS table in data_v2.py), so a cell runs only the items whose
-kind lists its arm: a long chat (opener, fact, about 30 filler turns that read files, the question) or teaching chats
+kind lists its arm: a long chat (opener, fact, about 40 filler turns that read files, the question) or teaching chats
 and a two-question chat. The long chats are kept (the report reads their window and notes from the cell's SQLite files
 after the cell). Turns of a long chat stop after --long-timeout (120 s). An arm of an --arms-file may be a variant of
 another (``base``): it runs the kinds, and meets the window rule, that its base's row in the table says.

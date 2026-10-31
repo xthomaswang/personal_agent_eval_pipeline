@@ -11,7 +11,9 @@
 #           (file_read or list_files; neither ever asks for approval); no `tool` is a plain turn.
 #           Every filler message asks for a one-sentence answer. No gold string of any item occurs in a filler
 #           message or fixture file (the loader checks).
-# sets      named orders of the filler pool: 16 tool turns and 14 plain turns, about 92 messages in a chat.
+# sets      named orders of the filler pool: 22 tool turns and 18 plain turns, 40 turns, 124 messages after the
+#           fact. A model sometimes answers a tool turn without calling the tool (a turn is then 2 messages, not 4),
+#           so even at 2 messages per turn 80 follow the fact, past the 64-message window plus 6 (the loader checks).
 # items     kind longrange: one chat. opener (turn 1), an optional bridge (turn 2; then the fact is turn 3), the
 #             fact, the filler set, then the one ask, in the same chat. note_expected says whether localmelo's
 #             note rules are expected to save the fact (false: a detail of the conversation, tracked as such).
@@ -38,6 +40,12 @@ fixtures:
   - {path: "poem.txt", text: "Rain on the roof,\nthe kettle sings low,\nan evening unhurried,\nthe lamps all aglow.\n"}
   - {path: "docs/guide.md", text: "# Guide\nStep one: open the box. Step two: read the card. Step three: plug it in.\n"}
   - {path: "docs/faq.md", text: "# FAQ\nQ: Does it need a battery? A: No.\nQ: Is it waterproof? A: No.\n"}
+  - {path: "garden.txt", text: "Garden notes: basil by the window, mint in the big pot, tomatoes need water every two days, the rosemary is doing well.\n"}
+  - {path: "weather.txt", text: "Forecast: Monday sunny, Tuesday light rain, Wednesday cloudy, Thursday windy, Friday sunny again.\n"}
+  - {path: "playlist.txt", text: "Playlist: Morning Walk, Quiet Hours, Train Window, Late Kettle, Slow Sunday.\n"}
+  - {path: "budget.csv", text: "month,spent\njan,120\nfeb,95\nmar,140\n"}
+  - {path: "docs/setup.md", text: "# Setup\n1. Unpack the kit.\n2. Charge the base for an hour.\n3. Press and hold the button until the light blinks.\n"}
+  - {path: "docs/notes/ideas.txt", text: "Ideas: a bookshelf from pallets, a herb rack for the kitchen, a map of the neighbourhood.\n"}
 
 filler:
   # English, tool turns
@@ -57,6 +65,12 @@ filler:
   - {id: ft14, lang: en, tool: file_read, text: "Open readme.txt and tell me what the folder is for. Answer in one sentence."}
   - {id: ft15, lang: en, tool: list_files, text: "List the files in this folder and tell me whether there is a poem among them. Answer in one sentence."}
   - {id: ft16, lang: en, tool: list_files, text: "Which file in this folder has the .ini extension? List the files to check. Answer in one sentence."}
+  - {id: ft17, lang: en, tool: file_read, text: "Read garden.txt and tell me which plant needs water every two days. Answer in one sentence."}
+  - {id: ft18, lang: en, tool: file_read, text: "Read weather.txt and tell me what the weather is on Tuesday. Answer in one sentence."}
+  - {id: ft19, lang: en, tool: file_read, text: "Read playlist.txt and tell me the second song. Answer in one sentence."}
+  - {id: ft20, lang: en, tool: file_read, text: "Read docs/setup.md and tell me how long to charge the base. Answer in one sentence."}
+  - {id: ft21, lang: en, tool: file_read, text: "Read docs/notes/ideas.txt and tell me the first idea on the list. Answer in one sentence."}
+  - {id: ft22, lang: en, tool: file_read, text: "Read budget.csv and tell me how much was spent in February. Answer in one sentence."}
   # English, plain turns
   - {id: fp01, lang: en, text: "What is the capital of Portugal? Answer in one sentence."}
   - {id: fp02, lang: en, text: "What does the word 'idempotent' mean? Answer in one sentence."}
@@ -72,6 +86,10 @@ filler:
   - {id: fp12, lang: en, text: "What is the opposite of 'generous'? Answer in one sentence."}
   - {id: fp13, lang: en, text: "How many sides does a hexagon have? Answer in one sentence."}
   - {id: fp14, lang: en, text: "What does HTTP stand for? Answer in one sentence."}
+  - {id: fp15, lang: en, text: "What is the chemical symbol for gold? Answer in one sentence."}
+  - {id: fp16, lang: en, text: "Name a word that rhymes with 'light'. Answer in one sentence."}
+  - {id: fp17, lang: en, text: "How many days are in a leap year? Answer in one sentence."}
+  - {id: fp18, lang: en, text: "What is the largest ocean on Earth? Answer in one sentence."}
   # Chinese, tool turns
   - {id: zt01, lang: zh, tool: file_read, text: "请读一下 todo.md，告诉我清单上的第一项是什么。请用一句话回答。"}
   - {id: zt02, lang: zh, tool: file_read, text: "打开 notes.txt，告诉我购物清单上的第一样东西。请用一句话回答。"}
@@ -89,6 +107,12 @@ filler:
   - {id: zt14, lang: zh, tool: file_read, text: "打开 readme.txt，告诉我这个文件夹是做什么用的。请用一句话回答。"}
   - {id: zt15, lang: zh, tool: list_files, text: "列出这个文件夹里的文件，告诉我里面有没有诗。请用一句话回答。"}
   - {id: zt16, lang: zh, tool: list_files, text: "这个文件夹里哪个文件是 .ini 结尾的？请列出文件来确认。请用一句话回答。"}
+  - {id: zt17, lang: zh, tool: file_read, text: "读一下 garden.txt，告诉我哪种植物每两天要浇一次水。请用一句话回答。"}
+  - {id: zt18, lang: zh, tool: file_read, text: "读一下 weather.txt，告诉我周二的天气。请用一句话回答。"}
+  - {id: zt19, lang: zh, tool: file_read, text: "读一下 playlist.txt，告诉我第二首歌是什么。请用一句话回答。"}
+  - {id: zt20, lang: zh, tool: file_read, text: "读一下 docs/setup.md，告诉我底座要充多久的电。请用一句话回答。"}
+  - {id: zt21, lang: zh, tool: file_read, text: "读一下 docs/notes/ideas.txt，告诉我清单上的第一个点子。请用一句话回答。"}
+  - {id: zt22, lang: zh, tool: file_read, text: "读一下 budget.csv，告诉我二月花了多少钱。请用一句话回答。"}
   # Chinese, plain turns
   - {id: zp01, lang: zh, text: "葡萄牙的首都是哪里？请用一句话回答。"}
   - {id: zp02, lang: zh, text: "“幂等”是什么意思？请用一句话回答。"}
@@ -104,13 +128,17 @@ filler:
   - {id: zp12, lang: zh, text: "“慷慨”的反义词是什么？请用一句话回答。"}
   - {id: zp13, lang: zh, text: "六边形有几条边？请用一句话回答。"}
   - {id: zp14, lang: zh, text: "HTTP 是什么的缩写？请用一句话回答。"}
+  - {id: zp15, lang: zh, text: "金的化学符号是什么？请用一句话回答。"}
+  - {id: zp16, lang: zh, text: "给我一个和“光”押韵的词。请用一句话回答。"}
+  - {id: zp17, lang: zh, text: "闰年有多少天？请用一句话回答。"}
+  - {id: zp18, lang: zh, text: "地球上最大的海洋是哪一个？请用一句话回答。"}
 
 sets:
-  en_a: ["fp04", "ft15", "fp10", "ft02", "fp14", "ft03", "ft04", "ft09", "fp07", "ft07", "ft14", "fp01", "fp11", "fp13", "fp03", "fp06", "fp08", "ft01", "fp12", "ft08", "fp05", "ft12", "ft16", "ft05", "fp02", "ft13", "ft10", "fp09", "ft06", "ft11"]
-  en_b: ["fp09", "ft05", "ft02", "fp08", "ft09", "fp10", "fp05", "fp03", "ft01", "ft13", "fp13", "ft15", "ft06", "fp01", "fp11", "ft10", "fp12", "ft03", "ft16", "ft11", "fp07", "ft14", "ft12", "fp14", "fp04", "ft04", "fp06", "ft07", "ft08", "fp02"]
-  en_c: ["fp01", "ft13", "fp11", "ft15", "fp03", "fp12", "fp14", "ft05", "fp04", "ft11", "ft02", "fp05", "ft10", "fp02", "ft03", "ft12", "fp09", "ft16", "fp07", "ft08", "ft06", "fp13", "fp06", "ft14", "ft01", "fp08", "ft07", "ft04", "ft09", "fp10"]
-  zh_a: ["zp06", "zp03", "zt04", "zt05", "zp11", "zp04", "zt02", "zt10", "zt03", "zp08", "zt01", "zt09", "zp13", "zt11", "zp07", "zp14", "zp05", "zp10", "zt06", "zt13", "zt07", "zp09", "zt15", "zt08", "zp02", "zt16", "zt14", "zp12", "zt12", "zp01"]
-  zh_b: ["zp02", "zt12", "zt02", "zp03", "zp09", "zp14", "zt03", "zp04", "zp01", "zp11", "zt05", "zt08", "zp06", "zt14", "zt07", "zp10", "zt15", "zt13", "zp05", "zt06", "zp07", "zt11", "zt16", "zp13", "zt10", "zp08", "zt01", "zt09", "zp12", "zt04"]
+  en_a: ["fp04", "fp11", "ft20", "ft12", "fp16", "fp17", "fp08", "ft10", "fp05", "fp06", "ft16", "fp10", "ft21", "ft01", "fp12", "ft09", "fp15", "ft05", "ft03", "ft07", "fp03", "ft13", "ft14", "fp18", "fp02", "ft08", "ft22", "ft06", "fp14", "ft02", "fp07", "ft18", "fp13", "fp01", "ft11", "ft17", "fp09", "ft19", "ft15", "ft04"]
+  en_b: ["fp09", "ft14", "ft21", "fp14", "ft18", "ft09", "ft07", "fp04", "ft17", "ft22", "ft10", "fp15", "ft13", "fp05", "ft11", "fp11", "ft01", "ft20", "fp16", "ft03", "fp02", "fp06", "ft19", "ft02", "fp01", "fp03", "fp08", "fp12", "ft05", "ft04", "ft15", "fp18", "fp17", "fp13", "ft08", "ft12", "fp10", "fp07", "ft06", "ft16"]
+  en_c: ["fp08", "fp16", "ft10", "ft20", "ft18", "fp03", "fp14", "fp17", "ft02", "ft01", "ft05", "fp12", "ft12", "ft13", "ft16", "fp10", "ft07", "fp18", "fp13", "ft08", "fp05", "fp09", "ft14", "ft19", "ft21", "fp01", "ft09", "ft15", "fp04", "ft04", "fp15", "ft17", "ft06", "fp11", "fp07", "ft22", "fp06", "fp02", "ft03", "ft11"]
+  zh_a: ["zp05", "zt16", "zt17", "zp01", "zt10", "zt20", "zp11", "zp04", "zp07", "zt18", "zt22", "zt08", "zp03", "zt09", "zt07", "zp15", "zp08", "zp16", "zt21", "zp14", "zt12", "zt05", "zt15", "zp10", "zp06", "zp09", "zt14", "zp18", "zt06", "zp13", "zt04", "zp17", "zt13", "zp02", "zt19", "zt02", "zp12", "zt01", "zt11", "zt03"]
+  zh_b: ["zp10", "zp07", "zt04", "zp16", "zt06", "zp05", "zt07", "zt10", "zp01", "zt14", "zt01", "zp14", "zt02", "zp09", "zp06", "zt08", "zp04", "zt21", "zp17", "zt18", "zt03", "zt12", "zp11", "zp08", "zt13", "zt09", "zp18", "zt16", "zp13", "zp02", "zt22", "zp12", "zt05", "zt20", "zt15", "zp15", "zt17", "zt11", "zp03", "zt19"]
 
 items:
   # kind longrange

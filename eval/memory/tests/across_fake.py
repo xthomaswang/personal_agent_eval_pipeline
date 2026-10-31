@@ -614,16 +614,16 @@ MINI_SAVE_ONLY = ("Priya", "advisor", "Ortiz", "班主任", "周老师")  # the 
 
 
 def mini_raw_v2() -> dict[str, Any]:
-    """A small valid v2 task set (2 long-range and 2 follow-up items, one filler set of 30 turns) for the driver and
+    """A small valid v2 task set (2 long-range and 2 follow-up items, one filler set of 40 turns) for the driver and
     report tests. Run it with ``FakeGateway(store=True, tool_words=MINI_TOOL_WORDS, save_only=MINI_SAVE_ONLY)``."""
     files = ["todo.md", "notes.txt", "docs/faq.md"]
-    tools = [{"id": f"ft{n:02d}", "lang": "en", "tool": "file_read", "text": f"Read {files[n % 3]} and report line {n}. Answer in one sentence."} for n in range(12)]
-    tools += [{"id": f"ft{12 + n:02d}", "lang": "en", "tool": "list_files", "text": f"List the files, check number {n}. Answer in one sentence."} for n in range(4)]
-    plain = [{"id": f"fp{n:02d}", "lang": "en", "text": f"Quick fact number {n}, what is it? Answer in one sentence."} for n in range(14)]
+    tools = [{"id": f"ft{n:02d}", "lang": "en", "tool": "file_read", "text": f"Read {files[n % 3]} and report line {n}. Answer in one sentence."} for n in range(16)]
+    tools += [{"id": f"ft{16 + n:02d}", "lang": "en", "tool": "list_files", "text": f"List the files, check number {n}. Answer in one sentence."} for n in range(6)]
+    plain = [{"id": f"fp{n:02d}", "lang": "en", "text": f"Quick fact number {n}, what is it? Answer in one sentence."} for n in range(18)]
     order = []
-    for n in range(16):  # a plain turn after every tool turn while there are plain turns
+    for n in range(22):  # a plain turn after every tool turn while there are plain turns
         order.append(tools[n]["id"])
-        if n < 14:
+        if n < 18:
             order.append(plain[n]["id"])
 
     def ask(text: str, answer: str, **extra: Any) -> dict[str, Any]:

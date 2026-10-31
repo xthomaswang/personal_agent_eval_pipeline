@@ -248,15 +248,31 @@ working window must look like at the question; a cell runs only the items whose 
 
 | kind | what it asks | arms (window rule at the question) |
 |---|---|---|
-| `longrange` | one chat: an opener, the fact at turn 2 or 3, 30 filler turns, then the question in the same chat. At least 14 of 20 facts are details of the conversation the note rules should not save (`note_expected: false`: "the draft I'm editing is called river.md"); the rest are note-worthy facts as a control. | N0 `out`, M2 `out`, FC `in` |
+| `longrange` | one chat: an opener, the fact at turn 2 or 3, 40 filler turns, then the question in the same chat. At least 14 of 20 facts are details of the conversation the note rules should not save (`note_expected: false`: "the draft I'm editing is called river.md"); the rest are note-worthy facts as a control. | N0 `out`, M2 `out`, FC `in` |
 | `followup` | two facts, each taught in its own chat; then one chat with Q1 ("Who is my advisor?") and a pronoun follow-up Q2 ("And where is her office?"), deleted afterwards (unless `--keep-ask-chats`). Q1 and Q2 are scored apart. | M2, B0, N0 |
 
-The filler is about 30 messages per chat (16 tool turns that read a file or list the files, 14 plain ones), each
-asking for a one-sentence answer, about 92 messages between the fact and the question. The driver writes the small
-fixture files of the task file (each at most 300 characters) into `work/<item>/` for each long chat, so the read-tier
-tools the gateway offers (`file_read` and `list_files`, neither of which asks for approval) have something to read;
-no gold string occurs in any filler message or fixture file (the loader checks). The report's tools table shows what
-the chats called.
+The filler is 40 turns per chat (22 tool turns that read a file or list the files, 18 plain ones), each asking for a
+one-sentence answer. A tool turn is 4 messages when the model calls its tool (user, call, result, answer) and 2 when it
+does not, so 124 messages follow the fact turn at best and 80 at worst. The loader enforces a floor on the worst case:
+counted at 2 messages per turn, at least the window cap plus 6 (64 + 6 = 70, so 35 turns) must follow the fact; the
+design aim with the tools is 110. The driver writes the small fixture files of the task file (each at most 300
+characters) into `work/<item>/` for each long chat, so the read-tier tools the gateway offers (`file_read` and
+`list_files`, neither of which asks for approval) have something to read; no gold string occurs in any filler message
+or fixture file (the loader checks). The report's tools table shows what the chats called. A full-context chat stays
+small: the first runs' biggest request was 18.7 KB at 30 filler turns, about 23 KB expected at 40, against the
+100,000-character prompt cap (the loader's estimate for a chat is about 23,000 characters, limit 60,000).
+
+**Why the floor counts 2 messages a turn.** The first real runs (`bench2-c1-*`: nine cells, 30 filler turns of which 16
+were tool turns, 92 messages after the fact if every tool is called) went invalid for some items with "only 60
+messages between the end of the fact turn and the question (cap 64)": the model answers a tool-meant filler turn without
+calling the tool. Measured over the finished tool-meant filler turns of those runs, `tools` empty in the journal:
+366 of 2,819 (13.0%); by arm M2 71 of 952 (7.5%), N0 89 of 603 (14.8%), FC 114 of 624 (18.3%), B0 92 of 640 (14.4%);
+by tool `file_read` 152 of 1,948 (7.8%) and `list_files` 214 of 871 (24.6%). (61 tool-meant turns that did not finish
+are left out.) Every such turn is 2 messages, not 4, so a 30-turn filler could fall to 60 messages. The set was
+lengthened to 40 turns (the items, facts and asks did not change; 6 fixture files, 6 tool turns and 4 plain turns per
+language were added). The task file's sha256 therefore changed: **fdf17a4d680ef1f3a1a882dcf9f1a868b8975fec0cb399acee9c0c3262fb8bfa**
+(30-turn filler, the `bench2-c1-*` runs) is now **ee5fd0609503f9b556638511be8aee1386ed9859d39c6498d7788e00454b2e17**
+(40-turn filler); a run made with one cannot be resumed or compared by `--compare` as the same task file.
 Turns of a long chat, the question included, stop after `--long-timeout` (120 s); teaching turns keep 60 s and the
 questions of follow-up chats 900 s.
 
@@ -310,6 +326,8 @@ uv run python -m memory.across.report memory/runs/bench2-<name> [--compare memor
 ```
 
 GPU time on the bench's chat model: the follow-up kind is about 3 minutes per arm (8 teaching and 40 question turns of
-a few seconds); the long-range kind is about 600 turns per arm (20 chats of 33 turns), 35-50 minutes per arm. Per
-run: M2 and N0 run both kinds, FC only long range, B0 only follow-up, so the full set is about 2.5 hours at one repeat.
+a few seconds). The long-range kind is now about 860 turns per arm (20 chats of 43 turns). The first runs, at 667 turns
+(30-turn filler), took M2 57-64 minutes (the embedding model adds a request per turn), N0 12 and FC 9-10 minutes; scaled
+by 1.3 that is about 80 minutes for M2 and 12-16 for N0 and FC. M2 and N0 run both kinds, FC only long range, B0 only
+follow-up, so the full set is about 2 hours at one repeat.
 The operator holds the GPU lock as for v1; the driver never starts a model server.
