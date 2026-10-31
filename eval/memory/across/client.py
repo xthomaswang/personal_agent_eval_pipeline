@@ -192,9 +192,11 @@ class TurnResult:
         return next((e for e in self.events if e.get("type") == type_), None)
 
     def memory(self) -> dict[str, Any] | None:
-        """The ``data`` of this turn's ``turn.memory`` event (``used``, ``remembered``, ``refused``, and
-        ``recall`` when the build reports it); None when memory did nothing and sent no event."""
-        event = self.event("turn.memory")
+        """The ``data`` of this turn's last ``turn.memory`` event (``used``, ``remembered``, ``refused``, and
+        ``recall`` when the build reports it); None when memory did nothing and sent no event. Each event is
+        the turn's whole memory state so far: the first one comes with recall, and a note saved by a tool
+        sends another, so only the last has every ``remembered`` item."""
+        event = next((e for e in reversed(self.events) if e.get("type") == "turn.memory"), None)
         data = event.get("data") if event else None
         return data if isinstance(data, dict) else None
 

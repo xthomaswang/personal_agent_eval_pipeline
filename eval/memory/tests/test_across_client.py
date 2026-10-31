@@ -45,6 +45,19 @@ def test_run_turn_creates_a_chat_and_a_second_turn_continues_it(gateway):
     assert repeated[0] == 400
 
 
+def test_memory_is_the_last_turn_memory_event():
+    """Recall sends the first event and a note saved by a tool a second, fuller one; the timing stays on the first."""
+    recall = {"turn": 1, "used": [], "remembered": [], "refused": ""}
+    saved = {**recall, "remembered": [{"id": 1, "text": "You live in Lisbon.", "topic": "about"}]}
+    result = client.TurnResult("s", "t", 1, "completed", events=[
+        {"type": "turn.started", "ts": 10.0, "t_ms": 1.0}, {"type": "turn.memory", "ts": 10.02, "data": recall},
+        {"type": "tool.started", "ts": 11.0}, {"type": "turn.memory", "ts": 11.5, "data": saved},
+        {"type": "turn.finished", "ts": 12.0}])
+    assert result.memory()["remembered"][0]["text"] == "You live in Lisbon."
+    assert result.server_ms()["memory"] == 20.0
+    assert client.TurnResult("s", "t", 1, "completed").memory() is None
+
+
 def test_a_key_outside_the_gateways_grammar_is_refused_before_sending(gateway):
     with pytest.raises(ValueError):
         client.run_turn(gw(gateway), "hi", "bad key")
