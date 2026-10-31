@@ -43,16 +43,18 @@ import os
 import re
 import shlex
 import shutil
+import sqlite3
 import subprocess
 import sys
 import tempfile
 import time
+from collections import Counter
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from . import client, data, data_v2, proxy, server
+from . import client, data, data_v2, proxy, server, stores
 
 # <repo>/eval/memory/across/run.py: four levels up is the directory that holds the shared lock
 GPU_LOCK = Path(__file__).resolve().parents[4] / ".gpu-lock"
@@ -81,6 +83,7 @@ class Arm:
     config: tuple[tuple[str, Any], ...] = ()  # dotted config.toml entries the driver writes for the cell, e.g. agent.window_messages
     seed: str = ""  # a folder copied into the cell's HOME before the gateway starts (see seed_home)
     import_all: bool = False  # bring in every source localmelo's memory import finds in that HOME before the questions
+    sleep: str = ""  # a sleep variant ("rules", ...) run once per cell after the teaching and before the questions
 
     def settings(self) -> dict[str, Any]:
         return dict(self.config)
@@ -96,6 +99,8 @@ class Arm:
             doc["seed_sha256"] = seed_sha256(Path(self.seed))
         if self.import_all:
             doc["import"] = True
+        if self.sleep:
+            doc["sleep"] = self.sleep
         return doc
 
 
@@ -130,9 +135,11 @@ def memory_is_off(x: Sequence[str]) -> bool:
 
 def load_arms(path: Path) -> dict[str, Arm]:
     """Arms from a JSON file ``{name: {"label", "x": [...], "embedding": bool, "v1": bool, "base": str, "config": {...},
-    "seed": str, "import": bool}}``, in place of ARMS. ``config`` maps dotted config.toml keys to values, e.g.
+    "seed": str, "import": bool, "sleep": str}}``, in place of ARMS. ``config`` maps dotted config.toml keys to values, e.g.
     ``{"agent.window_messages": 256}``. ``seed`` is a folder, relative to the JSON file, that seed_home copies into each
-    cell's HOME; ``import`` brings in what localmelo's memory import finds there before the first question.
+    cell's HOME; ``import`` brings in what localmelo's memory import finds there before the first question; ``sleep``
+    names the variant of one memory sleep between the teaching and the questions (it needs ``"config": {"ui.mode":
+    "developer"}``).
 
     An arm that is a variant of another, such as M2 with one more `-X` setting, gives that arm as ``base``: on a v2 task
     file it then runs the kinds, and meets the window rule, that the base's row in the kind's arm table says."""
@@ -142,8 +149,40 @@ def load_arms(path: Path) -> dict[str, Arm]:
         name: Arm(
             name, str(row.get("label", name)), tuple(row["x"]), bool(row.get("embedding", False)), bool(row.get("v1", True)),
             str(row.get("base", "")), tuple(sorted(dict(row.get("config") or {}).items())),
-            str((here / row["seed"]).resolve()) if row.get("seed") else "", bool(row.get("import", False)))
+            str((here / row["seed"]).resolve()) if row.get("seed") else "", bool(row.get("import", False)), str(row.get("sleep", "")))
         for name, row in raw.items()
+    }
+
+
+# --- a memory sleep between the teaching and the questions ---
+
+
+def sleep_memory(gw: client.Gateway, cell_dir: Path, home: Path, variant: str) -> dict[str, Any]:
+    """Run one memory sleep of ``variant``. Its report goes to the cell's ``sleep.json`` and the notes as the night
+    left them to ``after_sleep_records.db`` (a copy, made through SQLite while the gateway runs); a summary is
+    answered. A failed sleep is recorded, not raised."""
+    started = time.monotonic()
+    doc: dict[str, Any] = {"variant": variant}
+    try:
+        doc["report"] = gw.call("POST", "/api/memory/sleep", {"variant": variant})
+    except (client.GatewayError, OSError, http.client.HTTPException) as exc:
+        doc["error"] = f"{type(exc).__name__}: {exc}"
+    doc["s"] = round(time.monotonic() - started, 3)
+    db = home / stores.RECORDS_DB
+    if db.exists():
+        src = sqlite3.connect(f"file:{db.resolve()}?mode=ro", uri=True)
+        try:
+            with sqlite3.connect(cell_dir / "after_sleep_records.db") as dst:
+                src.backup(dst)
+        finally:
+            src.close()
+    save(cell_dir / "sleep.json", doc)
+    changes = (doc.get("report") or {}).get("changes") or []
+    report_ = doc.get("report") or {}
+    return {
+        "variant": variant, "changes": len(changes), "by_op": dict(sorted(Counter(c.get("op") for c in changes).items())),
+        "model_calls": report_.get("model_calls"), "capped": report_.get("capped"), "aborted": report_.get("aborted"),
+        "s": doc["s"], **({"error": doc["error"]} if "error" in doc else {}),
     }
 
 
@@ -588,6 +627,7 @@ class Live:
     done: dict[str, Any]  # journal_state at the start of this run of the cell
     send: Callable[..., dict[str, Any]]
     home: Path | None = None  # the cell's HOME: a recall question's workspace is a folder below it
+    night: Callable[[], None] = lambda: None  # the arm's memory sleep, once per cell (a no-op without one)
 
 
 def prepare_workspace(tasks: data_v2.TaskSet, path: Path) -> None:
@@ -709,9 +749,29 @@ def run_recall(live: Live, items: Sequence[data_v2.Item]) -> bool:
     return False
 
 
+def run_sleep(live: Live, items: Sequence[data_v2.Item]) -> bool:
+    """Day 1: every item's facts, each in a new chat, round by round (the first fact of every item, then the second
+    ...), so a change or a repeat comes after other chats. The night: the arm's sleep, once. Day 2: each item's question
+    in a new chat, deleted afterwards (unless --keep-ask-chats). True when a guard stopped the cell."""
+    study = live.study
+    rounds = max((len(i.facts) for i in items), default=0)
+    for n in range(rounds):
+        for item in items:
+            if n >= len(item.facts):
+                continue
+            step = study.tasks.teach_steps(item)[n]
+            if (step.phase, step.label) in live.done["turns"]:
+                continue
+            if study.turn_guard():
+                return True
+            live.send(step.phase, step.label, step.text)
+    live.night()
+    return run_recall(live, items)
+
+
 # one runner per kind of data_v2.KINDS: (live cell, the items of that kind this arm runs) -> stopped by a guard
 KIND_RUNNERS: dict[str, Callable[[Live, Sequence[data_v2.Item]], bool]] = {
-    "longrange": run_longrange, "followup": run_followup, "recall": run_recall}
+    "longrange": run_longrange, "followup": run_followup, "recall": run_recall, "sleep": run_sleep}
 
 
 def run_items(live: Live) -> bool:
@@ -782,6 +842,12 @@ def run_cell(study: Study, cell: Mapping[str, Any]) -> str:
             info["import"] = import_memory(gw, cell_dir)
             save(cell_dir / "cell.json", info)
 
+        def night() -> None:
+            """The arm's memory sleep, once per cell: a cell that continues after it does not sleep again."""
+            if arm.sleep and "sleep" not in info:
+                info["sleep"] = sleep_memory(gw, cell_dir, home, arm.sleep)
+                save(cell_dir / "cell.json", info)
+
         seen: dict[str, int] = {}  # the newest event id read per chat: the next turn's stream starts after it
 
         def send(
@@ -839,11 +905,12 @@ def run_cell(study: Study, cell: Mapping[str, Any]) -> str:
             return False
 
         if study.v2:
-            stopped = run_items(Live(study, arm, cell, gw, journal, work, done, send, home))
+            stopped = run_items(Live(study, arm, cell, gw, journal, work, done, send, home, night))
         else:
             stopped = teach()
             if not stopped:
                 info["rss"].setdefault("after_teach", study.rss())
+                night()
                 stopped = ask()
     finally:
         if running is not None:
@@ -1016,7 +1083,10 @@ def print_plan(study: Study, planned: list[dict[str, Any]], problems: list[str])
         arm = study.arms[name]
         embedding = f" (+ {study.embedding_model})" if arm.embedding else ""
         config = f" [config.toml: {', '.join(f'{k}={v}' for k, v in arm.config)}]" if arm.config else ""
-        print(f"Arm {name}: melo serve {' '.join(f'-X {x}' for x in arm.x)}{config}{embedding}  # {arm.label}")
+        steps = "".join([
+            f" [seed: {arm.seed}]" if arm.seed else "", " [memory import before the questions]" if arm.import_all else "",
+            f" [sleep: {arm.sleep}, after the teaching]" if arm.sleep else ""])
+        print(f"Arm {name}: melo serve {' '.join(f'-X {x}' for x in arm.x)}{config}{embedding}{steps}  # {arm.label}")
     for cell in planned:
         print(f"{cell['index']:3d}. {cell['cell_id']}")
     state_path = study.run_dir / "across.json"

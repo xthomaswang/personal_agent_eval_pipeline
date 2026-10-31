@@ -52,7 +52,7 @@ def test_counts_per_kind_and_language_mix(tasks):
         assert len(mine) == 20 and len({i.id for i in mine}) == 20
         assert 6 <= sum(i.lang == "zh" for i in mine) <= 8  # about a third
     assert {i.lang for i in tasks.items} == {"en", "zh"} and len(tasks.items) == 40
-    assert set(data_v2.KINDS) == {"longrange", "followup", "recall"}  # the kinds built so far; the table grows with the file
+    assert set(data_v2.KINDS) == {"longrange", "followup", "recall", "sleep"}  # the kinds built so far; the table grows with the file
 
 
 def test_at_least_70_percent_of_long_range_facts_are_details_the_note_rules_should_not_save(tasks):

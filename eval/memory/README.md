@@ -250,6 +250,7 @@ working window must look like at the question; a cell runs only the items whose 
 |---|---|---|
 | `longrange` | one chat: an opener, the fact at turn 2 or 3, 40 filler turns, then the question in the same chat. At least 14 of 20 facts are details of the conversation the note rules should not save (`note_expected: false`: "the draft I'm editing is called river.md"); the rest are note-worthy facts as a control. | N0 `out`, M2 `out`, FC `in` |
 | `followup` | two facts, each taught in its own chat; then one chat with Q1 ("Who is my advisor?") and a pronoun follow-up Q2 ("And where is her office?"), deleted afterwards (unless `--keep-ask-chats`). Q1 and Q2 are scored apart. | M2, B0, N0 |
+| `sleep` | a messy-memory night (`data/tasks_sleep.yaml`, 30 items, arms in `data/arms_sleep.json`): day 1 teaches every item's facts, each in a new chat, round by round (every item's first fact, then the second, so a repeat or a change comes after other chats); the arm's memory sleep runs once; day 2 asks each item's question in a new chat. `category`: `duplicate` (the same fact twice in other words), `change` (a new value said in passing inside a task request; the old value is the reject string), `lost` (a lasting fact inside a busy turn), `claimed` (a detail likely to draw "noted" with no save), `control` (must not change: look-alike subjects, a fact taken back, a fact only asked about; an empty answer is graded as nothing to recall) and `abstain`. | M2, B0, N0 |
 | `recall` | one question in a new chat, nothing taught: what memory holds when the cell starts (a seeded HOME and a memory import, below) is all there is. `category` is `habit`, `preference`, `project`, `abstain` (no gold: the reply must say it does not know) or `harm` (an unrelated question whose reply must not bring in remembered trivia, its `reject` strings); `workspace` puts the chat in that folder under the cell's HOME. The shipped file has none; private task files hold them. | M2, B0, N0 |
 
 The filler is 40 turns per chat (22 tool turns that read a file or list the files, 18 plain ones), each asking for a
@@ -300,6 +301,14 @@ error) to `cell.json` and the report's import table. A failed import is recorded
 and the import switch are part of the study's identity. The gateway never sees `CLAUDE_CONFIG_DIR`, `CODEX_HOME` or
 `HERMES_HOME`, so an import reads only the seeded HOME. The recall report adds accuracy per category and, per
 question, the sources of the used items.
+
+**Memory sleep.** An arm may carry `"sleep": "<variant>"` (with `"config": {"ui.mode": "developer"}`, which the sleep
+route needs). Once per cell, after the teaching and before the questions (v1 studies too, so a guard can run across a
+night), the driver calls `POST /api/memory/sleep {"variant": ...}`; the report it answers goes to the cell's
+`sleep.json`, a copy of the notes as the night left them to `after_sleep_records.db`, a summary (changes by op, model
+calls, time, capped, error) to `cell.json`. A failed sleep is recorded, not raised. The v2 report's sleep section lists
+every change with the texts of the notes it touched, for judging it against the teaching turns, and per sleep item the
+active notes after the night that hold the gold string and those that hold an old (reject) value.
 
 **Valid items.** A long-range item counts for an arm only when, at the question, the fact turn is out of the window
 (N0, M2) or still in it (FC). The check reads the cell's `gateway/sessions.db` after the cell ends, read-only

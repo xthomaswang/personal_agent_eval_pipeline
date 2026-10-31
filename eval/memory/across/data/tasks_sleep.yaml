@@ -1,0 +1,193 @@
+# Memory bench v2, kind "sleep" (E1, messy memory): day 1 makes real defects in chats, one memory sleep runs, day 2 asks.
+# Five items per defect: duplicate (the same fact twice in other words), change (a new value said in passing inside a
+# task request), lost (a lasting fact inside a busy turn), claimed (a detail likely to draw "noted" with no save),
+# control (must not change: look-alike subjects, a fact taken back, a fact only asked about); five abstain questions.
+# Every fact is invented. Run with an arms file whose arms set "config": {"ui.mode": "developer"} (and "sleep": "rules").
+version: 2
+protocol: across-sleep-e1
+ask_seed: 11
+fixtures: []
+filler: []
+sets: {}
+items:
+  # --- duplicate: one active note expected after the night ---
+  - id: U1
+    kind: sleep
+    category: duplicate
+    lang: en
+    facts: ["I live in Utrecht.", "Home is Utrecht these days."]
+    asks: [{text: "Where do I live?", answer: "Utrecht"}]
+  - id: U2
+    kind: sleep
+    category: duplicate
+    lang: en
+    facts: ["My partner's name is Jonas.", "Jonas, my partner, says hi."]
+    asks: [{text: "What is my partner's name?", answer: "Jonas"}]
+  - id: U3
+    kind: sleep
+    category: duplicate
+    lang: zh
+    facts: ["我在青松研究所工作。", "我现在的单位是青松研究所。"]
+    asks: [{text: "我在哪里工作？", answer: "青松研究所"}]
+  - id: U4
+    kind: sleep
+    category: duplicate
+    lang: en
+    facts: ["I take the 7:40 train to work.", "My usual train to the office is the 7:40."]
+    asks: [{text: "Which train do I take to work?", answer: "7:40"}]
+  - id: U5
+    kind: sleep
+    category: duplicate
+    lang: zh
+    facts: ["我的狗叫豆豆。", "豆豆是我家的狗。"]
+    asks: [{text: "我的狗叫什么名字？", answer: "豆豆"}]
+  # --- change: the new value active, the old one not ---
+  - id: C1
+    kind: sleep
+    category: change
+    lang: en
+    facts: ["My gym day is Monday.", "By the way, my gym day moved to Friday. Can you list three stretches for after a run?"]
+    asks: [{text: "Which day is my gym day?", answer: "Friday", reject: ["Monday"]}]
+  - id: C2
+    kind: sleep
+    category: change
+    lang: en
+    facts: ["My locker number at the pool is 31.", "Can you suggest a quick lunch? Oh, and the pool gave me a new locker, number 58."]
+    asks: [{text: "What is my locker number at the pool?", answer: "58", reject: ["31"]}]
+  - id: C3
+    kind: sleep
+    category: change
+    lang: zh
+    facts: ["我的牙医预约在周二。", "帮我写一句提醒同事开会的话。顺便说一下，我的牙医预约改到周四了。"]
+    asks: [{text: "我的牙医预约在哪天？", answer: "周四", reject: ["周二"]}]
+  - id: C4
+    kind: sleep
+    category: change
+    lang: en
+    facts: ["My manager is Priya Shah.", "Draft a two-line out-of-office note for me. My new manager is Daniel Kim from next week."]
+    asks: [{text: "Who is my manager?", answer: "Daniel Kim", aliases: ["Daniel"], reject: ["Priya"]}]
+  - id: C5
+    kind: sleep
+    category: change
+    lang: zh
+    facts: ["我住在3楼。", "推荐一个简单的晚餐菜谱吧。对了，我搬到7楼了。"]
+    asks: [{text: "我住在几楼？", answer: "7楼", aliases: ["七楼"], reject: ["3楼", "三楼"]}]
+  # --- lost: a lasting fact inside a busy turn, kept after the night ---
+  - id: L1
+    kind: sleep
+    category: lost
+    lang: en
+    facts: ["Summarise this in one sentence: 'The committee met last week to review the budget and agreed to postpone the vote.' Also, my dentist is Dr. Lin."]
+    asks: [{text: "Who is my dentist?", answer: "Lin"}]
+  - id: L2
+    kind: sleep
+    category: lost
+    lang: en
+    facts: ["Translate 'good morning' into Spanish. And for the record, my bike is a blue Brompton."]
+    asks: [{text: "What bike do I have?", answer: "Brompton"}]
+  - id: L3
+    kind: sleep
+    category: lost
+    lang: zh
+    facts: ["把这句话改得更礼貌一点：'明天把报告交上来。'另外，我女儿在晨光小学上学。"]
+    asks: [{text: "我女儿在哪个学校上学？", answer: "晨光小学"}]
+  - id: L4
+    kind: sleep
+    category: lost
+    lang: en
+    facts: ["Give me three name ideas for a reading group. Oh, and I'm allergic to peanuts."]
+    asks: [{text: "What am I allergic to?", answer: "peanuts", aliases: ["peanut"]}]
+  - id: L5
+    kind: sleep
+    category: lost
+    lang: zh
+    facts: ["列出三个周末短途旅行的点子。顺便说一句，我的家乡是绍兴。"]
+    asks: [{text: "我的家乡是哪里？", answer: "绍兴"}]
+  # --- claimed: details that tend to draw "noted" with no save ---
+  - id: H1
+    kind: sleep
+    category: claimed
+    lang: en
+    facts: ["Quick note: my flight to Faro leaves from gate 9."]
+    asks: [{text: "Which gate does my flight to Faro leave from?", answer: "9"}]
+  - id: H2
+    kind: sleep
+    category: claimed
+    lang: en
+    facts: ["Just so you know, my hotel room in Porto is 214."]
+    asks: [{text: "What is my hotel room number in Porto?", answer: "214"}]
+  - id: H3
+    kind: sleep
+    category: claimed
+    lang: zh
+    facts: ["记一下：我们组的会议室换成了B3。"]
+    asks: [{text: "我们组的会议室是哪个？", answer: "B3"}]
+  - id: H4
+    kind: sleep
+    category: claimed
+    lang: en
+    facts: ["FYI, my parking spot at the clinic is P4."]
+    asks: [{text: "Which parking spot is mine at the clinic?", answer: "P4"}]
+  - id: H5
+    kind: sleep
+    category: claimed
+    lang: en
+    facts: ["Heads up: my table at Saturday's dinner is number 12."]
+    asks: [{text: "Which table am I at for Saturday's dinner?", answer: "12"}]
+  # --- control: what must not change ---
+  - id: K1
+    kind: sleep
+    category: control
+    lang: en
+    facts: ["My climbing day is Tuesday.", "My swim day is Thursday."]
+    asks: [{text: "Which day is my swim day?", answer: "Thursday", reject: ["Tuesday"]}]
+  - id: K2
+    kind: sleep
+    category: control
+    lang: en
+    facts: ["My sister Mei lives in Osaka.", "My cousin Ren lives in Kyoto."]
+    asks: [{text: "Where does my cousin Ren live?", answer: "Kyoto", reject: ["Osaka"]}]
+  - id: K3
+    kind: sleep
+    category: control
+    lang: en
+    facts: ["I live in Lisbon for the summer.", "I no longer live in Lisbon."]
+    asks: [{text: "Do I still live in Lisbon?", answer: "no", aliases: ["no longer"], reject: ["yes"]}]
+  - id: K4
+    kind: sleep
+    category: control
+    lang: en
+    facts: ["Is my optician Dr. Reyes? I can't remember."]
+    asks: [{text: "Who is my optician?", answer: ""}]
+  - id: K5
+    kind: sleep
+    category: control
+    lang: zh
+    facts: ["我的钢琴课在周三。", "我的游泳课在周五。"]
+    asks: [{text: "我的游泳课在哪天？", answer: "周五", reject: ["周三"]}]
+  # --- abstain: never said ---
+  - id: A1
+    kind: sleep
+    category: abstain
+    lang: en
+    asks: [{text: "What is my favourite food?", answer: ""}]
+  - id: A2
+    kind: sleep
+    category: abstain
+    lang: zh
+    asks: [{text: "我的生日是哪天？", answer: ""}]
+  - id: A3
+    kind: sleep
+    category: abstain
+    lang: en
+    asks: [{text: "What car do I drive?", answer: ""}]
+  - id: A4
+    kind: sleep
+    category: abstain
+    lang: zh
+    asks: [{text: "我最喜欢什么颜色？", answer: ""}]
+  - id: A5
+    kind: sleep
+    category: abstain
+    lang: en
+    asks: [{text: "What is my blood type?", answer: ""}]

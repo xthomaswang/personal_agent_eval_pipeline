@@ -39,7 +39,9 @@ from urllib.parse import parse_qs, urlsplit
 KEY_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}")
 STOP_WORDS = {"what", "when", "where", "which", "who", "the", "and", "for", "are", "was", "does", "have", "with", "from"}
 TOKEN = "fake-token"
-KNOWN_SETTINGS = {"memory.retriever": "auto", "memory.across_chats": "true", "agent.window_messages": "64", "memory.context_query": "off"}
+KNOWN_SETTINGS = {
+    "memory.retriever": "auto", "memory.across_chats": "true", "agent.window_messages": "64", "memory.context_query": "off", "ui.mode": "standard",
+}
 
 
 def terms(text: str) -> set[str]:
@@ -55,7 +57,7 @@ class FakeGateway:
         busy_deletes: int = 0, fail_texts: Sequence[str] = (), token: str = TOKEN, model_calls: bool = False,
         approval_texts: Sequence[str] = (), hang_texts: Sequence[str] = (), hang_seconds: float = 3.0,
         store: bool = False, tool_words: Mapping[str, str] | None = None, save_only: Sequence[str] | None = None,
-        answers: Mapping[str, str] | None = None, new_build: bool = False,
+        answers: Mapping[str, str] | None = None, new_build: bool = False, sleep_changes: Sequence[Mapping[str, Any]] = (),
     ) -> None:
         settings = dict(p.split("=", 1) for p in x_pairs)
         self.retriever = settings.get("memory.retriever", "auto")
@@ -63,6 +65,7 @@ class FakeGateway:
         if "agent.window_messages" in settings:  # as `melo serve` answers it: the cap is a config.toml entry for a gateway
             raise ValueError("melo: error: only for direct mode (a query without --serve): --window-messages")
         self.store, self.tool_words, self.save_only = store, dict(tool_words or {}), None if save_only is None else tuple(save_only)
+        self.sleep_changes = tuple(sleep_changes)
         self.answers = dict(answers or {})
         self.context_query = settings.get("memory.context_query")  # None: the build has no such setting
         self.new_build = new_build
@@ -80,6 +83,8 @@ class FakeGateway:
         config = self.home / ".cache" / "localmelo" / "config.toml"
         document = tomllib.loads(config.read_text()) if config.exists() else {}
         self.window_cap = int(document.get("agent", {}).get("window_messages", 64))
+        self.developer = document.get("ui", {}).get("mode") == "developer"  # POST /api/memory/sleep answers only then
+        self.sleeps: list[Any] = []
         if model_calls and config.exists():  # the model calls go where the driver's config says, as localmelo's do
             section = document.get("vllm", {})
             self.chat_url, self.chat_model = section.get("chat_url", ""), section.get("chat_model", "")
@@ -209,6 +214,12 @@ class FakeGateway:
         if method == "POST" and path == "/api/sessions":
             turn = (body or {}).get("turn") or {}
             return self.start(h, None, turn, 201, (body or {}).get("workspace"))
+        if method == "POST" and path == "/api/memory/sleep":
+            if not self.developer:
+                return self.reply(h, 404, {"error": {"code": "not_found"}})
+            self.sleeps.append((body or {}).get("variant"))
+            return self.reply(h, 200, {"run_id": f"z{len(self.sleeps)}", "variant": (body or {}).get("variant"), "model_calls": 0,
+                                       "aborted": False, "capped": False, "changes": list(self.sleep_changes)})
         if method == "GET" and path == "/api/memory/import/scan":
             return self.reply(h, 200, self.import_scan())
         if method == "POST" and path == "/api/memory/import":

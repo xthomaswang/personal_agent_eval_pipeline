@@ -33,6 +33,7 @@ import json
 import math
 from collections import Counter
 from collections.abc import Mapping, Sequence
+from contextlib import closing
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from types import SimpleNamespace
@@ -205,7 +206,20 @@ def recall_rows(ctx: Ctx, item: data_v2.Item) -> tuple[dict[str, Any], list[dict
     return chat, [row]
 
 
-ROW_BUILDERS = {"longrange": longrange_rows, "followup": followup_rows, "recall": recall_rows}
+def sleep_rows(ctx: Ctx, item: data_v2.Item) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    """A sleep item: valid when every teaching turn finished; its question is graded and classed as a recall one."""
+    teach = [ctx.turns.get(("teach", f"{item.id}.f{n}")) for n in range(1, len(item.facts) + 1)]
+    chat, rows = recall_rows(ctx, item)
+    reason = next((f"teaching turn f{n} did not finish" for n, t in enumerate(teach, 1) if t is None or t.get("state") != "finished"), "")
+    chat.update(valid=not reason, reason=reason, teach_sessions=[(t or {}).get("session_id") for t in teach])
+    for r in rows:
+        r["valid"] = not reason
+        if reason:
+            r["miss"] = ""
+    return chat, rows
+
+
+ROW_BUILDERS = {"longrange": longrange_rows, "followup": followup_rows, "recall": recall_rows, "sleep": sleep_rows}
 
 
 def cell_rows(
@@ -251,9 +265,9 @@ def accuracy(rows: Sequence[Mapping[str, Any]], arms: Sequence[str], tasks: data
                 continue
             by_label = {label: [r for r in mine if r["label"] == label] for label in dict.fromkeys(r["label"] for r in mine)}
             table: dict[str, dict[str, Any]] = {}
-            if kind == "recall":
+            if kind in data_v2.CATEGORIES:
                 table["all"] = rate(sum(r["correct"] for r in mine), len(mine))
-                for category in data_v2.RECALL_CATEGORIES:
+                for category in data_v2.CATEGORIES[kind]:
                     sub = [r for r in mine if r.get("category") == category]
                     if sub:
                         table[category] = rate(sum(r["correct"] for r in sub), len(sub))
@@ -428,10 +442,37 @@ def analyse(run_dir: Path, tasks: data_v2.TaskSet) -> dict[str, Any]:
         "kinds": {k: dict(spec.arms) for k, spec in data_v2.KINDS.items() if any(i.kind == k for i in tasks.items)},
         "bases": {a: b for a, b in bases.items() if a in arms and b != a},
         "imports": {c["id"]: c["info"]["import"] for c in loaded["cells"] if c["info"].get("import")},
+        "sleeps": {c["id"]: sleep_detail(c, tasks) for c in loaded["cells"] if c["info"].get("sleep")},
         "ran": {a: {"items": sum(1 for c in chats if c["arm"] == a), "valid": sum(1 for c in chats if c["arm"] == a and c["valid"])} for a in arms},
         "invalid": invalid, "accuracy": accuracy(asks, arms, tasks), "misses": misses, "sources": sources,
         "latency": latency(asks, arms), "paired": pairs(asks, arms, tasks, bases), "contexts": contexts(asks, arms), "chats": chats, "rows": asks,
     }
+
+
+def sleep_detail(cell: Mapping[str, Any], tasks: data_v2.TaskSet) -> dict[str, Any]:
+    """A cell's sleep: the summary, each change with the texts of the notes it touched (from the copy of the notes the
+    night left), and per sleep item the active notes that hold its gold string and those that hold a reject string."""
+    cdir = Path(cell["dir"])
+    doc = json.loads((cdir / "sleep.json").read_text()) if (cdir / "sleep.json").exists() else {}
+    notes: dict[int, tuple[str, str]] = {}
+    db = cdir / "after_sleep_records.db"
+    if db.exists():
+        with closing(stores.open_ro(db)) as con:
+            notes = {i: (t, st) for i, t, st in con.execute("SELECT id, text, status FROM long_term")}
+    changes = [{
+        "op": c.get("op"), "after": notes.get(c.get("after_id"), ("", ""))[0] or c.get("text", ""),
+        "before": [notes.get(b, (f"#{b}", ""))[0] for b in c.get("before_ids") or []], "source_turn": c.get("source_turn"),
+    } for c in (doc.get("report") or {}).get("changes") or []]
+    active = [t for t, st in notes.values() if st == "active"]
+    items = {}
+    for item in (i for i in tasks.items if i.kind == "sleep" and i.category != "abstain"):
+        ask = item.asks[0]
+        items[item.id] = {
+            "category": item.category,
+            "gold_active": sum(1 for t in active if any(score.contains(t, x) for x in ask.targets)),
+            "reject_active": sum(1 for t in active if any(score.contains(t, r) for r in ask.reject)),
+        }
+    return {"summary": cell["info"]["sleep"], "changes": changes, "active_notes": len(active), "items": items}
 
 
 def pct(r: Mapping[str, Any]) -> str:
@@ -477,6 +518,23 @@ def render(rep: Mapping[str, Any]) -> str:
             [cid, str(i.get("sources", 0)), str(i.get("kept", 0)), str(i.get("written", 0)), str(i.get("skipped", 0)),
              str(i.get("scan_s", "-")), str(i.get("apply_s", "-")), "yes" if i.get("partial") else "no", i.get("error") or "-"]
             for cid, i in rep["imports"].items()])
+    if rep.get("sleeps"):
+        out += ["## Memory sleep", "", "The night of each cell: what the sleep changed (O1 duplicates merged, O2 a newer value written over "
+                "older ones, O3 a lost fact written), with the texts of the notes it touched, for judging each change against the teaching "
+                "turns. After it: per sleep item, the active notes that hold the gold string and those that hold a reject (old) string.", ""]
+        out += table(["cell", "variant", "changes", "by op", "model calls", "s", "capped", "active notes after", "error"], [
+            [cid, d["summary"].get("variant", ""), str(d["summary"].get("changes", 0)), ", ".join(f"{k} {v}" for k, v in d["summary"].get("by_op", {}).items()) or "-",
+             str(d["summary"].get("model_calls")), str(d["summary"].get("s")), str(d["summary"].get("capped")), str(d["active_notes"]), d["summary"].get("error") or "-"]
+            for cid, d in rep["sleeps"].items()])
+        for cid, d in rep["sleeps"].items():
+            if d["changes"]:
+                out += [f"**{cid}** changes", ""]
+                out += table(["op", "before", "after", "source turn"], [
+                    [c["op"] or "", " / ".join(c["before"]) or "-", c["after"], str(c["source_turn"])] for c in d["changes"]])
+            if d["items"]:
+                out += [f"**{cid}** after the night", ""]
+                out += table(["item", "category", "active notes with the gold", "active notes with an old value"], [
+                    [iid, i["category"], str(i["gold_active"]), str(i["reject_active"])] for iid, i in d["items"].items()])
     out += ["## Items run and invalid items", ""]
     out += table(["", *arms], [
         ["items run", *(str(rep["ran"][a]["items"]) for a in arms)], ["valid", *(str(rep["ran"][a]["valid"]) for a in arms)],

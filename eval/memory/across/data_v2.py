@@ -17,6 +17,12 @@ that list it.
   an ``abstain`` question has no gold (the reply must say it does not know) and a ``harm`` one asks something unrelated
   whose reply must not drag in remembered trivia (its reject strings). ``workspace`` puts the chat in that folder
   under the cell's HOME. The shipped file has no recall items: private task files hold them.
+- ``sleep``: a messy-memory night. Day 1 teaches every item's facts, each in a new chat, round by round (the first
+  fact of every item, then the second ...); the arm's sleep variant then runs once; day 2 asks each item's question
+  in a new chat. ``category`` is the defect the facts make (``SLEEP_CATEGORIES``): the same fact twice in other
+  words, a change said in passing, a fact in a busy turn, a turn likely to draw "noted" with no save, a control that
+  must not change (a control with an empty answer, such as a fact only asked about or taken back, is graded as one with
+  nothing to recall), or ``abstain`` (no facts, no gold). The shipped file has none; tasks_sleep.yaml holds them.
 
 ``load()`` returns a ``TaskSet`` or raises ``DataError`` with every problem it found. Checks: the schema; ids unique;
 per kind the fields, the number of asks and the language mix; every gold string occurs in the text that holds it, and
@@ -74,8 +80,11 @@ KINDS: dict[str, Kind] = {
         20, {"N0": "out", "M2": "out", "FC": "in"}, ("note_expected", "opener", "fact", "filler"), ("bridge",), asks=1),
     "followup": Kind(20, {"M2": "", "B0": "", "N0": ""}, ("facts",), ("wrong",), asks=2),
     "recall": Kind(0, {"M2": "", "B0": "", "N0": ""}, ("category",), ("workspace",), asks=1),
+    "sleep": Kind(0, {"M2": "", "B0": "", "N0": ""}, ("category",), ("facts",), asks=1),
 }
 RECALL_CATEGORIES = ("habit", "preference", "project", "abstain", "harm")
+SLEEP_CATEGORIES = ("duplicate", "change", "lost", "claimed", "control", "abstain")
+CATEGORIES = {"recall": RECALL_CATEGORIES, "sleep": SLEEP_CATEGORIES}  # the kinds whose items carry a category
 # the shipped file: items per kind, the Chinese share of each kind, and the share of long-range items whose fact
 # localmelo's note rules are expected NOT to save
 V2 = {"kinds": {k: v.count for k, v in KINDS.items()}, "zh_share": (0.30, 0.40), "no_note_share": 0.70}
@@ -196,7 +205,7 @@ class TaskSet:
         for i in self.items:
             parts.append("|".join([
                 "item", i.id, i.kind, i.lang, str(i.note_expected), i.opener, i.bridge, i.fact, i.filler,
-                "/".join(i.facts), ",".join(i.wrong), *([i.category, i.workspace] if i.kind == "recall" else [])]))
+                "/".join(i.facts), ",".join(i.wrong), *([i.category, i.workspace] if i.kind in CATEGORIES else [])]))
             parts += [f"ask|{a.id}|{a.text}|{a.answer}|{','.join(a.aliases)}|{','.join(a.reject)}" for a in i.asks]
         return hashlib.sha256("\n".join(parts).encode()).hexdigest()
 
@@ -260,7 +269,11 @@ def _parse_item(row: Any, index: int, problems: list[str]) -> Item | None:
     if not isinstance(raw_asks, list) or len(raw_asks) != kind.asks:
         problems.append(f"{where}: a {row['kind']} item has {kind.asks} ask(s)")
         return None
-    abstain = row["kind"] == "recall" and row.get("category") == "abstain"
+    # an abstain item, or a sleep control whose question has no gold (a fact only asked about, or taken back), is
+    # graded as one with nothing to recall
+    first = raw_asks[0] if raw_asks and isinstance(raw_asks[0], Mapping) else {}
+    abstain = row["kind"] in CATEGORIES and (
+        row.get("category") == "abstain" or (row["kind"] == "sleep" and row.get("category") == "control" and first.get("answer") == ""))
     asks = [_parse_ask(a, row["id"], row["kind"], row["lang"], n, problems, abstain=abstain) for n, a in enumerate(raw_asks, 1)]
     if None in asks:
         return None
@@ -391,8 +404,33 @@ def _check_recall(ts: TaskSet, item: Item, problems: list[str]) -> None:
         problems.append(f"{where}: workspace {item.workspace!r} must be a folder below the cell's HOME")
 
 
+def _check_sleep(ts: TaskSet, item: Item, problems: list[str]) -> None:
+    """The defect's facts hold the gold; a change's reject string (the old value) is in an earlier fact, not the last."""
+    where = f"item {item.id}"
+    if item.category not in SLEEP_CATEGORIES:
+        problems.append(f"{where}: category {item.category!r} is not one of {SLEEP_CATEGORIES}")
+        return
+    ask = item.asks[0]
+    if item.category == "abstain":
+        if item.facts:
+            problems.append(f"{where}: an abstain item teaches nothing")
+        return
+    if not item.facts:
+        problems.append(f"{where}: a {item.category} item teaches at least one fact")
+        return
+    if item.category in ("duplicate", "change") and len(item.facts) < 2:
+        problems.append(f"{where}: a {item.category} item says it twice")
+    if item.category != "control" and not _gold_in(item.facts, ask.targets):
+        problems.append(f"{ask.id}: answer {ask.answer!r} is in none of the facts")
+    if item.category == "change":
+        if not _gold_in(item.facts[-1:], ask.targets):
+            problems.append(f"{ask.id}: a change's answer is in its last fact")
+        if not ask.reject or not any(score.contains(f, r) for f in item.facts[:-1] for r in ask.reject):
+            problems.append(f"{ask.id}: a change rejects the old value, which an earlier fact holds")
+
+
 _CHECKS: dict[str, Callable[[TaskSet, Item, list[str]], None]] = {
-    "longrange": _check_longrange, "followup": _check_followup, "recall": _check_recall}
+    "longrange": _check_longrange, "followup": _check_followup, "recall": _check_recall, "sleep": _check_sleep}
 
 
 def _check_fillers(ts: TaskSet, problems: list[str]) -> None:

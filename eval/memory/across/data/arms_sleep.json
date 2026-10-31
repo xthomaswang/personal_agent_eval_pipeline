@@ -1,0 +1,6 @@
+{
+  "S0": {"label": "no sleep (M2, developer mode)", "x": ["memory.retriever=embedding"], "embedding": true, "base": "M2",
+         "config": {"ui.mode": "developer"}},
+  "S1": {"label": "sleep by rules (M2, developer mode)", "x": ["memory.retriever=embedding"], "embedding": true, "base": "M2",
+         "config": {"ui.mode": "developer"}, "sleep": "rules"}
+}
