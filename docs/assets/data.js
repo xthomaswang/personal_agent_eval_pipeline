@@ -2,7 +2,7 @@ window.BENCHMARK_DATA = {
   "repoUrl": "https://github.com/xthomaswang/personal_agent_eval_pipeline",
   "latest": "2026-10-30",
   "buildCount": 6,
-  "resultCount": 19,
+  "resultCount": 20,
   "machineCount": 1,
   "harnessCount": 3,
   "machines": [
@@ -714,6 +714,103 @@ window.BENCHMARK_DATA = {
             "expected": 22,
             "modelTimeMedian": 38.5,
             "modelCallsMedian": 6.0
+          }
+        }
+      }
+    },
+    {
+      "schema": 1,
+      "suite": "agent_ability",
+      "protocol": "capability-3",
+      "title": "Claude Code, Hermes, localmelo on Aider 12 + MCPMark easy 10 (gate set) and Aider 22 (ranking set); thinking off",
+      "model": "Qwen3.8-27B oQ5 + MTP",
+      "family": "qwen3.8_27b",
+      "quant": "oq5",
+      "run_id": "20261030-230008",
+      "date": "2026-10-30",
+      "system": {
+        "machine": "m5max-40c-128gb",
+        "macos_build": "26B123",
+        "xcode_build": "27B52",
+        "server": "oMLX 0.7.1rc1 (7a5a3d75)"
+      },
+      "metrics": [
+        {
+          "name": "Claude Code (gate)",
+          "value": "21/22"
+        },
+        {
+          "name": "Hermes (gate)",
+          "value": "21/22"
+        },
+        {
+          "name": "localmelo (gate)",
+          "value": "21/22"
+        },
+        {
+          "name": "Gate set",
+          "value": "63/66"
+        },
+        {
+          "name": "Ranking set",
+          "value": "57/66"
+        },
+        {
+          "name": "M7 tool-call cases",
+          "value": "\u2014"
+        }
+      ],
+      "details": "../../backend/20261030-230008/capability/results.json",
+      "_dir": "docs/benchmark/m5max-40c-128gb/qwen3.8_27b/oq5/agent_ability/20261030-230008",
+      "_details": "docs/benchmark/m5max-40c-128gb/qwen3.8_27b/oq5/backend/20261030-230008/capability/results.json",
+      "_harness_source": "docs/benchmark/m5max-40c-128gb/qwen3.8_27b/oq5/backend/20261030-230008/capability/results.json",
+      "_harnesses": {
+        "claude_code": {
+          "gate": {
+            "passed": 21,
+            "runs": 22,
+            "expected": 22,
+            "modelTimeMedian": 21.9,
+            "modelCallsMedian": 6.0
+          },
+          "ranking": {
+            "passed": 16,
+            "runs": 22,
+            "expected": 22,
+            "modelTimeMedian": 68.8,
+            "modelCallsMedian": 10.0
+          }
+        },
+        "hermes": {
+          "gate": {
+            "passed": 21,
+            "runs": 22,
+            "expected": 22,
+            "modelTimeMedian": 19.9,
+            "modelCallsMedian": 5.0
+          },
+          "ranking": {
+            "passed": 21,
+            "runs": 22,
+            "expected": 22,
+            "modelTimeMedian": 47.6,
+            "modelCallsMedian": 7.0
+          }
+        },
+        "localmelo": {
+          "gate": {
+            "passed": 21,
+            "runs": 22,
+            "expected": 22,
+            "modelTimeMedian": 25.3,
+            "modelCallsMedian": 5.0
+          },
+          "ranking": {
+            "passed": 20,
+            "runs": 22,
+            "expected": 22,
+            "modelTimeMedian": 53.1,
+            "modelCallsMedian": 7.0
           }
         }
       }
@@ -1498,5 +1595,5 @@ window.BENCHMARK_DATA = {
       "aider/zipper"
     ]
   },
-  "sourceDigest": "625e7cce5c70f9c0eb9b15e934a5f991871ef58828d90ba1a1c014f29bfe8d81"
+  "sourceDigest": "dbac9739d776a0cf88018842e5e66e6ad3a12a6c144c1593600efcce5a1bbf4c"
 };

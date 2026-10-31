@@ -1,0 +1,841 @@
+FFFFF.F..FFFFFF...F...FF.                                                [100%]
+=================================== FAILURES ===================================
+___________________________ WordyTest.test_addition ____________________________
+
+self = <wordy_test.WordyTest testMethod=test_addition>
+
+    def test_addition(self):
+>       self.assertEqual(answer("What is 1 plus 1?"), 2)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+wordy_test.py:17: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+question = 'What is 1 plus 1?'
+
+    def answer(question):
+        q = question.strip().rstrip("?").strip()
+        if not q.lower().startswith("what is"):
+            raise ValueError("unknown operation")
+        body = q[len("what is"):].strip()
+    
+        # Tokenize left-to-right.
+        items = []
+        pos = 0
+        while pos < len(body):
+            if body[pos] == " ":
+                pos += 1
+                continue
+            m = _TOKEN.match(body, pos)
+            if not m:
+                # A word we don't recognize (non-math question, unknown verb...).
+                raise ValueError("unknown operation")
+            items.append(m.group(0).lower())
+            pos = m.end()
+    
+        # Whitespace must be a single space between adjacent tokens.
+        if body != " ".join(items):
+            raise ValueError("syntax error")
+    
+        if not items:
+            raise ValueError("syntax error")
+    
+        # Structure must be: number (op number)*
+        for i, tok in enumerate(items):
+            is_number = re.fullmatch(_NUMBER, tok) is not None
+            if i % 2 == 0:
+                if not is_number:
+                    raise ValueError("syntax error")
+            else:
+                if is_number or tok not in OPS:
+                    raise ValueError("syntax error")
+    
+        # Evaluate left-to-right, ignoring normal order of operations.
+        result = int(items[0])
+        for i in range(2, len(items), 2):
+>           result = OPS[items[i]](result, int(items[i + 1]))
+                     ^^^^^^^^^^^^^
+E           KeyError: '1'
+
+wordy.py:56: KeyError
+__________________ WordyTest.test_addition_and_multiplication __________________
+
+self = <wordy_test.WordyTest testMethod=test_addition_and_multiplication>
+
+    def test_addition_and_multiplication(self):
+>       self.assertEqual(answer("What is -3 plus 7 multiplied by -2?"), -8)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+wordy_test.py:53: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+question = 'What is -3 plus 7 multiplied by -2?'
+
+    def answer(question):
+        q = question.strip().rstrip("?").strip()
+        if not q.lower().startswith("what is"):
+            raise ValueError("unknown operation")
+        body = q[len("what is"):].strip()
+    
+        # Tokenize left-to-right.
+        items = []
+        pos = 0
+        while pos < len(body):
+            if body[pos] == " ":
+                pos += 1
+                continue
+            m = _TOKEN.match(body, pos)
+            if not m:
+                # A word we don't recognize (non-math question, unknown verb...).
+                raise ValueError("unknown operation")
+            items.append(m.group(0).lower())
+            pos = m.end()
+    
+        # Whitespace must be a single space between adjacent tokens.
+        if body != " ".join(items):
+            raise ValueError("syntax error")
+    
+        if not items:
+            raise ValueError("syntax error")
+    
+        # Structure must be: number (op number)*
+        for i, tok in enumerate(items):
+            is_number = re.fullmatch(_NUMBER, tok) is not None
+            if i % 2 == 0:
+                if not is_number:
+                    raise ValueError("syntax error")
+            else:
+                if is_number or tok not in OPS:
+                    raise ValueError("syntax error")
+    
+        # Evaluate left-to-right, ignoring normal order of operations.
+        result = int(items[0])
+        for i in range(2, len(items), 2):
+>           result = OPS[items[i]](result, int(items[i + 1]))
+                     ^^^^^^^^^^^^^
+E           KeyError: '7'
+
+wordy.py:56: KeyError
+___________________ WordyTest.test_addition_and_subtraction ____________________
+
+self = <wordy_test.WordyTest testMethod=test_addition_and_subtraction>
+
+    def test_addition_and_subtraction(self):
+>       self.assertEqual(answer("What is 1 plus 5 minus -2?"), 8)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+wordy_test.py:41: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+question = 'What is 1 plus 5 minus -2?'
+
+    def answer(question):
+        q = question.strip().rstrip("?").strip()
+        if not q.lower().startswith("what is"):
+            raise ValueError("unknown operation")
+        body = q[len("what is"):].strip()
+    
+        # Tokenize left-to-right.
+        items = []
+        pos = 0
+        while pos < len(body):
+            if body[pos] == " ":
+                pos += 1
+                continue
+            m = _TOKEN.match(body, pos)
+            if not m:
+                # A word we don't recognize (non-math question, unknown verb...).
+                raise ValueError("unknown operation")
+            items.append(m.group(0).lower())
+            pos = m.end()
+    
+        # Whitespace must be a single space between adjacent tokens.
+        if body != " ".join(items):
+            raise ValueError("syntax error")
+    
+        if not items:
+            raise ValueError("syntax error")
+    
+        # Structure must be: number (op number)*
+        for i, tok in enumerate(items):
+            is_number = re.fullmatch(_NUMBER, tok) is not None
+            if i % 2 == 0:
+                if not is_number:
+                    raise ValueError("syntax error")
+            else:
+                if is_number or tok not in OPS:
+                    raise ValueError("syntax error")
+    
+        # Evaluate left-to-right, ignoring normal order of operations.
+        result = int(items[0])
+        for i in range(2, len(items), 2):
+>           result = OPS[items[i]](result, int(items[i + 1]))
+                     ^^^^^^^^^^^^^
+E           KeyError: '5'
+
+wordy.py:56: KeyError
+________________ WordyTest.test_addition_with_negative_numbers _________________
+
+self = <wordy_test.WordyTest testMethod=test_addition_with_negative_numbers>
+
+    def test_addition_with_negative_numbers(self):
+>       self.assertEqual(answer("What is -1 plus -10?"), -11)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+wordy_test.py:23: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+question = 'What is -1 plus -10?'
+
+    def answer(question):
+        q = question.strip().rstrip("?").strip()
+        if not q.lower().startswith("what is"):
+            raise ValueError("unknown operation")
+        body = q[len("what is"):].strip()
+    
+        # Tokenize left-to-right.
+        items = []
+        pos = 0
+        while pos < len(body):
+            if body[pos] == " ":
+                pos += 1
+                continue
+            m = _TOKEN.match(body, pos)
+            if not m:
+                # A word we don't recognize (non-math question, unknown verb...).
+                raise ValueError("unknown operation")
+            items.append(m.group(0).lower())
+            pos = m.end()
+    
+        # Whitespace must be a single space between adjacent tokens.
+        if body != " ".join(items):
+            raise ValueError("syntax error")
+    
+        if not items:
+            raise ValueError("syntax error")
+    
+        # Structure must be: number (op number)*
+        for i, tok in enumerate(items):
+            is_number = re.fullmatch(_NUMBER, tok) is not None
+            if i % 2 == 0:
+                if not is_number:
+                    raise ValueError("syntax error")
+            else:
+                if is_number or tok not in OPS:
+                    raise ValueError("syntax error")
+    
+        # Evaluate left-to-right, ignoring normal order of operations.
+        result = int(items[0])
+        for i in range(2, len(items), 2):
+>           result = OPS[items[i]](result, int(items[i + 1]))
+                     ^^^^^^^^^^^^^
+E           KeyError: '-10'
+
+wordy.py:56: KeyError
+___________________________ WordyTest.test_division ____________________________
+
+self = <wordy_test.WordyTest testMethod=test_division>
+
+    def test_division(self):
+>       self.assertEqual(answer("What is 33 divided by -3?"), -11)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+wordy_test.py:35: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+question = 'What is 33 divided by -3?'
+
+    def answer(question):
+        q = question.strip().rstrip("?").strip()
+        if not q.lower().startswith("what is"):
+            raise ValueError("unknown operation")
+        body = q[len("what is"):].strip()
+    
+        # Tokenize left-to-right.
+        items = []
+        pos = 0
+        while pos < len(body):
+            if body[pos] == " ":
+                pos += 1
+                continue
+            m = _TOKEN.match(body, pos)
+            if not m:
+                # A word we don't recognize (non-math question, unknown verb...).
+                raise ValueError("unknown operation")
+            items.append(m.group(0).lower())
+            pos = m.end()
+    
+        # Whitespace must be a single space between adjacent tokens.
+        if body != " ".join(items):
+            raise ValueError("syntax error")
+    
+        if not items:
+            raise ValueError("syntax error")
+    
+        # Structure must be: number (op number)*
+        for i, tok in enumerate(items):
+            is_number = re.fullmatch(_NUMBER, tok) is not None
+            if i % 2 == 0:
+                if not is_number:
+                    raise ValueError("syntax error")
+            else:
+                if is_number or tok not in OPS:
+                    raise ValueError("syntax error")
+    
+        # Evaluate left-to-right, ignoring normal order of operations.
+        result = int(items[0])
+        for i in range(2, len(items), 2):
+>           result = OPS[items[i]](result, int(items[i + 1]))
+                     ^^^^^^^^^^^^^
+E           KeyError: '-3'
+
+wordy.py:56: KeyError
+________________________ WordyTest.test_large_addition _________________________
+
+self = <wordy_test.WordyTest testMethod=test_large_addition>
+
+    def test_large_addition(self):
+>       self.assertEqual(answer("What is 123 plus 45678?"), 45801)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+wordy_test.py:26: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+question = 'What is 123 plus 45678?'
+
+    def answer(question):
+        q = question.strip().rstrip("?").strip()
+        if not q.lower().startswith("what is"):
+            raise ValueError("unknown operation")
+        body = q[len("what is"):].strip()
+    
+        # Tokenize left-to-right.
+        items = []
+        pos = 0
+        while pos < len(body):
+            if body[pos] == " ":
+                pos += 1
+                continue
+            m = _TOKEN.match(body, pos)
+            if not m:
+                # A word we don't recognize (non-math question, unknown verb...).
+                raise ValueError("unknown operation")
+            items.append(m.group(0).lower())
+            pos = m.end()
+    
+        # Whitespace must be a single space between adjacent tokens.
+        if body != " ".join(items):
+            raise ValueError("syntax error")
+    
+        if not items:
+            raise ValueError("syntax error")
+    
+        # Structure must be: number (op number)*
+        for i, tok in enumerate(items):
+            is_number = re.fullmatch(_NUMBER, tok) is not None
+            if i % 2 == 0:
+                if not is_number:
+                    raise ValueError("syntax error")
+            else:
+                if is_number or tok not in OPS:
+                    raise ValueError("syntax error")
+    
+        # Evaluate left-to-right, ignoring normal order of operations.
+        result = int(items[0])
+        for i in range(2, len(items), 2):
+>           result = OPS[items[i]](result, int(items[i + 1]))
+                     ^^^^^^^^^^^^^
+E           KeyError: '45678'
+
+wordy.py:56: KeyError
+_________________________ WordyTest.test_more_addition _________________________
+
+self = <wordy_test.WordyTest testMethod=test_more_addition>
+
+    def test_more_addition(self):
+>       self.assertEqual(answer("What is 53 plus 2?"), 55)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+wordy_test.py:20: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+question = 'What is 53 plus 2?'
+
+    def answer(question):
+        q = question.strip().rstrip("?").strip()
+        if not q.lower().startswith("what is"):
+            raise ValueError("unknown operation")
+        body = q[len("what is"):].strip()
+    
+        # Tokenize left-to-right.
+        items = []
+        pos = 0
+        while pos < len(body):
+            if body[pos] == " ":
+                pos += 1
+                continue
+            m = _TOKEN.match(body, pos)
+            if not m:
+                # A word we don't recognize (non-math question, unknown verb...).
+                raise ValueError("unknown operation")
+            items.append(m.group(0).lower())
+            pos = m.end()
+    
+        # Whitespace must be a single space between adjacent tokens.
+        if body != " ".join(items):
+            raise ValueError("syntax error")
+    
+        if not items:
+            raise ValueError("syntax error")
+    
+        # Structure must be: number (op number)*
+        for i, tok in enumerate(items):
+            is_number = re.fullmatch(_NUMBER, tok) is not None
+            if i % 2 == 0:
+                if not is_number:
+                    raise ValueError("syntax error")
+            else:
+                if is_number or tok not in OPS:
+                    raise ValueError("syntax error")
+    
+        # Evaluate left-to-right, ignoring normal order of operations.
+        result = int(items[0])
+        for i in range(2, len(items), 2):
+>           result = OPS[items[i]](result, int(items[i + 1]))
+                     ^^^^^^^^^^^^^
+E           KeyError: '2'
+
+wordy.py:56: KeyError
+______________________ WordyTest.test_multiple_additions _______________________
+
+self = <wordy_test.WordyTest testMethod=test_multiple_additions>
+
+    def test_multiple_additions(self):
+>       self.assertEqual(answer("What is 1 plus 1 plus 1?"), 3)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+wordy_test.py:38: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+question = 'What is 1 plus 1 plus 1?'
+
+    def answer(question):
+        q = question.strip().rstrip("?").strip()
+        if not q.lower().startswith("what is"):
+            raise ValueError("unknown operation")
+        body = q[len("what is"):].strip()
+    
+        # Tokenize left-to-right.
+        items = []
+        pos = 0
+        while pos < len(body):
+            if body[pos] == " ":
+                pos += 1
+                continue
+            m = _TOKEN.match(body, pos)
+            if not m:
+                # A word we don't recognize (non-math question, unknown verb...).
+                raise ValueError("unknown operation")
+            items.append(m.group(0).lower())
+            pos = m.end()
+    
+        # Whitespace must be a single space between adjacent tokens.
+        if body != " ".join(items):
+            raise ValueError("syntax error")
+    
+        if not items:
+            raise ValueError("syntax error")
+    
+        # Structure must be: number (op number)*
+        for i, tok in enumerate(items):
+            is_number = re.fullmatch(_NUMBER, tok) is not None
+            if i % 2 == 0:
+                if not is_number:
+                    raise ValueError("syntax error")
+            else:
+                if is_number or tok not in OPS:
+                    raise ValueError("syntax error")
+    
+        # Evaluate left-to-right, ignoring normal order of operations.
+        result = int(items[0])
+        for i in range(2, len(items), 2):
+>           result = OPS[items[i]](result, int(items[i + 1]))
+                     ^^^^^^^^^^^^^
+E           KeyError: '1'
+
+wordy.py:56: KeyError
+_______________________ WordyTest.test_multiple_division _______________________
+
+self = <wordy_test.WordyTest testMethod=test_multiple_division>
+
+    def test_multiple_division(self):
+>       self.assertEqual(answer("What is -12 divided by 2 divided by -3?"), 2)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+wordy_test.py:56: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+question = 'What is -12 divided by 2 divided by -3?'
+
+    def answer(question):
+        q = question.strip().rstrip("?").strip()
+        if not q.lower().startswith("what is"):
+            raise ValueError("unknown operation")
+        body = q[len("what is"):].strip()
+    
+        # Tokenize left-to-right.
+        items = []
+        pos = 0
+        while pos < len(body):
+            if body[pos] == " ":
+                pos += 1
+                continue
+            m = _TOKEN.match(body, pos)
+            if not m:
+                # A word we don't recognize (non-math question, unknown verb...).
+                raise ValueError("unknown operation")
+            items.append(m.group(0).lower())
+            pos = m.end()
+    
+        # Whitespace must be a single space between adjacent tokens.
+        if body != " ".join(items):
+            raise ValueError("syntax error")
+    
+        if not items:
+            raise ValueError("syntax error")
+    
+        # Structure must be: number (op number)*
+        for i, tok in enumerate(items):
+            is_number = re.fullmatch(_NUMBER, tok) is not None
+            if i % 2 == 0:
+                if not is_number:
+                    raise ValueError("syntax error")
+            else:
+                if is_number or tok not in OPS:
+                    raise ValueError("syntax error")
+    
+        # Evaluate left-to-right, ignoring normal order of operations.
+        result = int(items[0])
+        for i in range(2, len(items), 2):
+>           result = OPS[items[i]](result, int(items[i + 1]))
+                     ^^^^^^^^^^^^^
+E           KeyError: '2'
+
+wordy.py:56: KeyError
+____________________ WordyTest.test_multiple_multiplication ____________________
+
+self = <wordy_test.WordyTest testMethod=test_multiple_multiplication>
+
+    def test_multiple_multiplication(self):
+>       self.assertEqual(answer("What is 2 multiplied by -2 multiplied by 3?"), -12)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+wordy_test.py:50: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+question = 'What is 2 multiplied by -2 multiplied by 3?'
+
+    def answer(question):
+        q = question.strip().rstrip("?").strip()
+        if not q.lower().startswith("what is"):
+            raise ValueError("unknown operation")
+        body = q[len("what is"):].strip()
+    
+        # Tokenize left-to-right.
+        items = []
+        pos = 0
+        while pos < len(body):
+            if body[pos] == " ":
+                pos += 1
+                continue
+            m = _TOKEN.match(body, pos)
+            if not m:
+                # A word we don't recognize (non-math question, unknown verb...).
+                raise ValueError("unknown operation")
+            items.append(m.group(0).lower())
+            pos = m.end()
+    
+        # Whitespace must be a single space between adjacent tokens.
+        if body != " ".join(items):
+            raise ValueError("syntax error")
+    
+        if not items:
+            raise ValueError("syntax error")
+    
+        # Structure must be: number (op number)*
+        for i, tok in enumerate(items):
+            is_number = re.fullmatch(_NUMBER, tok) is not None
+            if i % 2 == 0:
+                if not is_number:
+                    raise ValueError("syntax error")
+            else:
+                if is_number or tok not in OPS:
+                    raise ValueError("syntax error")
+    
+        # Evaluate left-to-right, ignoring normal order of operations.
+        result = int(items[0])
+        for i in range(2, len(items), 2):
+>           result = OPS[items[i]](result, int(items[i + 1]))
+                     ^^^^^^^^^^^^^
+E           KeyError: '-2'
+
+wordy.py:56: KeyError
+_____________________ WordyTest.test_multiple_subtraction ______________________
+
+self = <wordy_test.WordyTest testMethod=test_multiple_subtraction>
+
+    def test_multiple_subtraction(self):
+>       self.assertEqual(answer("What is 20 minus 4 minus 13?"), 3)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+wordy_test.py:44: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+question = 'What is 20 minus 4 minus 13?'
+
+    def answer(question):
+        q = question.strip().rstrip("?").strip()
+        if not q.lower().startswith("what is"):
+            raise ValueError("unknown operation")
+        body = q[len("what is"):].strip()
+    
+        # Tokenize left-to-right.
+        items = []
+        pos = 0
+        while pos < len(body):
+            if body[pos] == " ":
+                pos += 1
+                continue
+            m = _TOKEN.match(body, pos)
+            if not m:
+                # A word we don't recognize (non-math question, unknown verb...).
+                raise ValueError("unknown operation")
+            items.append(m.group(0).lower())
+            pos = m.end()
+    
+        # Whitespace must be a single space between adjacent tokens.
+        if body != " ".join(items):
+            raise ValueError("syntax error")
+    
+        if not items:
+            raise ValueError("syntax error")
+    
+        # Structure must be: number (op number)*
+        for i, tok in enumerate(items):
+            is_number = re.fullmatch(_NUMBER, tok) is not None
+            if i % 2 == 0:
+                if not is_number:
+                    raise ValueError("syntax error")
+            else:
+                if is_number or tok not in OPS:
+                    raise ValueError("syntax error")
+    
+        # Evaluate left-to-right, ignoring normal order of operations.
+        result = int(items[0])
+        for i in range(2, len(items), 2):
+>           result = OPS[items[i]](result, int(items[i + 1]))
+                     ^^^^^^^^^^^^^
+E           KeyError: '4'
+
+wordy.py:56: KeyError
+________________________ WordyTest.test_multiplication _________________________
+
+self = <wordy_test.WordyTest testMethod=test_multiplication>
+
+    def test_multiplication(self):
+>       self.assertEqual(answer("What is -3 multiplied by 25?"), -75)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+wordy_test.py:32: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+question = 'What is -3 multiplied by 25?'
+
+    def answer(question):
+        q = question.strip().rstrip("?").strip()
+        if not q.lower().startswith("what is"):
+            raise ValueError("unknown operation")
+        body = q[len("what is"):].strip()
+    
+        # Tokenize left-to-right.
+        items = []
+        pos = 0
+        while pos < len(body):
+            if body[pos] == " ":
+                pos += 1
+                continue
+            m = _TOKEN.match(body, pos)
+            if not m:
+                # A word we don't recognize (non-math question, unknown verb...).
+                raise ValueError("unknown operation")
+            items.append(m.group(0).lower())
+            pos = m.end()
+    
+        # Whitespace must be a single space between adjacent tokens.
+        if body != " ".join(items):
+            raise ValueError("syntax error")
+    
+        if not items:
+            raise ValueError("syntax error")
+    
+        # Structure must be: number (op number)*
+        for i, tok in enumerate(items):
+            is_number = re.fullmatch(_NUMBER, tok) is not None
+            if i % 2 == 0:
+                if not is_number:
+                    raise ValueError("syntax error")
+            else:
+                if is_number or tok not in OPS:
+                    raise ValueError("syntax error")
+    
+        # Evaluate left-to-right, ignoring normal order of operations.
+        result = int(items[0])
+        for i in range(2, len(items), 2):
+>           result = OPS[items[i]](result, int(items[i + 1]))
+                     ^^^^^^^^^^^^^
+E           KeyError: '25'
+
+wordy.py:56: KeyError
+_______________ WordyTest.test_reject_problem_missing_an_operand _______________
+
+self = <wordy_test.WordyTest testMethod=test_reject_problem_missing_an_operand>
+
+    def test_reject_problem_missing_an_operand(self):
+>       with self.assertRaises(ValueError) as err:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: ValueError not raised
+
+wordy_test.py:71: AssertionError
+__________________________ WordyTest.test_subtraction __________________________
+
+self = <wordy_test.WordyTest testMethod=test_subtraction>
+
+    def test_subtraction(self):
+>       self.assertEqual(answer("What is 4 minus -12?"), 16)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+wordy_test.py:29: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+question = 'What is 4 minus -12?'
+
+    def answer(question):
+        q = question.strip().rstrip("?").strip()
+        if not q.lower().startswith("what is"):
+            raise ValueError("unknown operation")
+        body = q[len("what is"):].strip()
+    
+        # Tokenize left-to-right.
+        items = []
+        pos = 0
+        while pos < len(body):
+            if body[pos] == " ":
+                pos += 1
+                continue
+            m = _TOKEN.match(body, pos)
+            if not m:
+                # A word we don't recognize (non-math question, unknown verb...).
+                raise ValueError("unknown operation")
+            items.append(m.group(0).lower())
+            pos = m.end()
+    
+        # Whitespace must be a single space between adjacent tokens.
+        if body != " ".join(items):
+            raise ValueError("syntax error")
+    
+        if not items:
+            raise ValueError("syntax error")
+    
+        # Structure must be: number (op number)*
+        for i, tok in enumerate(items):
+            is_number = re.fullmatch(_NUMBER, tok) is not None
+            if i % 2 == 0:
+                if not is_number:
+                    raise ValueError("syntax error")
+            else:
+                if is_number or tok not in OPS:
+                    raise ValueError("syntax error")
+    
+        # Evaluate left-to-right, ignoring normal order of operations.
+        result = int(items[0])
+        for i in range(2, len(items), 2):
+>           result = OPS[items[i]](result, int(items[i + 1]))
+                     ^^^^^^^^^^^^^
+E           KeyError: '-12'
+
+wordy.py:56: KeyError
+___________________ WordyTest.test_subtraction_then_addition ___________________
+
+self = <wordy_test.WordyTest testMethod=test_subtraction_then_addition>
+
+    def test_subtraction_then_addition(self):
+>       self.assertEqual(answer("What is 17 minus 6 plus 3?"), 14)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+wordy_test.py:47: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+question = 'What is 17 minus 6 plus 3?'
+
+    def answer(question):
+        q = question.strip().rstrip("?").strip()
+        if not q.lower().startswith("what is"):
+            raise ValueError("unknown operation")
+        body = q[len("what is"):].strip()
+    
+        # Tokenize left-to-right.
+        items = []
+        pos = 0
+        while pos < len(body):
+            if body[pos] == " ":
+                pos += 1
+                continue
+            m = _TOKEN.match(body, pos)
+            if not m:
+                # A word we don't recognize (non-math question, unknown verb...).
+                raise ValueError("unknown operation")
+            items.append(m.group(0).lower())
+            pos = m.end()
+    
+        # Whitespace must be a single space between adjacent tokens.
+        if body != " ".join(items):
+            raise ValueError("syntax error")
+    
+        if not items:
+            raise ValueError("syntax error")
+    
+        # Structure must be: number (op number)*
+        for i, tok in enumerate(items):
+            is_number = re.fullmatch(_NUMBER, tok) is not None
+            if i % 2 == 0:
+                if not is_number:
+                    raise ValueError("syntax error")
+            else:
+                if is_number or tok not in OPS:
+                    raise ValueError("syntax error")
+    
+        # Evaluate left-to-right, ignoring normal order of operations.
+        result = int(items[0])
+        for i in range(2, len(items), 2):
+>           result = OPS[items[i]](result, int(items[i + 1]))
+                     ^^^^^^^^^^^^^
+E           KeyError: '6'
+
+wordy.py:56: KeyError
+=========================== short test summary info ============================
+FAILED wordy_test.py::WordyTest::test_addition - KeyError: '1'
+FAILED wordy_test.py::WordyTest::test_addition_and_multiplication - KeyError:...
+FAILED wordy_test.py::WordyTest::test_addition_and_subtraction - KeyError: '5'
+FAILED wordy_test.py::WordyTest::test_addition_with_negative_numbers - KeyErr...
+FAILED wordy_test.py::WordyTest::test_division - KeyError: '-3'
+FAILED wordy_test.py::WordyTest::test_large_addition - KeyError: '45678'
+FAILED wordy_test.py::WordyTest::test_more_addition - KeyError: '2'
+FAILED wordy_test.py::WordyTest::test_multiple_additions - KeyError: '1'
+FAILED wordy_test.py::WordyTest::test_multiple_division - KeyError: '2'
+FAILED wordy_test.py::WordyTest::test_multiple_multiplication - KeyError: '-2'
+FAILED wordy_test.py::WordyTest::test_multiple_subtraction - KeyError: '4'
+FAILED wordy_test.py::WordyTest::test_multiplication - KeyError: '25'
+FAILED wordy_test.py::WordyTest::test_reject_problem_missing_an_operand - Ass...
+FAILED wordy_test.py::WordyTest::test_subtraction - KeyError: '-12'
+FAILED wordy_test.py::WordyTest::test_subtraction_then_addition - KeyError: '6'
+15 failed, 10 passed in 0.03s

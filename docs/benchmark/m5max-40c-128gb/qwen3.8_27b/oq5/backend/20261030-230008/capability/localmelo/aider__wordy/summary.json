@@ -1,0 +1,73 @@
+{
+  "run_id": "aider__wordy",
+  "harness": "localmelo",
+  "workspace": "ws/aider__wordy",
+  "started_at": 1793418229.058943,
+  "exit_code": 2,
+  "timed_out": false,
+  "wall_s": 106.85,
+  "harness_args": [
+    "--request-timeout",
+    "1800",
+    "--timeout",
+    "3540",
+    "--output-format",
+    "json"
+  ],
+  "steps": {
+    "n_llm": 12,
+    "n_llm_aux": 0,
+    "n_llm_err": 0,
+    "n_llm_post_submit": 0,
+    "n_tool": 12,
+    "images_new_sum": 0
+  },
+  "harness_report": {
+    "steps": 11,
+    "task_status": "gate_stopped",
+    "run_record": {
+      "task_id": "0d5763c5a2a24e3299e7032a28a029d8",
+      "status": "gate_stopped",
+      "error": "The file now appears correct; the only remaining uncertainty is whether it passes, which a single pytest run resolves.",
+      "steps": 10,
+      "attempts": 1,
+      "n_llm": 12,
+      "n_main": 10,
+      "n_aux": 2,
+      "n_tool": 11,
+      "llm_errors": 0,
+      "usage": {
+        "prompt_tokens": 174382,
+        "completion_tokens": 3329,
+        "total_tokens": 177711
+      },
+      "duration_s": 106.59593691601185,
+      "config": {
+        "max_steps": 30,
+        "attempt_policy": "reflect",
+        "steps_per_attempt": 10,
+        "max_attempts": 5,
+        "reflection_gate": "flags",
+        "tool_exposure": "retrieve",
+        "mode": "direct",
+        "builtins": [
+          "file_read",
+          "file_write",
+          "python_exec"
+        ],
+        "memory": true,
+        "timeout_s": 3540.0,
+        "window_eviction": "chunk",
+        "reflect_tool_guard": true,
+        "cache_layout": "v3",
+        "window_messages": 64
+      },
+      "prefix_cache": {
+        "version": "fixed-prefix-v2",
+        "schema_changes": 0,
+        "reported_cached_tokens": 151574
+      },
+      "localmelo_version": "6921912"
+    }
+  }
+}

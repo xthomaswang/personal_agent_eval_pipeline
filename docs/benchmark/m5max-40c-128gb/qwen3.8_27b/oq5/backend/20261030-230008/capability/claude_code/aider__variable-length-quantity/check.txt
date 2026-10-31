@@ -1,0 +1,284 @@
+FFF.F...FF.FF.F..FFFF..F..                                               [100%]
+=================================== FAILURES ===================================
+____________ VariableLengthQuantityTest.test_arbitrary_double_byte _____________
+
+self = <variable_length_quantity_test.VariableLengthQuantityTest testMethod=test_arbitrary_double_byte>
+
+    def test_arbitrary_double_byte(self):
+>       self.assertEqual(encode([0x2000]), [0xC0, 0x0])
+E       AssertionError: Lists differ: [64, 128] != [192, 0]
+E       
+E       First differing element 0:
+E       64
+E       192
+E       
+E       - [64, 128]
+E       + [192, 0]
+
+variable_length_quantity_test.py:27: AssertionError
+___________ VariableLengthQuantityTest.test_arbitrary_quadruple_byte ___________
+
+self = <variable_length_quantity_test.VariableLengthQuantityTest testMethod=test_arbitrary_quadruple_byte>
+
+    def test_arbitrary_quadruple_byte(self):
+>       self.assertEqual(encode([0x8000000]), [0xC0, 0x80, 0x80, 0x0])
+E       AssertionError: Lists differ: [64, 128, 128, 128] != [192, 128, 128, 0]
+E       
+E       First differing element 0:
+E       64
+E       192
+E       
+E       - [64, 128, 128, 128]
+E       ?  ^^            ^^^
+E       
+E       + [192, 128, 128, 0]
+E       ?  ^^^            ^
+
+variable_length_quantity_test.py:45: AssertionError
+___________ VariableLengthQuantityTest.test_arbitrary_quintuple_byte ___________
+
+self = <variable_length_quantity_test.VariableLengthQuantityTest testMethod=test_arbitrary_quintuple_byte>
+
+    def test_arbitrary_quintuple_byte(self):
+>       self.assertEqual(encode([0xFF000000]), [0x8F, 0xF8, 0x80, 0x80, 0x0])
+E       AssertionError: Lists differ: [15, 248, 128, 128, 128] != [143, 248, 128, 128, 0]
+E       
+E       First differing element 0:
+E       15
+E       143
+E       
+E       - [15, 248, 128, 128, 128]
+E       ?   ^                 ^^^
+E       
+E       + [143, 248, 128, 128, 0]
+E       ?   ^^                 ^
+
+variable_length_quantity_test.py:54: AssertionError
+____________ VariableLengthQuantityTest.test_arbitrary_triple_byte _____________
+
+self = <variable_length_quantity_test.VariableLengthQuantityTest testMethod=test_arbitrary_triple_byte>
+
+    def test_arbitrary_triple_byte(self):
+>       self.assertEqual(encode([0x100000]), [0xC0, 0x80, 0x0])
+E       AssertionError: Lists differ: [64, 128, 128] != [192, 128, 0]
+E       
+E       First differing element 0:
+E       64
+E       192
+E       
+E       - [64, 128, 128]
+E       + [192, 128, 0]
+
+variable_length_quantity_test.py:36: AssertionError
+_____________ VariableLengthQuantityTest.test_largest_double_byte ______________
+
+self = <variable_length_quantity_test.VariableLengthQuantityTest testMethod=test_largest_double_byte>
+
+    def test_largest_double_byte(self):
+>       self.assertEqual(encode([0x3FFF]), [0xFF, 0x7F])
+E       AssertionError: Lists differ: [127, 255] != [255, 127]
+E       
+E       First differing element 0:
+E       127
+E       255
+E       
+E       - [127, 255]
+E       + [255, 127]
+
+variable_length_quantity_test.py:30: AssertionError
+____________ VariableLengthQuantityTest.test_largest_quadruple_byte ____________
+
+self = <variable_length_quantity_test.VariableLengthQuantityTest testMethod=test_largest_quadruple_byte>
+
+    def test_largest_quadruple_byte(self):
+>       self.assertEqual(encode([0xFFFFFFF]), [0xFF, 0xFF, 0xFF, 0x7F])
+E       AssertionError: Lists differ: [127, 255, 255, 255] != [255, 255, 255, 127]
+E       
+E       First differing element 0:
+E       127
+E       255
+E       
+E       - [127, 255, 255, 255]
+E       ?  -----
+E       
+E       + [255, 255, 255, 127]
+E       ?               +++++
+
+variable_length_quantity_test.py:48: AssertionError
+_____________ VariableLengthQuantityTest.test_largest_triple_byte ______________
+
+self = <variable_length_quantity_test.VariableLengthQuantityTest testMethod=test_largest_triple_byte>
+
+    def test_largest_triple_byte(self):
+>       self.assertEqual(encode([0x1FFFFF]), [0xFF, 0xFF, 0x7F])
+E       AssertionError: Lists differ: [127, 255, 255] != [255, 255, 127]
+E       
+E       First differing element 0:
+E       127
+E       255
+E       
+E       - [127, 255, 255]
+E       + [255, 255, 127]
+
+variable_length_quantity_test.py:39: AssertionError
+____________ VariableLengthQuantityTest.test_many_multi_byte_values ____________
+
+self = <variable_length_quantity_test.VariableLengthQuantityTest testMethod=test_many_multi_byte_values>
+
+    def test_many_multi_byte_values(self):
+>       self.assertEqual(
+            encode([0x2000, 0x123456, 0xFFFFFFF, 0x0, 0x3FFF, 0x4000]),
+            [
+                0xC0,
+                0x0,
+                0xC8,
+                0xE8,
+                0x56,
+                0xFF,
+                0xFF,
+                0xFF,
+                0x7F,
+                0x0,
+                0xFF,
+                0x7F,
+                0x81,
+                0x80,
+                0x0,
+            ],
+        )
+E       AssertionError: Lists differ: [64, 128, 72, 232, 214, 127, 255, 255, 255, 0, 127, 255, 1, 128, 128] != [192, 0, 200, 232, 86, 255, 255, 255, 127, 0, 255, 127, 129, 128, 0]
+E       
+E       First differing element 0:
+E       64
+E       192
+E       
+E       - [64, 128, 72, 232, 214, 127, 255, 255, 255, 0, 127, 255, 1, 128, 128]
+E       + [192, 0, 200, 232, 86, 255, 255, 255, 127, 0, 255, 127, 129, 128, 0]
+
+variable_length_quantity_test.py:68: AssertionError
+_________ VariableLengthQuantityTest.test_maximum_32_bit_integer_input _________
+
+self = <variable_length_quantity_test.VariableLengthQuantityTest testMethod=test_maximum_32_bit_integer_input>
+
+    def test_maximum_32_bit_integer_input(self):
+>       self.assertEqual(encode([0xFFFFFFFF]), [0x8F, 0xFF, 0xFF, 0xFF, 0x7F])
+E       AssertionError: Lists differ: [15, 255, 255, 255, 255] != [143, 255, 255, 255, 127]
+E       
+E       First differing element 0:
+E       15
+E       143
+E       
+E       - [15, 255, 255, 255, 255]
+E       ?   ^                  ^^
+E       
+E       + [143, 255, 255, 255, 127]
+E       ?   ^^                 + ^
+
+variable_length_quantity_test.py:57: AssertionError
+_____________ VariableLengthQuantityTest.test_smallest_double_byte _____________
+
+self = <variable_length_quantity_test.VariableLengthQuantityTest testMethod=test_smallest_double_byte>
+
+    def test_smallest_double_byte(self):
+>       self.assertEqual(encode([0x80]), [0x81, 0x0])
+E       AssertionError: Lists differ: [1, 128] != [129, 0]
+E       
+E       First differing element 0:
+E       1
+E       129
+E       
+E       - [1, 128]
+E       + [129, 0]
+
+variable_length_quantity_test.py:24: AssertionError
+___________ VariableLengthQuantityTest.test_smallest_quadruple_byte ____________
+
+self = <variable_length_quantity_test.VariableLengthQuantityTest testMethod=test_smallest_quadruple_byte>
+
+    def test_smallest_quadruple_byte(self):
+>       self.assertEqual(encode([0x200000]), [0x81, 0x80, 0x80, 0x0])
+E       AssertionError: Lists differ: [1, 128, 128, 128] != [129, 128, 128, 0]
+E       
+E       First differing element 0:
+E       1
+E       129
+E       
+E       - [1, 128, 128, 128]
+E       ?               ^^^
+E       
+E       + [129, 128, 128, 0]
+E       ?   ++            ^
+
+variable_length_quantity_test.py:42: AssertionError
+___________ VariableLengthQuantityTest.test_smallest_quintuple_byte ____________
+
+self = <variable_length_quantity_test.VariableLengthQuantityTest testMethod=test_smallest_quintuple_byte>
+
+    def test_smallest_quintuple_byte(self):
+>       self.assertEqual(encode([0x10000000]), [0x81, 0x80, 0x80, 0x80, 0x0])
+E       AssertionError: Lists differ: [1, 128, 128, 128, 128] != [129, 128, 128, 128, 0]
+E       
+E       First differing element 0:
+E       1
+E       129
+E       
+E       - [1, 128, 128, 128, 128]
+E       ?                    ^^^
+E       
+E       + [129, 128, 128, 128, 0]
+E       ?   ++                 ^
+
+variable_length_quantity_test.py:51: AssertionError
+_____________ VariableLengthQuantityTest.test_smallest_triple_byte _____________
+
+self = <variable_length_quantity_test.VariableLengthQuantityTest testMethod=test_smallest_triple_byte>
+
+    def test_smallest_triple_byte(self):
+>       self.assertEqual(encode([0x4000]), [0x81, 0x80, 0x0])
+E       AssertionError: Lists differ: [1, 128, 128] != [129, 128, 0]
+E       
+E       First differing element 0:
+E       1
+E       129
+E       
+E       - [1, 128, 128]
+E       ?          ^^^
+E       
+E       + [129, 128, 0]
+E       ?   ++       ^
+
+variable_length_quantity_test.py:33: AssertionError
+____________ VariableLengthQuantityTest.test_two_multi_byte_values _____________
+
+self = <variable_length_quantity_test.VariableLengthQuantityTest testMethod=test_two_multi_byte_values>
+
+    def test_two_multi_byte_values(self):
+>       self.assertEqual(
+            encode([0x4000, 0x123456]), [0x81, 0x80, 0x0, 0xC8, 0xE8, 0x56]
+        )
+E       AssertionError: Lists differ: [1, 128, 128, 72, 232, 214] != [129, 128, 0, 200, 232, 86]
+E       
+E       First differing element 0:
+E       1
+E       129
+E       
+E       - [1, 128, 128, 72, 232, 214]
+E       + [129, 128, 0, 200, 232, 86]
+
+variable_length_quantity_test.py:63: AssertionError
+=========================== short test summary info ============================
+FAILED variable_length_quantity_test.py::VariableLengthQuantityTest::test_arbitrary_double_byte
+FAILED variable_length_quantity_test.py::VariableLengthQuantityTest::test_arbitrary_quadruple_byte
+FAILED variable_length_quantity_test.py::VariableLengthQuantityTest::test_arbitrary_quintuple_byte
+FAILED variable_length_quantity_test.py::VariableLengthQuantityTest::test_arbitrary_triple_byte
+FAILED variable_length_quantity_test.py::VariableLengthQuantityTest::test_largest_double_byte
+FAILED variable_length_quantity_test.py::VariableLengthQuantityTest::test_largest_quadruple_byte
+FAILED variable_length_quantity_test.py::VariableLengthQuantityTest::test_largest_triple_byte
+FAILED variable_length_quantity_test.py::VariableLengthQuantityTest::test_many_multi_byte_values
+FAILED variable_length_quantity_test.py::VariableLengthQuantityTest::test_maximum_32_bit_integer_input
+FAILED variable_length_quantity_test.py::VariableLengthQuantityTest::test_smallest_double_byte
+FAILED variable_length_quantity_test.py::VariableLengthQuantityTest::test_smallest_quadruple_byte
+FAILED variable_length_quantity_test.py::VariableLengthQuantityTest::test_smallest_quintuple_byte
+FAILED variable_length_quantity_test.py::VariableLengthQuantityTest::test_smallest_triple_byte
+FAILED variable_length_quantity_test.py::VariableLengthQuantityTest::test_two_multi_byte_values
+14 failed, 12 passed in 0.02s

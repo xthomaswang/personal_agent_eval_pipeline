@@ -1,0 +1,549 @@
+FFFFFFFFFFFFF.FFF.FFFFFFF                                                [100%]
+=================================== FAILURES ===================================
+____________ GrepTest.test_multiple_files_no_matches_various_flags _____________
+
+self = <grep_test.GrepTest testMethod=test_multiple_files_no_matches_various_flags>
+mock_file = <MagicMock name='StringIO' id='4483386400'>
+mock_open = <MagicMock name='open' id='4483387072'>
+
+    def test_multiple_files_no_matches_various_flags(self, mock_file, mock_open):
+>       self.assertMultiLineEqual(
+            grep(
+                "Frodo",
+                "-n -l -x -i",
+                ["iliad.txt", "midsummer-night.txt", "paradise-lost.txt"],
+            ),
+            "",
+        )
+E       AssertionError: 'iliad.txt\nmidsummer-night.txt\nparadise-lost.txt\n' != ''
+E       - iliad.txt
+E       - midsummer-night.txt
+E       - paradise-lost.txt
+
+grep_test.py:241: AssertionError
+________ GrepTest.test_multiple_files_one_match_match_entire_lines_flag ________
+
+self = <grep_test.GrepTest testMethod=test_multiple_files_one_match_match_entire_lines_flag>
+mock_file = <MagicMock name='StringIO' id='4483387408'>
+mock_open = <MagicMock name='open' id='4483389760'>
+
+    def test_multiple_files_one_match_match_entire_lines_flag(
+        self, mock_file, mock_open
+    ):
+>       self.assertMultiLineEqual(
+            grep(
+                "But I beseech your grace that I may know",
+                "-x",
+                ["iliad.txt", "midsummer-night.txt", "paradise-lost.txt"],
+            ),
+            "midsummer-night.txt:But I beseech your grace that I may know\n",
+        )
+E       AssertionError: "iliad.txt:Achilles sing, O Goddess! Pele[1262 chars]ed\n" != 'midsummer-night.txt:But I beseech your g[18 chars]ow\n'
+E       Diff is 1393 characters long. Set self.maxDiff to None to see it.
+
+grep_test.py:221: AssertionError
+____________ GrepTest.test_multiple_files_one_match_multiple_flags _____________
+
+self = <grep_test.GrepTest testMethod=test_multiple_files_one_match_multiple_flags>
+mock_file = <MagicMock name='StringIO' id='4483387744'>
+mock_open = <MagicMock name='open' id='4483386064'>
+
+    def test_multiple_files_one_match_multiple_flags(self, mock_file, mock_open):
+>       self.assertMultiLineEqual(
+            grep(
+                "WITH LOSS OF EDEN, TILL ONE GREATER MAN",
+                "-n -i -x",
+                ["iliad.txt", "midsummer-night.txt", "paradise-lost.txt"],
+            ),
+            "paradise-lost.txt:4:With loss of Eden, till one greater Man\n",
+        )
+E       AssertionError: "iliad.txt:1:Achilles sing, O Goddess! Pe[1311 chars]ed\n" != 'paradise-lost.txt:4:With loss of Eden, t[17 chars]an\n'
+E       Diff is 1441 characters long. Set self.maxDiff to None to see it.
+
+grep_test.py:231: AssertionError
+_______________ GrepTest.test_multiple_files_one_match_no_flags ________________
+
+self = <grep_test.GrepTest testMethod=test_multiple_files_one_match_no_flags>
+mock_file = <MagicMock name='StringIO' id='4483386400'>
+mock_open = <MagicMock name='open' id='4483387072'>
+
+    def test_multiple_files_one_match_no_flags(self, mock_file, mock_open):
+>       self.assertMultiLineEqual(
+            grep(
+                "Agamemnon",
+                "",
+                ["iliad.txt", "midsummer-night.txt", "paradise-lost.txt"],
+            ),
+            "iliad.txt:Of Atreus, Agamemnon, King of men.\n",
+        )
+E       AssertionError: "iliad.txt:Achilles sing, O Goddess! Pele[1278 chars]ed\n" != 'iliad.txt:Of Atreus, Agamemnon, King of men.\n'
+E       Diff is 1393 characters long. Set self.maxDiff to None to see it.
+
+grep_test.py:155: AssertionError
+_________ GrepTest.test_multiple_files_one_match_print_file_names_flag _________
+
+self = <grep_test.GrepTest testMethod=test_multiple_files_one_match_print_file_names_flag>
+mock_file = <MagicMock name='StringIO' id='4483386736'>
+mock_open = <MagicMock name='open' id='4483390096'>
+
+    def test_multiple_files_one_match_print_file_names_flag(self, mock_file, mock_open):
+>       self.assertMultiLineEqual(
+            grep(
+                "who", "-l", ["iliad.txt", "midsummer-night.txt", "paradise-lost.txt"]
+            ),
+            "iliad.txt\n" "paradise-lost.txt\n",
+        )
+E       AssertionError: 'iliad.txt\nmidsummer-night.txt\nparadise-lost.txt\n' != 'iliad.txt\nparadise-lost.txt\n'
+E         iliad.txt
+E       - midsummer-night.txt
+E         paradise-lost.txt
+
+grep_test.py:186: AssertionError
+______ GrepTest.test_multiple_files_several_matches_case_insensitive_flag ______
+
+self = <grep_test.GrepTest testMethod=test_multiple_files_several_matches_case_insensitive_flag>
+mock_file = <MagicMock name='StringIO' id='4483386400'>
+mock_open = <MagicMock name='open' id='4483387072'>
+
+    def test_multiple_files_several_matches_case_insensitive_flag(
+        self, mock_file, mock_open
+    ):
+>       self.assertMultiLineEqual(
+            grep("TO", "-i", ["iliad.txt", "midsummer-night.txt", "paradise-lost.txt"]),
+            "iliad.txt:Caused to Achaia's host, sent many a soul\n"
+            "iliad.txt:Illustrious into Ades premature,\n"
+            "iliad.txt:And Heroes gave (so stood the will of Jove)\n"
+            "iliad.txt:To dogs and to all ravening fowls a prey,\n"
+            "midsummer-night.txt:I do entreat your grace to pardon me.\n"
+            "midsummer-night.txt:In such a presence here to plead my thoughts;\n"
+            "midsummer-night.txt:If I refuse to wed Demetrius.\n"
+            "paradise-lost.txt:Brought Death into the World, and all our woe,\n"
+            "paradise-lost.txt:Restore us, and regain the blissful Seat,\n"
+            "paradise-lost.txt:Sing Heav'nly Muse, that on the secret top\n",
+        )
+E       AssertionError: "iliad.txt:Achilles sing, O Goddess! Peleus' son;\ni[742 chars]ed\n" != "iliad.txt:Caused to Achaia's host, sent many a soul[516 chars]op\n"
+E       Diff is 1393 characters long. Set self.maxDiff to None to see it.
+
+grep_test.py:196: AssertionError
+_ GrepTest.test_multiple_files_several_matches_file_flag_takes_precedence_over_line_number_flag _
+
+self = <grep_test.GrepTest testMethod=test_multiple_files_several_matches_file_flag_takes_precedence_over_line_number_flag>
+mock_file = <MagicMock name='StringIO' id='4483387744'>
+mock_open = <MagicMock name='open' id='4483386064'>
+
+    def test_multiple_files_several_matches_file_flag_takes_precedence_over_line_number_flag(
+        self, mock_file, mock_open
+    ):
+>       self.assertMultiLineEqual(
+            grep(
+                "who",
+                "-n -l",
+                ["iliad.txt", "midsummer-night.txt", "paradise-lost.txt"],
+            ),
+            "iliad.txt\n" "paradise-lost.txt\n",
+        )
+E       AssertionError: 'iliad.txt\nmidsummer-night.txt\nparadise-lost.txt\n' != 'iliad.txt\nparadise-lost.txt\n'
+E         iliad.txt
+E       - midsummer-night.txt
+E         paradise-lost.txt
+
+grep_test.py:253: AssertionError
+_ GrepTest.test_multiple_files_several_matches_inverted_and_match_entire_lines_flags _
+
+self = <grep_test.GrepTest testMethod=test_multiple_files_several_matches_inverted_and_match_entire_lines_flags>
+mock_file = <MagicMock name='StringIO' id='4483390432'>
+mock_open = <MagicMock name='open' id='4483390768'>
+
+    def test_multiple_files_several_matches_inverted_and_match_entire_lines_flags(
+        self, mock_file, mock_open
+    ):
+>       self.assertMultiLineEqual(
+            grep(
+                "Illustrious into Ades premature,",
+                "-x -v",
+                ["iliad.txt", "midsummer-night.txt", "paradise-lost.txt"],
+            ),
+            "iliad.txt:Achilles sing, O Goddess! Peleus' son;\n"
+            "iliad.txt:His wrath pernicious, who ten thousand woes\n"
+            "iliad.txt:Caused to Achaia's host, sent many a soul\n"
+            "iliad.txt:And Heroes gave (so stood the will of Jove)\n"
+            "iliad.txt:To dogs and to all ravening fowls a prey,\n"
+            "iliad.txt:When fierce dispute had separated once\n"
+            "iliad.txt:The noble Chief Achilles from the son\n"
+            "iliad.txt:Of Atreus, Agamemnon, King of men.\n"
+            "midsummer-night.txt:I do entreat your grace to pardon me.\n"
+            "midsummer-night.txt:I know not by what power I am made bold,\n"
+            "midsummer-night.txt:Nor how it may concern my modesty,\n"
+            "midsummer-night.txt:In such a presence here to plead my thoughts;\n"
+            "midsummer-night.txt:But I beseech your grace that I may know\n"
+            "midsummer-night.txt:The worst that may befall me in this case,\n"
+            "midsummer-night.txt:If I refuse to wed Demetrius.\n"
+            "paradise-lost.txt:Of Mans First Disobedience, and the Fruit\n"
+            "paradise-lost.txt:Of that Forbidden Tree, whose mortal tast\n"
+            "paradise-lost.txt:Brought Death into the World, and all our woe,\n"
+            "paradise-lost.txt:With loss of Eden, till one greater Man\n"
+            "paradise-lost.txt:Restore us, and regain the blissful Seat,\n"
+            "paradise-lost.txt:Sing Heav'nly Muse, that on the secret top\n"
+            "paradise-lost.txt:Of Oreb, or of Sinai, didst inspire\n"
+            "paradise-lost.txt:That Shepherd, who first taught the chosen Seed\n",
+        )
+E       AssertionError: 'iliad.txt:Illustrious into Ades premature,\n' != "iliad.txt:Achilles sing, O Goddess! Pele[1280 chars]ed\n"
+E       Diff is 1393 characters long. Set self.maxDiff to None to see it.
+
+grep_test.py:265: AssertionError
+__________ GrepTest.test_multiple_files_several_matches_inverted_flag __________
+
+self = <grep_test.GrepTest testMethod=test_multiple_files_several_matches_inverted_flag>
+mock_file = <MagicMock name='StringIO' id='4483387744'>
+mock_open = <MagicMock name='open' id='4483386064'>
+
+    def test_multiple_files_several_matches_inverted_flag(self, mock_file, mock_open):
+>       self.assertMultiLineEqual(
+            grep("a", "-v", ["iliad.txt", "midsummer-night.txt", "paradise-lost.txt"]),
+            "iliad.txt:Achilles sing, O Goddess! Peleus' son;\n"
+            "iliad.txt:The noble Chief Achilles from the son\n"
+            "midsummer-night.txt:If I refuse to wed Demetrius.\n",
+        )
+E       AssertionError: "iliad.txt:His wrath pernicious, who ten thousand wo[1163 chars]ed\n" != "iliad.txt:Achilles sing, O Goddess! Peleus' son;\ni[95 chars]s.\n"
+E       Diff is 1393 characters long. Set self.maxDiff to None to see it.
+
+grep_test.py:211: AssertionError
+____________ GrepTest.test_multiple_files_several_matches_no_flags _____________
+
+self = <grep_test.GrepTest testMethod=test_multiple_files_several_matches_no_flags>
+mock_file = <MagicMock name='StringIO' id='4483386400'>
+mock_open = <MagicMock name='open' id='4483387072'>
+
+    def test_multiple_files_several_matches_no_flags(self, mock_file, mock_open):
+>       self.assertMultiLineEqual(
+            grep("may", "", ["iliad.txt", "midsummer-night.txt", "paradise-lost.txt"]),
+            "midsummer-night.txt:Nor how it may concern my modesty,\n"
+            "midsummer-night.txt:But I beseech your grace that I may know\n"
+            "midsummer-night.txt:The worst that may befall me in this case,\n",
+        )
+E       AssertionError: "iliad.txt:Achilles sing, O Goddess! Pele[1142 chars]ed\n" != 'midsummer-night.txt:Nor how it may conce[138 chars]e,\n'
+E       Diff is 1393 characters long. Set self.maxDiff to None to see it.
+
+grep_test.py:165: AssertionError
+_____ GrepTest.test_multiple_files_several_matches_print_line_numbers_flag _____
+
+self = <grep_test.GrepTest testMethod=test_multiple_files_several_matches_print_line_numbers_flag>
+mock_file = <MagicMock name='StringIO' id='4483391104'>
+mock_open = <MagicMock name='open' id='4483391440'>
+
+    def test_multiple_files_several_matches_print_line_numbers_flag(
+        self, mock_file, mock_open
+    ):
+>       self.assertMultiLineEqual(
+            grep(
+                "that", "-n", ["iliad.txt", "midsummer-night.txt", "paradise-lost.txt"]
+            ),
+            "midsummer-night.txt:5:But I beseech your grace that I may know\n"
+            "midsummer-night.txt:6:The worst that may befall me in this case,\n"
+            "paradise-lost.txt:2:Of that Forbidden Tree, whose mortal tast\n"
+            "paradise-lost.txt:6:Sing Heav'nly Muse, that on the secret top\n",
+        )
+E       AssertionError: "iliad.txt:1:Achilles sing, O Goddess! Pel[1114 chars]ed\n" != "midsummer-night.txt:5:But I beseech your [212 chars]op\n"
+E       Diff is 1441 characters long. Set self.maxDiff to None to see it.
+
+grep_test.py:175: AssertionError
+_______________ GrepTest.test_one_file_no_matches_various_flags ________________
+
+self = <grep_test.GrepTest testMethod=test_one_file_no_matches_various_flags>
+mock_file = <MagicMock name='StringIO' id='4483386400'>
+mock_open = <MagicMock name='open' id='4483387072'>
+
+    def test_one_file_no_matches_various_flags(self, mock_file, mock_open):
+>       self.assertMultiLineEqual(grep("Gandalf", "-n -l -x -i", ["iliad.txt"]), "")
+E       AssertionError: 'iliad.txt\n' != ''
+E       - iliad.txt
+
+grep_test.py:131: AssertionError
+____________ GrepTest.test_one_file_one_match_case_insensitive_flag ____________
+
+self = <grep_test.GrepTest testMethod=test_one_file_one_match_case_insensitive_flag>
+mock_file = <MagicMock name='StringIO' id='4483387744'>
+mock_open = <MagicMock name='open' id='4483386064'>
+
+    def test_one_file_one_match_case_insensitive_flag(self, mock_file, mock_open):
+>       self.assertMultiLineEqual(
+            grep("FORBIDDEN", "-i", ["paradise-lost.txt"]),
+            "Of that Forbidden Tree, whose mortal tast\n",
+        )
+E       AssertionError: "Of Mans First Disobedience, and the Frui[261 chars]ed\n" != 'Of that Forbidden Tree, whose mortal tast\n'
+E       + Of that Forbidden Tree, whose mortal tast
+E       - Of Mans First Disobedience, and the Fruit
+E       - Brought Death into the World, and all our woe,
+E       - With loss of Eden, till one greater Man
+E       - Restore us, and regain the blissful Seat,
+E       - Sing Heav'nly Muse, that on the secret top
+E       - Of Oreb, or of Sinai, didst inspire
+E       - That Shepherd, who first taught the chosen Seed
+
+grep_test.py:66: AssertionError
+___________ GrepTest.test_one_file_one_match_match_entire_lines_flag ___________
+
+self = <grep_test.GrepTest testMethod=test_one_file_one_match_match_entire_lines_flag>
+mock_file = <MagicMock name='StringIO' id='4483392448'>
+mock_open = <MagicMock name='open' id='4483392784'>
+
+    def test_one_file_one_match_match_entire_lines_flag(self, mock_file, mock_open):
+>       self.assertMultiLineEqual(
+            grep(
+                "With loss of Eden, till one greater Man", "-x", ["paradise-lost.txt"]
+            ),
+            "With loss of Eden, till one greater Man\n",
+        )
+E       AssertionError: "Of Mans First Disobedience, and the Frui[263 chars]ed\n" != 'With loss of Eden, till one greater Man\n'
+E       + With loss of Eden, till one greater Man
+E       - Of Mans First Disobedience, and the Fruit
+E       - Of that Forbidden Tree, whose mortal tast
+E       - Brought Death into the World, and all our woe,
+E       - Restore us, and regain the blissful Seat,
+E       - Sing Heav'nly Muse, that on the secret top
+E       - Of Oreb, or of Sinai, didst inspire
+E       - That Shepherd, who first taught the chosen Seed
+
+grep_test.py:77: AssertionError
+_______________ GrepTest.test_one_file_one_match_multiple_flags ________________
+
+self = <grep_test.GrepTest testMethod=test_one_file_one_match_multiple_flags>
+mock_file = <MagicMock name='StringIO' id='4483392112'>
+mock_open = <MagicMock name='open' id='4483391776'>
+
+    def test_one_file_one_match_multiple_flags(self, mock_file, mock_open):
+>       self.assertMultiLineEqual(
+            grep("OF ATREUS, Agamemnon, KIng of MEN.", "-n -i -x", ["iliad.txt"]),
+            "9:Of Atreus, Agamemnon, King of men.\n",
+        )
+E       AssertionError: "1:Achilles sing, O Goddess! Peleus' son;[301 chars]on\n" != '9:Of Atreus, Agamemnon, King of men.\n'
+E       + 9:Of Atreus, Agamemnon, King of men.
+E       - 1:Achilles sing, O Goddess! Peleus' son;
+E       - 2:His wrath pernicious, who ten thousand woes
+E       - 3:Caused to Achaia's host, sent many a soul
+E       - 4:Illustrious into Ades premature,
+E       - 5:And Heroes gave (so stood the will of Jove)
+E       - 6:To dogs and to all ravening fowls a prey,
+E       - 7:When fierce dispute had separated once
+E       - 8:The noble Chief Achilles from the son
+
+grep_test.py:85: AssertionError
+__________________ GrepTest.test_one_file_one_match_no_flags ___________________
+
+self = <grep_test.GrepTest testMethod=test_one_file_one_match_no_flags>
+mock_file = <MagicMock name='StringIO' id='4483387744'>
+mock_open = <MagicMock name='open' id='4483386064'>
+
+    def test_one_file_one_match_no_flags(self, mock_file, mock_open):
+>       self.assertMultiLineEqual(
+            grep("Agamemnon", "", ["iliad.txt"]), "Of Atreus, Agamemnon, King of men.\n"
+        )
+E       AssertionError: "Achilles sing, O Goddess! Peleus' son;\n[285 chars]on\n" != 'Of Atreus, Agamemnon, King of men.\n'
+E       + Of Atreus, Agamemnon, King of men.
+E       - Achilles sing, O Goddess! Peleus' son;
+E       - His wrath pernicious, who ten thousand woes
+E       - Caused to Achaia's host, sent many a soul
+E       - Illustrious into Ades premature,
+E       - And Heroes gave (so stood the will of Jove)
+E       - To dogs and to all ravening fowls a prey,
+E       - When fierce dispute had separated once
+E       - The noble Chief Achilles from the son
+
+grep_test.py:55: AssertionError
+___________ GrepTest.test_one_file_one_match_print_line_numbers_flag ___________
+
+self = <grep_test.GrepTest testMethod=test_one_file_one_match_print_line_numbers_flag>
+mock_file = <MagicMock name='StringIO' id='4483393120'>
+mock_open = <MagicMock name='open' id='4483393456'>
+
+    def test_one_file_one_match_print_line_numbers_flag(self, mock_file, mock_open):
+>       self.assertMultiLineEqual(
+            grep("Forbidden", "-n", ["paradise-lost.txt"]),
+            "2:Of that Forbidden Tree, whose mortal tast\n",
+        )
+E       AssertionError: "1:Of Mans First Disobedience, and the Fr[275 chars]ed\n" != '2:Of that Forbidden Tree, whose mortal tast\n'
+E       + 2:Of that Forbidden Tree, whose mortal tast
+E       - 1:Of Mans First Disobedience, and the Fruit
+E       - 3:Brought Death into the World, and all our woe,
+E       - 4:With loss of Eden, till one greater Man
+E       - 5:Restore us, and regain the blissful Seat,
+E       - 6:Sing Heav'nly Muse, that on the secret top
+E       - 7:Of Oreb, or of Sinai, didst inspire
+E       - 8:That Shepherd, who first taught the chosen Seed
+
+grep_test.py:60: AssertionError
+_________ GrepTest.test_one_file_several_matches_case_insensitive_flag _________
+
+self = <grep_test.GrepTest testMethod=test_one_file_several_matches_case_insensitive_flag>
+mock_file = <MagicMock name='StringIO' id='4483387072'>
+mock_open = <MagicMock name='open' id='4483386400'>
+
+    def test_one_file_several_matches_case_insensitive_flag(self, mock_file, mock_open):
+>       self.assertMultiLineEqual(
+            grep("ACHILLES", "-i", ["iliad.txt"]),
+            "Achilles sing, O Goddess! Peleus' son;\n"
+            "The noble Chief Achilles from the son\n",
+        )
+E       AssertionError: "His wrath pernicious, who ten thousand wo[241 chars]n.\n" != "Achilles sing, O Goddess! Peleus' son;\nT[34 chars]on\n"
+E       + Achilles sing, O Goddess! Peleus' son;
+E       + The noble Chief Achilles from the son
+E       - His wrath pernicious, who ten thousand woes
+E       - Caused to Achaia's host, sent many a soul
+E       - Illustrious into Ades premature,
+E       - And Heroes gave (so stood the will of Jove)
+E       - To dogs and to all ravening fowls a prey,
+E       - When fierce dispute had separated once
+E       - Of Atreus, Agamemnon, King of men.
+
+grep_test.py:114: AssertionError
+_ GrepTest.test_one_file_several_matches_inverted_and_match_entire_lines_flags _
+
+self = <grep_test.GrepTest testMethod=test_one_file_several_matches_inverted_and_match_entire_lines_flags>
+mock_file = <MagicMock name='StringIO' id='4483387744'>
+mock_open = <MagicMock name='open' id='4483386064'>
+
+    def test_one_file_several_matches_inverted_and_match_entire_lines_flags(
+        self, mock_file, mock_open
+    ):
+>       self.assertMultiLineEqual(
+            grep("Illustrious into Ades premature,", "-x -v", ["iliad.txt"]),
+            "Achilles sing, O Goddess! Peleus' son;\n"
+            "His wrath pernicious, who ten thousand woes\n"
+            "Caused to Achaia's host, sent many a soul\n"
+            "And Heroes gave (so stood the will of Jove)\n"
+            "To dogs and to all ravening fowls a prey,\n"
+            "When fierce dispute had separated once\n"
+            "The noble Chief Achilles from the son\n"
+            "Of Atreus, Agamemnon, King of men.\n",
+        )
+E       AssertionError: 'Illustrious into Ades premature,\n' != "Achilles sing, O Goddess! Peleus' son;\n[287 chars]n.\n"
+E       - Illustrious into Ades premature,
+E       + Achilles sing, O Goddess! Peleus' son;
+E       + His wrath pernicious, who ten thousand woes
+E       + Caused to Achaia's host, sent many a soul
+E       + And Heroes gave (so stood the will of Jove)
+E       + To dogs and to all ravening fowls a prey,
+E       + When fierce dispute had separated once
+E       + The noble Chief Achilles from the son
+E       + Of Atreus, Agamemnon, King of men.
+
+grep_test.py:141: AssertionError
+_____________ GrepTest.test_one_file_several_matches_inverted_flag _____________
+
+self = <grep_test.GrepTest testMethod=test_one_file_several_matches_inverted_flag>
+mock_file = <MagicMock name='StringIO' id='4483392112'>
+mock_open = <MagicMock name='open' id='4483391776'>
+
+    def test_one_file_several_matches_inverted_flag(self, mock_file, mock_open):
+>       self.assertMultiLineEqual(
+            grep("Of", "-v", ["paradise-lost.txt"]),
+            "Brought Death into the World, and all our woe,\n"
+            "With loss of Eden, till one greater Man\n"
+            "Restore us, and regain the blissful Seat,\n"
+            "Sing Heav'nly Muse, that on the secret top\n"
+            "That Shepherd, who first taught the chosen Seed\n",
+        )
+E       AssertionError: 'Of Mans First Disobedience, and the Frui[79 chars]re\n' != "Brought Death into the World, and all ou[181 chars]ed\n"
+E       - Of Mans First Disobedience, and the Fruit
+E       - Of that Forbidden Tree, whose mortal tast
+E       - Of Oreb, or of Sinai, didst inspire
+E       + Brought Death into the World, and all our woe,
+E       + With loss of Eden, till one greater Man
+E       + Restore us, and regain the blissful Seat,
+E       + Sing Heav'nly Muse, that on the secret top
+E       + That Shepherd, who first taught the chosen Seed
+
+grep_test.py:121: AssertionError
+________ GrepTest.test_one_file_several_matches_match_entire_lines_flag ________
+
+self = <grep_test.GrepTest testMethod=test_one_file_several_matches_match_entire_lines_flag>
+mock_file = <MagicMock name='StringIO' id='4483387744'>
+mock_open = <MagicMock name='open' id='4483386064'>
+
+    def test_one_file_several_matches_match_entire_lines_flag(
+        self, mock_file, mock_open
+    ):
+>       self.assertMultiLineEqual(grep("may", "-x", ["midsummer-night.txt"]), "")
+E       AssertionError: 'I do entreat your grace to pardon me.\nI [236 chars]s.\n' != ''
+E       - I do entreat your grace to pardon me.
+E       - I know not by what power I am made bold,
+E       - Nor how it may concern my modesty,
+E       - In such a presence here to plead my thoughts;
+E       - But I beseech your grace that I may know
+E       - The worst that may befall me in this case,
+E       - If I refuse to wed Demetrius.
+
+grep_test.py:111: AssertionError
+_______________ GrepTest.test_one_file_several_matches_no_flags ________________
+
+self = <grep_test.GrepTest testMethod=test_one_file_several_matches_no_flags>
+mock_file = <MagicMock name='StringIO' id='4483387072'>
+mock_open = <MagicMock name='open' id='4483392784'>
+
+    def test_one_file_several_matches_no_flags(self, mock_file, mock_open):
+>       self.assertMultiLineEqual(
+            grep("may", "", ["midsummer-night.txt"]),
+            "Nor how it may concern my modesty,\n"
+            "But I beseech your grace that I may know\n"
+            "The worst that may befall me in this case,\n",
+        )
+E       AssertionError: 'I do entreat your grace to pardon me.\nI [114 chars]s.\n' != 'Nor how it may concern my modesty,\nBut I[77 chars]e,\n'
+E       + Nor how it may concern my modesty,
+E       + But I beseech your grace that I may know
+E       + The worst that may befall me in this case,
+E       - I do entreat your grace to pardon me.
+E       - I know not by what power I am made bold,
+E       - In such a presence here to plead my thoughts;
+E       - If I refuse to wed Demetrius.
+
+grep_test.py:91: AssertionError
+________ GrepTest.test_one_file_several_matches_print_line_numbers_flag ________
+
+self = <grep_test.GrepTest testMethod=test_one_file_several_matches_print_line_numbers_flag>
+mock_file = <MagicMock name='StringIO' id='4483392448'>
+mock_open = <MagicMock name='open' id='4483391104'>
+
+    def test_one_file_several_matches_print_line_numbers_flag(
+        self, mock_file, mock_open
+    ):
+>       self.assertMultiLineEqual(
+            grep("may", "-n", ["midsummer-night.txt"]),
+            "3:Nor how it may concern my modesty,\n"
+            "5:But I beseech your grace that I may know\n"
+            "6:The worst that may befall me in this case,\n",
+        )
+E       AssertionError: '1:I do entreat your grace to pardon me.\n[122 chars]s.\n' != '3:Nor how it may concern my modesty,\n5:B[83 chars]e,\n'
+E       + 3:Nor how it may concern my modesty,
+E       + 5:But I beseech your grace that I may know
+E       + 6:The worst that may befall me in this case,
+E       - 1:I do entreat your grace to pardon me.
+E       - 2:I know not by what power I am made bold,
+E       - 4:In such a presence here to plead my thoughts;
+E       - 7:If I refuse to wed Demetrius.
+
+grep_test.py:101: AssertionError
+=========================== short test summary info ============================
+FAILED grep_test.py::GrepTest::test_multiple_files_no_matches_various_flags
+FAILED grep_test.py::GrepTest::test_multiple_files_one_match_match_entire_lines_flag
+FAILED grep_test.py::GrepTest::test_multiple_files_one_match_multiple_flags
+FAILED grep_test.py::GrepTest::test_multiple_files_one_match_no_flags - Asser...
+FAILED grep_test.py::GrepTest::test_multiple_files_one_match_print_file_names_flag
+FAILED grep_test.py::GrepTest::test_multiple_files_several_matches_case_insensitive_flag
+FAILED grep_test.py::GrepTest::test_multiple_files_several_matches_file_flag_takes_precedence_over_line_number_flag
+FAILED grep_test.py::GrepTest::test_multiple_files_several_matches_inverted_and_match_entire_lines_flags
+FAILED grep_test.py::GrepTest::test_multiple_files_several_matches_inverted_flag
+FAILED grep_test.py::GrepTest::test_multiple_files_several_matches_no_flags
+FAILED grep_test.py::GrepTest::test_multiple_files_several_matches_print_line_numbers_flag
+FAILED grep_test.py::GrepTest::test_one_file_no_matches_various_flags - Asser...
+FAILED grep_test.py::GrepTest::test_one_file_one_match_case_insensitive_flag
+FAILED grep_test.py::GrepTest::test_one_file_one_match_match_entire_lines_flag
+FAILED grep_test.py::GrepTest::test_one_file_one_match_multiple_flags - Asser...
+FAILED grep_test.py::GrepTest::test_one_file_one_match_no_flags - AssertionEr...
+FAILED grep_test.py::GrepTest::test_one_file_one_match_print_line_numbers_flag
+FAILED grep_test.py::GrepTest::test_one_file_several_matches_case_insensitive_flag
+FAILED grep_test.py::GrepTest::test_one_file_several_matches_inverted_and_match_entire_lines_flags
+FAILED grep_test.py::GrepTest::test_one_file_several_matches_inverted_flag - ...
+FAILED grep_test.py::GrepTest::test_one_file_several_matches_match_entire_lines_flag
+FAILED grep_test.py::GrepTest::test_one_file_several_matches_no_flags - Asser...
+FAILED grep_test.py::GrepTest::test_one_file_several_matches_print_line_numbers_flag
+23 failed, 2 passed in 0.05s

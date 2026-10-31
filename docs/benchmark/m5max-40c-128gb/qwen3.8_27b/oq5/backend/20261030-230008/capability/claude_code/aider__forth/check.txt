@@ -1,0 +1,417 @@
+....F....F.F.FFF..FF................F..F....FFFFFF...F                   [100%]
+=================================== FAILURES ===================================
+______ ForthTest.test_case_insensitivity_definitions_are_case_insensitive ______
+
+self = <forth_test.ForthTest testMethod=test_case_insensitivity_definitions_are_case_insensitive>
+
+    def test_case_insensitivity_definitions_are_case_insensitive(self):
+>       self.assertEqual(evaluate([": SWAP DUP Dup dup ;", "1 swap"]), [1, 1, 1, 1])
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+forth_test.py:263: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+forth.py:88: in evaluate
+    _execute(tokens, stack, words)
+forth.py:101: in _execute
+    _execute(entry, stack, words)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+tokens = ['DUP', 'Dup', 'dup', ';'], stack = [1, 1, 1, 1]
+words = {'+': <function _binary_op.<locals>.op at 0x106878f40>, '-': <function _binary_op.<locals>.op at 0x106879080>, '*': <function _binary_op.<locals>.op at 0x1068791c0>, '/': <function _binary_op.<locals>.op at 0x106879260>, ...}
+
+    def _execute(tokens, stack, words):
+        for token in tokens:
+            if _is_number(token):
+                stack.append(int(token))
+                continue
+            entry = words.get(token.lower())
+            if entry is None:
+>               raise ValueError("undefined operation")
+E               ValueError: undefined operation
+
+forth.py:99: ValueError
+__ ForthTest.test_case_insensitivity_user_defined_words_are_case_insensitive ___
+
+self = <forth_test.ForthTest testMethod=test_case_insensitivity_user_defined_words_are_case_insensitive>
+
+    def test_case_insensitivity_user_defined_words_are_case_insensitive(self):
+>       self.assertEqual(evaluate([": foo dup ;", "1 FOO Foo foo"]), [1, 1, 1, 1])
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+forth_test.py:260: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+forth.py:88: in evaluate
+    _execute(tokens, stack, words)
+forth.py:101: in _execute
+    _execute(entry, stack, words)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+tokens = ['dup', ';'], stack = [1, 1]
+words = {'+': <function _binary_op.<locals>.op at 0x106878f40>, '-': <function _binary_op.<locals>.op at 0x106879080>, '*': <function _binary_op.<locals>.op at 0x1068791c0>, '/': <function _binary_op.<locals>.op at 0x106879260>, ...}
+
+    def _execute(tokens, stack, words):
+        for token in tokens:
+            if _is_number(token):
+                stack.append(int(token))
+                continue
+            entry = words.get(token.lower())
+            if entry is None:
+>               raise ValueError("undefined operation")
+E               ValueError: undefined operation
+
+forth.py:99: ValueError
+_________ ForthTest.test_combined_arithmetic_addition_and_subtraction __________
+
+self = <forth_test.ForthTest testMethod=test_combined_arithmetic_addition_and_subtraction>
+
+    def test_combined_arithmetic_addition_and_subtraction(self):
+>       self.assertEqual(evaluate(["1 2 + 4 -"]), [-1])
+E       AssertionError: Lists differ: [1] != [-1]
+E       
+E       First differing element 0:
+E       1
+E       -1
+E       
+E       - [1]
+E       + [-1]
+E       ?  +
+
+forth_test.py:119: AssertionError
+________ ForthTest.test_combined_arithmetic_multiplication_and_division ________
+
+self = <forth_test.ForthTest testMethod=test_combined_arithmetic_multiplication_and_division>
+
+    def test_combined_arithmetic_multiplication_and_division(self):
+>       self.assertEqual(evaluate(["2 4 * 3 /"]), [2])
+E       AssertionError: Lists differ: [0] != [2]
+E       
+E       First differing element 0:
+E       0
+E       2
+E       
+E       - [0]
+E       + [2]
+
+forth_test.py:122: AssertionError
+________________ ForthTest.test_division_can_divide_two_numbers ________________
+
+self = <forth_test.ForthTest testMethod=test_division_can_divide_two_numbers>
+
+    def test_division_can_divide_two_numbers(self):
+>       self.assertEqual(evaluate(["12 3 /"]), [4])
+E       AssertionError: Lists differ: [0] != [4]
+E       
+E       First differing element 0:
+E       0
+E       4
+E       
+E       - [0]
+E       + [4]
+
+forth_test.py:87: AssertionError
+______________ ForthTest.test_division_errors_if_dividing_by_zero ______________
+
+self = <forth_test.ForthTest testMethod=test_division_errors_if_dividing_by_zero>
+
+    def test_division_errors_if_dividing_by_zero(self):
+        # divide by zero
+>       with self.assertRaises(ZeroDivisionError) as err:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: ZeroDivisionError not raised
+
+forth_test.py:94: AssertionError
+__________ ForthTest.test_division_more_than_two_values_on_the_stack ___________
+
+self = <forth_test.ForthTest testMethod=test_division_more_than_two_values_on_the_stack>
+
+    def test_division_more_than_two_values_on_the_stack(self):
+>       self.assertEqual(evaluate(["1 12 3 /"]), [1, 4])
+E       AssertionError: Lists differ: [1, 0] != [1, 4]
+E       
+E       First differing element 1:
+E       0
+E       4
+E       
+E       - [1, 0]
+E       ?     ^
+E       
+E       + [1, 4]
+E       ?     ^
+
+forth_test.py:116: AssertionError
+______________ ForthTest.test_division_performs_integer_division _______________
+
+self = <forth_test.ForthTest testMethod=test_division_performs_integer_division>
+
+    def test_division_performs_integer_division(self):
+>       self.assertEqual(evaluate(["8 3 /"]), [2])
+E       AssertionError: Lists differ: [0] != [2]
+E       
+E       First differing element 0:
+E       0
+E       2
+E       
+E       - [0]
+E       + [2]
+
+forth_test.py:90: AssertionError
+_____________ ForthTest.test_subtraction_can_subtract_two_numbers ______________
+
+self = <forth_test.ForthTest testMethod=test_subtraction_can_subtract_two_numbers>
+
+    def test_subtraction_can_subtract_two_numbers(self):
+>       self.assertEqual(evaluate(["3 4 -"]), [-1])
+E       AssertionError: Lists differ: [1] != [-1]
+E       
+E       First differing element 0:
+E       1
+E       -1
+E       
+E       - [1]
+E       + [-1]
+E       ?  +
+
+forth_test.py:43: AssertionError
+_________ ForthTest.test_subtraction_more_than_two_values_on_the_stack _________
+
+self = <forth_test.ForthTest testMethod=test_subtraction_more_than_two_values_on_the_stack>
+
+    def test_subtraction_more_than_two_values_on_the_stack(self):
+>       self.assertEqual(evaluate(["1 12 3 -"]), [1, 9])
+E       AssertionError: Lists differ: [1, -9] != [1, 9]
+E       
+E       First differing element 1:
+E       -9
+E       9
+E       
+E       - [1, -9]
+E       ?     -
+E       
+E       + [1, 9]
+
+forth_test.py:62: AssertionError
+_______ ForthTest.test_user_defined_words_can_consist_of_built_in_words ________
+
+self = <forth_test.ForthTest testMethod=test_user_defined_words_can_consist_of_built_in_words>
+
+    def test_user_defined_words_can_consist_of_built_in_words(self):
+>       self.assertEqual(evaluate([": dup-twice dup dup ;", "1 dup-twice"]), [1, 1, 1])
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+forth_test.py:205: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+forth.py:88: in evaluate
+    _execute(tokens, stack, words)
+forth.py:101: in _execute
+    _execute(entry, stack, words)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+tokens = ['dup', 'dup', ';'], stack = [1, 1, 1]
+words = {'+': <function _binary_op.<locals>.op at 0x106878f40>, '-': <function _binary_op.<locals>.op at 0x106879080>, '*': <function _binary_op.<locals>.op at 0x1068791c0>, '/': <function _binary_op.<locals>.op at 0x106879260>, ...}
+
+    def _execute(tokens, stack, words):
+        for token in tokens:
+            if _is_number(token):
+                stack.append(int(token))
+                continue
+            entry = words.get(token.lower())
+            if entry is None:
+>               raise ValueError("undefined operation")
+E               ValueError: undefined operation
+
+forth.py:99: ValueError
+_ ForthTest.test_user_defined_words_can_define_word_that_uses_word_with_the_same_name _
+
+self = <forth_test.ForthTest testMethod=test_user_defined_words_can_define_word_that_uses_word_with_the_same_name>
+
+    def test_user_defined_words_can_define_word_that_uses_word_with_the_same_name(self):
+>       self.assertEqual(evaluate([": foo 10 ;", ": foo foo 1 + ;", "foo"]), [11])
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+forth_test.py:227: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+forth.py:88: in evaluate
+    _execute(tokens, stack, words)
+forth.py:101: in _execute
+    _execute(entry, stack, words)
+forth.py:101: in _execute
+    _execute(entry, stack, words)
+forth.py:101: in _execute
+    _execute(entry, stack, words)
+E   RecursionError: maximum recursion depth exceeded
+!!! Recursion detected (same locals & position)
+______ ForthTest.test_user_defined_words_can_override_built_in_operators _______
+
+self = <forth_test.ForthTest testMethod=test_user_defined_words_can_override_built_in_operators>
+
+    def test_user_defined_words_can_override_built_in_operators(self):
+>       self.assertEqual(evaluate([": + * ;", "3 4 +"]), [12])
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+forth_test.py:219: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+forth.py:88: in evaluate
+    _execute(tokens, stack, words)
+forth.py:101: in _execute
+    _execute(entry, stack, words)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+tokens = ['*', ';'], stack = [12]
+words = {'+': ['*', ';'], '-': <function _binary_op.<locals>.op at 0x106879080>, '*': <function _binary_op.<locals>.op at 0x1068791c0>, '/': <function _binary_op.<locals>.op at 0x106879260>, ...}
+
+    def _execute(tokens, stack, words):
+        for token in tokens:
+            if _is_number(token):
+                stack.append(int(token))
+                continue
+            entry = words.get(token.lower())
+            if entry is None:
+>               raise ValueError("undefined operation")
+E               ValueError: undefined operation
+
+forth.py:99: ValueError
+________ ForthTest.test_user_defined_words_can_override_built_in_words _________
+
+self = <forth_test.ForthTest testMethod=test_user_defined_words_can_override_built_in_words>
+
+    def test_user_defined_words_can_override_built_in_words(self):
+>       self.assertEqual(evaluate([": swap dup ;", "1 swap"]), [1, 1])
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+forth_test.py:216: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+forth.py:88: in evaluate
+    _execute(tokens, stack, words)
+forth.py:101: in _execute
+    _execute(entry, stack, words)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+tokens = ['dup', ';'], stack = [1, 1]
+words = {'+': <function _binary_op.<locals>.op at 0x106878f40>, '-': <function _binary_op.<locals>.op at 0x106879080>, '*': <function _binary_op.<locals>.op at 0x1068791c0>, '/': <function _binary_op.<locals>.op at 0x106879260>, ...}
+
+    def _execute(tokens, stack, words):
+        for token in tokens:
+            if _is_number(token):
+                stack.append(int(token))
+                continue
+            entry = words.get(token.lower())
+            if entry is None:
+>               raise ValueError("undefined operation")
+E               ValueError: undefined operation
+
+forth.py:99: ValueError
+___ ForthTest.test_user_defined_words_can_override_other_user_defined_words ____
+
+self = <forth_test.ForthTest testMethod=test_user_defined_words_can_override_other_user_defined_words>
+
+    def test_user_defined_words_can_override_other_user_defined_words(self):
+        self.assertEqual(
+>           evaluate([": foo dup ;", ": foo dup dup ;", "1 foo"]), [1, 1, 1]
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        )
+
+forth_test.py:212: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+forth.py:88: in evaluate
+    _execute(tokens, stack, words)
+forth.py:101: in _execute
+    _execute(entry, stack, words)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+tokens = ['dup', 'dup', ';'], stack = [1, 1, 1]
+words = {'+': <function _binary_op.<locals>.op at 0x106878f40>, '-': <function _binary_op.<locals>.op at 0x106879080>, '*': <function _binary_op.<locals>.op at 0x1068791c0>, '/': <function _binary_op.<locals>.op at 0x106879260>, ...}
+
+    def _execute(tokens, stack, words):
+        for token in tokens:
+            if _is_number(token):
+                stack.append(int(token))
+                continue
+            entry = words.get(token.lower())
+            if entry is None:
+>               raise ValueError("undefined operation")
+E               ValueError: undefined operation
+
+forth.py:99: ValueError
+_ ForthTest.test_user_defined_words_can_use_different_words_with_the_same_name _
+
+self = <forth_test.ForthTest testMethod=test_user_defined_words_can_use_different_words_with_the_same_name>
+
+    def test_user_defined_words_can_use_different_words_with_the_same_name(self):
+        self.assertEqual(
+>           evaluate([": foo 5 ;", ": bar foo ;", ": foo 6 ;", "bar foo"]), [5, 6]
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        )
+
+forth_test.py:223: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+forth.py:88: in evaluate
+    _execute(tokens, stack, words)
+forth.py:101: in _execute
+    _execute(entry, stack, words)
+forth.py:101: in _execute
+    _execute(entry, stack, words)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+tokens = ['6', ';'], stack = [6]
+words = {'+': <function _binary_op.<locals>.op at 0x106878f40>, '-': <function _binary_op.<locals>.op at 0x106879080>, '*': <function _binary_op.<locals>.op at 0x1068791c0>, '/': <function _binary_op.<locals>.op at 0x106879260>, ...}
+
+    def _execute(tokens, stack, words):
+        for token in tokens:
+            if _is_number(token):
+                stack.append(int(token))
+                continue
+            entry = words.get(token.lower())
+            if entry is None:
+>               raise ValueError("undefined operation")
+E               ValueError: undefined operation
+
+forth.py:99: ValueError
+_________ ForthTest.test_user_defined_words_execute_in_the_right_order _________
+
+self = <forth_test.ForthTest testMethod=test_user_defined_words_execute_in_the_right_order>
+
+    def test_user_defined_words_execute_in_the_right_order(self):
+>       self.assertEqual(evaluate([": countup 1 2 3 ;", "countup"]), [1, 2, 3])
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+forth_test.py:208: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+forth.py:88: in evaluate
+    _execute(tokens, stack, words)
+forth.py:101: in _execute
+    _execute(entry, stack, words)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+tokens = ['1', '2', '3', ';'], stack = [1, 2, 3]
+words = {'+': <function _binary_op.<locals>.op at 0x106878f40>, '-': <function _binary_op.<locals>.op at 0x106879080>, '*': <function _binary_op.<locals>.op at 0x1068791c0>, '/': <function _binary_op.<locals>.op at 0x106879260>, ...}
+
+    def _execute(tokens, stack, words):
+        for token in tokens:
+            if _is_number(token):
+                stack.append(int(token))
+                continue
+            entry = words.get(token.lower())
+            if entry is None:
+>               raise ValueError("undefined operation")
+E               ValueError: undefined operation
+
+forth.py:99: ValueError
+=========================== short test summary info ============================
+FAILED forth_test.py::ForthTest::test_case_insensitivity_definitions_are_case_insensitive
+FAILED forth_test.py::ForthTest::test_case_insensitivity_user_defined_words_are_case_insensitive
+FAILED forth_test.py::ForthTest::test_combined_arithmetic_addition_and_subtraction
+FAILED forth_test.py::ForthTest::test_combined_arithmetic_multiplication_and_division
+FAILED forth_test.py::ForthTest::test_division_can_divide_two_numbers - Asser...
+FAILED forth_test.py::ForthTest::test_division_errors_if_dividing_by_zero - A...
+FAILED forth_test.py::ForthTest::test_division_more_than_two_values_on_the_stack
+FAILED forth_test.py::ForthTest::test_division_performs_integer_division - As...
+FAILED forth_test.py::ForthTest::test_subtraction_can_subtract_two_numbers - ...
+FAILED forth_test.py::ForthTest::test_subtraction_more_than_two_values_on_the_stack
+FAILED forth_test.py::ForthTest::test_user_defined_words_can_consist_of_built_in_words
+FAILED forth_test.py::ForthTest::test_user_defined_words_can_define_word_that_uses_word_with_the_same_name
+FAILED forth_test.py::ForthTest::test_user_defined_words_can_override_built_in_operators
+FAILED forth_test.py::ForthTest::test_user_defined_words_can_override_built_in_words
+FAILED forth_test.py::ForthTest::test_user_defined_words_can_override_other_user_defined_words
+FAILED forth_test.py::ForthTest::test_user_defined_words_can_use_different_words_with_the_same_name
+FAILED forth_test.py::ForthTest::test_user_defined_words_execute_in_the_right_order
+17 failed, 37 passed in 0.05s

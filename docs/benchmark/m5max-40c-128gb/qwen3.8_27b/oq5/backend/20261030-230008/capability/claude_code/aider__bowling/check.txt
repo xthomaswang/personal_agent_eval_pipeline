@@ -1,0 +1,118 @@
+......F.........FF..F..........                                          [100%]
+=================================== FAILURES ===================================
+________________ BowlingTest.test_all_strikes_is_a_perfect_game ________________
+
+self = <bowling_test.BowlingTest testMethod=test_all_strikes_is_a_perfect_game>
+
+    def test_all_strikes_is_a_perfect_game(self):
+        rolls = [10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10]
+>       game = self.roll_new_game(rolls)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+bowling_test.py:97: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+bowling_test.py:16: in roll_new_game
+    game.roll(roll)
+bowling.py:11: in roll
+    self._validate_frame_roll(pins)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <bowling.BowlingGame object at 0x10733c5a0>, pins = 10
+
+    def _validate_frame_roll(self, pins):
+        # Second roll of a frame (frames 1-9) must not exceed 10 pins
+        if (len(self._rolls) > 0
+                and self._rolls[-1] + pins > 10):
+>           raise ValueError("pin count exceeds 10")
+E           ValueError: pin count exceeds 10
+
+bowling.py:56: ValueError
+________ BowlingTest.test_consecutive_spares_each_get_a_one_roll_bonus _________
+
+self = <bowling_test.BowlingTest testMethod=test_consecutive_spares_each_get_a_one_roll_bonus>
+
+    def test_consecutive_spares_each_get_a_one_roll_bonus(self):
+        rolls = [5, 5, 3, 7, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+>       game = self.roll_new_game(rolls)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+bowling_test.py:41: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+bowling_test.py:16: in roll_new_game
+    game.roll(roll)
+bowling.py:11: in roll
+    self._validate_frame_roll(pins)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <bowling.BowlingGame object at 0x1072a19d0>, pins = 4
+
+    def _validate_frame_roll(self, pins):
+        # Second roll of a frame (frames 1-9) must not exceed 10 pins
+        if (len(self._rolls) > 0
+                and self._rolls[-1] + pins > 10):
+>           raise ValueError("pin count exceeds 10")
+E           ValueError: pin count exceeds 10
+
+bowling.py:56: ValueError
+_______ BowlingTest.test_consecutive_strikes_each_get_the_two_roll_bonus _______
+
+self = <bowling_test.BowlingTest testMethod=test_consecutive_strikes_each_get_the_two_roll_bonus>
+
+    def test_consecutive_strikes_each_get_the_two_roll_bonus(self):
+        rolls = [10, 10, 10, 5, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+>       game = self.roll_new_game(rolls)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+bowling_test.py:63: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+bowling_test.py:16: in roll_new_game
+    game.roll(roll)
+bowling.py:11: in roll
+    self._validate_frame_roll(pins)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <bowling.BowlingGame object at 0x107332ba0>, pins = 10
+
+    def _validate_frame_roll(self, pins):
+        # Second roll of a frame (frames 1-9) must not exceed 10 pins
+        if (len(self._rolls) > 0
+                and self._rolls[-1] + pins > 10):
+>           raise ValueError("pin count exceeds 10")
+E           ValueError: pin count exceeds 10
+
+bowling.py:56: ValueError
+_ BowlingTest.test_points_scored_in_the_two_rolls_after_a_strike_are_counted_twice_as_a_bonus _
+
+self = <bowling_test.BowlingTest testMethod=test_points_scored_in_the_two_rolls_after_a_strike_are_counted_twice_as_a_bonus>
+
+    def test_points_scored_in_the_two_rolls_after_a_strike_are_counted_twice_as_a_bonus(
+        self,
+    ):
+        rolls = [10, 5, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+>       game = self.roll_new_game(rolls)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+bowling_test.py:58: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+bowling_test.py:16: in roll_new_game
+    game.roll(roll)
+bowling.py:11: in roll
+    self._validate_frame_roll(pins)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <bowling.BowlingGame object at 0x107326cb0>, pins = 5
+
+    def _validate_frame_roll(self, pins):
+        # Second roll of a frame (frames 1-9) must not exceed 10 pins
+        if (len(self._rolls) > 0
+                and self._rolls[-1] + pins > 10):
+>           raise ValueError("pin count exceeds 10")
+E           ValueError: pin count exceeds 10
+
+bowling.py:56: ValueError
+=========================== short test summary info ============================
+FAILED bowling_test.py::BowlingTest::test_all_strikes_is_a_perfect_game - Val...
+FAILED bowling_test.py::BowlingTest::test_consecutive_spares_each_get_a_one_roll_bonus
+FAILED bowling_test.py::BowlingTest::test_consecutive_strikes_each_get_the_two_roll_bonus
+FAILED bowling_test.py::BowlingTest::test_points_scored_in_the_two_rolls_after_a_strike_are_counted_twice_as_a_bonus
+4 failed, 27 passed in 0.02s

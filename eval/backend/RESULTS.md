@@ -108,6 +108,122 @@ Per-task differences (new minus reference, harnesses solved):
 |---|---|---|---|---|
 | Qwen3.8-Flash-Next oQ4e + MTP | 58 | 1387 / 4561 (0.30x) | 1299 / 4339 (0.30x) | 6.4 / 9.7 |
 
+## Capability on m5max-40c-128gb: gate set (protocol 2, harness epoch 4271c2f4a925)
+
+### Solved per harness
+
+Counts of runs; Wilson 95 % intervals are for display only (the three harnesses are correlated, so the decision below is per task).
+
+| Model | Run | Claude Code | Hermes | localmelo | Runs solved | Solved within 1200 s | Anomalies |
+|---|---|---|---|---|---|---|---|
+| Qwen3.8-27B oQ5 + MTP | `qwen3-8-27b-oq5/20261028-211816` | 20/22 (72-97 %) | 21/22 (78-99 %) | 22/22 (85-100 %) | 63/66 | 63/66 | 0 |
+| Qwen3.8-Flash-Next oQ4e + MTP (reference) | `qwen3-8-flash-next-oq4e/20261028-142438` | 22/22 (85-100 %) | 22/22 (85-100 %) | 22/22 (85-100 %) | 66/66 | 66/66 | 0 |
+
+### Against the reference (Qwen3.8-Flash-Next oQ4e + MTP)
+
+Per task, a model's score is the number of harnesses that solved it (0-3); 22 tasks. Only the (harness, task) pairs with a valid result for both models are scored; a decision with excluded pairs is provisional. Decision rule, fixed in advance: not worse unless the new model loses on >= 5 tasks more than it wins, with the sign consistent in at least 2 harnesses.
+
+| Model | Tasks | Score new vs ref | Ahead | Behind | Tied | Sign-test p | Net per harness | Decision | Minimum detectable difference |
+|---|---|---|---|---|---|---|---|---|---|
+| Qwen3.8-27B oQ5 + MTP | 22 (66 pairs) | 63 vs 66 | 0 | 3 | 19 | 0.250 | claude_code -2, hermes -1, localmelo +0 | **not worse** | rule: net loss >= 5 of 22 tasks (23 %) |
+
+Per-task differences (new minus reference, harnesses solved):
+
+- Qwen3.8-27B oQ5 + MTP: aider/react -1, aider/scale-generator -1, aider/transpose -1
+
+### Time to solution (pairs both models solved)
+
+| Model | Pairs | Wall s new / ref | Model s new / ref | Steps per pair new / ref |
+|---|---|---|---|---|
+| Qwen3.8-27B oQ5 + MTP | 63 | 3097 / 1159 (2.67x) | 2954 / 1052 (2.81x) | 6.7 / 6.2 |
+
+## Capability on m5max-40c-128gb: ranking set (protocol 2, harness epoch 4271c2f4a925)
+
+### Solved per harness
+
+Counts of runs; Wilson 95 % intervals are for display only (the three harnesses are correlated, so the decision below is per task).
+
+| Model | Run | Claude Code | Hermes | localmelo | Runs solved | Solved within 1200 s | Anomalies |
+|---|---|---|---|---|---|---|---|
+| Qwen3.8-27B oQ5 + MTP | `qwen3-8-27b-oq5/20261028-211816` | 19/22 (67-95 %) | 18/22 (61-93 %) | 21/22 (78-99 %) | 58/66 | 58/66 | 0 |
+| Qwen3.8-Flash-Next oQ4e + MTP (reference) | `qwen3-8-flash-next-oq4e/20261028-142438` | 20/22 (72-97 %) | 22/22 (85-100 %) | 20/22 (72-97 %) | 62/66 | 62/66 | 0 |
+
+### Against the reference (Qwen3.8-Flash-Next oQ4e + MTP)
+
+Per task, a model's score is the number of harnesses that solved it (0-3); 22 tasks. Only the (harness, task) pairs with a valid result for both models are scored; a decision with excluded pairs is provisional. Decision rule, fixed in advance: better / worse only at sign-test p < 0.05; otherwise no detectable difference.
+
+| Model | Tasks | Score new vs ref | Ahead | Behind | Tied | Sign-test p | Net per harness | Decision | Minimum detectable difference |
+|---|---|---|---|---|---|---|---|---|---|
+| Qwen3.8-27B oQ5 + MTP | 22 (66 pairs) | 58 vs 62 | 2 | 5 | 15 | 0.453 | claude_code -1, hermes -4, localmelo +1 | **no detectable difference** | net >= 7 of 7 differing tasks; all 22 differing: net >= 12 |
+
+Per-task differences (new minus reference, harnesses solved):
+
+- Qwen3.8-27B oQ5 + MTP: aider/bowling +1, aider/connect -2, aider/go-counting -1, aider/hangman -1, aider/paasio -1, aider/pov +1, aider/sgf-parsing -1
+
+### Time to solution (pairs both models solved)
+
+| Model | Pairs | Wall s new / ref | Model s new / ref | Steps per pair new / ref |
+|---|---|---|---|---|
+| Qwen3.8-27B oQ5 + MTP | 55 | 4734 / 2272 (2.08x) | 4066 / 1468 (2.77x) | 7.8 / 7.1 |
+
+## Capability on m5max-40c-128gb: gate set (protocol 2, harness epoch 8c545ce3471c)
+
+### Solved per harness
+
+Counts of runs; Wilson 95 % intervals are for display only (the three harnesses are correlated, so the decision below is per task).
+
+| Model | Run | Claude Code | Hermes | localmelo | Runs solved | Solved within 1200 s | Anomalies |
+|---|---|---|---|---|---|---|---|
+| Qwen3.8-27B oQ5 + MTP | `qwen3-8-27b-oq5/20261030-230008` | 21/22 (78-99 %) | 21/22 (78-99 %) | 21/22 (78-99 %) | 63/66 | 63/66 | 0 |
+| Qwen3.8-Flash-Next oQ4e + MTP (reference) | `qwen3-8-flash-next-oq4e/20261030-043547` | 21/22 (78-99 %) | 22/22 (85-100 %) | 21/22 (78-99 %) | 64/66 | 64/66 | 0 |
+
+### Against the reference (Qwen3.8-Flash-Next oQ4e + MTP)
+
+Per task, a model's score is the number of harnesses that solved it (0-3); 22 tasks. Only the (harness, task) pairs with a valid result for both models are scored; a decision with excluded pairs is provisional. Decision rule, fixed in advance: not worse unless the new model loses on >= 5 tasks more than it wins, with the sign consistent in at least 2 harnesses.
+
+| Model | Tasks | Score new vs ref | Ahead | Behind | Tied | Sign-test p | Net per harness | Decision | Minimum detectable difference |
+|---|---|---|---|---|---|---|---|---|---|
+| Qwen3.8-27B oQ5 + MTP | 22 (66 pairs) | 63 vs 64 | 1 | 2 | 19 | 1.000 | claude_code +0, hermes -1, localmelo +0 | **not worse** | rule: net loss >= 5 of 22 tasks (23 %) |
+
+Per-task differences (new minus reference, harnesses solved):
+
+- Qwen3.8-27B oQ5 + MTP: aider/transpose +1, aider/variable-length-quantity -1, aider/wordy -1
+
+### Time to solution (pairs both models solved)
+
+| Model | Pairs | Wall s new / ref | Model s new / ref | Steps per pair new / ref |
+|---|---|---|---|---|
+| Qwen3.8-27B oQ5 + MTP | 61 | 2187 / 1373 (1.59x) | 2099 / 1041 (2.02x) | 6.4 / 6.8 |
+
+## Capability on m5max-40c-128gb: ranking set (protocol 2, harness epoch 8c545ce3471c)
+
+### Solved per harness
+
+Counts of runs; Wilson 95 % intervals are for display only (the three harnesses are correlated, so the decision below is per task).
+
+| Model | Run | Claude Code | Hermes | localmelo | Runs solved | Solved within 1200 s | Anomalies |
+|---|---|---|---|---|---|---|---|
+| Qwen3.8-27B oQ5 + MTP | `qwen3-8-27b-oq5/20261030-230008` | 16/22 (52-87 %) | 21/22 (78-99 %) | 20/22 (72-97 %) | 57/66 | 57/66 | 0 |
+| Qwen3.8-Flash-Next oQ4e + MTP (reference) | `qwen3-8-flash-next-oq4e/20261030-043547` | 20/22 (72-97 %) | 21/22 (78-99 %) | 20/22 (72-97 %) | 61/66 | 61/66 | 0 |
+
+### Against the reference (Qwen3.8-Flash-Next oQ4e + MTP)
+
+Per task, a model's score is the number of harnesses that solved it (0-3); 22 tasks. Only the (harness, task) pairs with a valid result for both models are scored; a decision with excluded pairs is provisional. Decision rule, fixed in advance: better / worse only at sign-test p < 0.05; otherwise no detectable difference.
+
+| Model | Tasks | Score new vs ref | Ahead | Behind | Tied | Sign-test p | Net per harness | Decision | Minimum detectable difference |
+|---|---|---|---|---|---|---|---|---|---|
+| Qwen3.8-27B oQ5 + MTP | 22 (66 pairs) | 57 vs 61 | 3 | 7 | 12 | 0.344 | claude_code -4, hermes +0, localmelo +0 | **no detectable difference** | net >= 8 of 10 differing tasks; all 22 differing: net >= 12 |
+
+Per-task differences (new minus reference, harnesses solved):
+
+- Qwen3.8-27B oQ5 + MTP: aider/book-store +1, aider/bowling -2, aider/connect -1, aider/forth -1, aider/paasio +2, aider/poker -1, aider/pov +1, aider/rest-api -1, aider/sgf-parsing -1, aider/zebra-puzzle -1
+
+### Time to solution (pairs both models solved)
+
+| Model | Pairs | Wall s new / ref | Model s new / ref | Steps per pair new / ref |
+|---|---|---|---|---|
+| Qwen3.8-27B oQ5 + MTP | 52 | 3855 / 1458 (2.64x) | 3688 / 1104 (3.34x) | 9.0 / 6.8 |
+
 ## Setting and notes
 
 - **Qwen3.8-27B oQ5 + MTP**: quantization oQ5 (Qwen/Qwen3.8-27B@1d4bf0f2ff, oq_convert level 5, MTP kept); speculative decoding mtp; sampling temperature 1.0, top_p 0.95, top_k 20
@@ -128,6 +244,6 @@ Per-task differences (new minus reference, harnesses solved):
 - Memory: server footprint of the oMLX process tree (`footprint`, RSS fallback); the system delta is wired + compressed + file-backed memory against the pre-launch baseline. File-backed pages are the page cache: mmapped weights appear in the delta only if they were not already cached before the launch, so the delta is an indication, not a measure of mmapped memory.
 - Cross-night band (old campaign): M1 and M3 up to ~20 %, M4 ~9 %. A ratio marked ≈ lies inside it and counts as no difference.
 - Capability: solved = the checker passes within the 30-step budget (also after a wall timeout); runs excluded only for pipeline mismatches (model id, forwarded sampling or thinking). Anomalies (5xx, a reasoning leak with thinking off, a template fallback) are attributed to the model, never excluded, and counted per model; they do not change the checker's verdict.
-- Protocol version(s): 1 (current: 1); harness epoch(s): 7582825160ad.
+- Protocol version(s): 1, 2 (current: 2); harness epoch(s): 4271c2f4a925, 7582825160ad, 8c545ce3471c.
 - Declared-equivalent harness epochs (pins.toml `[[epoch.equivalent]]`, DESIGN §6.5; `modeleval selftest` checks each against git): ce99c7b5d0bd counts as 7582825160ad (eval/bench/manifest.py: one comment line reworded (2026-10-26 history rewrite); no code change). Their runs share the tables of the canonical id named in each heading.
 - Earlier measurements: the Qwen3.8-27B serving campaign (`../qwen3.8-27b_20261017-2258_benchmark`, 2026-10-17..22) is not comparable with these tables: it used image-mode M1/M4, temperature 0 for some rows, three M4 runs with whole-run exclusion of cut steps, and an older localmelo (`5c009a8-dirty`).

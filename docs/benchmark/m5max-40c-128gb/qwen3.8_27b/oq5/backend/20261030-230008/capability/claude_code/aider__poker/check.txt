@@ -1,0 +1,228 @@
+......FFF...F.FF...FF.....F......FF..                                    [100%]
+=================================== FAILURES ===================================
+__ PokerTest.test_aces_cannot_be_in_the_middle_of_a_straight_flush_q_k_a_2_3 ___
+
+self = <poker_test.PokerTest testMethod=test_aces_cannot_be_in_the_middle_of_a_straight_flush_q_k_a_2_3>
+
+    def test_aces_cannot_be_in_the_middle_of_a_straight_flush_q_k_a_2_3(self):
+>       self.assertEqual(
+            best_hands(["2C AC QC 10C KC", "QH KH AH 2H 3H"]), ["2C AC QC 10C KC"]
+        )
+E       AssertionError: Lists differ: ['QH KH AH 2H 3H'] != ['2C AC QC 10C KC']
+E       
+E       First differing element 0:
+E       'QH KH AH 2H 3H'
+E       '2C AC QC 10C KC'
+E       
+E       - ['QH KH AH 2H 3H']
+E       + ['2C AC QC 10C KC']
+
+poker_test.py:209: AssertionError
+_____ PokerTest.test_aces_cannot_be_in_the_middle_of_a_straight_q_k_a_2_3 ______
+
+self = <poker_test.PokerTest testMethod=test_aces_cannot_be_in_the_middle_of_a_straight_q_k_a_2_3>
+
+    def test_aces_cannot_be_in_the_middle_of_a_straight_q_k_a_2_3(self):
+>       self.assertEqual(
+            best_hands(["2C 3D 7H 5H 2S", "QS KH AC 2D 3S"]), ["2C 3D 7H 5H 2S"]
+        )
+E       AssertionError: Lists differ: ['QS KH AC 2D 3S'] != ['2C 3D 7H 5H 2S']
+E       
+E       First differing element 0:
+E       'QS KH AC 2D 3S'
+E       '2C 3D 7H 5H 2S'
+E       
+E       - ['QS KH AC 2D 3S']
+E       + ['2C 3D 7H 5H 2S']
+
+poker_test.py:131: AssertionError
+_ PokerTest.test_both_hands_have_a_flush_tie_goes_to_high_card_down_to_the_last_one_if_necessary _
+
+self = <poker_test.PokerTest testMethod=test_both_hands_have_a_flush_tie_goes_to_high_card_down_to_the_last_one_if_necessary>
+
+    def test_both_hands_have_a_flush_tie_goes_to_high_card_down_to_the_last_one_if_necessary(
+        self,
+    ):
+>       self.assertEqual(
+            best_hands(["2H 7H 8H 9H 6H", "3S 5S 6S 7S 8S"]), ["2H 7H 8H 9H 6H"]
+        )
+E       AssertionError: Lists differ: ['3S 5S 6S 7S 8S'] != ['2H 7H 8H 9H 6H']
+E       
+E       First differing element 0:
+E       '3S 5S 6S 7S 8S'
+E       '2H 7H 8H 9H 6H'
+E       
+E       - ['3S 5S 6S 7S 8S']
+E       + ['2H 7H 8H 9H 6H']
+
+poker_test.py:155: AssertionError
+_________ PokerTest.test_both_hands_have_the_same_pair_high_card_wins __________
+
+self = <poker_test.PokerTest testMethod=test_both_hands_have_the_same_pair_high_card_wins>
+
+    def test_both_hands_have_the_same_pair_high_card_wins(self):
+>       self.assertEqual(
+            best_hands(["4H 4S AH JC 3D", "4C 4D AS 5D 6C"]), ["4H 4S AH JC 3D"]
+        )
+E       AssertionError: Lists differ: ['4C 4D AS 5D 6C'] != ['4H 4S AH JC 3D']
+E       
+E       First differing element 0:
+E       '4C 4D AS 5D 6C'
+E       '4H 4S AH JC 3D'
+E       
+E       - ['4C 4D AS 5D 6C']
+E       + ['4H 4S AH JC 3D']
+
+poker_test.py:58: AssertionError
+_ PokerTest.test_both_hands_have_two_identically_ranked_pairs_tie_goes_to_remaining_card_kicker _
+
+self = <poker_test.PokerTest testMethod=test_both_hands_have_two_identically_ranked_pairs_tie_goes_to_remaining_card_kicker>
+
+    def test_both_hands_have_two_identically_ranked_pairs_tie_goes_to_remaining_card_kicker(
+        self,
+    ):
+>       self.assertEqual(
+            best_hands(["JD QH JS 8D QC", "JS QS JC 2D QD"]), ["JD QH JS 8D QC"]
+        )
+E       AssertionError: Lists differ: ['JS QS JC 2D QD'] != ['JD QH JS 8D QC']
+E       
+E       First differing element 0:
+E       'JS QS JC 2D QD'
+E       'JD QH JS 8D QC'
+E       
+E       - ['JS QS JC 2D QD']
+E       + ['JD QH JS 8D QC']
+
+poker_test.py:82: AssertionError
+______ PokerTest.test_both_hands_have_two_pairs_highest_ranked_pair_wins _______
+
+self = <poker_test.PokerTest testMethod=test_both_hands_have_two_pairs_highest_ranked_pair_wins>
+
+    def test_both_hands_have_two_pairs_highest_ranked_pair_wins(self):
+>       self.assertEqual(
+            best_hands(["2S 8H 2D 8D 3H", "4S 5H 4C 8S 5D"]), ["2S 8H 2D 8D 3H"]
+        )
+E       AssertionError: Lists differ: ['4S 5H 4C 8S 5D'] != ['2S 8H 2D 8D 3H']
+E       
+E       First differing element 0:
+E       '4S 5H 4C 8S 5D'
+E       '2S 8H 2D 8D 3H'
+E       
+E       - ['4S 5H 4C 8S 5D']
+E       + ['2S 8H 2D 8D 3H']
+
+poker_test.py:68: AssertionError
+_ PokerTest.test_even_though_an_ace_is_usually_high_a_5_high_straight_flush_is_the_lowest_scoring_straight_flush _
+
+self = <poker_test.PokerTest testMethod=test_even_though_an_ace_is_usually_high_a_5_high_straight_flush_is_the_lowest_scoring_straight_flush>
+
+    def test_even_though_an_ace_is_usually_high_a_5_high_straight_flush_is_the_lowest_scoring_straight_flush(
+        self,
+    ):
+>       self.assertEqual(
+            best_hands(["2H 3H 4H 5H 6H", "4D AD 3D 2D 5D"]), ["2H 3H 4H 5H 6H"]
+        )
+E       AssertionError: Lists differ: ['4D AD 3D 2D 5D'] != ['2H 3H 4H 5H 6H']
+E       
+E       First differing element 0:
+E       '4D AD 3D 2D 5D'
+E       '2H 3H 4H 5H 6H'
+E       
+E       - ['4D AD 3D 2D 5D']
+E       + ['2H 3H 4H 5H 6H']
+
+poker_test.py:221: AssertionError
+_ PokerTest.test_even_though_an_ace_is_usually_high_a_5_high_straight_is_the_lowest_scoring_straight _
+
+self = <poker_test.PokerTest testMethod=test_even_though_an_ace_is_usually_high_a_5_high_straight_is_the_lowest_scoring_straight>
+
+    def test_even_though_an_ace_is_usually_high_a_5_high_straight_is_the_lowest_scoring_straight(
+        self,
+    ):
+>       self.assertEqual(
+            best_hands(["2H 3C 4D 5D 6H", "4S AH 3S 2D 5H"]), ["2H 3C 4D 5D 6H"]
+        )
+E       AssertionError: Lists differ: ['4S AH 3S 2D 5H'] != ['2H 3C 4D 5D 6H']
+E       
+E       First differing element 0:
+E       '4S AH 3S 2D 5H'
+E       '2H 3C 4D 5D 6H'
+E       
+E       - ['4S AH 3S 2D 5H']
+E       + ['2H 3C 4D 5D 6H']
+
+poker_test.py:143: AssertionError
+_ PokerTest.test_multiple_hands_with_the_same_high_cards_tie_compares_next_highest_ranked_down_to_last_card _
+
+self = <poker_test.PokerTest testMethod=test_multiple_hands_with_the_same_high_cards_tie_compares_next_highest_ranked_down_to_last_card>
+
+    def test_multiple_hands_with_the_same_high_cards_tie_compares_next_highest_ranked_down_to_last_card(
+        self,
+    ):
+>       self.assertEqual(
+            best_hands(["3S 5H 6S 8D 7H", "2S 5D 6D 8C 7S"]), ["3S 5H 6S 8D 7H"]
+        )
+E       AssertionError: Lists differ: ['2S 5D 6D 8C 7S'] != ['3S 5H 6S 8D 7H']
+E       
+E       First differing element 0:
+E       '2S 5D 6D 8C 7S'
+E       '3S 5H 6S 8D 7H'
+E       
+E       - ['2S 5D 6D 8C 7S']
+E       + ['3S 5H 6S 8D 7H']
+
+poker_test.py:38: AssertionError
+________ PokerTest.test_winning_high_card_hand_also_has_the_lowest_card ________
+
+self = <poker_test.PokerTest testMethod=test_winning_high_card_hand_also_has_the_lowest_card>
+
+    def test_winning_high_card_hand_also_has_the_lowest_card(self):
+>       self.assertEqual(
+            best_hands(["2S 5H 6S 8D 7H", "3S 4D 6D 8C 7S"]), ["2S 5H 6S 8D 7H"]
+        )
+E       AssertionError: Lists differ: ['3S 4D 6D 8C 7S'] != ['2S 5H 6S 8D 7H']
+E       
+E       First differing element 0:
+E       '3S 4D 6D 8C 7S'
+E       '2S 5H 6S 8D 7H'
+E       
+E       - ['3S 4D 6D 8C 7S']
+E       + ['2S 5H 6S 8D 7H']
+
+poker_test.py:43: AssertionError
+_ PokerTest.test_with_multiple_decks_both_hands_have_a_full_house_with_the_same_triplet_tie_goes_to_the_pair _
+
+self = <poker_test.PokerTest testMethod=test_with_multiple_decks_both_hands_have_a_full_house_with_the_same_triplet_tie_goes_to_the_pair>
+
+    def test_with_multiple_decks_both_hands_have_a_full_house_with_the_same_triplet_tie_goes_to_the_pair(
+        self,
+    ):
+>       self.assertEqual(
+            best_hands(["5H 5S 5D 9S 9D", "5H 5S 5D 8S 8D"]), ["5H 5S 5D 9S 9D"]
+        )
+E       AssertionError: Lists differ: ['5H 5S 5D 8S 8D'] != ['5H 5S 5D 9S 9D']
+E       
+E       First differing element 0:
+E       '5H 5S 5D 8S 8D'
+E       '5H 5S 5D 9S 9D'
+E       
+E       - ['5H 5S 5D 8S 8D']
+E       ?            ^  ^
+E       
+E       + ['5H 5S 5D 9S 9D']
+E       ?            ^  ^
+
+poker_test.py:172: AssertionError
+=========================== short test summary info ============================
+FAILED poker_test.py::PokerTest::test_aces_cannot_be_in_the_middle_of_a_straight_flush_q_k_a_2_3
+FAILED poker_test.py::PokerTest::test_aces_cannot_be_in_the_middle_of_a_straight_q_k_a_2_3
+FAILED poker_test.py::PokerTest::test_both_hands_have_a_flush_tie_goes_to_high_card_down_to_the_last_one_if_necessary
+FAILED poker_test.py::PokerTest::test_both_hands_have_the_same_pair_high_card_wins
+FAILED poker_test.py::PokerTest::test_both_hands_have_two_identically_ranked_pairs_tie_goes_to_remaining_card_kicker
+FAILED poker_test.py::PokerTest::test_both_hands_have_two_pairs_highest_ranked_pair_wins
+FAILED poker_test.py::PokerTest::test_even_though_an_ace_is_usually_high_a_5_high_straight_flush_is_the_lowest_scoring_straight_flush
+FAILED poker_test.py::PokerTest::test_even_though_an_ace_is_usually_high_a_5_high_straight_is_the_lowest_scoring_straight
+FAILED poker_test.py::PokerTest::test_multiple_hands_with_the_same_high_cards_tie_compares_next_highest_ranked_down_to_last_card
+FAILED poker_test.py::PokerTest::test_winning_high_card_hand_also_has_the_lowest_card
+FAILED poker_test.py::PokerTest::test_with_multiple_decks_both_hands_have_a_full_house_with_the_same_triplet_tie_goes_to_the_pair
+11 failed, 26 passed in 0.03s

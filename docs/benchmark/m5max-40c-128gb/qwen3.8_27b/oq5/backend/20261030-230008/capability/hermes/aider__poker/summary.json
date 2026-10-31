@@ -1,0 +1,23 @@
+{
+  "run_id": "aider__poker",
+  "harness": "hermes",
+  "workspace": "ws/aider__poker",
+  "started_at": 1793428567.9051101,
+  "exit_code": 0,
+  "timed_out": false,
+  "wall_s": 123.973,
+  "harness_args": [],
+  "steps": {
+    "n_llm": 12,
+    "n_llm_aux": 0,
+    "n_llm_err": 0,
+    "n_llm_post_submit": 0,
+    "n_tool": 12,
+    "images_new_sum": 0
+  },
+  "harness_report": {
+    "tool_use_events": 12,
+    "api_call_count": 12,
+    "exit_code": 0
+  }
+}

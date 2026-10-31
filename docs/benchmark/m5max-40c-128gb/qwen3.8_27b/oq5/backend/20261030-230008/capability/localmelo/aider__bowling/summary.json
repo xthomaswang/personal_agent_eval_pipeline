@@ -1,0 +1,73 @@
+{
+  "run_id": "aider__bowling",
+  "harness": "localmelo",
+  "workspace": "ws/aider__bowling",
+  "started_at": 1793452627.9544709,
+  "exit_code": 2,
+  "timed_out": false,
+  "wall_s": 217.339,
+  "harness_args": [
+    "--request-timeout",
+    "1800",
+    "--timeout",
+    "3540",
+    "--output-format",
+    "json"
+  ],
+  "steps": {
+    "n_llm": 12,
+    "n_llm_aux": 0,
+    "n_llm_err": 0,
+    "n_llm_post_submit": 0,
+    "n_tool": 12,
+    "images_new_sum": 0
+  },
+  "harness_report": {
+    "steps": 11,
+    "task_status": "gate_stopped",
+    "run_record": {
+      "task_id": "4033705e770c4f3e94af19a907063eb8",
+      "status": "gate_stopped",
+      "error": "The current bowling.py (last write) implements the correct state machine per the debug trace; only the final test run to verify all 31 pass remains.",
+      "steps": 10,
+      "attempts": 1,
+      "n_llm": 12,
+      "n_main": 10,
+      "n_aux": 2,
+      "n_tool": 11,
+      "llm_errors": 0,
+      "usage": {
+        "prompt_tokens": 139598,
+        "completion_tokens": 10291,
+        "total_tokens": 149889
+      },
+      "duration_s": 217.00714904099004,
+      "config": {
+        "max_steps": 30,
+        "attempt_policy": "reflect",
+        "steps_per_attempt": 10,
+        "max_attempts": 5,
+        "reflection_gate": "flags",
+        "tool_exposure": "retrieve",
+        "mode": "direct",
+        "builtins": [
+          "file_read",
+          "file_write",
+          "python_exec"
+        ],
+        "memory": true,
+        "timeout_s": 3540.0,
+        "window_eviction": "chunk",
+        "reflect_tool_guard": true,
+        "cache_layout": "v3",
+        "window_messages": 64
+      },
+      "prefix_cache": {
+        "version": "fixed-prefix-v2",
+        "schema_changes": 0,
+        "reported_cached_tokens": 121425
+      },
+      "localmelo_version": "6921912"
+    }
+  }
+}

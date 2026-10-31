@@ -1,0 +1,30 @@
+.....F...                                                                [100%]
+=================================== FAILURES ===================================
+____________________ RestApiTest.test_lender_owes_borrower _____________________
+
+self = <rest_api_test.RestApiTest testMethod=test_lender_owes_borrower>
+
+    def test_lender_owes_borrower(self):
+        database = {
+            "users": [
+                {"name": "Adam", "owes": {"Bob": 3.0}, "owed_by": {}, "balance": -3.0},
+                {"name": "Bob", "owes": {}, "owed_by": {"Adam": 3.0}, "balance": 3.0},
+            ]
+        }
+        api = RestAPI(database)
+        payload = json.dumps({"lender": "Adam", "borrower": "Bob", "amount": 2.0})
+        response = api.post("/iou", payload)
+        expected = {
+            "users": [
+                {"name": "Adam", "owes": {"Bob": 1.0}, "owed_by": {}, "balance": -1.0},
+                {"name": "Bob", "owes": {}, "owed_by": {"Adam": 1.0}, "balance": 1.0},
+            ]
+        }
+>       self.assertDictEqual(json.loads(response), expected)
+E       AssertionError: {'use[34 chars]ob': 3.0}, 'owed_by': {}, 'balance': -3.0}, {'[65 chars].0}]} != {'use[34 chars]ob': 1.0}, 'owed_by': {}, 'balance': -1.0}, {'[64 chars].0}]}
+E       Diff is 654 characters long. Set self.maxDiff to None to see it.
+
+rest_api_test.py:127: AssertionError
+=========================== short test summary info ============================
+FAILED rest_api_test.py::RestApiTest::test_lender_owes_borrower - AssertionEr...
+1 failed, 8 passed in 0.01s

@@ -1,0 +1,529 @@
+.FFFFF....F..FFFFF.FFF..FFF.F..                                          [100%]
+=================================== FAILURES ===================================
+________ BowlingTest.test_a_spare_followed_by_zeros_is_worth_ten_points ________
+
+self = <bowling_test.BowlingTest testMethod=test_a_spare_followed_by_zeros_is_worth_ten_points>
+
+    def test_a_spare_followed_by_zeros_is_worth_ten_points(self):
+        rolls = [6, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+>       game = self.roll_new_game(rolls)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+bowling_test.py:31: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+bowling_test.py:16: in roll_new_game
+    game.roll(roll)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <bowling.BowlingGame object at 0x108f0d590>, pins = 0
+
+    def roll(self, pins):
+        if pins < 0:
+            raise ValueError("Negative roll is invalid")
+        if pins > 10:
+            raise ValueError("Roll of more than 10 pins is invalid")
+        if self._done:
+>           raise ValueError("Cannot roll after game is over")
+E           ValueError: Cannot roll after game is over
+
+bowling.py:14: ValueError
+_ BowlingTest.test_a_spare_in_the_last_frame_gets_a_one_roll_bonus_that_is_counted_once _
+
+self = <bowling_test.BowlingTest testMethod=test_a_spare_in_the_last_frame_gets_a_one_roll_bonus_that_is_counted_once>
+
+    def test_a_spare_in_the_last_frame_gets_a_one_roll_bonus_that_is_counted_once(self):
+        rolls = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 3, 7]
+>       game = self.roll_new_game(rolls)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+bowling_test.py:46: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+bowling_test.py:16: in roll_new_game
+    game.roll(roll)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <bowling.BowlingGame object at 0x108f7dbd0>, pins = 3
+
+    def roll(self, pins):
+        if pins < 0:
+            raise ValueError("Negative roll is invalid")
+        if pins > 10:
+            raise ValueError("Roll of more than 10 pins is invalid")
+        if self._done:
+>           raise ValueError("Cannot roll after game is over")
+E           ValueError: Cannot roll after game is over
+
+bowling.py:14: ValueError
+___ BowlingTest.test_a_strike_earns_ten_points_in_a_frame_with_a_single_roll ___
+
+self = <bowling_test.BowlingTest testMethod=test_a_strike_earns_ten_points_in_a_frame_with_a_single_roll>
+
+    def test_a_strike_earns_ten_points_in_a_frame_with_a_single_roll(self):
+        rolls = [10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+>       game = self.roll_new_game(rolls)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+bowling_test.py:51: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+bowling_test.py:16: in roll_new_game
+    game.roll(roll)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <bowling.BowlingGame object at 0x108ea2ea0>, pins = 0
+
+    def roll(self, pins):
+        if pins < 0:
+            raise ValueError("Negative roll is invalid")
+        if pins > 10:
+            raise ValueError("Roll of more than 10 pins is invalid")
+        if self._done:
+>           raise ValueError("Cannot roll after game is over")
+E           ValueError: Cannot roll after game is over
+
+bowling.py:14: ValueError
+_ BowlingTest.test_a_strike_in_the_last_frame_gets_a_two_roll_bonus_that_is_counted_once _
+
+self = <bowling_test.BowlingTest testMethod=test_a_strike_in_the_last_frame_gets_a_two_roll_bonus_that_is_counted_once>
+
+    def test_a_strike_in_the_last_frame_gets_a_two_roll_bonus_that_is_counted_once(
+        self,
+    ):
+        rolls = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 7, 1]
+>       game = self.roll_new_game(rolls)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+bowling_test.py:70: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+bowling_test.py:16: in roll_new_game
+    game.roll(roll)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <bowling.BowlingGame object at 0x108ea3230>, pins = 1
+
+    def roll(self, pins):
+        if pins < 0:
+            raise ValueError("Negative roll is invalid")
+        if pins > 10:
+            raise ValueError("Roll of more than 10 pins is invalid")
+        if self._done:
+>           raise ValueError("Cannot roll after game is over")
+E           ValueError: Cannot roll after game is over
+
+bowling.py:14: ValueError
+_ BowlingTest.test_a_strike_with_the_one_roll_bonus_after_a_spare_in_the_last_frame_does_not_get_a_bonus _
+
+self = <bowling_test.BowlingTest testMethod=test_a_strike_with_the_one_roll_bonus_after_a_spare_in_the_last_frame_does_not_get_a_bonus>
+
+    def test_a_strike_with_the_one_roll_bonus_after_a_spare_in_the_last_frame_does_not_get_a_bonus(
+        self,
+    ):
+        rolls = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 3, 10]
+>       game = self.roll_new_game(rolls)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+bowling_test.py:92: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+bowling_test.py:16: in roll_new_game
+    game.roll(roll)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <bowling.BowlingGame object at 0x108f79fd0>, pins = 3
+
+    def roll(self, pins):
+        if pins < 0:
+            raise ValueError("Negative roll is invalid")
+        if pins > 10:
+            raise ValueError("Roll of more than 10 pins is invalid")
+        if self._done:
+>           raise ValueError("Cannot roll after game is over")
+E           ValueError: Cannot roll after game is over
+
+bowling.py:14: ValueError
+_ BowlingTest.test_bonus_roll_for_a_spare_in_the_last_frame_must_be_rolled_before_score_can_be_calculated _
+
+self = <bowling_test.BowlingTest testMethod=test_bonus_roll_for_a_spare_in_the_last_frame_must_be_rolled_before_score_can_be_calculated>
+
+    def test_bonus_roll_for_a_spare_in_the_last_frame_must_be_rolled_before_score_can_be_calculated(
+        self,
+    ):
+        rolls = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 3]
+>       game = self.roll_new_game(rolls)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+bowling_test.py:195: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+bowling_test.py:16: in roll_new_game
+    game.roll(roll)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <bowling.BowlingGame object at 0x10902ce60>, pins = 3
+
+    def roll(self, pins):
+        if pins < 0:
+            raise ValueError("Negative roll is invalid")
+        if pins > 10:
+            raise ValueError("Roll of more than 10 pins is invalid")
+        if self._done:
+>           raise ValueError("Cannot roll after game is over")
+E           ValueError: Cannot roll after game is over
+
+bowling.py:14: ValueError
+___________ BowlingTest.test_cannot_roll_after_bonus_roll_for_spare ____________
+
+self = <bowling_test.BowlingTest testMethod=test_cannot_roll_after_bonus_roll_for_spare>
+
+    def test_cannot_roll_after_bonus_roll_for_spare(self):
+        rolls = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 3, 2]
+>       game = self.roll_new_game(rolls)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+bowling_test.py:201: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+bowling_test.py:16: in roll_new_game
+    game.roll(roll)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <bowling.BowlingGame object at 0x108f6f070>, pins = 3
+
+    def roll(self, pins):
+        if pins < 0:
+            raise ValueError("Negative roll is invalid")
+        if pins > 10:
+            raise ValueError("Roll of more than 10 pins is invalid")
+        if self._done:
+>           raise ValueError("Cannot roll after game is over")
+E           ValueError: Cannot roll after game is over
+
+bowling.py:14: ValueError
+__________ BowlingTest.test_cannot_roll_after_bonus_rolls_for_strike ___________
+
+self = <bowling_test.BowlingTest testMethod=test_cannot_roll_after_bonus_rolls_for_strike>
+
+    def test_cannot_roll_after_bonus_rolls_for_strike(self):
+        rolls = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 3, 2]
+>       game = self.roll_new_game(rolls)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+bowling_test.py:207: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+bowling_test.py:16: in roll_new_game
+    game.roll(roll)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <bowling.BowlingGame object at 0x108f48050>, pins = 2
+
+    def roll(self, pins):
+        if pins < 0:
+            raise ValueError("Negative roll is invalid")
+        if pins > 10:
+            raise ValueError("Roll of more than 10 pins is invalid")
+        if self._done:
+>           raise ValueError("Cannot roll after game is over")
+E           ValueError: Cannot roll after game is over
+
+bowling.py:14: ValueError
+_________ BowlingTest.test_cannot_roll_if_game_already_has_ten_frames __________
+
+self = <bowling_test.BowlingTest testMethod=test_cannot_roll_if_game_already_has_ten_frames>
+
+    def test_cannot_roll_if_game_already_has_ten_frames(self):
+        rolls = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+>       game = self.roll_new_game(rolls)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+bowling_test.py:171: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+bowling_test.py:16: in roll_new_game
+    game.roll(roll)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <bowling.BowlingGame object at 0x108ea7890>, pins = 0
+
+    def roll(self, pins):
+        if pins < 0:
+            raise ValueError("Negative roll is invalid")
+        if pins > 10:
+            raise ValueError("Roll of more than 10 pins is invalid")
+        if self._done:
+>           raise ValueError("Cannot roll after game is over")
+E           ValueError: Cannot roll after game is over
+
+bowling.py:14: ValueError
+________ BowlingTest.test_consecutive_spares_each_get_a_one_roll_bonus _________
+
+self = <bowling_test.BowlingTest testMethod=test_consecutive_spares_each_get_a_one_roll_bonus>
+
+    def test_consecutive_spares_each_get_a_one_roll_bonus(self):
+        rolls = [5, 5, 3, 7, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+>       game = self.roll_new_game(rolls)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+bowling_test.py:41: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+bowling_test.py:16: in roll_new_game
+    game.roll(roll)
+bowling.py:19: in roll
+    self._roll_regular(pins)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <bowling.BowlingGame object at 0x108ea6bd0>, pins = 4
+
+    def _roll_regular(self, pins):
+        """Handle rolls for frames 1-9."""
+        if self.rolls and self.rolls[-1] == 10:
+            # Previous roll was a strike: start of a new frame
+            self.rolls.append(pins)
+            if pins == 10:
+                self._maybe_enter_tenth()
+            return
+    
+        if self.rolls:
+            # Could be second roll of current frame
+            prev = self.rolls[-1]
+            if prev < 10:
+                # This is the second ball of the frame
+                if prev + pins > 10:
+>                   raise ValueError("Frame score cannot exceed 10 pins")
+E                   ValueError: Frame score cannot exceed 10 pins
+
+bowling.py:36: ValueError
+_______ BowlingTest.test_consecutive_strikes_each_get_the_two_roll_bonus _______
+
+self = <bowling_test.BowlingTest testMethod=test_consecutive_strikes_each_get_the_two_roll_bonus>
+
+    def test_consecutive_strikes_each_get_the_two_roll_bonus(self):
+        rolls = [10, 10, 10, 5, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+>       game = self.roll_new_game(rolls)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+bowling_test.py:63: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+bowling_test.py:16: in roll_new_game
+    game.roll(roll)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <bowling.BowlingGame object at 0x108f376a0>, pins = 0
+
+    def roll(self, pins):
+        if pins < 0:
+            raise ValueError("Negative roll is invalid")
+        if pins > 10:
+            raise ValueError("Roll of more than 10 pins is invalid")
+        if self._done:
+>           raise ValueError("Cannot roll after game is over")
+E           ValueError: Cannot roll after game is over
+
+bowling.py:14: ValueError
+__ BowlingTest.test_points_scored_in_the_roll_after_a_spare_are_counted_twice __
+
+self = <bowling_test.BowlingTest testMethod=test_points_scored_in_the_roll_after_a_spare_are_counted_twice>
+
+    def test_points_scored_in_the_roll_after_a_spare_are_counted_twice(self):
+        rolls = [6, 4, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+>       game = self.roll_new_game(rolls)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+bowling_test.py:36: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+bowling_test.py:16: in roll_new_game
+    game.roll(roll)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <bowling.BowlingGame object at 0x108f2b2f0>, pins = 0
+
+    def roll(self, pins):
+        if pins < 0:
+            raise ValueError("Negative roll is invalid")
+        if pins > 10:
+            raise ValueError("Roll of more than 10 pins is invalid")
+        if self._done:
+>           raise ValueError("Cannot roll after game is over")
+E           ValueError: Cannot roll after game is over
+
+bowling.py:14: ValueError
+_ BowlingTest.test_points_scored_in_the_two_rolls_after_a_strike_are_counted_twice_as_a_bonus _
+
+self = <bowling_test.BowlingTest testMethod=test_points_scored_in_the_two_rolls_after_a_strike_are_counted_twice_as_a_bonus>
+
+    def test_points_scored_in_the_two_rolls_after_a_strike_are_counted_twice_as_a_bonus(
+        self,
+    ):
+        rolls = [10, 5, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+>       game = self.roll_new_game(rolls)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+bowling_test.py:58: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+bowling_test.py:16: in roll_new_game
+    game.roll(roll)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <bowling.BowlingGame object at 0x108f2bcf0>, pins = 0
+
+    def roll(self, pins):
+        if pins < 0:
+            raise ValueError("Negative roll is invalid")
+        if pins > 10:
+            raise ValueError("Roll of more than 10 pins is invalid")
+        if self._done:
+>           raise ValueError("Cannot roll after game is over")
+E           ValueError: Cannot roll after game is over
+
+bowling.py:14: ValueError
+_ BowlingTest.test_rolling_a_spare_with_the_two_roll_bonus_does_not_get_a_bonus_roll _
+
+self = <bowling_test.BowlingTest testMethod=test_rolling_a_spare_with_the_two_roll_bonus_does_not_get_a_bonus_roll>
+
+    def test_rolling_a_spare_with_the_two_roll_bonus_does_not_get_a_bonus_roll(self):
+        rolls = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 7, 3]
+>       game = self.roll_new_game(rolls)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+bowling_test.py:75: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+bowling_test.py:16: in roll_new_game
+    game.roll(roll)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <bowling.BowlingGame object at 0x108f60dd0>, pins = 3
+
+    def roll(self, pins):
+        if pins < 0:
+            raise ValueError("Negative roll is invalid")
+        if pins > 10:
+            raise ValueError("Roll of more than 10 pins is invalid")
+        if self._done:
+>           raise ValueError("Cannot roll after game is over")
+E           ValueError: Cannot roll after game is over
+
+bowling.py:14: ValueError
+________ BowlingTest.test_should_be_able_to_score_a_game_with_all_zeros ________
+
+self = <bowling_test.BowlingTest testMethod=test_should_be_able_to_score_a_game_with_all_zeros>
+
+    def test_should_be_able_to_score_a_game_with_all_zeros(self):
+        rolls = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+>       game = self.roll_new_game(rolls)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+bowling_test.py:21: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+bowling_test.py:16: in roll_new_game
+    game.roll(roll)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <bowling.BowlingGame object at 0x108f5e9e0>, pins = 0
+
+    def roll(self, pins):
+        if pins < 0:
+            raise ValueError("Negative roll is invalid")
+        if pins > 10:
+            raise ValueError("Roll of more than 10 pins is invalid")
+        if self._done:
+>           raise ValueError("Cannot roll after game is over")
+E           ValueError: Cannot roll after game is over
+
+bowling.py:14: ValueError
+__ BowlingTest.test_should_be_able_to_score_a_game_with_no_strikes_or_spares ___
+
+self = <bowling_test.BowlingTest testMethod=test_should_be_able_to_score_a_game_with_no_strikes_or_spares>
+
+    def test_should_be_able_to_score_a_game_with_no_strikes_or_spares(self):
+        rolls = [3, 6, 3, 6, 3, 6, 3, 6, 3, 6, 3, 6, 3, 6, 3, 6, 3, 6, 3, 6]
+>       game = self.roll_new_game(rolls)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+bowling_test.py:26: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+bowling_test.py:16: in roll_new_game
+    game.roll(roll)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <bowling.BowlingGame object at 0x108f5f1c0>, pins = 6
+
+    def roll(self, pins):
+        if pins < 0:
+            raise ValueError("Negative roll is invalid")
+        if pins > 10:
+            raise ValueError("Roll of more than 10 pins is invalid")
+        if self._done:
+>           raise ValueError("Cannot roll after game is over")
+E           ValueError: Cannot roll after game is over
+
+bowling.py:14: ValueError
+___ BowlingTest.test_strikes_with_the_two_roll_bonus_do_not_get_bonus_rolls ____
+
+self = <bowling_test.BowlingTest testMethod=test_strikes_with_the_two_roll_bonus_do_not_get_bonus_rolls>
+
+    def test_strikes_with_the_two_roll_bonus_do_not_get_bonus_rolls(self):
+        rolls = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 10, 10]
+>       game = self.roll_new_game(rolls)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+bowling_test.py:80: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+bowling_test.py:16: in roll_new_game
+    game.roll(roll)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <bowling.BowlingGame object at 0x108f5d390>, pins = 10
+
+    def roll(self, pins):
+        if pins < 0:
+            raise ValueError("Negative roll is invalid")
+        if pins > 10:
+            raise ValueError("Roll of more than 10 pins is invalid")
+        if self._done:
+>           raise ValueError("Cannot roll after game is over")
+E           ValueError: Cannot roll after game is over
+
+bowling.py:14: ValueError
+_ BowlingTest.test_two_bonus_rolls_after_a_strike_in_the_last_frame_can_score_more_than_10_points_if_one_is_a_strike _
+
+self = <bowling_test.BowlingTest testMethod=test_two_bonus_rolls_after_a_strike_in_the_last_frame_can_score_more_than_10_points_if_one_is_a_strike>
+
+    def test_two_bonus_rolls_after_a_strike_in_the_last_frame_can_score_more_than_10_points_if_one_is_a_strike(
+        self,
+    ):
+        rolls = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 10, 6]
+>       game = self.roll_new_game(rolls)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+bowling_test.py:138: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+bowling_test.py:16: in roll_new_game
+    game.roll(roll)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <bowling.BowlingGame object at 0x108f5fb60>, pins = 6
+
+    def roll(self, pins):
+        if pins < 0:
+            raise ValueError("Negative roll is invalid")
+        if pins > 10:
+            raise ValueError("Roll of more than 10 pins is invalid")
+        if self._done:
+>           raise ValueError("Cannot roll after game is over")
+E           ValueError: Cannot roll after game is over
+
+bowling.py:14: ValueError
+=========================== short test summary info ============================
+FAILED bowling_test.py::BowlingTest::test_a_spare_followed_by_zeros_is_worth_ten_points
+FAILED bowling_test.py::BowlingTest::test_a_spare_in_the_last_frame_gets_a_one_roll_bonus_that_is_counted_once
+FAILED bowling_test.py::BowlingTest::test_a_strike_earns_ten_points_in_a_frame_with_a_single_roll
+FAILED bowling_test.py::BowlingTest::test_a_strike_in_the_last_frame_gets_a_two_roll_bonus_that_is_counted_once
+FAILED bowling_test.py::BowlingTest::test_a_strike_with_the_one_roll_bonus_after_a_spare_in_the_last_frame_does_not_get_a_bonus
+FAILED bowling_test.py::BowlingTest::test_bonus_roll_for_a_spare_in_the_last_frame_must_be_rolled_before_score_can_be_calculated
+FAILED bowling_test.py::BowlingTest::test_cannot_roll_after_bonus_roll_for_spare
+FAILED bowling_test.py::BowlingTest::test_cannot_roll_after_bonus_rolls_for_strike
+FAILED bowling_test.py::BowlingTest::test_cannot_roll_if_game_already_has_ten_frames
+FAILED bowling_test.py::BowlingTest::test_consecutive_spares_each_get_a_one_roll_bonus
+FAILED bowling_test.py::BowlingTest::test_consecutive_strikes_each_get_the_two_roll_bonus
+FAILED bowling_test.py::BowlingTest::test_points_scored_in_the_roll_after_a_spare_are_counted_twice
+FAILED bowling_test.py::BowlingTest::test_points_scored_in_the_two_rolls_after_a_strike_are_counted_twice_as_a_bonus
+FAILED bowling_test.py::BowlingTest::test_rolling_a_spare_with_the_two_roll_bonus_does_not_get_a_bonus_roll
+FAILED bowling_test.py::BowlingTest::test_should_be_able_to_score_a_game_with_all_zeros
+FAILED bowling_test.py::BowlingTest::test_should_be_able_to_score_a_game_with_no_strikes_or_spares
+FAILED bowling_test.py::BowlingTest::test_strikes_with_the_two_roll_bonus_do_not_get_bonus_rolls
+FAILED bowling_test.py::BowlingTest::test_two_bonus_rolls_after_a_strike_in_the_last_frame_can_score_more_than_10_points_if_one_is_a_strike
+18 failed, 13 passed in 0.09s

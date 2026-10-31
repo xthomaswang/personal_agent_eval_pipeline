@@ -1,0 +1,54 @@
+FF                                                                       [100%]
+=================================== FAILURES ===================================
+________________ ZebraPuzzleTest.test_resident_who_drinks_water ________________
+
+self = <zebra_puzzle_test.ZebraPuzzleTest testMethod=test_resident_who_drinks_water>
+
+    def test_resident_who_drinks_water(self):
+>       self.assertEqual(drinks_water(), "Norwegian")
+                         ^^^^^^^^^^^^^^
+
+zebra_puzzle_test.py:15: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+zebra_puzzle.py:144: in drinks_water
+    return _nationality_of("beverage", "water")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+attribute = 'beverage', value = 'water'
+
+    def _nationality_of(attribute, value):
+        """Nationality of the resident with ``attribute[value]``."""
+>       _color, nationality, _beverage, _hobby, _pet = next(_solve())
+                                                       ^^^^^^^^^^^^^^
+E       StopIteration
+
+zebra_puzzle.py:136: StopIteration
+_________________ ZebraPuzzleTest.test_resident_who_owns_zebra _________________
+
+self = <zebra_puzzle_test.ZebraPuzzleTest testMethod=test_resident_who_owns_zebra>
+
+    def test_resident_who_owns_zebra(self):
+>       self.assertEqual(owns_zebra(), "Japanese")
+                         ^^^^^^^^^^^^
+
+zebra_puzzle_test.py:18: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+zebra_puzzle.py:149: in owns_zebra
+    return _nationality_of("pet", "zebra")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+attribute = 'pet', value = 'zebra'
+
+    def _nationality_of(attribute, value):
+        """Nationality of the resident with ``attribute[value]``."""
+>       _color, nationality, _beverage, _hobby, _pet = next(_solve())
+                                                       ^^^^^^^^^^^^^^
+E       StopIteration
+
+zebra_puzzle.py:136: StopIteration
+=========================== short test summary info ============================
+FAILED zebra_puzzle_test.py::ZebraPuzzleTest::test_resident_who_drinks_water
+FAILED zebra_puzzle_test.py::ZebraPuzzleTest::test_resident_who_owns_zebra - ...
+2 failed in 0.01s

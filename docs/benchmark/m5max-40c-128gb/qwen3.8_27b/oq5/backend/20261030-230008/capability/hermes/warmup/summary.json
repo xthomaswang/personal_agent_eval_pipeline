@@ -1,0 +1,23 @@
+{
+  "run_id": "warmup",
+  "harness": "hermes",
+  "workspace": "ws/warmup",
+  "started_at": 1793416768.4052858,
+  "exit_code": 0,
+  "timed_out": false,
+  "wall_s": 12.176,
+  "harness_args": [],
+  "steps": {
+    "n_llm": 2,
+    "n_llm_aux": 0,
+    "n_llm_err": 0,
+    "n_llm_post_submit": 0,
+    "n_tool": 1,
+    "images_new_sum": 0
+  },
+  "harness_report": {
+    "tool_use_events": 1,
+    "api_call_count": 2,
+    "exit_code": 0
+  }
+}

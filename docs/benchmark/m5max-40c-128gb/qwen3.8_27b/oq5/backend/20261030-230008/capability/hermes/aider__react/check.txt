@@ -1,0 +1,46 @@
+......F.......                                                           [100%]
+=================================== FAILURES ===================================
+_ ReactTest.test_callbacks_should_only_be_called_once_even_if_multiple_dependencies_change _
+
+self = <react_test.ReactTest testMethod=test_callbacks_should_only_be_called_once_even_if_multiple_dependencies_change>
+
+    def test_callbacks_should_only_be_called_once_even_if_multiple_dependencies_change(
+        self,
+    ):
+        input = InputCell(1)
+        plus_one = ComputeCell(
+            [
+                input,
+            ],
+            lambda inputs: inputs[0] + 1,
+        )
+        minus_one1 = ComputeCell(
+            [
+                input,
+            ],
+            lambda inputs: inputs[0] - 1,
+        )
+        minus_one2 = ComputeCell(
+            [
+                minus_one1,
+            ],
+            lambda inputs: inputs[0] - 1,
+        )
+        output = ComputeCell(
+            [
+                plus_one,
+                minus_one2,
+            ],
+            lambda inputs: inputs[0] * inputs[1],
+        )
+        cb1_observer = []
+        callback1 = self.callback_factory(cb1_observer)
+        output.add_callback(callback1)
+        input.value = 4
+>       self.assertEqual(cb1_observer[-1], 10)
+E       AssertionError: -5 != 10
+
+react_test.py:229: AssertionError
+=========================== short test summary info ============================
+FAILED react_test.py::ReactTest::test_callbacks_should_only_be_called_once_even_if_multiple_dependencies_change
+1 failed, 13 passed in 0.01s

@@ -1,0 +1,25 @@
+{
+  "run_id": "mcpmark__student_database__duplicate_name",
+  "harness": "claude_code",
+  "workspace": "ws/mcpmark__student_database__duplicate_name",
+  "started_at": 1793415872.525276,
+  "exit_code": 0,
+  "timed_out": false,
+  "wall_s": 16.78,
+  "harness_args": [],
+  "steps": {
+    "n_llm": 4,
+    "n_llm_aux": 0,
+    "n_llm_err": 0,
+    "n_llm_post_submit": 0,
+    "n_tool": 3,
+    "images_new_sum": 0
+  },
+  "harness_report": {
+    "num_turns": 4,
+    "subtype": "success",
+    "is_error": false,
+    "permission_denials": 0,
+    "duration_ms": 16644
+  }
+}

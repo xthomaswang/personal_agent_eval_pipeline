@@ -1,0 +1,23 @@
+........F.                                                               [100%]
+=================================== FAILURES ===================================
+_______________ ConnectTest.test_x_wins_using_a_convoluted_path ________________
+
+self = <connect_test.ConnectTest testMethod=test_x_wins_using_a_convoluted_path>
+
+    def test_x_wins_using_a_convoluted_path(self):
+        game = ConnectGame(
+            """. X X . .
+                X . X . X
+                 . X . X .
+                  . X X . .
+                   O O O O O"""
+        )
+        winner = game.get_winner()
+>       self.assertEqual(winner, "X")
+E       AssertionError: '' != 'X'
+E       + X
+
+connect_test.py:97: AssertionError
+=========================== short test summary info ============================
+FAILED connect_test.py::ConnectTest::test_x_wins_using_a_convoluted_path - As...
+1 failed, 9 passed in 0.01s
