@@ -619,8 +619,8 @@ def test_localmelo_gets_its_flags_and_its_config_file(rig: Rig) -> None:
     run_one(rig, Scenario(), harness="localmelo", arm="D", index=2)
     run_one(rig, Scenario(), harness="claude_code", arm="D", index=3)
     s, d, cc = (c.kw["harness_args"] for c in rig.calls)
-    assert s[-2:] == ("-X", "agent.tool_images=on") and "-X" not in d and cc == ()
-    assert d[0] == "--mcp" and d[2:] == ("--mcp-only", "-o", "json")
+    assert s[-2:] == ("-X", "agent.tool_images=on") and "agent.tool_images=on" not in d and cc == ()
+    assert d[0] == "--mcp" and d[2:] == ("--mcp-only", "-o", "json", "-X", "agent.max_calls=29")
     config = json.loads(Path(d[1]).read_text())
     web_args = config["mcpServers"]["webtap"]["args"]
     assert web_args[1:3] == ["--mode", "dom"]
@@ -1065,7 +1065,7 @@ def test_the_dry_run_prints_the_stage_zero_plan(
     assert f"Claude Code: {arms.CLAUDE_BIN}" in shown and "Claude Code 2.1.312 (Claude Code) |" in shown
     assert "Arm C: tap --mode none; no Chrome" in shown and "Arm D: tap --mode dom; headless Chrome" in shown
     assert "S-cua" not in shown  # not among the default arms
-    assert "localmelo S: --mcp <mcp.json> --mcp-only -o json -X agent.tool_images=on" in shown
+    assert "localmelo S: --mcp <mcp.json> --mcp-only -o json -X agent.max_calls=29 -X agent.tool_images=on" in shown
     assert shown.count("q3503") == 9 and shown.count("q1934") == 9
     assert "Chrome not found" in shown and f"Chrome {CHROME_VERSION}" in shown
     assert not (tmp_path / "stage0").exists()  # nothing is created by a dry run
@@ -1084,7 +1084,7 @@ def test_the_s_cua_dry_run_reports_the_space_on_screen(
     shown = capsys.readouterr().out
     assert "Arm S-cua: tap --mode cua; headed Chrome on a profile clone, on the Space on screen" in shown
     assert "S-cua: Space on screen 99, wanted 400; a run waits up to 1800 s for it" in shown
-    assert "localmelo S-cua: --mcp <mcp.json> --mcp-only -o json -X agent.tool_images=on" in shown
+    assert "localmelo S-cua: --mcp <mcp.json> --mcp-only -o json -X agent.max_calls=29 -X agent.tool_images=on" in shown
     assert "Claude Code:" not in shown  # localmelo only
     assert web_run.main([*argv, "--arms", "S-cua", "--cua-space", "99"], harness=rig.harness) == 0
     assert "wanted 99\n" in capsys.readouterr().out
@@ -1150,8 +1150,8 @@ def test_the_localmelo_flags_and_sha_reach_the_study_and_the_dry_run(
     assert web_run.main([*argv, "--dry-run", *given], harness=rig.harness) == 0
     shown = capsys.readouterr().out
     assert checked["expect_sha"] == OTHER_SHA[:7]
-    assert f"localmelo D: --mcp <mcp.json> --mcp-only -o json {flags}\n" in shown
-    assert f"localmelo S: --mcp <mcp.json> --mcp-only -o json -X agent.tool_images=on {flags}\n" in shown
+    assert f"localmelo D: --mcp <mcp.json> --mcp-only -o json -X agent.max_calls=29 {flags}\n" in shown
+    assert f"localmelo S: --mcp <mcp.json> --mcp-only -o json -X agent.max_calls=29 -X agent.tool_images=on {flags}\n" in shown
     assert web_run.parse_args(["--run-dir", "x", "--localmelo-args=-v"]).localmelo_args == "-v"
 
 

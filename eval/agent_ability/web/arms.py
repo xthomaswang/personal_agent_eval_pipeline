@@ -83,9 +83,11 @@ SYSTEM_PATH = ("/usr/bin", "/bin")
 TAP_ENV = {"CHROME_DEVTOOLS_MCP_NO_USAGE_STATISTICS": "1", "CHROME_DEVTOOLS_MCP_NO_UPDATE_CHECKS": "1"}
 
 # localmelo: the bench's own clone, pinned like E3's
-LOCALMELO = AGENT_ABILITY / "e3" / "vendor" / "localmelo-a9fb42b"
-LOCALMELO_SHA = "a9fb42b6633f6da8a887b3a65bdb092f8f2c4605"
-LOCALMELO_COMMON_ARGS = ("--mcp-only", "-o", "json")  # --mcp <file> goes in front of these
+LOCALMELO = AGENT_ABILITY / "e3" / "vendor" / "localmelo-c670323"
+LOCALMELO_SHA = "c6703234dc76d7fc6358ac29c489c5cf9bb57c13"
+# --mcp <file> goes in front of these. agent.max_calls=29 keeps localmelo one call under the proxy's 30-call budget, so
+# it answers on its own budget instead of meeting the proxy's refusal.
+LOCALMELO_COMMON_ARGS = ("--mcp-only", "-o", "json", "-X", "agent.max_calls=29")
 LOCALMELO_IMAGE_ARGS = ("-X", "agent.tool_images=on")  # the screenshot arms
 # What the arms and bench.harness set for localmelo, in every spelling its parser takes (melo's __main__ lists them):
 # the MCP config, the output format, the model and the endpoint. --localmelo-args may not repeat them.

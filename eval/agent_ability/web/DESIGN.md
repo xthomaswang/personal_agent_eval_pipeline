@@ -61,7 +61,7 @@ Options of `run.py`:
 - `--harnesses`, `--arms` and `--repeats`: the cells and their count (default: all three harnesses, D, S and C,
   one repeat; `S-cua` only when named);
 - `--questions`: pilot ids, `easy`, `medium` or `all` (default `all`);
-- `--localmelo`: the clone; default `eval/agent_ability/e3/vendor/localmelo-a9fb42b`, whose commit is pinned and
+- `--localmelo`: the clone; default `eval/agent_ability/e3/vendor/localmelo-c670323`, whose commit is pinned and
   whose tree must be clean;
 - `--localmelo-sha` (default the pinned commit; a prefix of 7 digits or more) and `--localmelo-args "<shell-quoted
   flags>"`, for a localmelo-only A/B: the commit preflight expects of the `--localmelo` clone, and flags appended to
@@ -248,9 +248,10 @@ Per harness:
   code is the minimum of `modeleval/capability/runner.py`, ported because that package cannot be imported here.
 - Hermes: only `mcp_servers.webtap` (every other server disabled), `tools.tool_search.enabled: off` and
   `-t webtap`. S and S-cua also set `agent.image_input_mode: native` and `model.supports_vision: true`.
-- localmelo: `--mcp <mcp.json> --mcp-only -o json` before the `--` that precedes the prompt, and for S and S-cua
-  `-X agent.tool_images=on`. Its checkout is pinned to commit `a9fb42b`; preflight refuses another commit or a
-  dirty tree.
+- localmelo: `--mcp <mcp.json> --mcp-only -o json -X agent.max_calls=29` before the `--` that precedes the prompt
+  (one call under the proxy's 30-call budget, so localmelo answers on its own budget), and for S and S-cua
+  `-X agent.tool_images=on`. Its checkout is pinned to commit `c670323`, whose defaults are the patient reflection gate
+  and an answer on stop; preflight refuses another commit or a dirty tree.
 
 The runner swaps the harness builders of `bench.harness` (and, for Claude Code, its `CLAUDE_ENV`) for one run and
 restores them afterwards, as smoke's adapters do. For the length of the study it also sets `bench.harness.MODEL`,

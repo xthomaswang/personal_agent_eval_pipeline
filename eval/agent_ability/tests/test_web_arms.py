@@ -501,19 +501,21 @@ def test_the_server_name_is_no_hermes_toolset() -> None:
 
 @pytest.mark.parametrize("arm", ["D", "C"])
 def test_localmelo_flags_of_d_and_c(arm: str) -> None:
-    assert arms.localmelo_args(arm, Path("m.json")) == ("--mcp", "m.json", "--mcp-only", "-o", "json")
+    assert arms.localmelo_args(arm, Path("m.json")) == (
+        "--mcp", "m.json", "--mcp-only", "-o", "json", "-X", "agent.max_calls=29",
+    )  # fmt: skip
 
 
 def test_localmelo_s_sends_tool_images_to_the_model() -> None:
     assert arms.localmelo_args("S", Path("m.json")) == (
-        "--mcp", "m.json", "--mcp-only", "-o", "json", "-X", "agent.tool_images=on",
+        "--mcp", "m.json", "--mcp-only", "-o", "json", "-X", "agent.max_calls=29", "-X", "agent.tool_images=on",
     )  # fmt: skip
 
 
 def test_the_flag_templates_for_a_checkpoint() -> None:
     assert arms.harness_arg_templates(("D", "S")) == {
-        "D": ["--mcp", "<mcp.json>", "--mcp-only", "-o", "json"],
-        "S": ["--mcp", "<mcp.json>", "--mcp-only", "-o", "json", "-X", "agent.tool_images=on"],
+        "D": ["--mcp", "<mcp.json>", "--mcp-only", "-o", "json", "-X", "agent.max_calls=29"],
+        "S": ["--mcp", "<mcp.json>", "--mcp-only", "-o", "json", "-X", "agent.max_calls=29", "-X", "agent.tool_images=on"],
     }
 
 
@@ -531,7 +533,9 @@ def test_extra_localmelo_flags_are_in_the_templates_of_a_checkpoint() -> None:
     plain = arms.harness_arg_templates(("D", "S", "C"))
     extended = arms.harness_arg_templates(("D", "S", "C"), EXTRA)
     assert extended == {arm: [*flags, *EXTRA] for arm, flags in plain.items()}
-    assert extended["S"][:7] == ["--mcp", "<mcp.json>", "--mcp-only", "-o", "json", "-X", "agent.tool_images=on"]
+    assert extended["S"][:9] == [
+        "--mcp", "<mcp.json>", "--mcp-only", "-o", "json", "-X", "agent.max_calls=29", "-X", "agent.tool_images=on",
+    ]  # fmt: skip
 
 
 def test_localmelo_args_text_is_split_like_a_shell() -> None:
@@ -670,8 +674,8 @@ def test_an_unknown_harness_is_refused(tmp_path: Path) -> None:
 
 def test_localmelo_is_pinned_like_e3(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     sha = arms.LOCALMELO_SHA
-    assert sha.startswith("a9fb42b") and len(sha) == 40
-    assert arms.LOCALMELO.name == "localmelo-a9fb42b"
+    assert sha.startswith("c670323") and len(sha) == 40
+    assert arms.LOCALMELO.name == "localmelo-c670323"
     answers: dict[tuple[str, ...], str] = {("rev-parse", "HEAD"): sha, ("status", "--porcelain"): ""}
     monkeypatch.setattr(arms, "_git", lambda repo, *args: answers.get(args, ""))
     assert arms.localmelo_problems(tmp_path) == []
@@ -681,7 +685,7 @@ def test_localmelo_is_pinned_like_e3(tmp_path: Path, monkeypatch: pytest.MonkeyP
 
     answers[("rev-parse", "HEAD")] = "ce4a3a8" + "0" * 33
     problem = arms.localmelo_problems(tmp_path)[0]
-    assert "ce4a3a8" in problem and "not a9fb42b" in problem
+    assert "ce4a3a8" in problem and "not c670323" in problem
 
     answers[("rev-parse", "HEAD")] = ""
     assert "not a git checkout" in arms.localmelo_problems(tmp_path)[0]
