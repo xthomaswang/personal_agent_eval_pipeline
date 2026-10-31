@@ -17,7 +17,8 @@ HARNESSES = ("claude_code", "hermes", "localmelo")
 
 
 def speed_run(root: Path, run_id: str, decode: float = 30.0, m1_warm: float = 0.30, m4_ttft: float = 1.0,
-              build: str = "26B5101f", protocol: int = 1, epoch: str = "e1", skip: tuple[str, ...] = (),
+              build: str = "26B5101f", xcode: str = "27A9275", protocol: int = 1, epoch: str = "e1",
+              skip: tuple[str, ...] = (),
               disturbed: tuple[str, ...] = (), minor: tuple[str, ...] = (), stop: str | None = None,
               **model_kw) -> speed.SpeedContext:
     model = make_model(**model_kw)
@@ -27,7 +28,7 @@ def speed_run(root: Path, run_id: str, decode: float = 30.0, m1_warm: float = 0.
     model_doc = speed.model_info(model)
     (run_dir / "manifest.json").write_text(json.dumps({"model": model_doc, "protocol_version": protocol, "epoch": epoch,
                                                        "started": run_id}))
-    system = speed._system_from_header([header(build=build)])
+    system = speed._system_from_header([header(build=build, xcode=xcode)])
     speed.record_functional(ctx, speed.FunctionalResult(
         stop is None, stop, {"G0": {"result": "PASS"}, "G1": {"result": "PASS"}, "G3": {"result": "PASS"},
                              "G4": {"result": "PASS"}},
@@ -97,7 +98,7 @@ def test_speed_table_with_reference_ratios_and_bands(tmp_path):
     speed_run(root, "20261027-010000", decode=30.0, m1_warm=0.30)
     speed_run(root, "20261027-030000", decode=20.0, m1_warm=0.33, m4_ttft=2.0, **NANBEIGE)
     md = report.build_report(root)
-    assert md.count("## Speed on mac (protocol 1, macOS build 26B5101f, Xcode build 27A9275)") == 1
+    assert md.count("## Speed on mac (protocol 1, macOS build 26B5101f; Xcode 27A9275)") == 1
     assert "Qwen3.8-27B oQ5 + MTP (reference)" in md and "Nanbeige4.3-33B oQ5" in md
     assert "| Nanbeige4.3-33B oQ5 | 20.0 (0.67x) | 18.0 (0.67x) | 16.0 (0.67x) | 12.0 (0.67x) | = 16K (no spec) |" in md
     assert "0.330 (1.10x ≈)" in md  # M1 warm inside the 20 % band
@@ -146,12 +147,30 @@ def test_builds_and_protocols_never_share_a_table(tmp_path):
     speed_run(root, "20261027-030000", build="26C1001a", **NANBEIGE)
     md = report.build_report(root)
     assert "macOS build 26B5101f" in md and "macOS build 26C1001a" in md
-    assert "No reference run with this protocol version and these builds" in md
+    assert "No reference run with this protocol version and this macOS build" in md
     root2 = tmp_path / "results2"
     speed_run(root2, "20261027-010000")
     speed_run(root2, "20261027-030000", protocol=2, **NANBEIGE)
     md2 = report.build_report(root2)
     assert "## Speed on mac (protocol 1," in md2 and "## Speed on mac (protocol 2," in md2
+
+
+def test_the_xcode_build_is_printed_but_never_part_of_the_key(tmp_path):
+    """DESIGN §2: the speed key is (machine, protocol, macOS build); the Xcode builds seen are information."""
+    root = tmp_path / "results"
+    speed_run(root, "20261027-010000")                                                 # the reference, Xcode 27A9275
+    speed_run(root, "20261027-030000", decode=20.0, m1_warm=0.33, m4_ttft=2.0, xcode="27B52", **NANBEIGE)
+    md = report.build_report(root)
+    assert md.count("## Speed on mac (") == 1                                          # one table, not two
+    assert "## Speed on mac (protocol 1, macOS build 26B5101f; Xcode 27A9275, 27B52)" in md
+    assert "No reference run with this protocol version" not in md
+    assert "| Nanbeige4.3-33B oQ5 | 20.0 (0.67x) | 18.0 (0.67x) | 16.0 (0.67x) | 12.0 (0.67x) | = 16K (no spec) |" in md
+    # a different macOS build is still its own table, whatever its Xcode build
+    speed_run(root, "20261027-050000", build="26C1001a", **NANBEIGE)
+    md = report.build_report(root)
+    assert md.count("## Speed on mac (") == 2
+    assert "macOS build 26B5101f; Xcode 27A9275, 27B52)" in md and "macOS build 26C1001a; Xcode 27A9275)" in md
+    assert "No reference run with this protocol version and this macOS build" in md   # nothing to compare 26C1001a to
 
 
 def test_newest_complete_run_is_used(tmp_path):
@@ -286,7 +305,7 @@ def test_reads_run_py_and_runner_files(tmp_path):
             {"schema_version": 1, "protocol_version": 1, "model": key, "epoch": "ep-1", "sets": ["gate"],
              "rows": rows, "finished": True}))
     md = report.build_report(root)
-    assert "## Speed on mac (protocol 1, macOS build 26B5101f, Xcode build 27A9275)" in md
+    assert "## Speed on mac (protocol 1, macOS build 26B5101f; Xcode 27A9275)" in md
     assert "| Nanbeige4.3-33B oQ5 | 20.0 (0.67x) |" in md
     assert "## Capability on mac: gate set (protocol 1, harness epoch ep-1)" in md  # finished: complete despite 4 tasks
     assert "**not worse**" in md and "12/12" in md

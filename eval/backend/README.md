@@ -97,9 +97,9 @@ uv run modeleval run <model> [--legs speed,capability] [--capability gate|full|f
   result (clean, or minor flags only) and capability pairs with a valid verdict, stops the orphans of a crashed attempt
   (from the run's pidfile), and numbers its launch after the previous ones. It is refused while
   another orchestrator of the same run id lives (an flock on `runs/<model>/<run-id>/orchestrator.pid`),
-  when the macOS or Xcode build changed since the speed leg ran (start a new run, or resume with
-  `--legs capability` when only that leg is left), and when its capability rows are from another
-  harness epoch. A run that is resumed after its speed leg finished takes an untimed lock.
+  when the macOS build changed since the speed leg ran (an Xcode update alone does not stop it; start a new
+  run, or resume with `--legs capability` when only that leg is left), and when its capability rows are from
+  another harness epoch. A run that is resumed after its speed leg finished takes an untimed lock.
 - To make a running run pause at its next boundary while it keeps the lock, create
   `runs/hold`. To let it go on, delete the file.
 

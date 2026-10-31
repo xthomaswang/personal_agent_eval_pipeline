@@ -2,9 +2,10 @@
 docs/benchmark/<family>/<quant>/backend/<run-id>/.
 
 Rows come from the newest complete run per model and comparability key. A table never mixes machines
-(the results path's first level) or protocol versions; speed tables also never mix macOS or Xcode builds,
-and capability tables never mix harness epochs. Rows that do not share a key go into separate tables, each with its own reference row (or a
-note that the reference must be re-run for that key). Harness epochs declared equivalent in pins.toml
+(the results path's first level) or protocol versions; speed tables also never mix macOS builds (the Xcode
+build is recorded and printed, never compared), and capability tables never mix harness epochs. Rows that do
+not share a key go into separate tables, each with its own reference row (or a note that the reference must
+be re-run for that key). Harness epochs declared equivalent in pins.toml
 (`[[epoch.equivalent]]`, DESIGN §6.5) are one epoch here: a capability table is keyed and titled by the
 canonical id, and the footer names the equivalence once.
 """
@@ -60,16 +61,9 @@ class Run:
                 return d["protocol_version"]
         return None
 
-    @property
-    def builds(self) -> tuple[str | None, str | None]:
-        """(macOS build, Xcode build): part of the speed comparability key. From the manifest (run.py's
-        `machine`), else units.json, else the first agentbench raw header of the speed leg. A run whose
-        kept attempts ran on launches with different builds gets a "mixed ..." key of its own, so it
-        never shares a table with either build."""
-        used = self.attempt_builds()
-        if len(used) > 1:
-            return ("mixed " + "/".join(sorted(str(m) for m, _ in used)),
-                    "mixed " + "/".join(sorted({str(x) for _, x in used})))
+    def recorded_builds(self) -> tuple[str | None, str | None]:
+        """(macOS build, Xcode build) as the run recorded them: the manifest (run.py's `machine`), else
+        units.json, else the first agentbench raw header of the speed leg."""
         m = self.manifest
         mac, xc = None, None
         for d in (m.get("machine"), m.get("system"), m):
@@ -82,6 +76,26 @@ class Run:
             hsys = _raw_header_system(self.run_dir)
             mac, xc = mac or hsys.get("macos_build"), xc or hsys.get("xcode_build")
         return mac, xc
+
+    @property
+    def macos_build(self) -> str | None:
+        """The macOS build: part of the speed comparability key (with the machine and the protocol version;
+        the Xcode build is not, DESIGN §2). A run whose kept attempts ran on launches with different macOS
+        builds gets a "mixed ..." key of its own, so it never shares a table with either build."""
+        macs = {m for m, _ in self.attempt_builds()}
+        if len(macs) > 1:
+            return "mixed " + "/".join(sorted(str(m) for m in macs))
+        return self.recorded_builds()[0]
+
+    @property
+    def xcode_builds(self) -> tuple[str, ...]:
+        """The Xcode build(s) the run's speed leg ran on, for information only: the launches of the kept
+        attempts when run.py recorded them, else the run's recorded build. Never part of a key."""
+        seen = sorted({str(x) for _, x in self.attempt_builds() if x})
+        if seen:
+            return tuple(seen)
+        xc = self.recorded_builds()[1]
+        return (str(xc),) if xc else ()
 
     def attempt_builds(self) -> set[tuple[Any, Any]]:
         """The (macOS, Xcode) builds of the launches the kept speed attempts ran on (run.py records
@@ -279,7 +293,7 @@ def speed_groups(runs: list[Run]) -> list[tuple[tuple, list[Run]]]:
     groups: dict[tuple, list[Run]] = {}
     for r in runs:
         if r.units is not None and speed_complete(r):
-            groups.setdefault((r.machine, r.protocol, *r.builds), []).append(r)
+            groups.setdefault((r.machine, r.protocol, r.macos_build), []).append(r)
     out = [(k, newest(v)) for k, v in groups.items()]
     return sorted(out, key=lambda kv: (not any(r.is_reference for r in kv[1]), str(kv[0])))
 
@@ -403,14 +417,15 @@ def _gate_cell(f: dict[str, Any] | None, gid: str) -> str:
 
 
 def speed_section(key: tuple, rows: list[Run]) -> str:
-    machine, proto, mac, xc = key
+    machine, proto, mac = key
     ref = next((r for r in rows if r.is_reference), None)
-    out = [f"## Speed on {machine} (protocol {proto}, macOS build {mac or '?'}, Xcode build {xc or '?'})"]
+    xcodes = sorted({x for r in rows for x in r.xcode_builds})   # recorded, not compared (DESIGN §2)
+    out = [f"## Speed on {machine} (protocol {proto}, macOS build {mac or '?'}; Xcode {', '.join(xcodes) or '?'})"]
     if str(mac).startswith("mixed"):
-        out.append("These runs' kept attempts ran on different builds (a resume across an update): they are "
+        out.append("These runs' kept attempts ran on different macOS builds (a resume across an update): they are "
                    "compared with nothing; re-run them on one build.")
     if ref is None:
-        out.append("No reference run with this protocol version and these builds: re-run the reference speed leg "
+        out.append("No reference run with this protocol version and this macOS build: re-run the reference speed leg "
                    "(DESIGN §2) before comparing these rows.")
     ok_rows = [r for r in rows if (functional(r) or {}).get("ok")]
     # functional block and M7

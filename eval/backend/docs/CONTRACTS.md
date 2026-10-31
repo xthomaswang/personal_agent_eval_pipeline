@@ -260,7 +260,7 @@ def time_to_solution(new_results, ref_results, set_name) -> dict; def mdd(...); 
 def build_report(results_root: Path = RESULTS) -> str              # RESULTS.md text
 def run_dirs(results_root) -> list[Path]          # .../backend/<run-id>/ with manifest.json or speed/units.json
 # publish.py: rows(run) -> ([(path, summary)], messages); publish(root, model, run_id) -> lines
-#   SPEED_PROTOCOLS / CAP_PROTOCOLS: protocol id -> (protocol version, builds or epoch, title)
+#   SPEED_PROTOCOLS / CAP_PROTOCOLS: protocol id -> (protocol version, macOS build or epoch, title)
 ```
 
 `report.py` reads `speed/units.json`, `speed/memory.tsv`, `manifest.json` (its `machine` for the macOS and Xcode

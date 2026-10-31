@@ -158,7 +158,7 @@ def test_emit_never_raises_on_a_dead_stdout(monkeypatch, tmp_path):
         progress.emit("NOT-A-TAG")
 
 
-def test_a_run_whose_kept_attempts_span_two_builds_gets_its_own_key(tmp_path):
+def test_a_run_whose_kept_attempts_span_two_macos_builds_gets_its_own_key(tmp_path):
     rd = tmp_path / "results/m/oq5/backend/r1"
     (rd / "speed").mkdir(parents=True)
     att = lambda launch: {"attempt": 1, "launch": launch, "valid": True, "verdict": "clean", "kept": True}  # noqa: E731
@@ -166,15 +166,19 @@ def test_a_run_whose_kept_attempts_span_two_builds_gets_its_own_key(tmp_path):
                                                                "m1": {"verdict": "clean", "attempts": [att(2)]}}}))
     launches = [{"launch": 1, "builds": {"macos": "26A1", "xcode": "27X"}},
                 {"launch": 2, "builds": {"macos": "26B2", "xcode": "27X"}}]
-    (rd / "manifest.json").write_text(json.dumps({"model": {"key": "m"}, "launches": launches,
-                                                  "machine": {"sw_vers": {"BuildVersion": "26A1"}}}))
+
+    def write() -> None:
+        (rd / "manifest.json").write_text(json.dumps({"model": {"key": "m"}, "launches": launches,
+                                                      "machine": {"sw_vers": {"BuildVersion": "26A1"}}}))
+
+    write()
     (run_,) = report.discover(tmp_path / "results")
-    assert run_.builds == ("mixed 26A1/26B2", "mixed 27X")
-    launches[1]["builds"]["macos"] = "26A1"
-    (rd / "manifest.json").write_text(json.dumps({"model": {"key": "m"}, "launches": launches,
-                                                  "machine": {"sw_vers": {"BuildVersion": "26A1"}}}))
+    assert run_.macos_build == "mixed 26A1/26B2" and run_.xcode_builds == ("27X",)
+    # the same macOS build on two launches is one key, whatever the Xcode builds: those are only listed
+    launches[1] = {"launch": 2, "builds": {"macos": "26A1", "xcode": "27Y"}}
+    write()
     (run_,) = report.discover(tmp_path / "results")
-    assert run_.builds[0] == "26A1"
+    assert run_.macos_build == "26A1" and run_.xcode_builds == ("27X", "27Y")
 
 
 def test_selftest_reports_whether_the_pre_commit_hook_is_installed():

@@ -346,8 +346,10 @@ def test_memory_tsv_units_and_labels(tmp_path):
 
 
 def test_system_from_header():
+    """Both builds are recorded in every result; only the macOS build is a comparability key (DESIGN §2)."""
     s = speed._system_from_header([header()])
     assert s["macos_build"] == "26B5101f" and s["xcode_build"] == "27A9275" and s["macos"] == "27.2"
+    assert speed._system_from_header([header(xcode="27B52")])["xcode_build"] == "27B52"
 
 
 def test_memory_tsv_from_core_sampler_columns(tmp_path):

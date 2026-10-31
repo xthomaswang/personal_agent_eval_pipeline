@@ -851,7 +851,8 @@ def model_info(model: Any) -> dict[str, Any]:
 
 
 def _system_from_header(lines: list[dict]) -> dict[str, Any]:
-    """macOS and Xcode builds from the agentbench header: part of the speed comparability key."""
+    """macOS and Xcode builds from the agentbench header. Both are recorded; only the macOS build is part of
+    the speed comparability key (DESIGN §2)."""
     h = next((ln for ln in lines if ln.get("type") == "header"), {})
     sysi = h.get("system") or {}
     sw = sysi.get("sw_vers") or {}

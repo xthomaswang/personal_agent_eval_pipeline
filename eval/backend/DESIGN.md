@@ -58,8 +58,10 @@ a leg of the same run, on the same server launch, with snapshotted harness code.
 
 Everything in this section is the same for every model. A change here is a new **protocol version**
 (`PROTOCOL_VERSION` in code); rows from different protocol versions never share a table. The macOS
-build (`sw_vers`) and Xcode build are part of the speed comparability key: a changed build triggers one
-re-run of the reference speed leg.
+build (`sw_vers`) is part of the speed comparability key: a changed macOS build triggers one re-run of the
+reference speed leg. The Xcode build is recorded in every manifest and result (`xcodebuild -version`) and printed
+in the speed table headings, but it is not compared: the pipeline uses no Xcode tooling (serving is oMLX/MLX from
+Python), so an Xcode update neither starts a new table nor stops a resume.
 
 | Item | Value |
 |---|---|
@@ -442,8 +444,9 @@ lock is released only after nothing listens on 8703; the lock carries the run id
 
 ## 7. Reference rows and epochs
 
-- A table only contains rows with the same protocol version and macOS/Xcode builds (speed) or the same
-  harness epoch (capability; declared-equivalent epochs count as one, §6.5).
+- A table only contains rows with the same protocol version and macOS build (speed; the Xcode build is
+  recorded and shown, not compared, §2) or the same harness epoch (capability; declared-equivalent epochs
+  count as one, §6.5).
 - The reference runs through this pipeline once per protocol version (speed) and once per harness epoch
   (capability), not once per new model.
 - The footer prints the measured cross-night band of the old campaign (M1 and M3 up to ~20 %, M4 ~9 %)

@@ -7,12 +7,13 @@ shows (report.py's helpers):
     .../<quant>/backend/<run-id>/summary.json         suite backend, protocol speed-<n>
     .../<quant>/agent_ability/<run-id>/summary.json   suite agent_ability, protocol capability-<n>
 
-A protocol id names one fixed setting (docs/benchmark/README.md): the protocol version plus the macOS and
-Xcode builds for speed (DESIGN §2, §7) and plus the harness epoch for capability (§6.5). A run whose setting
-has no id below is skipped with a message: a new setting gets a new id (and so a new table), never an old
-one. Harness epochs are matched by their canonical id (pins.toml `[[epoch.equivalent]]`, DESIGN §6.5): a run
-in a declared-equivalent epoch gets the canonical epoch's protocol id, and its row's notes name the
-equivalence. Afterwards `python3 scripts/build_docs.py` at the repository root rebuilds the page.
+A protocol id names one fixed setting (docs/benchmark/README.md): the protocol version plus the macOS build
+for speed (DESIGN §2, §7; the Xcode build is recorded in the row's system block but never compared) and plus
+the harness epoch for capability (§6.5). A run whose setting has no id below is skipped with a message: a new
+setting gets a new id (and so a new table), never an old one. Harness epochs are matched by their canonical
+id (pins.toml `[[epoch.equivalent]]`, DESIGN §6.5): a run in a declared-equivalent epoch gets the canonical
+epoch's protocol id, and its row's notes name the equivalence. Afterwards `python3 scripts/build_docs.py` at the
+repository root rebuilds the page.
 """
 
 from __future__ import annotations
@@ -31,7 +32,7 @@ CAP_SUITE = "agent_ability"
 GIB = 2**30
 
 SPEED_PROTOCOLS: dict[str, dict[str, Any]] = {
-    "speed-1": {"protocol_version": 1, "macos_build": "26B5101f", "xcode_build": "27A9275",
+    "speed-1": {"protocol_version": 1, "macos_build": "26B5101f",
                 "title": "Speed on oMLX 0.7.1rc1 (M5 Max): text-only, agent sampling, thinking off"},
 }
 CAP_PROTOCOLS: dict[str, dict[str, Any]] = {
@@ -88,9 +89,9 @@ def unit_columns(units: list[str]) -> list[str]:
 
 
 def speed_protocol(run: report.Run) -> str | None:
-    mac, xc = run.builds
-    return next((pid for pid, p in SPEED_PROTOCOLS.items() if (p["protocol_version"], p["macos_build"],
-                                                                p["xcode_build"]) == (run.protocol, mac, xc)), None)
+    """The speed protocol id of the run's protocol version and macOS build (not its Xcode build, DESIGN §2)."""
+    return next((pid for pid, p in SPEED_PROTOCOLS.items()
+                 if (p["protocol_version"], p["macos_build"]) == (run.protocol, run.macos_build)), None)
 
 
 def cap_protocol(run: report.Run, mapping: dict[str, str] | None = None) -> str | None:
@@ -199,7 +200,9 @@ def cap_notes(run: report.Run, mapping: dict[str, str] | None = None) -> str:
 
 
 def _system(run: report.Run) -> dict[str, str]:
-    mac, xc = run.builds
+    """The row's system block: the macOS build (a comparability key) and the Xcode build(s) the run recorded
+    (information only)."""
+    mac, xc = run.macos_build, ", ".join(run.xcode_builds)
     machine = run.machine
     server = run.manifest.get("server") or {}
     version = next((ln.get("effective_settings", {}).get("version") for ln in run.manifest.get("launches") or []
@@ -227,9 +230,8 @@ def rows(run: report.Run) -> tuple[list[tuple[Path, dict[str, Any]]], list[str]]
     if run.units is not None:
         pid = speed_protocol(run)
         if pid is None:
-            mac, xc = run.builds
-            msgs.append(f"{family}/{quant}/{run_id}: no speed protocol id for protocol {run.protocol}, macOS {mac}, "
-                        f"Xcode {xc} (add one to publish.SPEED_PROTOCOLS): speed row skipped")
+            msgs.append(f"{family}/{quant}/{run_id}: no speed protocol id for protocol {run.protocol}, "
+                        f"macOS {run.macos_build} (add one to publish.SPEED_PROTOCOLS): speed row skipped")
         else:
             row = _base(run, family, quant, paths.SUITE)
             row.update(protocol=pid, title=SPEED_PROTOCOLS[pid]["title"],

@@ -252,14 +252,16 @@ def git_info(repo: Path) -> dict:
 
 
 def builds(machine: dict | None) -> dict:
-    """(macOS build, Xcode build) of a machine_info(): the speed comparability key (DESIGN §2)."""
+    """The macOS build and the Xcode build of a machine_info(), both recorded. Only the macOS build is part of
+    the speed comparability key (DESIGN §2); the Xcode build is information."""
     m = machine or {}
     xc = re.search(r"Build version\s+(\S+)", str(m.get("xcodebuild") or ""))
     return {"macos": (m.get("sw_vers") or {}).get("BuildVersion"), "xcode": xc.group(1) if xc else None}
 
 
 def machine_info() -> dict:
-    """sw_vers and the global Xcode (DEVELOPER_DIR dropped): part of the speed comparability key."""
+    """sw_vers and the global Xcode (DEVELOPER_DIR dropped), recorded in every manifest. The macOS build is
+    part of the speed comparability key; the Xcode build is recorded, not compared (DESIGN §2)."""
     def sh(*cmd: str, env: dict | None = None) -> str:
         try:
             return subprocess.run(cmd, capture_output=True, text=True, timeout=60, env=env).stdout.strip()
@@ -422,16 +424,17 @@ class Run:
             self.gate = old.get("gate_decision")
 
     def check_resume(self) -> None:
-        """Refuse a resume that would mix macOS/Xcode builds in the speed leg, or harness epochs in the
-        capability leg, inside one reported run (DESIGN §2, §7): the first invocation's values win."""
+        """Refuse a resume that would mix macOS builds in the speed leg, or harness epochs in the capability leg,
+        inside one reported run (DESIGN §2, §7): the first invocation's values win. A changed Xcode build alone
+        is recorded (each launch's `builds`) and does not stop a resume."""
         if self.stored_protocol is not None and self.stored_protocol != paths.PROTOCOL_VERSION:
             raise Stop("refused", f"--resume {self.run_id}: protocol {self.stored_protocol} differs from current "
                        f"protocol {paths.PROTOCOL_VERSION}; use the original protocol or start a new run")
         old, now = builds(self.machine), builds(self.machine_now)
         speed_rows = any(self.unit_rec(self.read_units(), u)["attempts"] for u in self.read_units()["units"])
-        if "speed" in self.opts.legs and speed_rows and old["macos"] and old != now:
-            raise Stop("refused", f"--resume {self.run_id}: the speed leg ran on macOS {old['macos']} / Xcode "
-                       f"{old['xcode']}, this machine is on {now['macos']} / {now['xcode']}; start a new run "
+        if "speed" in self.opts.legs and speed_rows and old["macos"] and old["macos"] != now["macos"]:
+            raise Stop("refused", f"--resume {self.run_id}: the speed leg ran on macOS {old['macos']}, this machine "
+                       f"is on macOS {now['macos']}; start a new run "
                        "(or resume with --legs capability when only the capability leg is left)")
         pins = registry.load_pins()
         epoch = registry.epoch_id(pins)
@@ -624,8 +627,9 @@ class Run:
         self.server = Server(self.model, self.runs, n, models=list(self.models.values()), pidfile=self.pidfile,
                              caffeinate=CAFFEINATE)
         pct, _ = quiet.battery()
-        # the builds this launch ran on: a resume refuses a change for the speed leg (check_resume), and
-        # report.py never puts a run whose kept attempts span two builds into a build's table
+        # the builds this launch ran on: a resume refuses a macOS change for the speed leg (check_resume), and
+        # report.py never puts a run whose kept attempts span two macOS builds into a build's table (the
+        # Xcode build is recorded here and printed by the report, not compared)
         rec = {"reason": reason, "battery": pct, "phase": self.phase, "builds": builds(self.machine_now)}
         try:
             self.server.start()

@@ -3,8 +3,9 @@
 This page describes the fixed setting behind every row of `RESULTS.md`. Each run records it in
 `manifest.json` of its results directory, `docs/benchmark/<machine>/<family>/<quant>/backend/<run-id>/`
 at the repository root. Rows from different machines or protocol versions never share a table. Speed
-rows also share a table only when their macOS and Xcode builds match, and capability rows only when
-their harness epoch matches. Harness epochs that `pins.toml` declares equivalent (`[[epoch.equivalent]]`:
+rows also share a table only when their macOS builds match (the Xcode build is recorded and shown, not
+compared), and capability rows only when their harness epoch matches. Harness epochs that `pins.toml`
+declares equivalent (`[[epoch.equivalent]]`:
 a change to comments only, checked against git by `modeleval selftest`; DESIGN §6.5) count as one epoch,
 shown under the oldest id: `ce99c7b5d0bd` counts as `7582825160ad`. On the results page (`modeleval publish`, then the repository's
 `scripts/build_docs.py`) the speed leg is protocol `speed-1` and the capability leg `capability-N`, one per harness epoch
@@ -176,7 +177,7 @@ machine's thresholds never mix with these.
 
 ## Comparability
 
-The reference row (Qwen3.8-27B oQ5 + MTP) is measured once per protocol version, per macOS or
-Xcode build (speed), and once per harness epoch (capability; declared-equivalent epochs are one). The old campaign measured
+The reference row (Qwen3.8-27B oQ5 + MTP) is measured once per protocol version, per macOS
+build (speed), and once per harness epoch (capability; declared-equivalent epochs are one). The old campaign measured
 differences between nights of up to ~20 % for M1 and M3 and ~9 % for M4. Differences inside
 that band are reported as "no difference".

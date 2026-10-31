@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 
 import pytest
+from speedkit import NANBEIGE
 from test_speed_report import cap_run, speed_run
 
 from modeleval import paths, publish, report
@@ -65,6 +66,22 @@ def test_publish_writes_rows_and_skips_settings_without_a_protocol_id(tmp_path):
     assert row["title"] == publish.SPEED_PROTOCOLS["speed-1"]["title"] and row["reference"] is True
     assert not (root / "mac/qwen-ref/oq5/agent_ability").exists()
     assert publish.publish(root, "nobody") == [f"no run of this pipeline under {paths.tilde(root)} for nobody"]
+
+
+def test_speed_protocol_ids_ignore_the_xcode_build(tmp_path):
+    """speed-1 is protocol 1 on macOS 26B5101f whatever the Xcode build; the row's system block still records it."""
+    root = tmp_path / "results"
+    speed_run(root, "20261027-010000", xcode="27B52")
+    speed_run(root, "20261027-030000", xcode="27A9275", **NANBEIGE)
+    speed_run(root, "20261028-010000", build="26C0000a", xcode="27A9275", **{**NANBEIGE, "key": "other"})
+    assert all("xcode_build" not in p for p in publish.SPEED_PROTOCOLS.values())
+    lines = publish.publish(root)
+    assert sum(line.startswith("wrote ") for line in lines) == 2
+    assert any("no speed protocol id" in line and "macOS 26C0000a" in line and "Xcode" not in line for line in lines)
+    rows = {r.model_key: publish.rows(r)[0][0][1] for r in report.discover(root) if r.model_key != "other"}
+    assert {row["protocol"] for row in rows.values()} == {"speed-1"}
+    assert rows["qwen-ref"]["system"]["xcode_build"] == "27B52" and rows["nanbeige"]["system"]["xcode_build"] == "27A9275"
+    assert rows["qwen-ref"]["system"]["macos_build"] == "26B5101f"
 
 
 def test_capability_reference_is_scoped_by_protocol_and_epoch(tmp_path):

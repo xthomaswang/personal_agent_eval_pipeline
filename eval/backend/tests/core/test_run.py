@@ -721,6 +721,38 @@ def test_a_resume_on_another_build_is_refused_and_leaves_the_run_alone(orch, mon
     assert man["launches"][0]["builds"]["macos"] == "test" and man["launches"][-1]["builds"]["macos"] == "newer"
 
 
+def _machine(macos: str, xcode: str):
+    return lambda: {"sw_vers": {"BuildVersion": macos}, "xcodebuild": f"Xcode 27.x; Build version {xcode}"}
+
+
+def test_the_speed_resume_key_is_the_macos_build_only(orch, monkeypatch, capsys):
+    """DESIGN §2: a different macOS build refuses a speed resume; a different Xcode build alone does not (it is
+    recorded in the launch's builds, nothing more)."""
+    o = orch
+    monkeypatch.setattr(run, "machine_info", _machine("26A1", "27X1"))
+    o.control(units=["m3-16k", "m1"], invalid={"m1": 1})
+    assert o.go(legs=("speed",)) == 4
+    res = _only_dir(RES("fake-1b"))
+    before = (res / "manifest.json").read_text()
+    # another macOS build (the same Xcode): refused, and the message names macOS only
+    monkeypatch.setattr(run, "machine_info", _machine("26B2", "27X1"))
+    capsys.readouterr()
+    assert o.go(legs=("speed",), resume=res.name) == 5
+    out = capsys.readouterr().out
+    assert "speed leg ran on macOS 26A1, this machine is on macOS 26B2" in out and "Xcode" not in out
+    assert (res / "manifest.json").read_text() == before
+    # another Xcode build (the same macOS build): the resume goes on
+    monkeypatch.setattr(run, "machine_info", _machine("26A1", "27X2"))
+    capsys.readouterr()
+    assert o.go(legs=("speed",), resume=res.name) != 5
+    out = capsys.readouterr().out
+    assert "start a new run" not in out
+    man = json.loads((res / "manifest.json").read_text())
+    assert man["machine"]["xcodebuild"].endswith("27X1")                  # the run keeps its first machine
+    assert man["launches"][0]["builds"] == {"macos": "26A1", "xcode": "27X1"}
+    assert man["launches"][-1]["builds"] == {"macos": "26A1", "xcode": "27X2"}   # recorded, not compared
+
+
 def test_a_second_orchestrator_of_the_same_run_is_refused_and_signals_nothing(orch, capsys):
     o = orch
     o.control(units=["m1"], invalid={"m1": 1})

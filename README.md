@@ -45,7 +45,7 @@ python3 ../../scripts/build_docs.py      # rebuild the site
 On a new machine, three steps are not in these commands (the site's
 [Reproduce](https://xthomaswang.github.io/personal_agent_eval_pipeline/reproduce.html) page has them): preparing the
 reference model by hand (it has no prepare entry), writing the harness epoch your Mac hashes to into
-`eval/backend/pins.toml`, and adding protocol ids for your macOS/Xcode build and epoch to
+`eval/backend/pins.toml`, and adding protocol ids for your macOS build and epoch to
 `eval/backend/src/modeleval/publish.py`. [eval/backend/README.md](eval/backend/README.md#on-another-mac) has the
 details; each suite's README has its own.
 
