@@ -265,6 +265,9 @@ MISS_STEPS = (
     "turn failed", "abstention: answered anyway", "2 evidence cut at ingest, not retrieved", "3 not retrieved",
     "4 retrieved, evidence cut at ingest", "5a session retrieved, evidence not all shown",
     "5b evidence shown, not used by the reader", "5 retrieved, evidence not checked")
+# Steps of an arm that recalls memory items (memory.recall_source = "items"), after "turn failed" and "abstention".
+ITEM_STEPS = ("I gated out at ingest", "I lost in compression", "I item not retrieved", "I item listed, not opened",
+              "I item shown, still wrong")
 EVIDENCE_SHOWN = 0.9  # the share of every evidence turn's words the model must have been shown for the evidence to count as shown
 
 
@@ -283,6 +286,17 @@ def miss_step(row: Mapping[str, Any]) -> str | None:
     if row.get("abstention"):
         return "abstention: answered anyway"
     ret = row.get("retrieval") or {}
+    found = row.get("compress")
+    if isinstance(found, Mapping):  # an items arm: the evidence must be kept, encoded, retrieved and opened
+        if found.get("gated_out"):
+            return "I gated out at ingest"
+        if found.get("answer_in_item") is False or (found.get("evidence") and not found.get("items")):
+            return "I lost in compression"
+        if not (ret.get("item_hit") or ret.get("item_search_hit")):
+            return "I item not retrieved"
+        if row.get("list_form") and not ret.get("item_opened"):
+            return "I item listed, not opened"
+        return "I item shown, still wrong"
     best = (row.get("evidence") or {}).get("best")
     cut = best is not None and best < 1.0
     if not (ret.get("auto_hit") or ret.get("search_hit")):
@@ -300,7 +314,22 @@ def miss_table(rows: Sequence[Mapping[str, Any]], arms: Sequence[str]) -> dict[s
     out = {}
     for arm in arms:
         steps = [miss_step(r) for r in rows if r["arm"] == arm]
-        out[arm] = {step: sum(1 for s in steps if s == step) for step in MISS_STEPS}
+        out[arm] = {step: sum(1 for s in steps if s == step) for step in (*MISS_STEPS, *ITEM_STEPS)}
+    return out
+
+
+def route_table(rows: Sequence[Mapping[str, Any]]) -> dict[str, dict[str, int]]:
+    """Per question group: how many questions had each route action among the items that hold their evidence (an items
+    arm's ``compress``, once per question)."""
+    seen: dict[str, Mapping[str, Any]] = {}
+    for r in rows:
+        if isinstance(r.get("compress"), Mapping):
+            seen.setdefault(r["question_id"], r)
+    out: dict[str, dict[str, int]] = {}
+    for r in seen.values():
+        for action in set(r["compress"].get("routes") or []):
+            out.setdefault(group_of(r), {}).setdefault(action, 0)
+            out[group_of(r)][action] += 1
     return out
 
 
@@ -353,7 +382,7 @@ def analyse(run_dir: Path, resamples: int = BOOTSTRAP, seed: int = SEED) -> dict
         "accuracy": accuracy_table(rows, arms, resamples, seed), "paired": paired_table(rows, arms, resamples, seed),
         "retrieval": retrieval_table(rows, arms), "ingest": ingest_table(run["ingests"], run["questions"]),
         "judge": judge_table(rows, arms), "replies": reply_table(rows, arms), "control": control_table(run["controls"], rows, arms),
-        "misses": miss_table(rows, arms),
+        "misses": miss_table(rows, arms), "routes": route_table(rows),
         "rows": [
             {k: r.get(k) for k in ("question_id", "arm", "repeat", "state", "correct")}
             | {"auto_hit": (r.get("retrieval") or {}).get("auto_hit"), "search_hit": (r.get("retrieval") or {}).get("search_hit"),
@@ -482,7 +511,15 @@ def render(rep: Mapping[str, Any]) -> str:
             f"evidence turn not shown in full (under {EVIDENCE_SHOWN:.0%} of its words in what recall and search showed the "
             "model, which sees a short head of each turn), or every evidence turn shown and still not used. "
             "From the row alone; read the answers before trusting a step.", ""]
-    out += table(["", *arms], [[step, *(str(ms[a][step]) for a in arms)] for step in MISS_STEPS])
+    shown_steps = [*MISS_STEPS, *(s for s in ITEM_STEPS if any(ms[a][s] for a in arms))]
+    out += table(["", *arms], [[step, *(str(ms[a][step]) for a in arms)] for step in shown_steps])
+    if rep.get("routes"):
+        out += ["Items arms: the evidence must survive the gate, be kept in an item (the words of a short gold answer), be "
+                "retrieved, and, in list form, be opened. Route actions of the items that hold the evidence, per question "
+                "(once per question, any arm):", ""]
+        groups = sorted(rep["routes"])
+        actions = sorted({a for g in groups for a in rep["routes"][g]})
+        out += table(["group", *actions], [[g, *(str(rep["routes"][g].get(a, 0)) for a in actions)] for g in groups])
 
     rp = rep["replies"]
     out += ["## Replies asked again", "",

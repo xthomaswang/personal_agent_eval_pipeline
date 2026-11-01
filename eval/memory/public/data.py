@@ -270,6 +270,59 @@ def evidence_texts(question: Mapping[str, Any]) -> list[str]:
             if str(sid) in wanted for t in turns if t.get("has_answer")]
 
 
+def exchange_of_turns(turns: Sequence[Mapping[str, Any]]) -> list[int | None]:
+    """The 0-based exchange each message of a session falls in, as `melo memory ingest` groups them (support/memory/
+    ingest.py exchanges): a blank message is skipped, a user message starts an exchange (one with no reply is an exchange
+    of its own), the reply after it joins it, a second reply in a row joins the exchange before, and a reply before any
+    user message is skipped. None for a skipped message."""
+    out: list[int | None] = [None] * len(turns)
+    count, asked = 0, None  # the index of a user message waiting for its reply
+    for at, turn in enumerate(turns):
+        if not str(turn.get("content") or "").strip():
+            continue
+        if turn.get("role") == "user":
+            if asked is not None:
+                out[asked], count = count, count + 1
+            asked = at
+        elif asked is not None:
+            out[asked] = out[at] = count
+            count, asked = count + 1, None
+        elif count:
+            out[at] = count - 1
+    if asked is not None:
+        out[asked] = count
+    return out
+
+
+def evidence_exchanges(question: Mapping[str, Any]) -> list[tuple[str, int]]:
+    """(ingest file session id, exchange index) of each evidence turn (``has_answer``) of the answer sessions, the way a
+    compress ingest names an item's sources."""
+    wanted = set(answer_sessions(question))
+    out = []
+    for fid, sid, turns in zip(file_session_ids(question), question["haystack_session_ids"], question["haystack_sessions"], strict=True):
+        if fid is None or str(sid) not in wanted:
+            continue
+        index = exchange_of_turns(turns)
+        out += [(fid, index[at]) for at, t in enumerate(turns) if t.get("has_answer") and index[at] is not None]
+    return out
+
+
+_SMALL_WORDS = frozenset("a an the of in on at to for my i me and or is was with by".split())
+SHORT_ANSWER_WORDS = 6  # a longer gold answer (a rubric, a sentence) is not looked up word by word
+
+
+def answer_terms(question: Mapping[str, Any]) -> frozenset[str] | None:
+    """The words of a short gold answer ("Target", "20", "the suburbs"), lowercased, small words left out; None for an
+    abstention question or an answer longer than SHORT_ANSWER_WORDS words."""
+    if is_abstention(question):
+        return None
+    words = re.findall(r"[a-z0-9]+", str(question["answer"]).lower())
+    if not words or len(words) > SHORT_ANSWER_WORDS:
+        return None
+    kept = frozenset(w for w in words if w not in _SMALL_WORDS)
+    return kept or frozenset(words)
+
+
 DOC_CHARS = 2000  # localmelo's index keeps the first 2000 characters of "User: <typed>\nmelo: <answer>" (support/memory/index.py)
 
 

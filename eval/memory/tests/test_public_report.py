@@ -186,6 +186,22 @@ def test_opens_per_arm_and_on_the_controls(tmp_path):
     assert "turns that opened a listed turn" in text and "control prompts that opened a listed turn" in text
 
 
+def test_an_items_arm_puts_a_wrong_answer_at_the_step_the_item_lost_it():
+    base = {"arm": "C", "state": "finished", "correct": False, "abstention": False, "list_form": True, "evidence": {"best": 1.0}}
+    item = {"evidence": 1, "kept": 1, "gated_out": False, "items": [11], "answer_in_item": True, "routes": ["NEW"]}
+    assert report.miss_step({**base, "compress": {**item, "gated_out": True, "kept": 0}}) == "I gated out at ingest"
+    assert report.miss_step({**base, "compress": {**item, "answer_in_item": False}}) == "I lost in compression"
+    assert report.miss_step({**base, "compress": {**item, "items": [], "answer_in_item": None}}) == "I lost in compression"
+    assert report.miss_step({**base, "compress": item, "retrieval": {"item_hit": False}}) == "I item not retrieved"
+    assert report.miss_step({**base, "compress": item, "retrieval": {"item_hit": True, "item_opened": False}}) == "I item listed, not opened"
+    assert report.miss_step({**base, "compress": item, "retrieval": {"item_hit": True, "item_opened": True}}) == "I item shown, still wrong"
+    assert report.miss_step({**base, "list_form": False, "compress": item, "retrieval": {"item_search_hit": True}}) == "I item shown, still wrong"
+    rows = [{**base, "question_id": "q1", "question_type": "knowledge-update", "compress": {**item, "routes": ["NEW", "NEW"]}},
+            {**base, "question_id": "q1", "question_type": "knowledge-update", "compress": {**item, "routes": ["NEW", "NEW"]}},
+            {**base, "question_id": "q2", "question_type": "knowledge-update", "compress": {**item, "routes": ["UPDATE"]}}]
+    assert report.route_table(rows) == {"knowledge-update": {"NEW": 1, "UPDATE": 1}}
+
+
 def test_the_rendered_report(run_dir):
     text = report.render(report.analyse(run_dir, resamples=200))
     for heading in ("## Arms", "## Accuracy", "## Paired arm differences", "## Retrieval", "## Ingest", "## Judge", "## Control: ordinary prompts"):

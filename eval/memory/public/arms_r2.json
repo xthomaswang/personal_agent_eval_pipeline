@@ -1,0 +1,16 @@
+{
+  "C-items": {"label": "memory items in a list the model opens; open returns the item only (the design as written)",
+              "x": ["memory.retriever=embedding"], "embedding": true,
+              "config": {"tools.web_fetch": false, "tasks.follow_up": false, "memory.recall_source": "items", "memory.recall_form": "list"}},
+  "C-items+src": {"label": "memory items in a list; open returns the item and its source turns",
+                  "x": ["memory.retriever=embedding"], "embedding": true,
+                  "config": {"tools.web_fetch": false, "tasks.follow_up": false, "memory.recall_source": "items", "memory.recall_form": "list",
+                             "memory.open_sources": "on"}},
+  "C-inline": {"label": "memory items inline in the block, whole (800 characters each, 4000 per block), no open step",
+               "x": ["memory.retriever=embedding"], "embedding": true,
+               "config": {"tools.web_fetch": false, "tasks.follow_up": false, "memory.recall_source": "items",
+                          "memory.recall_item_chars": 800, "memory.recall_chars": 4000}},
+  "C-list-raw": {"label": "raw turns in a list the model opens (R1 on the same ingest)",
+                 "x": ["memory.retriever=embedding"], "embedding": true,
+                 "config": {"tools.web_fetch": false, "tasks.follow_up": false, "memory.recall_form": "list"}}
+}

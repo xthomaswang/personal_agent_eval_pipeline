@@ -387,10 +387,47 @@ def used_items(memory: Mapping[str, Any] | None, store_to_file: Mapping[str, str
     for item in (memory or {}).get("used") or []:
         if isinstance(item, Mapping):
             sid = str(item.get("session_id") or "")
-            out.append({
-                "kind": item.get("kind"), "id": item.get("id"), "turn": item.get("turn"), "session_id": sid,
-                "file_id": store_to_file.get(sid)})
+            entry = {"kind": item.get("kind"), "id": item.get("id"), "turn": item.get("turn"), "session_id": sid,
+                     "file_id": store_to_file.get(sid)}
+            if item.get("kind") == "item":  # a memory item (compress ingest): its chats are its sources'
+                entry["item"] = item.get("item")
+                entry["file_ids"] = sorted({store_to_file[str(src[0])] for src in source_pairs(item) if str(src[0]) in store_to_file})
+            out.append(entry)
     return out
+
+
+def source_pairs(entry: Mapping[str, Any]) -> list[tuple[str, int]]:
+    """The (session, turn or exchange) pairs of an item's ``sources``; malformed ones are left out."""
+    out = []
+    for src in entry.get("sources") or []:
+        if isinstance(src, (list, tuple)) and len(src) == 2 and isinstance(src[1], int):
+            out.append((str(src[0]), src[1]))
+    return out
+
+
+def compress_evidence(question: data.Question, compress: Any) -> dict[str, Any] | None:
+    """What a compress ingest did with the question's evidence turns, from the `-j` report's ``compress`` (per ingest
+    file session id: the gate's exchange lists and the items with their sources): how many evidence exchanges and how
+    many the gate kept, ``gated_out`` (none kept), the items that hold one (``items``), ``answer_in_item`` (the words of a
+    short gold answer are all in one of them; None for a long answer or no item) and the route actions of those items.
+    None without a ``compress`` report."""
+    if not isinstance(compress, Mapping):
+        return None
+    chats = {str(fid): c for fid, c in compress.items() if isinstance(c, Mapping)}
+    evidence = set(data.evidence_exchanges(question))
+    kept = {(fid, i) for fid, c in chats.items() for i in ((c.get("gate") or {}).get("kept") or []) if isinstance(i, int)}
+    holding = [it for c in chats.values() for it in (c.get("items") or [])
+               if isinstance(it, Mapping) and evidence & set(source_pairs(it))]
+    ids = {it.get("id") for it in holding}
+    terms = data.answer_terms(question)
+    words = [set(re.findall(r"[a-z0-9]+", f"{it.get('title') or ''} {it.get('text') or ''}".lower())) for it in holding]
+    routes = [str(r.get("action")) for c in chats.values() for r in (c.get("routes") or [])
+              if isinstance(r, Mapping) and (r.get("item") in ids or r.get("target") in ids)]
+    return {
+        "evidence": len(evidence), "kept": len(evidence & kept), "gated_out": bool(evidence) and not evidence & kept,
+        "items": sorted(i for i in ids if i is not None),
+        "answer_in_item": None if terms is None or not holding else any(terms <= w for w in words), "routes": routes,
+    }
 
 
 def _flat(text: str) -> str:
@@ -458,8 +495,10 @@ def opens(memory: Mapping[str, Any] | None, store_to_file: Mapping[str, str], wa
     ``open_hit``, whether one is from an answer session (None when nothing was opened or the question has no answer
     session)."""
     opened = [o for o in ((memory or {}).get("opened") or []) if isinstance(o, Mapping)]
-    files = {store_to_file.get(str(o.get("session_id") or "")) for o in opened} - {None}
-    return {"opens": len(opened), "open_hit": bool(files & wanted) if opened and wanted else None}
+    sessions = {str(o.get("session_id") or "") for o in opened} | {sid for o in opened for sid, _ in source_pairs(o)}
+    files = {store_to_file.get(sid) for sid in sessions} - {None}
+    return {"opens": len(opened), "open_hit": bool(files & wanted) if opened and wanted else None,
+            "opened_items": sorted({o["item"] for o in opened if o.get("item") is not None})}
 
 
 def search_hint(memory: Mapping[str, Any] | None) -> Any:
@@ -492,13 +531,14 @@ def retrieval(
     }
     calls = searches(events)
     row["searches"] = len(calls)
-    reached = {u["file_id"] for u in used if u["file_id"] in wanted}
+    reached = {f for u in used for f in (u.get("file_ids") or [u["file_id"]]) if f in wanted}
     if wanted:
         row["auto_hit"] = bool(reached)
         row["auto_cover"] = round(len(reached) / len(wanted), 4)
     searched = (memory or {}).get("searched")
     if isinstance(searched, list) and wanted:  # newer builds list every item the search tool returned in the memory event
         named = {str(i["session_id"]) for i in searched if isinstance(i, Mapping) and i.get("session_id")}
+        named |= {sid for i in searched if isinstance(i, Mapping) for sid, _ in source_pairs(i)}
         row["search_hit"] = bool({store_to_file[s] for s in named if s in store_to_file} & wanted)
         row["search_via"] = "memory"
     elif exact and calls and wanted:  # the build leaves searched out when its searches found nothing
@@ -663,9 +703,13 @@ def ask(study: Study, arm: Arm, question: data.Question, text: str, tag: str, te
 
 
 def question_row(
-    study: Study, arm: Arm, repeat: int, question: data.Question, ids: Mapping[str, str], asked: Asked,
+    study: Study, arm: Arm, repeat: int, question: data.Question, ids: Mapping[str, str], asked: Asked, compress: Any = None,
 ) -> dict[str, Any]:
-    """The results.jsonl row of one question cell: the turn, what memory did, the retrieval hits and the judge's verdict."""
+    """The results.jsonl row of one question cell: the turn, what memory did, the retrieval hits and the judge's verdict.
+
+    For an arm that recalls memory items (``memory.recall_source = "items"``), ``compress`` (the ingest report's) adds
+    ``compress`` (compress_evidence) and the item hits: ``item_hit`` (recall used or listed an item that holds the
+    evidence), ``item_search_hit`` (a search returned one), ``item_opened`` (the model opened one)."""
     res = asked.res
     memory = res.memory() if res else None
     row: dict[str, Any] = {
@@ -678,6 +722,17 @@ def question_row(
         "remembered": len((memory or {}).get("remembered") or []),
         "cold_start": asked.cold, "cell_s": asked.seconds,
     }
+    settings = settings_of(arm)
+    row["list_form"] = settings.get("memory.recall_form") == "list"
+    if settings.get("memory.recall_source") == "items":
+        row["compress"] = found = compress_evidence(question, compress)
+        if found is not None:
+            held, ret = set(found["items"]), row["retrieval"]
+            listed = {u.get("item") for u in ret["used"] if u.get("kind") == "item"}
+            searched = {i.get("item") for i in ((memory or {}).get("searched") or []) if isinstance(i, Mapping) and i.get("kind") == "item"}
+            ret["item_hit"] = bool(listed & held) if held else None
+            ret["item_search_hit"] = bool(searched & held) if held else None
+            ret["item_opened"] = bool(set(ret.get("opened_items") or []) & held) if held else None
     if res is not None:
         row.update(proxy_view(asked.log, res.started_epoch, res.ended_epoch))
     if row["state"] == "finished":
@@ -849,7 +904,7 @@ def run_study(study: Study) -> int:
                     break
                 arm = study.arms[arm_name]
                 asked = ask(study, arm, question, str(question["question"]), f"{arm_name}__r{repeat}", template)
-                row = question_row(study, arm, repeat, question, ids, asked)
+                row = question_row(study, arm, repeat, question, ids, asked, report.get("compress"))
                 across.Journal(results).append(row)
                 across.log(log_path, f"{qid} {arm_name} r{repeat}: {row['state']}, correct={row['correct']}")
             for arm_name in [] if stopped else todo_ctl:  # the controls come after the question's own cells

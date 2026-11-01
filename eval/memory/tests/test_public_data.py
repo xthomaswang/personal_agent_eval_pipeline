@@ -78,6 +78,28 @@ def test_a_repeated_haystack_session_is_kept_under_a_marked_id():
     assert data.haystack_ids(q) == {"sess_a": "sess_a", "sess_b": "sess_b"}
 
 
+def test_exchanges_are_counted_the_way_ingest_groups_messages():
+    def t(role, text, ans=False):
+        return {"role": role, "content": text, **({"has_answer": True} if ans else {})}
+    turns = [t("assistant", "hello first"), t("user", "a"), t("assistant", "b"), t("assistant", "b2"), t("user", "  "),
+             t("user", "c"), t("user", "d"), t("assistant", "e")]
+    # a reply before any user message is skipped; b2 joins exchange 0; the blank one is skipped; c has no reply
+    assert data.exchange_of_turns(turns) == [None, 0, 0, 0, None, 1, 2, 2]
+    assert data.exchange_of_turns([t("user", "x")]) == [0]
+    q = mini_questions()[0]
+    q["haystack_sessions"][0][1]["has_answer"] = True  # sess_a's reply: exchange 0
+    q["haystack_sessions"][1][0]["has_answer"] = True  # not an answer session
+    assert data.evidence_exchanges(q) == [("sess_a", 0)]
+
+
+def test_answer_terms_of_short_answers_only():
+    q = mini_questions()[0]
+    for gold, terms in (("Target", {"target"}), (20, {"20"}), ("the suburbs", {"suburbs"}), ("3.5 weeks", {"3", "5", "weeks"})):
+        assert data.answer_terms({**q, "answer": gold}) == terms
+    assert data.answer_terms({**q, "answer": "The user would prefer responses that build on their cake"}) is None
+    assert data.answer_terms(mini_questions()[1]) is None  # abstention
+
+
 def test_dates_are_iso_local_time():
     assert data.iso_local("2023/05/30 (Tue) 23:40") == "2023-05-30T23:40:00"
     assert data.iso_local("2024/01/02 (Tue) 00:05") == "2024-01-02T00:05:00"

@@ -181,6 +181,43 @@ def test_opened_turns_are_counted_and_their_text_counts_as_shown():
     assert (run.retrieval(q, {"used": []}, [], ids)["opens"], run.retrieval(q, {"used": []}, [], ids)["open_hit"]) == (0, None)
 
 
+def compress_report():
+    """A compress ingest's -j section for mini_questions()[0]: sess_a's exchange 0 holds the evidence."""
+    return {"model_calls": 3, "cache_hits": 0,
+            "sess_a": {"gate": {"kept": [0], "ignored": [], "unmentioned": [], "forced": []},
+                       "items": [{"id": 11, "title": "Degree", "text": "You hold a degree in Business Administration.", "kind": "profile",
+                                  "sources": [["sess_a", 0]]}],
+                       "routes": [{"item": 11, "action": "NEW", "target": None, "reason": "", "title": "Degree"}]},
+            "sess_b": {"gate": {"kept": [], "ignored": [0], "unmentioned": [], "forced": []}, "items": [],
+                       "routes": [{"item": None, "action": "IGNORE", "target": None, "reason": "small talk", "title": "Hobby"}]}}
+
+
+def test_compress_evidence_follows_the_evidence_through_the_gate_and_the_items():
+    q = mini_questions()[0]
+    q["haystack_sessions"][0][0]["has_answer"] = True
+    q["answer"] = "Business Administration"
+    found = run.compress_evidence(q, compress_report())
+    assert found == {"evidence": 1, "kept": 1, "gated_out": False, "items": [11], "answer_in_item": True, "routes": ["NEW"]}
+    lossy = compress_report()
+    lossy["sess_a"]["items"][0]["text"] = "You studied at a university."
+    assert run.compress_evidence(q, lossy)["answer_in_item"] is False
+    ignored = compress_report()
+    ignored["sess_a"]["gate"] = {"kept": [], "ignored": [0], "unmentioned": [], "forced": []}
+    ignored["sess_a"]["items"] = []
+    assert run.compress_evidence(q, ignored)["gated_out"] is True
+    assert run.compress_evidence(q, None) is None
+
+
+def test_item_hits_and_opens_name_the_chats_of_their_sources():
+    q = mini_questions()[0]
+    ids = {"sess_a": "st1", "sess_b": "st2"}
+    memory = {"used": [{"kind": "item", "item": 11, "text": "Degree", "sources": [["st1", 1]]}],
+              "opened": [{"item": 11, "sources": [["st1", 1]]}]}
+    ret = run.retrieval(q, memory, [], ids)
+    assert ret["used"][0]["file_ids"] == ["sess_a"] and ret["auto_hit"] is True
+    assert (ret["opens"], ret["open_hit"], ret["opened_items"]) == (1, True, [11])
+
+
 def test_search_hit_by_words_when_the_event_names_no_session():
     q = mini_questions()[0]
     ids = {"sess_a": "st1", "sess_b": "st2"}

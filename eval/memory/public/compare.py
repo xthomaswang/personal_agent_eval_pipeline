@@ -82,7 +82,8 @@ def render(cmp: Mapping[str, Any], note: str = "") -> str:
         body.append([f"{p['a']} - {p['b']}", p["group"], str(p["questions"]), diff, f"+{p['a_better']} / -{p['b_better']}"])
     out += report.table(["columns", "group", "questions", "difference (pp)", "better"], body)
     out += ["## Why answers were wrong", ""]
-    out += report.table(["", *names], [[s, *(str(cmp["misses"][n][s]) for n in names)] for s in report.MISS_STEPS])
+    steps = [*report.MISS_STEPS, *(s for s in report.ITEM_STEPS if any(cmp["misses"][n][s] for n in names))]
+    out += report.table(["", *names], [[s, *(str(cmp["misses"][n][s]) for n in names)] for s in steps])
     rt = cmp["retrieval"][report.ALL]
     out += ["## Retrieval (all questions with an answer session)", ""]
     out += report.table(["", *names], [
