@@ -31,9 +31,10 @@ the model) comes from an answer session. The search hit: the same for what the `
 a build that sends the memory event's `searched` items (its events reference documents them) is read from those alone, a
 search that found nothing being a miss; an older build whose tool result names no session is matched by the words of the
 answer sessions' user turns instead, and the row says which (`search_via`). Both are recorded apart, with the
-`search_hint` of the memory event when the build sends one. A hit is per session; `evidence_seen` says whether the model
-was shown the evidence turn itself: the largest share of an evidence turn's words (four letters or more) found in the
-recalled items and the search results (None when the question marks no evidence turn).
+`search_hint` of the memory event when the build sends one. A hit is per session; the evidence turns themselves are
+checked by their words (four letters or more) found in the recalled items and the search results, as shown (a short
+head of each turn): `evidence_seen` is the largest share of one evidence turn, `evidence_all` the smallest over all of
+them (None when the question marks no evidence turn).
 
 `--control-prompts FILE` (`default` for the built-in list) adds a control: on the first `--control-homes` ingested HOMEs, per
 arm, one ordinary prompt that needs no memory (a unit conversion, a short poem, a regex) is asked instead of the question. Any
@@ -473,7 +474,7 @@ def retrieval(
     used = used_items(memory, store_to_file)
     row: dict[str, Any] = {
         "answer_sessions": sorted(wanted), "used": used,
-        "search_hint": search_hint(memory), "evidence_seen": evidence_seen(question, memory, events),
+        "search_hint": search_hint(memory), **evidence_seen(question, memory, events),
         "auto_hit": None, "auto_cover": None, "searches": 0, "search_hit": None, "search_via": None,
     }
     calls = searches(events)
@@ -511,14 +512,15 @@ def _words(text: str) -> set[str]:
     return set(re.findall(r"[a-z0-9]{4,}", text.lower()))
 
 
-def evidence_seen(question: data.Question, memory: Mapping[str, Any] | None, events: Sequence[Mapping[str, Any]]) -> float | None:
-    """The largest share of one evidence turn's words that the model was shown: in the text of the recalled items or in
-    a ``search_memory`` result. None when the question marks no evidence turn with words."""
+def evidence_seen(question: data.Question, memory: Mapping[str, Any] | None, events: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    """How much of the evidence turns the model was shown, in the text of the recalled items and the ``search_memory``
+    results: ``evidence_seen`` the largest share of one evidence turn's words, ``evidence_all`` the smallest over all of
+    them (a question can need every one). Both None when the question marks no evidence turn with words."""
     shown = [str(u.get("text") or "") for u in ((memory or {}).get("used") or []) if isinstance(u, Mapping)]
     shown += [str(c["finished"].get("output") or "") for c in searches(events) if c["finished"]]
     seen = _words(" ".join(shown))
     shares = [len(w & seen) / len(w) for w in map(_words, data.evidence_texts(question)) if w]
-    return round(max(shares), 3) if shares else None
+    return {"evidence_seen": round(max(shares), 3) if shares else None, "evidence_all": round(min(shares), 3) if shares else None}
 
 
 def first_prompt_tokens(res: client.TurnResult) -> int | None:

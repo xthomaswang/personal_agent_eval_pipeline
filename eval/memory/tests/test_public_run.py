@@ -133,16 +133,18 @@ def test_the_copy_of_a_repeated_answer_session_is_a_hit():
     assert row["auto_hit"] is True and row["used"][0]["file_id"] == "sess_a"
 
 
-def test_evidence_seen_is_the_share_of_the_evidence_turns_words_the_model_was_shown():
+def test_evidence_seen_and_all_are_the_shares_of_the_evidence_turns_words_the_model_was_shown():
     q = mini_questions()[0]
     q["haystack_sessions"][0][0]["has_answer"] = True  # "I hold a degree in Business Administration."
     other = {"used": [{"kind": "chat", "session_id": "st1", "text": "melo: Congratulations on the degree!"}]}
-    assert run.evidence_seen(q, other, []) == 0.25  # hold degree business administration: only "degree" shown
+    assert run.evidence_seen(q, other, []) == {"evidence_seen": 0.25, "evidence_all": 0.25}  # only "degree" of four words
     shown = {"used": [{"kind": "record", "text": "The user holds a degree in Business Administration."}]}
-    assert run.evidence_seen(q, shown, []) == 0.75  # "hold" is not "holds"
-    assert run.evidence_seen(q, None, search_events("1. User: I hold a degree in Business Administration.")) == 1.0
-    assert run.evidence_seen(mini_questions()[0], shown, []) is None  # no evidence turn marked
-    assert run.retrieval(q, shown, [], {"sess_a": "st1"})["evidence_seen"] == 0.75
+    assert run.evidence_seen(q, shown, [])["evidence_seen"] == 0.75  # "hold" is not "holds"
+    assert run.evidence_seen(q, None, search_events("1. User: I hold a degree in Business Administration."))["evidence_all"] == 1.0
+    q["haystack_sessions"][0][1]["has_answer"] = True  # a second evidence turn, "Congratulations on the degree!", half shown
+    assert run.evidence_seen(q, shown, []) == {"evidence_seen": 0.75, "evidence_all": 0.5}
+    assert run.evidence_seen(mini_questions()[0], shown, []) == {"evidence_seen": None, "evidence_all": None}
+    assert run.retrieval(q, shown, [], {"sess_a": "st1"})["evidence_all"] == 0.5
 
 
 def test_search_hit_by_words_when_the_event_names_no_session():
