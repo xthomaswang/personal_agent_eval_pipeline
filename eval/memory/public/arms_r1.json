@@ -1,0 +1,7 @@
+{
+  "A": {"label": "localmelo as shipped, web_fetch off: recalled turns as excerpts",
+        "x": ["memory.retriever=embedding"], "embedding": true, "config": {"tools.web_fetch": false}},
+  "C-list-raw": {"label": "recall as a list of titles the model opens with open_memory (20 lines, 4000 characters per opened turn)",
+                 "x": ["memory.retriever=embedding"], "embedding": true,
+                 "config": {"tools.web_fetch": false, "memory.recall_form": "list"}}
+}
