@@ -1,0 +1,4 @@
+{
+  "A": {"label": "localmelo as shipped, web_fetch off, task follow-up off (as before #424): a check of one build against earlier runs' A",
+        "x": ["memory.retriever=embedding"], "embedding": true, "config": {"tools.web_fetch": false, "tasks.follow_up": false}}
+}
