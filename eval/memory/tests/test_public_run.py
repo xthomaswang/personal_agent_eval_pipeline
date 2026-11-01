@@ -154,6 +154,17 @@ def test_search_hit_from_the_sessions_an_event_names():
     assert (as_json["search_hit"], as_json["search_via"]) == (True, "items")
 
 
+def test_search_hit_from_the_memory_events_searched_items_wins_over_the_tool_text():
+    q = mini_questions()[0]
+    ids = {"sess_a": "st1", "sess_b": "st2"}
+    other = "1. User: My favourite hobby is bouldering at the gym. melo: That sounds like fun. (a chat, May 21)"
+    memory = {"used": [], "searched": [{"session_id": "st1", "turn": 2, "kind": "chat", "id": 7}]}
+    hit = run.retrieval(q, memory, search_events(other), ids)
+    assert (hit["search_hit"], hit["search_via"]) == (True, "memory")
+    miss = run.retrieval(q, {"used": [], "searched": [{"session_id": "st2", "turn": 1}]}, search_events(other), ids)
+    assert (miss["search_hit"], miss["search_via"]) == (False, "memory")
+    assert run.retrieval(q, {"used": [], "searched": []}, [], ids)["search_hit"] is False  # a search that found nothing
+
 def test_prompt_tokens_come_from_the_first_model_call():
     res = client.TurnResult("s", "t", 1, "completed", usage={"prompt_tokens": 900.0, "completion_tokens": 30.0})
     assert run.first_prompt_tokens(res) == 900

@@ -448,8 +448,8 @@ def retrieval(
 
     ``ids`` is the ingest report's file id -> store id. ``auto_hit``: an item of ``turn.memory.used`` is from an answer
     session; ``auto_cover``: the share of the answer sessions that some item is from. ``search_hit`` is None when the
-    turn made no search call, else whether a result is from an answer session; ``search_via`` is "items" (the event names the
-    sessions) or "text" (matched by words). Everything is None when the question has no answer session."""
+    turn made no search call, else whether a result is from an answer session; ``search_via`` is "memory" (the memory
+    event's ``searched`` items, newer builds), "items" (the tool event names the sessions) or "text" (matched by words). Everything is None when the question has no answer session."""
     wanted = set(data.answer_sessions(question))
     store_to_file = {store: file for file, store in ids.items()}
     used = used_items(memory, store_to_file)
@@ -464,7 +464,12 @@ def retrieval(
     if wanted:
         row["auto_hit"] = bool(reached)
         row["auto_cover"] = round(len(reached) / len(wanted), 4)
-    if calls and wanted:
+    searched = (memory or {}).get("searched")
+    if isinstance(searched, list) and wanted:  # newer builds list every item the search tool returned in the memory event
+        named = {str(i["session_id"]) for i in searched if isinstance(i, Mapping) and i.get("session_id")}
+        row["search_hit"] = bool({store_to_file[s] for s in named if s in store_to_file} & wanted)
+        row["search_via"] = "memory"
+    elif calls and wanted:
         found: set[str] = set()
         via = None
         texts = data.answer_user_texts(question)
