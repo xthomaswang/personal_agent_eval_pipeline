@@ -14,7 +14,8 @@ per chat (the ``[agent] window_messages`` of the cell's config.toml, default 64,
 note in ``memory/records.db``. ``tool_words`` makes turns whose text holds a key call that read-tier tool (four
 messages instead of two), ``save_only`` limits which statements become notes, and ``answers`` scripts replies. A
 question the memory does not answer is answered from the chat's own window when a user message in it matches.
-``memory.context_query=on`` makes its recall looser (one shared word is enough, so a pronoun follow-up finds its
+``POST /api/memory/adapter`` (developer mode) writes a small ``adapter.npz`` next to the notes and counts the call in
+``adapter_bodies``. ``memory.context_query=on`` makes its recall looser (one shared word is enough, so a pronoun follow-up finds its
 note); ``new_build=True`` reports ``recall.context`` and ``recall.block_chars`` as newer localmelo builds do.
 """
 
@@ -83,9 +84,10 @@ class FakeGateway:
         config = self.home / ".cache" / "localmelo" / "config.toml"
         document = tomllib.loads(config.read_text()) if config.exists() else {}
         self.window_cap = int(document.get("agent", {}).get("window_messages", 64))
-        self.developer = document.get("ui", {}).get("mode") == "developer"  # POST /api/memory/sleep answers only then
+        self.developer = document.get("ui", {}).get("mode") == "developer"  # POST /api/memory/sleep and /adapter answer only then
         self.sleeps: list[Any] = []
         self.sleep_bodies: list[dict[str, Any]] = []
+        self.adapter_bodies: list[dict[str, Any]] = []  # one per POST /api/memory/adapter
         if model_calls and config.exists():  # the model calls go where the driver's config says, as localmelo's do
             section = document.get("vllm", {})
             self.chat_url, self.chat_model = section.get("chat_url", ""), section.get("chat_model", "")
@@ -222,6 +224,14 @@ class FakeGateway:
             self.sleep_bodies.append(dict(body or {}))
             return self.reply(h, 200, {"run_id": f"z{len(self.sleeps)}", "variant": (body or {}).get("variant"), "model_calls": 0,
                                        "aborted": False, "capped": False, "changes": list(self.sleep_changes)})
+        if method == "POST" and path == "/api/memory/adapter":
+            if not self.developer:
+                return self.reply(h, 404, {"error": {"code": "not_found"}})
+            self.adapter_bodies.append(dict(body or {}))
+            npz = self.home / ".cache" / "localmelo" / "memory" / "adapter.npz"  # the built adapter, as localmelo keeps it
+            npz.parent.mkdir(parents=True, exist_ok=True)
+            npz.write_bytes(f"fake adapter {len(self.adapter_bodies)}".encode())
+            return self.reply(h, 200, {"built": True, "records": len(self.load()["records"]), "ms": 3})
         if method == "GET" and path == "/api/memory/import/scan":
             return self.reply(h, 200, self.import_scan())
         if method == "POST" and path == "/api/memory/import":

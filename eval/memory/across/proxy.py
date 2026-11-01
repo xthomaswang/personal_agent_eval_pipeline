@@ -14,6 +14,10 @@ same clock as the gateway's events and the driver's turn windows):
 
 plus status, bytes (response body), req_bytes and error. A request that cannot reach the server is answered
 502 and logged. The proxy adds a few milliseconds to every request, the same for all arms.
+
+With ``capture`` (a path), a chat completion that is not a stream and comes back with no tool call and at most
+``capture_chars`` characters of content (such as a tool call the server's parser swallowed, leaving "text") is
+also written whole to that file, request and response, one JSON line each, for a replay of the same prompt.
 """
 
 from __future__ import annotations
@@ -56,7 +60,10 @@ def describe(path: str, body: bytes) -> dict[str, Any]:
 class TimingProxy:
     """Forward to ``upstream`` (``http://host:port[/prefix]``) and log every request to ``log_path``."""
 
-    def __init__(self, upstream: str, log_path: Path, *, upstream_timeout: float = 1800.0) -> None:
+    def __init__(
+        self, upstream: str, log_path: Path, *, upstream_timeout: float = 1800.0, capture: Path | None = None,
+        capture_chars: int = 40,
+    ) -> None:
         url = urllib.parse.urlsplit(upstream)
         if url.scheme != "http" or not url.hostname:
             raise ValueError(f"the proxy forwards to an http URL, got {upstream!r}")
@@ -64,6 +71,7 @@ class TimingProxy:
         self.log_path = Path(log_path)
         self.log_path.parent.mkdir(parents=True, exist_ok=True)
         self.upstream_timeout = upstream_timeout
+        self.capture, self.capture_chars = (Path(capture) if capture else None), capture_chars
         self._log_lock = threading.Lock()
         self._active = 0  # requests being forwarded
         self._idle = threading.Condition()
@@ -153,7 +161,10 @@ class TimingProxy:
             else:
                 h.send_header("Transfer-Encoding", "chunked")
             h.end_headers()
-            self.stream_body(h, resp, row, chunked=length is None)
+            kept: list[bytes] | None = [] if self.capture and row["stream"] is False and resp.status == 200 else None
+            self.stream_body(h, resp, row, chunked=length is None, keep=kept)
+            if kept is not None:
+                self.capture_short(t_start, body, b"".join(kept))
         except (BrokenPipeError, ConnectionResetError) as exc:
             row["error"] = f"client went away: {type(exc).__name__}"
             h.close_connection = True
@@ -165,12 +176,30 @@ class TimingProxy:
             row["t_end"] = row["t_end"] or time.time()
             self.log(row)
 
+    def capture_short(self, t_start: float, request: bytes, response: bytes) -> None:
+        """Write a chat completion whose reply has no tool call and little content to the capture file (see the module
+        docstring); anything that does not parse is left out."""
+        try:
+            req, doc = json.loads(request), json.loads(response)
+            message = doc["choices"][0]["message"]
+        except (ValueError, KeyError, IndexError, TypeError):
+            return
+        if message.get("tool_calls") or len(message.get("content") or "") > self.capture_chars:
+            return
+        with self._log_lock, self.capture.open("a", encoding="utf-8") as out:
+            out.write(json.dumps({"at": t_start, "request": req, "response": doc}, ensure_ascii=False) + "\n")
+
     @staticmethod
-    def stream_body(h: BaseHTTPRequestHandler, resp: http.client.HTTPResponse, row: dict[str, Any], *, chunked: bool) -> None:
+    def stream_body(
+        h: BaseHTTPRequestHandler, resp: http.client.HTTPResponse, row: dict[str, Any], *, chunked: bool,
+        keep: list[bytes] | None = None,
+    ) -> None:
         while True:
             data = resp.read1(CHUNK)
             if not data:
                 break
+            if keep is not None and sum(map(len, keep)) + len(data) <= JSON_BODY_LIMIT:
+                keep.append(data)
             if row["t_first_byte"] is None:
                 row["t_first_byte"] = time.time()
             row["bytes"] += len(data)

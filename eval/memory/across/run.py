@@ -26,6 +26,12 @@ and a two-question chat. The long chats are kept (the report reads their window 
 after the cell). Turns of a long chat stop after --long-timeout (120 s). An arm of an --arms-file may be a variant of
 another (``base``): it runs the kinds, and meets the window rule, that its base's row in the table says.
 
+An arm may teach once for others: a ``teach_only`` arm's cell runs only the teaching, and the cell of an arm with
+``teach_from`` (the teach_only arm's name) starts, in the same repeat, from a copy of that finished cell's HOME and work
+folder and its teaching rows (``copied_from`` in turns.jsonl), so it sends only the questions (the schedule runs the
+teach_only arm first in every repeat). An arm with ``adapter`` builds localmelo's query adapter once between the
+teaching and the questions (``cells/<cell>/adapter.json`` and ``adapter.npz``); it needs ``--keep-ask-chats``.
+
 The operator holds the GPU lock (holder: agent-benchmark); the driver never takes or releases it. It stops
 cleanly before the next turn when <dir>/STOP exists, when the lock is gone, or when the battery is low;
 running the same command again resumes: finished cells are skipped, a stopped cell continues in its own
@@ -89,6 +95,14 @@ class Arm:
     import_all: bool = False  # bring in every source localmelo's memory import finds in that HOME before the questions
     sleep: str = ""  # a sleep variant ("rules", ...) run once per cell after the teaching and before the questions
     sleep_options: tuple[tuple[str, Any], ...] = ()  # more fields of the sleep request, e.g. ("budget", 100)
+    teach_only: bool = False  # the cell runs only the teaching and ends there: its HOME is what a teach_from arm starts from
+    teach_from: str = ""  # a teach_only arm of the same arms file: its finished cell's HOME and teaching are copied (see copy_taught)
+    adapter: bool = False  # build localmelo's query adapter once, between the teaching and the questions (see build_adapter)
+
+    @property
+    def phase(self) -> str:
+        """Which part of the protocol a cell of the arm runs: "teach" (teach_only), "ask" (teach_from) or "all"."""
+        return "teach" if self.teach_only else "ask" if self.teach_from else "all"
 
     def settings(self) -> dict[str, Any]:
         return dict(self.config)
@@ -108,6 +122,12 @@ class Arm:
             doc["sleep"] = self.sleep
         if self.sleep_options:
             doc["sleep_options"] = dict(self.sleep_options)
+        if self.teach_only:
+            doc["teach_only"] = True
+        if self.teach_from:
+            doc["teach_from"] = self.teach_from
+        if self.adapter:
+            doc["adapter"] = True
         return doc
 
 
@@ -142,24 +162,63 @@ def memory_is_off(x: Sequence[str]) -> bool:
 
 def load_arms(path: Path) -> dict[str, Arm]:
     """Arms from a JSON file ``{name: {"label", "x": [...], "embedding": bool, "v1": bool, "base": str, "config": {...},
-    "seed": str, "import": bool, "sleep": str, "sleep_options": {...}}}``, in place of ARMS. ``config`` maps dotted config.toml keys to values, e.g.
+    "seed": str, "import": bool, "sleep": str, "sleep_options": {...}, "teach_only": bool, "teach_from": str,
+    "adapter": bool}}``, in place of ARMS. ``config`` maps dotted config.toml keys to values, e.g.
     ``{"agent.window_messages": 256}``. ``seed`` is a folder, relative to the JSON file, that seed_home copies into each
     cell's HOME; ``import`` brings in what localmelo's memory import finds there before the first question; ``sleep``
     names the variant of one memory sleep between the teaching and the questions (it needs ``"config": {"ui.mode":
     "developer"}``), and ``sleep_options`` more fields of that request (``{"budget": 100}``).
 
+    ``teach_only`` makes the arm's cell run only the teaching (no night, no questions); ``teach_from`` names such an arm of
+    the same file: the cell of that arm in the same repeat must have finished, and its HOME, work folder and teaching
+    turns are copied into this cell before the gateway starts, so the cell asks its questions from the same taught state
+    (an arm has one of the two, not both). ``adapter`` builds localmelo's query adapter once through the gateway
+    (``POST /api/memory/adapter``, so it needs ``"config": {"ui.mode": "developer"}`` too) after the teaching and any
+    sleep, before the questions; it needs ``--keep-ask-chats``, since localmelo rebuilds the adapter whenever a chat is
+    deleted.
+
     An arm that is a variant of another, such as M2 with one more `-X` setting, gives that arm as ``base``: on a v2 task
     file it then runs the kinds, and meets the window rule, that the base's row in the kind's arm table says."""
     raw = json.loads(Path(path).read_text(encoding="utf-8"))
     here = Path(path).resolve().parent
-    return {
+    arms = {
         name: Arm(
             name, str(row.get("label", name)), tuple(row["x"]), bool(row.get("embedding", False)), bool(row.get("v1", True)),
             str(row.get("base", "")), tuple(sorted(dict(row.get("config") or {}).items())),
             str((here / row["seed"]).resolve()) if row.get("seed") else "", bool(row.get("import", False)), str(row.get("sleep", "")),
-            tuple(sorted(dict(row.get("sleep_options") or {}).items())))
+            tuple(sorted(dict(row.get("sleep_options") or {}).items())),
+            teach_only=bool(row.get("teach_only", False)), teach_from=str(row.get("teach_from", "")), adapter=bool(row.get("adapter", False)))
         for name, row in raw.items()
     }
+    check_arms(arms)
+    return arms
+
+
+def check_arms(arms: Mapping[str, Arm], names: Sequence[str] | None = None) -> None:
+    """Raise ValueError when the teaching options of ``arms`` (or of the ``names`` among them, a run's arm list) contradict
+    each other: an arm with both teach_only and teach_from, with teach_only and a night (sleep or adapter) that a
+    teaching-only cell never runs, or with a teach_from that is not a teach_only arm of the file (and, given ``names``, of
+    the run)."""
+    for name in names if names is not None else arms:
+        arm = arms[name]
+        if arm.teach_only and arm.teach_from:
+            raise ValueError(f"arm {name}: teach_only and teach_from cannot be combined (a cell either teaches or asks)")
+        if arm.teach_only and (arm.sleep or arm.adapter):
+            raise ValueError(f"arm {name}: teach_only ends after the teaching, so its sleep or adapter would never run")
+        if not arm.teach_from:
+            continue
+        source = arms.get(arm.teach_from)
+        if source is None:
+            raise ValueError(f"arm {name}: teach_from names {arm.teach_from!r}, which is not an arm of this arms file")
+        if not source.teach_only:
+            raise ValueError(f"arm {name}: teach_from names {arm.teach_from}, which does not have teach_only")
+        if names is not None and arm.teach_from not in names:
+            raise ValueError(f"arm {name}: teach_from names {arm.teach_from}, which is not among this run's arms ({', '.join(names)})")
+
+
+def teach_sources(arms: Mapping[str, Arm], names: Sequence[str]) -> dict[str, str]:
+    """For each of the run's arms that copies another's teaching: the arm it copies it from."""
+    return {n: arms[n].teach_from for n in names if arms[n].teach_from}
 
 
 # --- a memory sleep between the teaching and the questions ---
@@ -197,6 +256,33 @@ def sleep_memory(
         "ms": report_.get("ms"), "processed": len(report_.get("processed") or []), "capped": report_.get("capped"),
         "aborted": report_.get("aborted"), "s": doc["s"], **({"error": doc["error"]} if "error" in doc else {}),
     }
+
+
+# --- the query adapter between the teaching and the questions ---
+
+ADAPTER_NPZ = stores.RECORDS_DB.with_name("adapter.npz")  # where localmelo keeps the adapter, relative to HOME
+
+
+def build_adapter(gw: client.Gateway, cell_dir: Path, home: Path) -> dict[str, Any]:
+    """Build localmelo's query adapter once (``POST /api/memory/adapter``, developer mode). The answer, the wall time and
+    any error go to the cell's ``adapter.json`` and the adapter file as the build left it to ``adapter.npz`` (when there
+    is one); a summary is answered. Like a sleep, it waits longer than the client's 10 s, and a failed build is recorded,
+    not raised."""
+    started = time.monotonic()
+    report: Any = None
+    error: str | None = None
+    try:
+        report = gw.call("POST", "/api/memory/adapter", {}, timeout=SLEEP_TIMEOUT_S)
+    except (client.GatewayError, OSError, http.client.HTTPException) as exc:
+        error = f"{type(exc).__name__}: {exc}"
+    wall_s = round(time.monotonic() - started, 3)
+    save(cell_dir / "adapter.json", {"report": report, "wall_s": wall_s, "error": error})
+    npz = home / ADAPTER_NPZ
+    if npz.exists():
+        shutil.copyfile(npz, cell_dir / "adapter.npz")
+    answer = report if isinstance(report, dict) else {}
+    scalars = {k: v for k, v in answer.items() if isinstance(v, (bool, int, float)) or (isinstance(v, str) and len(v) <= 80)}
+    return {"wall_s": wall_s, "npz": npz.exists(), **({"report": scalars} if scalars else {}), **({"error": error} if error else {})}
 
 
 # --- a seeded HOME ---
@@ -316,6 +402,55 @@ def journal_state(rows: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
     }
 
 
+# --- teaching once, asking from a copy ---
+
+
+class TeachSourceError(ValueError):
+    """A teach_from cell cannot start because the cell it copies is not there or not finished."""
+
+
+def file_sha256(path: Path) -> str | None:
+    """The SHA-256 of a file's bytes; None when it does not exist."""
+    if not path.is_file():
+        return None
+    h = hashlib.sha256()
+    with path.open("rb") as src:
+        for block in iter(lambda: src.read(1 << 20), b""):
+            h.update(block)
+    return h.hexdigest()
+
+
+def taught_source(cells: Path, cell: Mapping[str, Any], arm: Arm) -> tuple[str, Path]:
+    """(cell id, folder) of the cell ``arm`` copies its teaching from: the teach_only arm's cell of the same repeat, which
+    must have finished (its gateway is then stopped and its token removed, so its HOME is safe to copy)."""
+    source_id = f"r{cell['repeat']}__{arm.teach_from}"
+    source = cells / source_id
+    try:
+        state = json.loads((source / "cell.json").read_text(encoding="utf-8")).get("state")
+    except (OSError, ValueError):
+        state = None
+    if state != "finished" or not (source / "home").is_dir():
+        raise TeachSourceError(
+            f"cell {cell['cell_id']} copies its teaching from {source_id}, which is {state or 'missing'}, not finished "
+            f"(arm {arm.teach_from} runs first in every repeat; run again after it has finished)")
+    return source_id, source
+
+
+def copy_taught(source_id: str, source: Path, cell_dir: Path, journal: Journal) -> dict[str, Any]:
+    """Copy the finished cell ``source`` into the new cell: its ``home/`` and ``work/`` trees, and its teaching rows (the
+    ``start`` and ``turn`` events of phase "teach") into the cell's journal with ``copied_from`` added, so journal_state
+    finds the teaching done. Answer what cell.json records: the source cell, the SHA-256 of the copied notes database
+    (null without one) and the number of teaching turns copied."""
+    home, work = cell_dir / "home", cell_dir / "work"
+    shutil.copytree(source / "home", home, symlinks=True, dirs_exist_ok=True)
+    if (source / "work").is_dir():
+        shutil.copytree(source / "work", work, symlinks=True, dirs_exist_ok=True)
+    rows = [r for r in Journal(source / "turns.jsonl").read() if r.get("event") in ("start", "turn") and r.get("phase") == "teach"]
+    for row in rows:
+        journal.append({**row, "copied_from": source_id})
+    return {"cell": source_id, "records_sha256": file_sha256(home / stores.RECORDS_DB), "turns": sum(1 for r in rows if r["event"] == "turn")}
+
+
 # --- schedule ---
 
 
@@ -324,15 +459,31 @@ def rotated(items: Sequence[str], k: int) -> list[str]:
     return [*items[k:], *items[:k]]
 
 
-def schedule(arms: Sequence[str], repeats: int) -> list[dict[str, Any]]:
-    """Repeat-major cells; the arms of repeat r start at arm number (r - 1) mod len(arms)."""
+def sources_first(order: Sequence[str], teach_from: Mapping[str, str]) -> list[str]:
+    """``order`` with each arm that others copy their teaching from (``teach_from`` maps a copier to it) moved to just before
+    the first arm that copies it; everything else keeps its place. A source already ahead of its copiers stays where it is."""
+    placed: list[str] = []
+    for arm in order:
+        source = teach_from.get(arm)
+        if source in order and source not in placed:
+            placed.append(source)
+        if arm not in placed:
+            placed.append(arm)
+    return placed
+
+
+def schedule(arms: Sequence[str], repeats: int, teach_from: Mapping[str, str] | None = None) -> list[dict[str, Any]]:
+    """Repeat-major cells; the arms of repeat r start at arm number (r - 1) mod len(arms). ``teach_from`` (copier -> source,
+    see teach_sources) moves a source arm in front of the arms that copy its teaching in every repeat (sources_first);
+    without one the rotation is untouched."""
     if repeats < 1 or not arms:
         raise ValueError("repeats must be at least 1 and arms must not be empty")
     if len(set(arms)) != len(arms):
         raise ValueError(f"repeated arm in {list(arms)}")
     cells: list[dict[str, Any]] = []
     for repeat in range(1, repeats + 1):
-        for position, arm in enumerate(rotated(list(arms), repeat - 1), 1):
+        order = rotated(list(arms), repeat - 1)
+        for position, arm in enumerate(sources_first(order, teach_from) if teach_from else order, 1):
             cells.append({
                 "index": len(cells) + 1, "repeat": repeat, "arm": arm, "position": position,
                 "cell_id": f"r{repeat}__{arm}",
@@ -409,6 +560,7 @@ class Study:
     cold_start: bool = True  # unload the embedding model before every cell, so M2's warm-up times its load
     unload_timeout_s: float = 60.0
     use_proxy: bool = True  # route the gateway's model calls through the timing proxy
+    capture_chars: int = 0  # > 0: the proxy also keeps chat replies with no tool call and at most this much content
     poll_s: float = 0.25  # how often to look at a turn when there is no event stream
     use_stream: bool = True
     do_warmup: bool = True
@@ -475,6 +627,25 @@ class Study:
         if self.v2:  # a v1 study's identity stays what it was
             doc.update(protocol=PROTOCOL_V2, long_timeout_s=self.long_timeout_s)
         return doc
+
+
+def check_study(study: Study) -> None:
+    """Raise ValueError when the study's arms cannot run together: the teaching options contradict each other or name an
+    arm that is not in the run (check_arms), an arm with an adapter lacks ``--keep-ask-chats`` (localmelo deletes and
+    rebuilds the adapter whenever a chat is deleted, and the driver deletes each question's chat without it), or, on a
+    v2 task file, a teach_only or teach_from arm would run long-range items (one chat teaches and asks there, so the
+    teaching cannot be copied)."""
+    check_arms(study.arms, study.arm_names)
+    for name in study.arm_names:
+        arm = study.arms[name]
+        if arm.adapter and not study.keep_ask_chats:
+            raise ValueError(
+                f"arm {name}: adapter needs --keep-ask-chats, since localmelo rebuilds the adapter whenever a chat is deleted "
+                "and the driver deletes each question's chat without it")
+        if study.v2 and arm.phase != "all" and any(i.kind == "longrange" for i in study.items(name)):
+            raise ValueError(
+                f"arm {name}: {'teach_only' if arm.teach_only else 'teach_from'} cannot run long-range items "
+                "(one chat teaches and asks there); select other items or give the arm another base")
 
 
 def preflight(study: Study) -> list[str]:
@@ -641,7 +812,8 @@ class Live:
     done: dict[str, Any]  # journal_state at the start of this run of the cell
     send: Callable[..., dict[str, Any]]
     home: Path | None = None  # the cell's HOME: a recall question's workspace is a folder below it
-    night: Callable[[], None] = lambda: None  # the arm's memory sleep, once per cell (a no-op without one)
+    night: Callable[[], None] = lambda: None  # the arm's memory sleep and query adapter, once per cell (a no-op without either)
+    phase: str = "all"  # Arm.phase: "teach" sends only the teaching, "ask" only what follows it (the teaching is copied)
 
 
 def prepare_workspace(tasks: data_v2.TaskSet, path: Path) -> None:
@@ -681,6 +853,8 @@ def run_longrange(live: Live, items: Sequence[data_v2.Item]) -> bool:
     A chat that a stop interrupted continues in its own session and workspace. A chat whose first message failed to
     start one is left as it is (the question is then never asked). The chats are not deleted: the report reads each
     chat's window and notes from the cell's SQLite files."""
+    if live.phase != "all":
+        raise ValueError("a long chat teaches and asks in one chat: it cannot run in a teach_only or teach_from cell")
     study = live.study
     for item in items:
         steps = study.tasks.long_steps(item)
@@ -703,11 +877,26 @@ def run_longrange(live: Live, items: Sequence[data_v2.Item]) -> bool:
     return False
 
 
+def teach_followups(live: Live, items: Sequence[data_v2.Item]) -> bool:
+    """Each item's facts, each in its own new chat. True when a guard stopped the cell."""
+    for item in items:
+        for step in live.study.tasks.teach_steps(item):
+            if (step.phase, step.label) in live.done["turns"]:
+                continue
+            if live.study.turn_guard():
+                return True
+            live.send(step.phase, step.label, step.text)
+    return False
+
+
 def run_followup(live: Live, items: Sequence[data_v2.Item]) -> bool:
     """Each item's two facts, each in its own new chat; then one new chat per item with the two questions, deleted
-    afterwards (unless --keep-ask-chats). True when a guard stopped the cell."""
+    afterwards (unless --keep-ask-chats). In phase "teach" it stops after the facts; in phase "ask" it skips them and the
+    arm's night (sleep, adapter) comes first. True when a guard stopped the cell."""
     study = live.study
     tasks = study.tasks
+    if live.phase == "teach":
+        return teach_followups(live, items)
     if not study.keep_ask_chats:  # a crash between the last question of a chat and its delete
         for item in items:
             asked = [live.done["turns"].get(("ask", a.id)) for a in item.asks]
@@ -715,13 +904,10 @@ def run_followup(live: Live, items: Sequence[data_v2.Item]) -> bool:
             if all(asked) and session and session not in live.done["deleted"]:
                 ok = delete_chat(live.gw, session, study.sleep)
                 live.journal.append({"event": "deleted", "item": item.id, "session_id": session, "ok": ok})
-    for item in items:
-        for step in tasks.teach_steps(item):
-            if (step.phase, step.label) in live.done["turns"]:
-                continue
-            if study.turn_guard():
-                return True
-            live.send(step.phase, step.label, step.text)
+    if live.phase == "all" and teach_followups(live, items):
+        return True
+    if live.phase == "ask":
+        live.night()
     for item in items:
         steps = tasks.ask_steps(item)
         session = done_session(live.done, steps)
@@ -746,8 +932,10 @@ def run_followup(live: Live, items: Sequence[data_v2.Item]) -> bool:
 
 def run_recall(live: Live, items: Sequence[data_v2.Item]) -> bool:
     """One new chat per question (in its workspace under the cell's HOME when it names one), deleted afterwards
-    (unless --keep-ask-chats). True when a guard stopped the cell."""
+    (unless --keep-ask-chats). In phase "teach" there is nothing to do. True when a guard stopped the cell."""
     study = live.study
+    if live.phase == "teach":
+        return False
     for item in items:
         step = study.tasks.ask_steps(item)[0]
         row = live.done["turns"].get((step.phase, step.label))
@@ -765,10 +953,11 @@ def run_recall(live: Live, items: Sequence[data_v2.Item]) -> bool:
 
 def run_sleep(live: Live, items: Sequence[data_v2.Item]) -> bool:
     """Day 1: every item's facts, each in a new chat, round by round (the first fact of every item, then the second
-    ...), so a change or a repeat comes after other chats. The night: the arm's sleep, once. Day 2: each item's question
-    in a new chat, deleted afterwards (unless --keep-ask-chats). True when a guard stopped the cell."""
+    ...), so a change or a repeat comes after other chats. The night: the arm's sleep and query adapter, once. Day 2: each
+    item's question in a new chat, deleted afterwards (unless --keep-ask-chats). In phase "teach" it ends after day 1;
+    in phase "ask" it starts at the night. True when a guard stopped the cell."""
     study = live.study
-    rounds = max((len(i.facts) for i in items), default=0)
+    rounds = max((len(i.facts) for i in items), default=0) if live.phase != "ask" else 0
     for n in range(rounds):
         for item in items:
             if n >= len(item.facts):
@@ -779,6 +968,8 @@ def run_sleep(live: Live, items: Sequence[data_v2.Item]) -> bool:
             if study.turn_guard():
                 return True
             live.send(step.phase, step.label, step.text)
+    if live.phase == "teach":
+        return False
     live.night()
     return run_recall(live, items)
 
@@ -809,6 +1000,13 @@ def run_cell(study: Study, cell: Mapping[str, Any]) -> str:
         info = json.loads((cell_dir / "cell.json").read_text())
         info["resumed"] = info.get("resumed", 0) + 1
     else:
+        source = None
+        if arm.teach_from:
+            try:
+                source = taught_source(study.run_dir / "cells", cell, arm)
+            except TeachSourceError:
+                cell_dir.rmdir()  # prepare_cell_dir made it just now and it is empty: a later run starts clean
+                raise
         home.mkdir()
         work.mkdir()
         info = {
@@ -818,6 +1016,8 @@ def run_cell(study: Study, cell: Mapping[str, Any]) -> str:
         }
         if arm.seed:  # before the gateway's first start, so it never sees a HOME without the seed
             info["seed"] = {"sha256": seed_sha256(Path(arm.seed)), "files": seed_home(home, Path(arm.seed))}
+        if source:  # the same: the gateway never sees a HOME without the taught state; the copy never repeats on a resume
+            info["teach_from"] = copy_taught(*source, cell_dir, journal)
     info["state"] = "started"
     save(cell_dir / "cell.json", info)
     # Each step runs once per cell, in this order, and is kept in cell.json: a cell that stopped before one of them
@@ -838,7 +1038,9 @@ def run_cell(study: Study, cell: Mapping[str, Any]) -> str:
         save(cell_dir / "cell.json", info)
     started = time.monotonic()
 
-    timing = proxy.TimingProxy(study.base_url, cell_dir / "proxy.jsonl") if study.use_proxy else None
+    timing = proxy.TimingProxy(
+        study.base_url, cell_dir / "proxy.jsonl", capture=cell_dir / "proxy_captures.jsonl" if study.capture_chars > 0 else None,
+        capture_chars=study.capture_chars) if study.use_proxy else None
     spec = server.LaunchSpec(study.melo, home, server.free_port(), arm.x, cell_dir / "gateway.log")
     running = None
     stopped = False
@@ -857,9 +1059,13 @@ def run_cell(study: Study, cell: Mapping[str, Any]) -> str:
             save(cell_dir / "cell.json", info)
 
         def night() -> None:
-            """The arm's memory sleep, once per cell: a cell that continues after it does not sleep again."""
+            """The arm's memory sleep and then its query adapter, each once per cell: a cell that continues after one of
+            them does not do it again."""
             if arm.sleep and "sleep" not in info:
                 info["sleep"] = sleep_memory(gw, cell_dir, home, arm.sleep, dict(arm.sleep_options))
+                save(cell_dir / "cell.json", info)
+            if arm.adapter and "adapter" not in info:
+                info["adapter"] = build_adapter(gw, cell_dir, home)
                 save(cell_dir / "cell.json", info)
 
         seen: dict[str, int] = {}  # the newest event id read per chat: the next turn's stream starts after it
@@ -919,13 +1125,14 @@ def run_cell(study: Study, cell: Mapping[str, Any]) -> str:
             return False
 
         if study.v2:
-            stopped = run_items(Live(study, arm, cell, gw, journal, work, done, send, home, night))
+            stopped = run_items(Live(study, arm, cell, gw, journal, work, done, send, home, night, arm.phase))
         else:
             stopped = teach()
             if not stopped:
                 info["rss"].setdefault("after_teach", study.rss())
-                night()
-                stopped = ask()
+                if not arm.teach_only:
+                    night()
+                    stopped = ask()
     finally:
         if running is not None:
             info["gateway_exit"] = running.stop()
@@ -985,11 +1192,14 @@ def load_state(study: Study, planned: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def run_study(study: Study) -> int:
-    """0: every cell finished. 2: refused to start. 3: stopped early (run again to resume). 1: a gateway failed."""
+    """0: every cell finished. 2: refused to start (also a teach_from cell whose source cell is not finished). 3: stopped
+    early (run again to resume). 1: a gateway failed. Raises ValueError, before anything is written, for arms that cannot
+    run together (check_study)."""
     study.run_dir = study.run_dir.resolve()
     study.localmelo = study.localmelo.resolve()
+    check_study(study)
     study.run_dir.mkdir(parents=True, exist_ok=True)
-    planned = schedule(study.arm_names, study.repeats)
+    planned = schedule(study.arm_names, study.repeats, teach_sources(study.arms, study.arm_names))
     problems = preflight(study)
     if problems:
         print("Preflight failed:", *problems, sep="\n  - ", file=sys.stderr)
@@ -1032,6 +1242,13 @@ def run_study(study: Study) -> int:
             save(checkpoint, state)
             code = 1
             break
+        except TeachSourceError as exc:
+            log(log_path, f"{cid}: {exc}")
+            print(f"{cid}: {exc}", file=sys.stderr)
+            state["cells"][cid] = {"state": "error", "arm": cell["arm"], "repeat": cell["repeat"], "error": str(exc)}
+            save(checkpoint, state)
+            code = 2
+            break
         state["cells"][cid] = {"state": "finished" if outcome == "finished" else "paused", "arm": cell["arm"], "repeat": cell["repeat"]}
         save(checkpoint, state)
         log(log_path, f"{cid}: {outcome}")
@@ -1052,7 +1269,7 @@ def run_study(study: Study) -> int:
 
 
 def v2_turns(study: Study, arm: str) -> dict[str, int]:
-    """The turns one cell of ``arm`` sends on a v2 task file, by phase."""
+    """The turns one cell of ``arm`` sends on a v2 task file, by phase (a teach_from cell's copied teaching is not sent)."""
     tasks, turns = study.tasks, {"long": 0, "teach": 0, "ask": 0}
     for item in study.items(arm):
         if item.kind == "longrange":
@@ -1062,6 +1279,9 @@ def v2_turns(study: Study, arm: str) -> dict[str, int]:
         else:
             turns["teach"] += len(tasks.teach_steps(item))
             turns["ask"] += len(tasks.ask_steps(item))
+    phase = study.arms[arm].phase
+    if phase != "all":  # a teach_only cell asks nothing; a teach_from cell sends no teaching of its own
+        turns["ask" if phase == "teach" else "teach"] = 0
     return turns
 
 
@@ -1082,10 +1302,11 @@ def print_plan(study: Study, planned: list[dict[str, Any]], problems: list[str])
     else:
         asked, taught = study.asked(), study.taught()
         turns = len(taught) + len(asked)
+        sent = sum(len(taught) * (study.arms[c["arm"]].phase != "ask") + len(asked) * (study.arms[c["arm"]].phase != "teach") for c in planned)
         print(
             f"Memory-across-chats plan: {len(planned)} cells = {len(study.arm_names)} arms x {study.repeats} repeats; "
             f"each teaches {len(taught)} facts and asks {len(asked)} questions ({turns} turns), "
-            f"{len(planned) * turns} turns in all. Ask chats are {'kept' if study.keep_ask_chats else 'deleted after each answer'}."
+            f"{sent} turns in all. Ask chats are {'kept' if study.keep_ask_chats else 'deleted after each answer'}."
         )
     print(f"Output: {study.run_dir} (across.json, schedule.json, tasks.json, environment.json, cells/)")
     print(f"Every cell starts with {study.embedding_model} unloaded (the chat model is never unloaded): "
@@ -1099,7 +1320,9 @@ def print_plan(study: Study, planned: list[dict[str, Any]], problems: list[str])
         config = f" [config.toml: {', '.join(f'{k}={v}' for k, v in arm.config)}]" if arm.config else ""
         steps = "".join([
             f" [seed: {arm.seed}]" if arm.seed else "", " [memory import before the questions]" if arm.import_all else "",
-            f" [sleep: {arm.sleep}{''.join(f', {k}={v}' for k, v in arm.sleep_options)}, after the teaching]" if arm.sleep else ""])
+            f" [sleep: {arm.sleep}{''.join(f', {k}={v}' for k, v in arm.sleep_options)}, after the teaching]" if arm.sleep else "",
+            " [teaching only]" if arm.teach_only else "", f" [teaching and HOME copied from {arm.teach_from}]" if arm.teach_from else "",
+            " [query adapter before the questions]" if arm.adapter else ""])
         print(f"Arm {name}: melo serve {' '.join(f'-X {x}' for x in arm.x)}{config}{embedding}{steps}  # {arm.label}")
     for cell in planned:
         print(f"{cell['index']:3d}. {cell['cell_id']}")
@@ -1144,6 +1367,10 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     ap.add_argument("--no-cold-start", action="store_true", help="do not unload the embedding model before a cell (the report then says cells did not start cold)")
     ap.add_argument("--unload-timeout", type=float, default=60.0, help="seconds to wait for the embedding model to unload before a cell (default %(default)s)")
     ap.add_argument("--no-proxy", action="store_true", help="point the gateway at the model server directly (no per-request timing log, no chat TTFT)")
+    ap.add_argument(
+        "--capture-short-replies", type=int, default=0, metavar="CHARS",
+        help="the proxy also writes each chat request whose reply has no tool call and at most CHARS characters of content, "
+             "with the reply, to cells/<cell>/proxy_captures.jsonl (for replaying a swallowed tool call; default off)")
     ap.add_argument("--no-stream", action="store_true", help="poll for the end of a turn instead of following the event stream (no time to first event)")
     ap.add_argument("--no-warmup", action="store_true", help="skip the one-token requests that load the models before a cell")
     ap.add_argument("--gpu-lock", type=Path, default=GPU_LOCK, help="the shared GPU lock file (default %(default)s)")
@@ -1155,7 +1382,10 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
 
 
 def build_study(args: argparse.Namespace) -> Study:
-    arms = load_arms(args.arms_file) if args.arms_file else dict(ARMS)
+    try:
+        arms = load_arms(args.arms_file) if args.arms_file else dict(ARMS)
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from None
     try:
         tasks = data_v2.load_any(args.tasks)
     except (ValueError, OSError) as exc:
@@ -1167,22 +1397,27 @@ def build_study(args: argparse.Namespace) -> Study:
         raise SystemExit(f"unknown arm {', '.join(unknown)}; choose from {', '.join(arms)}")
     repeats = args.repeats if args.repeats is not None else (REPEATS_V2 if v2 else REPEATS)
     try:
-        schedule(names, repeats)
+        schedule(names, repeats, teach_sources(arms, names))
         extra = json.loads(args.extra_body)
     except (ValueError, OSError) as exc:
         raise SystemExit(str(exc)) from None
     run_dir = args.run_dir.resolve()
     turn_guard, cell_guard = make_guards(run_dir, args.gpu_lock, args.lock_holder, args.battery_start, args.battery_stop)
-    return Study(
+    study = Study(
         run_dir=run_dir, tasks=tasks, arms=arms, arm_names=names, repeats=repeats, localmelo=args.localmelo,
         expect_sha=args.localmelo_sha, base_url=args.base_url, model=args.model, embedding_model=args.embedding_model,
         extra_body=extra, question_ids=tuple(q.strip() for q in args.questions.split(",") if q.strip()),
         keep_ask_chats=args.keep_ask_chats, turn_timeout_s=args.turn_timeout, teach_timeout_s=args.teach_timeout, long_timeout_s=args.long_timeout,
         cold_start=not args.no_cold_start, unload_timeout_s=args.unload_timeout,
-        use_proxy=not args.no_proxy,
+        use_proxy=not args.no_proxy, capture_chars=args.capture_short_replies,
         use_stream=not args.no_stream,
         do_warmup=not args.no_warmup, turn_guard=turn_guard, cell_guard=cell_guard,
     )
+    try:
+        check_study(study)
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from None
+    return study
 
 
 def admin_token(cmd: str | None) -> str | None:
@@ -1202,7 +1437,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.dry_run:
         study.localmelo = study.localmelo.resolve()
         problems = preflight(study)
-        print_plan(study, schedule(study.arm_names, study.repeats), problems)
+        print_plan(study, schedule(study.arm_names, study.repeats, teach_sources(study.arms, study.arm_names)), problems)
         return 2 if problems else 0
     return run_study(study)
 

@@ -139,3 +139,31 @@ def test_read_log_skips_lines_it_cannot_read(tmp_path):
     path = tmp_path / "log.jsonl"
     path.write_text('{"path": "/a"}\nnot json\n[1]\n{"path": "/b"}\n')
     assert [r["path"] for r in proxy.read_log(path)] == ["/a", "/b"] and proxy.read_log(tmp_path / "none.jsonl") == []
+
+
+def test_a_short_reply_without_a_tool_call_is_captured_whole(upstream, tmp_path):
+    p = proxy.TimingProxy(upstream.base_url, tmp_path / "log.jsonl", capture=tmp_path / "cap.jsonl", capture_chars=40)
+    try:
+        status, _, raw = call(p.url, "/chat/completions", CHAT)
+        call(p.url, "/chat/completions", {**CHAT, "stream": True})  # a stream is never captured
+        logged(tmp_path / "log.jsonl", 2)
+    finally:
+        p.stop()
+    rows = [json.loads(line) for line in (tmp_path / "cap.jsonl").read_text().splitlines()]
+    assert status == 200 and len(rows) == 1
+    assert rows[0]["request"] == CHAT and rows[0]["response"] == json.loads(raw) and rows[0]["at"] > 0
+
+
+def test_a_reply_longer_than_the_limit_is_not_captured_and_without_a_path_nothing_is(upstream, tmp_path):
+    p = proxy.TimingProxy(upstream.base_url, tmp_path / "log.jsonl", capture=tmp_path / "cap.jsonl", capture_chars=1)
+    q = proxy.TimingProxy(upstream.base_url, tmp_path / "log2.jsonl")
+    try:
+        call(p.url, "/chat/completions", CHAT)  # "ok" is two characters
+        call(q.url, "/chat/completions", CHAT)
+        logged(tmp_path / "log.jsonl")
+        logged(tmp_path / "log2.jsonl")
+    finally:
+        p.stop()
+        q.stop()
+    assert not (tmp_path / "cap.jsonl").exists()
+    assert sorted(f.name for f in tmp_path.iterdir()) == ["log.jsonl", "log2.jsonl"]
