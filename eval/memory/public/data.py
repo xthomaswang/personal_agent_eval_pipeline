@@ -262,6 +262,14 @@ def answer_user_texts(question: Mapping[str, Any]) -> dict[str, list[str]]:
     return out
 
 
+def evidence_texts(question: Mapping[str, Any]) -> list[str]:
+    """The evidence turns (``has_answer``) of the answer sessions, for checking whether the model was shown one. Held in
+    memory only; the run never writes them."""
+    wanted = set(answer_sessions(question))
+    return [str(t.get("content") or "") for sid, turns in zip(question["haystack_session_ids"], question["haystack_sessions"], strict=True)
+            if str(sid) in wanted for t in turns if t.get("has_answer")]
+
+
 DOC_CHARS = 2000  # localmelo's index keeps the first 2000 characters of "User: <typed>\nmelo: <answer>" (support/memory/index.py)
 
 

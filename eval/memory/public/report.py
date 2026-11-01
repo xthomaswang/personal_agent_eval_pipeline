@@ -261,14 +261,19 @@ def reply_table(rows: Sequence[Mapping[str, Any]], arms: Sequence[str]) -> dict[
 
 MISS_STEPS = (
     "turn failed", "abstention: answered anyway", "2 evidence cut at ingest, not retrieved", "3 not retrieved",
-    "4 retrieved, evidence cut at ingest", "5 retrieved, not used by the reader")
+    "4 retrieved, evidence cut at ingest", "5a session retrieved, evidence turn not shown",
+    "5b evidence turn shown, not used by the reader", "5 retrieved, evidence turn not checked")
+EVIDENCE_SEEN = 0.6  # the share of an evidence turn's words the model must have been shown for it to count as shown
 
 
 def miss_step(row: Mapping[str, Any]) -> str | None:
     """The step a wrong answer lost the evidence at (the spec's 1-6 attribution), from the row alone; None for a right one.
 
     Ingest (2): an evidence turn (``has_answer``) is longer than the index keeps (``evidence.best`` < 1). Retrieval (3):
-    neither the recall block nor a search reached an answer session. Reader (5): one did and the answer is still wrong."""
+    neither the recall block nor a search reached an answer session. Then (5) one did and the answer is still wrong: 5a
+    the model was shown other turns of the session but not the evidence turn (``retrieval.evidence_seen`` below
+    EVIDENCE_SEEN; retrieval, not the reader), 5b it was shown the evidence turn (the reader); rows without
+    ``evidence_seen`` are not split."""
     if row.get("correct"):
         return None
     if row.get("state") != "finished":
@@ -280,7 +285,12 @@ def miss_step(row: Mapping[str, Any]) -> str | None:
     cut = best is not None and best < 1.0
     if not (ret.get("auto_hit") or ret.get("search_hit")):
         return "2 evidence cut at ingest, not retrieved" if cut else "3 not retrieved"
-    return "4 retrieved, evidence cut at ingest" if cut else "5 retrieved, not used by the reader"
+    if cut:
+        return "4 retrieved, evidence cut at ingest"
+    seen = ret.get("evidence_seen")
+    if seen is None:
+        return "5 retrieved, evidence turn not checked"
+    return "5a session retrieved, evidence turn not shown" if seen < EVIDENCE_SEEN else "5b evidence turn shown, not used by the reader"
 
 
 def miss_table(rows: Sequence[Mapping[str, Any]], arms: Sequence[str]) -> dict[str, dict[str, int]]:
@@ -463,7 +473,9 @@ def render(rep: Mapping[str, Any]) -> str:
     ms = rep["misses"]
     out += ["## Why answers were wrong", "",
             "Each wrong answer at the step it lost the evidence: cut at ingest (an evidence turn is longer than the index keeps), "
-            "not retrieved (neither the recall block nor a search reached an answer session), or retrieved but not used. "
+            "not retrieved (neither the recall block nor a search reached an answer session), the session retrieved but its "
+            f"evidence turn not shown (under {EVIDENCE_SEEN:.0%} of its words in what recall and search showed the model), "
+            "or shown but not used. "
             "From the row alone; read the answers before trusting a step.", ""]
     out += table(["", *arms], [[step, *(str(ms[a][step]) for a in arms)] for step in MISS_STEPS])
 

@@ -232,6 +232,10 @@ def test_a_wrong_answer_is_put_at_the_step_that_lost_the_evidence():
     assert report.miss_step({**base, "retrieval": {"auto_hit": False, "search_hit": True}, "evidence": {"best": 0.9}}) == \
         "4 retrieved, evidence cut at ingest"
     assert report.miss_step({**base, "retrieval": {"auto_hit": True}, "evidence": {"best": None}}) == \
-        "5 retrieved, not used by the reader"
+        "5 retrieved, evidence turn not checked"
+    assert report.miss_step({**base, "retrieval": {"auto_hit": True, "evidence_seen": 0.3}, "evidence": {"best": 1.0}}) == \
+        "5a session retrieved, evidence turn not shown"
+    assert report.miss_step({**base, "retrieval": {"search_hit": True, "evidence_seen": 0.6}, "evidence": {"best": 1.0}}) == \
+        "5b evidence turn shown, not used by the reader"
     table = report.miss_table([{**base, "retrieval": none, "evidence": {}}, {**base, "correct": True}], ["A"])
     assert table["A"]["3 not retrieved"] == 1 and sum(table["A"].values()) == 1

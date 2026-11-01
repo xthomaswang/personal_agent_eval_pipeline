@@ -133,6 +133,18 @@ def test_the_copy_of_a_repeated_answer_session_is_a_hit():
     assert row["auto_hit"] is True and row["used"][0]["file_id"] == "sess_a"
 
 
+def test_evidence_seen_is_the_share_of_the_evidence_turns_words_the_model_was_shown():
+    q = mini_questions()[0]
+    q["haystack_sessions"][0][0]["has_answer"] = True  # "I hold a degree in Business Administration."
+    other = {"used": [{"kind": "chat", "session_id": "st1", "text": "melo: Congratulations on the degree!"}]}
+    assert run.evidence_seen(q, other, []) == 0.25  # hold degree business administration: only "degree" shown
+    shown = {"used": [{"kind": "record", "text": "The user holds a degree in Business Administration."}]}
+    assert run.evidence_seen(q, shown, []) == 0.75  # "hold" is not "holds"
+    assert run.evidence_seen(q, None, search_events("1. User: I hold a degree in Business Administration.")) == 1.0
+    assert run.evidence_seen(mini_questions()[0], shown, []) is None  # no evidence turn marked
+    assert run.retrieval(q, shown, [], {"sess_a": "st1"})["evidence_seen"] == 0.75
+
+
 def test_search_hit_by_words_when_the_event_names_no_session():
     q = mini_questions()[0]
     ids = {"sess_a": "st1", "sess_b": "st2"}
