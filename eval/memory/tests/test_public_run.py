@@ -51,6 +51,26 @@ def by_question(study):
 # --- arms, prompts, the environment of a gateway ---
 
 
+def test_ingest_passes_the_runs_extra_pairs_and_only_then_names_them(tmp_path, monkeypatch):
+    seen = []
+
+    class Done:
+        returncode, stderr = 0, ""
+        stdout = json.dumps({"sessions": 1, "ids": {}})
+
+    monkeypatch.setattr(run.subprocess, "run", lambda cmd, **kw: seen.append(cmd) or Done())
+    monkeypatch.setattr(run, "template_home", lambda study, qdir: tmp_path / "home")
+    study = run.Study(run_dir=tmp_path, questions=mini_questions(), ids=("q1aa",), arms={}, arm_names=(), repeats=1,
+                      localmelo=tmp_path, expect_sha="", base_url="", model="", embedding_model="", judge_model="",
+                      ingest_x=("ingest=compress", "memory.compress_cache=/c.jsonl"))
+    (tmp_path / "q").mkdir()
+    run.ingest(study, mini_questions()[0], tmp_path / "q")
+    assert seen[0][-6:] == ["-X", "notes=rules", "-X", "ingest=compress", "-X", "memory.compress_cache=/c.jsonl"]
+    assert study.identity()["ingest"] == {"notes": "rules", "x": ["ingest=compress", "memory.compress_cache=/c.jsonl"]}
+    plain = run.Study(**{**study.__dict__, "ingest_x": ()})
+    assert plain.identity()["ingest"] == {"notes": "rules"}  # the identity of a run without them is as before
+
+
 def test_launch_env_is_merged_and_cannot_undo_the_isolation(tmp_path):
     base = {"PATH": "/usr/bin", "HOME": "/real", "EXAMPLE_API_KEY": "k"}
     assert "LOCALMELO_NOW" not in server.serve_env(tmp_path, base) and server.serve_env(tmp_path, base) == server.serve_env(tmp_path, base, None)

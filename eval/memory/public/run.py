@@ -188,6 +188,7 @@ class Study:
     stage: tuple[int, int, int] = (data.PER_TYPE, data.ABSTENTION_COUNT, data.SEED)  # per type, abstention, seed
     work_dir: Path | None = None  # where ingest files and HOMEs live (default <run-dir>/work)
     keep_homes: bool = False
+    ingest_x: tuple[str, ...] = ()  # more `melo memory ingest -X` pairs, e.g. ingest=compress (the same for every arm)
     control_prompts: tuple[str, ...] = ()
     control_homes: int = 20
     cold_start: bool = True  # unload the embedding model before each cell, so every cell starts without it
@@ -238,7 +239,7 @@ class Study:
             "embedding_model": self.embedding_model,
             "judge_model": self.judge_model,
             "base_settings": BASE_SETTINGS,
-            "ingest": {"notes": INGEST_NOTES},
+            "ingest": {"notes": INGEST_NOTES, **({"x": list(self.ingest_x)} if self.ingest_x else {})},
             "control": {"prompts": list(self.control_prompts), "homes": self.control_homes} if self.control_prompts else None,
             "cold_start": self.cold_start,
             "turn_timeout_s": self.turn_timeout_s,
@@ -360,6 +361,7 @@ def ingest(study: Study, question: data.Question, qdir: Path) -> dict[str, Any]:
     source = qdir / "ingest_input.json"
     source.write_text(json.dumps(data.to_ingest(question), ensure_ascii=False), encoding="utf-8")
     cmd = [str(study.melo), "memory", "ingest", str(source), "-j", "-X", f"notes={INGEST_NOTES}"]
+    cmd += [part for pair in study.ingest_x for part in ("-X", pair)]
     try:
         done = subprocess.run(
             cmd, capture_output=True, text=True, timeout=study.ingest_timeout_s, check=False, stdin=subprocess.DEVNULL,
@@ -894,6 +896,8 @@ def print_plan(study: Study, problems: list[str]) -> None:
           f"{len(study.arm_names)} arms x {study.repeats} repeats = {cells} question cells, {controls} control cells, "
           f"{len(study.ids)} ingests.")
     print(f"Output: {study.run_dir} (public.json, questions.json, environment.json, results.jsonl, controls.jsonl, cells/, questions/)")
+    if study.ingest_x:
+        print(f"Ingest: melo memory ingest -X notes={INGEST_NOTES} {' '.join(f'-X {x}' for x in study.ingest_x)}")
     for name in study.arm_names:
         arm = study.arms[name]
         config = f" [config.toml: {', '.join(f'{k}={v}' for k, v in arm.config.items())}]" if arm.config else ""
@@ -939,6 +943,9 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     ap.add_argument(
         "--work-dir", type=Path, default=None, help="where ingest files and HOMEs live while a question runs (default <run-dir>/work)")
     ap.add_argument("--keep-homes", action="store_true", help="keep the ingest files and HOMEs (they hold the dataset's text)")
+    ap.add_argument(
+        "--ingest-x", action="append", default=[], metavar="KEY=VALUE",
+        help="one more `melo memory ingest -X` pair for every question, e.g. ingest=compress (repeat for more)")
     ap.add_argument("--turn-timeout", type=float, default=TURN_TIMEOUT_S, help="seconds a question's turn may take (default %(default)s)")
     ap.add_argument("--ingest-timeout", type=float, default=INGEST_TIMEOUT_S, help="seconds one ingest may take (default %(default)s)")
     ap.add_argument(
@@ -986,7 +993,7 @@ def build_study(args: argparse.Namespace) -> Study:
         run_dir=run_dir, questions=questions, ids=ids, arms=arms, arm_names=names, repeats=args.repeats, localmelo=args.localmelo,
         expect_sha=args.localmelo_sha, base_url=args.base_url, model=args.model, embedding_model=args.embedding_model,
         judge_model=args.judge_model or args.model, data_path=args.data, data_sha256=data.file_sha256(args.data),
-        stage=(args.per_type, args.abstention, args.seed), work_dir=args.work_dir, keep_homes=args.keep_homes,
+        stage=(args.per_type, args.abstention, args.seed), work_dir=args.work_dir, keep_homes=args.keep_homes, ingest_x=tuple(args.ingest_x),
         control_prompts=prompts, control_homes=args.control_homes, cold_start=not args.no_cold_start,
         unload_timeout_s=args.unload_timeout, turn_timeout_s=args.turn_timeout, ingest_timeout_s=args.ingest_timeout,
         use_stream=not args.no_stream, do_warmup=not args.no_warmup, turn_guard=turn_guard, cell_guard=cell_guard)
