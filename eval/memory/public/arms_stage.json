@@ -1,0 +1,10 @@
+{
+  "A": {"label": "localmelo as shipped: notes + turns, 3 + 2 items, 900 characters", "x": ["memory.retriever=embedding"],
+        "embedding": true},
+  "A-big": {"label": "a larger recall budget: 8 + 8 items, 4000 characters", "x": ["memory.retriever=embedding"],
+            "embedding": true, "config": {"memory.recall_records": 8, "memory.recall_docs": 8, "memory.recall_chars": 4000}},
+  "A-raw": {"label": "turns only: no notes in the recall block and none pinned", "x": ["memory.retriever=embedding"],
+            "embedding": true, "config": {"memory.recall_notes": "off"}},
+  "X2": {"label": "Exp 2: a search hint when nothing was recalled", "x": ["memory.retriever=embedding"], "embedding": true,
+         "config": {"memory.search_when_empty": "hint"}}
+}
