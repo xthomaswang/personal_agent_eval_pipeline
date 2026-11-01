@@ -497,6 +497,20 @@ def analyse(run_dir: Path, tasks: data.TaskSet | None = None, pair: Sequence[str
     }
 
 
+SAMPLING_KEYS = ("temperature", "top_p", "top_k", "min_p", "repetition_penalty", "presence_penalty", "seed")
+
+
+def sampling_line(extra_body: Any) -> str:
+    """How the chat model sampled, from the gateway's [vllm.extra_body] the driver wrote (``--extra-body``): the fields
+    it sets, or the server's defaults for the model when it sets none. The driver's default is temperature 0, which is
+    not what a user's localmelo sends (no sampling fields, so the server's defaults)."""
+    body = extra_body if isinstance(extra_body, dict) else {}
+    fields = ", ".join(f"{k} {body[k]}" for k in SAMPLING_KEYS if k in body)
+    thinking = (body.get("chat_template_kwargs") or {}).get("enable_thinking")
+    return (f"Sampling: {fields or 'the server defaults for the model (no sampling fields sent)'}"
+            f"{'; thinking off' if thinking is False else '; thinking on' if thinking else ''} (gateway [vllm.extra_body]).")
+
+
 def render(rep: Mapping[str, Any]) -> str:
     arms: list[str] = rep["arms"]
     cfg = rep["config"]
@@ -509,6 +523,7 @@ def render(rep: Mapping[str, Any]) -> str:
         f"{cfg.get('repeats')} repeats, {len(cfg.get('questions') or [])} questions per cell, "
         f"ask chats {'kept' if cfg.get('keep_ask_chats') else 'deleted after each answer'}.",
         f"Machine: {' '.join((start.get('sw_vers') or '').split()) or 'unknown'} | {' '.join((start.get('xcodebuild_version') or '').split()) or 'no Xcode'}.",
+        sampling_line(cfg.get("extra_body")),
         "",
     ]
     out += [f"> {n}" for n in rep["notes"]] + ([""] if rep["notes"] else [])

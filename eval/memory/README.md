@@ -194,7 +194,7 @@ chat (an old value always before its replacement), then 60 questions each in a n
 read so a question never feeds the next. Arms rotate across repeats (4 arms x 3 repeats = 12 cells of 103 turns).
 The last three teaching messages are long fillers on purpose: localmelo pins the newest "about" and "preferences"
 quotes (600 characters) into every chat's system prompt, and the fillers fill that window so no asked fact is pinned.
-The gateway config sets temperature 0 and thinking off (`--extra-body`). The model also has a `search_memory` tool;
+The gateway config sets temperature 0 and thinking off (`--extra-body`). This is the bench's choice, not what a user's localmelo sends: localmelo sends no sampling fields, so a user gets the server's defaults for the model (for Qwen3.8-Flash-Next on oMLX: temperature 1.0, top_p 0.95, top_k 20). Every report states the sampling it ran with. The model also has a `search_memory` tool;
 `turn.memory` reports only the automatic recall.
 
 **Two things the driver does to the chats.** When the chat model also tries to save a fact to a file, the tool call

@@ -499,6 +499,7 @@ def render(rep: Mapping[str, Any]) -> str:
         f"localmelo `{(cfg.get('localmelo_sha') or '')[:10]}`, chat model `{cfg.get('model')}`, embedding model `{cfg.get('embedding_model')}`, "
         f"{cfg.get('repeats')} repeat(s), {len(cfg.get('questions') or [])} items, long-chat turns stop after {cfg.get('long_timeout_s')} s.",
         f"Machine: {' '.join((start.get('sw_vers') or '').split()) or 'unknown'} | {' '.join((start.get('xcodebuild_version') or '').split()) or 'no Xcode'}.",
+        report.sampling_line(cfg.get("extra_body")),
         "",
     ]
     out += [f"> {n}" for n in rep["notes"]] + ([""] if rep["notes"] else [])
