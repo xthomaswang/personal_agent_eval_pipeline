@@ -119,3 +119,16 @@ def test_the_committed_stage_set_has_120_ids_with_18_abstentions():
     ids = [line for line in data.STAGE_SET_FILE.read_text(encoding="utf-8").splitlines() if line and not line.startswith("#")]
     assert len(ids) == len(set(ids)) == 120
     assert sum(i.endswith("_abs") for i in ids) == 18
+
+
+def test_evidence_kept_measures_how_much_of_each_evidence_turn_the_index_keeps():
+    q = {"haystack_sessions": [[
+        {"role": "user", "content": "u" * 100, "has_answer": True},
+        {"role": "assistant", "content": "a" * 3000, "has_answer": True},
+    ], [{"role": "user", "content": "x"}, {"role": "assistant", "content": "y"}]]}
+    kept = data.evidence_kept(q)
+    assert kept["turns"] == 2 and kept["full"] == 1 and kept["best"] == 1.0
+    q["haystack_sessions"][0][0]["has_answer"] = False
+    only_reply = data.evidence_kept(q)
+    assert only_reply["full"] == 0 and only_reply["best"] == round((2000 - 6 - 100 - 7) / 3000, 3)
+    assert data.evidence_kept({"haystack_sessions": [[{"role": "user", "content": "hi"}]]})["best"] is None

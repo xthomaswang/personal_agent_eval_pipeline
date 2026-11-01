@@ -231,6 +231,28 @@ def answer_user_texts(question: Mapping[str, Any]) -> dict[str, list[str]]:
     return out
 
 
+DOC_CHARS = 2000  # localmelo's index keeps the first 2000 characters of "User: <typed>\nmelo: <answer>" (support/memory/index.py)
+
+
+def evidence_kept(question: Mapping[str, Any], doc_chars: int = DOC_CHARS) -> dict[str, Any]:
+    """How much of each evidence turn (``has_answer``) the index keeps: a user turn and the assistant turn after it make one
+    document, cut at ``doc_chars``. ``turns``: evidence turns; ``full``: those kept whole; ``best``: the largest kept share
+    of one (1.0 when one is whole, None without evidence turns). Lengths only; no text is recorded."""
+    shares: list[float] = []
+    for session in question["haystack_sessions"]:
+        for at, turn in enumerate(session):
+            if not turn.get("has_answer"):
+                continue
+            text = str(turn.get("content") or "")
+            if turn.get("role") == "user":
+                offset = len("User: ")
+            else:
+                typed = next((str(t.get("content") or "") for t in reversed(session[:at]) if t.get("role") == "user"), "")
+                offset = len("User: ") + len(typed.strip()) + len("\nmelo: ")
+            shares.append(1.0 if not text else max(0.0, min(1.0, (doc_chars - offset) / len(text))))
+    return {"turns": len(shares), "full": sum(s >= 1.0 for s in shares), "best": round(max(shares), 3) if shares else None}
+
+
 def summary(question: Mapping[str, Any]) -> dict[str, Any]:
     """What a run records about a question, with none of its text: id, type, abstention flag, answer sessions, sizes."""
     return {

@@ -200,3 +200,19 @@ def test_the_report_on_a_run_of_the_driver(tmp_path):
     text = report.render(rep)
     assert "ProductName: test" in text and "Sampling: the server defaults" in text and "## Paired arm differences" not in text
     assert "Business" not in text
+
+
+def test_a_wrong_answer_is_put_at_the_step_that_lost_the_evidence():
+    base = {"arm": "A", "state": "finished", "correct": False, "abstention": False}
+    assert report.miss_step({**base, "correct": True}) is None
+    assert report.miss_step({**base, "state": "timed_out"}) == "turn failed"
+    assert report.miss_step({**base, "abstention": True}) == "abstention: answered anyway"
+    none = {"auto_hit": False, "search_hit": None}
+    assert report.miss_step({**base, "retrieval": none, "evidence": {"best": 0.4}}) == "2 evidence cut at ingest, not retrieved"
+    assert report.miss_step({**base, "retrieval": none, "evidence": {"best": 1.0}}) == "3 not retrieved"
+    assert report.miss_step({**base, "retrieval": {"auto_hit": False, "search_hit": True}, "evidence": {"best": 0.9}}) == \
+        "4 retrieved, evidence cut at ingest"
+    assert report.miss_step({**base, "retrieval": {"auto_hit": True}, "evidence": {"best": None}}) == \
+        "5 retrieved, not used by the reader"
+    table = report.miss_table([{**base, "retrieval": none, "evidence": {}}, {**base, "correct": True}], ["A"])
+    assert table["A"]["3 not retrieved"] == 1 and sum(table["A"].values()) == 1

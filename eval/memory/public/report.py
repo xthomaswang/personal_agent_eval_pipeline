@@ -231,6 +231,41 @@ def judge_table(rows: Sequence[Mapping[str, Any]], arms: Sequence[str]) -> dict[
     return out
 
 
+# --- why a question was missed ---
+
+MISS_STEPS = (
+    "turn failed", "abstention: answered anyway", "2 evidence cut at ingest, not retrieved", "3 not retrieved",
+    "4 retrieved, evidence cut at ingest", "5 retrieved, not used by the reader")
+
+
+def miss_step(row: Mapping[str, Any]) -> str | None:
+    """The step a wrong answer lost the evidence at (the spec's 1-6 attribution), from the row alone; None for a right one.
+
+    Ingest (2): an evidence turn (``has_answer``) is longer than the index keeps (``evidence.best`` < 1). Retrieval (3):
+    neither the recall block nor a search reached an answer session. Reader (5): one did and the answer is still wrong."""
+    if row.get("correct"):
+        return None
+    if row.get("state") != "finished":
+        return "turn failed"
+    if row.get("abstention"):
+        return "abstention: answered anyway"
+    ret = row.get("retrieval") or {}
+    best = (row.get("evidence") or {}).get("best")
+    cut = best is not None and best < 1.0
+    if not (ret.get("auto_hit") or ret.get("search_hit")):
+        return "2 evidence cut at ingest, not retrieved" if cut else "3 not retrieved"
+    return "4 retrieved, evidence cut at ingest" if cut else "5 retrieved, not used by the reader"
+
+
+def miss_table(rows: Sequence[Mapping[str, Any]], arms: Sequence[str]) -> dict[str, dict[str, int]]:
+    """Per arm: the wrong answers by miss_step."""
+    out = {}
+    for arm in arms:
+        steps = [miss_step(r) for r in rows if r["arm"] == arm]
+        out[arm] = {step: sum(1 for s in steps if s == step) for step in MISS_STEPS}
+    return out
+
+
 # --- control ---
 
 
@@ -279,9 +314,11 @@ def analyse(run_dir: Path, resamples: int = BOOTSTRAP, seed: int = SEED) -> dict
         "accuracy": accuracy_table(rows, arms, resamples, seed), "paired": paired_table(rows, arms, resamples, seed),
         "retrieval": retrieval_table(rows, arms), "ingest": ingest_table(run["ingests"], run["questions"]),
         "judge": judge_table(rows, arms), "control": control_table(run["controls"], rows, arms),
+        "misses": miss_table(rows, arms),
         "rows": [
             {k: r.get(k) for k in ("question_id", "arm", "repeat", "state", "correct")}
-            | {"auto_hit": (r.get("retrieval") or {}).get("auto_hit"), "search_hit": (r.get("retrieval") or {}).get("search_hit")}
+            | {"auto_hit": (r.get("retrieval") or {}).get("auto_hit"), "search_hit": (r.get("retrieval") or {}).get("search_hit"),
+               "miss_step": miss_step(r)}
             for r in rows
         ],
     }
@@ -395,6 +432,13 @@ def render(rep: Mapping[str, Any]) -> str:
         [[("**" + t + "**") if t == "single-session-assistant" else t, str(s["ingests"]), str(s["turns"]), str(s["cut"]),
           hit(s["cut_rate"]), med(s["seconds"]), med(s["notes"]), str(s["skipped"]), str(s["trimmed"]), str(s["errors"])]
          for t, s in shown])
+
+    ms = rep["misses"]
+    out += ["## Why answers were wrong", "",
+            "Each wrong answer at the step it lost the evidence: cut at ingest (an evidence turn is longer than the index keeps), "
+            "not retrieved (neither the recall block nor a search reached an answer session), or retrieved but not used. "
+            "From the row alone; read the answers before trusting a step.", ""]
+    out += table(["", *arms], [[step, *(str(ms[a][step]) for a in arms)] for step in MISS_STEPS])
 
     out += ["## Judge", "",
             "`judge_retry`: the first reply was neither yes nor no, so it was asked again without sampling fields. `judge_unparsed`: "

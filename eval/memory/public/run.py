@@ -605,6 +605,7 @@ def question_row(
         **turn_fields(res, asked.error),
         "recall": ((memory or {}).get("recall") or (res.memory_recall if res else None)),
         "retrieval": retrieval(question, memory, res.events if res else [], ids),
+        "evidence": data.evidence_kept(question),
         "remembered": len((memory or {}).get("remembered") or []),
         "cold_start": asked.cold, "cell_s": asked.seconds,
     }
