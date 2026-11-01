@@ -28,8 +28,9 @@ the embedding model (default true).
 
 A hit is retrieval, not the answer. The auto hit: an item of the turn's `turn.memory.used` (what recall put in front of
 the model) comes from an answer session. The search hit: the same for what the `search_memory` tool returned in the turn;
-a build whose tool result names no session is matched by the words of the answer sessions' user turns instead, and the row
-says which (`search_via`). Both are recorded apart, with the `search_hint` of the memory event when the build sends one.
+a build that sends the memory event's `searched` items (its events reference documents them) is read from those alone, a
+search that found nothing being a miss; an older build whose tool result names no session is matched by the words of the
+answer sessions' user turns instead, and the row says which (`search_via`). Both are recorded apart, with the `search_hint` of the memory event when the build sends one.
 
 `--control-prompts FILE` (`default` for the built-in list) adds a control: on the first `--control-homes` ingested HOMEs, per
 arm, one ordinary prompt that needs no memory (a unit conversion, a short poem, a regex) is asked instead of the question. Any
@@ -303,6 +304,7 @@ def system_snapshot(study: Study) -> dict[str, Any]:
         "sw_vers": server.out(["sw_vers"]),
         "xcodebuild_version": server.out(["xcodebuild", "-version"]),
         "localmelo_sha": server.git_sha(study.localmelo),
+        "localmelo_sends_searched": sends_searched(study.localmelo),
         "bench_sha": server.git_sha(bench),
         "bench_dirty": server.git_dirty(bench),
         "pmset_batt": server.out(["pmset", "-g", "batt"]),
@@ -437,6 +439,13 @@ def searches(events: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
     return calls
 
 
+def sends_searched(localmelo: Path) -> bool:
+    """Whether the build lists what ``search_memory`` found in the memory event's ``searched`` (its events reference documents
+    the key; b9c02def and later). Such a build leaves the key out when the turn's searches found nothing."""
+    doc = localmelo / "docs" / "reference" / "events.md"
+    return doc.is_file() and "`searched` (`[" in doc.read_text(encoding="utf-8")
+
+
 def search_hint(memory: Mapping[str, Any] | None) -> Any:
     """The ``search_hint`` a build puts in the memory event (or in its ``recall``), as it sent it; None when it sends none."""
     found = (memory or {}).get("search_hint")
@@ -445,13 +454,16 @@ def search_hint(memory: Mapping[str, Any] | None) -> Any:
 
 def retrieval(
     question: data.Question, memory: Mapping[str, Any] | None, events: Sequence[Mapping[str, Any]], ids: Mapping[str, str],
+    exact: bool = False,
 ) -> dict[str, Any]:
     """Whether the memory reached the evidence: the auto hit and the search hit of a turn, apart (see the module docstring).
 
     ``ids`` is the ingest report's file id -> store id. ``auto_hit``: an item of ``turn.memory.used`` is from an answer
     session; ``auto_cover``: the share of the answer sessions that some item is from. ``search_hit`` is None when the
     turn made no search call, else whether a result is from an answer session; ``search_via`` is "memory" (the memory
-    event's ``searched`` items, newer builds), "items" (the tool event names the sessions) or "text" (matched by words). Everything is None when the question has no answer session."""
+    event's ``searched`` items, newer builds), "items" (the tool event names the sessions) or "text" (matched by words).
+    ``exact``: the build sends ``searched`` (``sends_searched``), so a turn that searched without it found nothing and is
+    never matched by words. Everything is None when the question has no answer session."""
     wanted = set(data.answer_sessions(question))
     store_to_file = {store: file for file, store in ids.items()}
     used = used_items(memory, store_to_file)
@@ -471,6 +483,8 @@ def retrieval(
         named = {str(i["session_id"]) for i in searched if isinstance(i, Mapping) and i.get("session_id")}
         row["search_hit"] = bool({store_to_file[s] for s in named if s in store_to_file} & wanted)
         row["search_via"] = "memory"
+    elif exact and calls and wanted:  # the build leaves searched out when its searches found nothing
+        row["search_hit"], row["search_via"] = False, "memory"
     elif calls and wanted:
         found: set[str] = set()
         via = None
@@ -626,7 +640,7 @@ def question_row(
         "question_type": question["question_type"], "abstention": data.is_abstention(question), "arm": arm.name, "repeat": repeat,
         **turn_fields(res, asked.error),
         "recall": ((memory or {}).get("recall") or (res.memory_recall if res else None)),
-        "retrieval": retrieval(question, memory, res.events if res else [], ids),
+        "retrieval": retrieval(question, memory, res.events if res else [], ids, exact=sends_searched(study.localmelo)),
         "evidence": data.evidence_kept(question),
         "remembered": len((memory or {}).get("remembered") or []),
         "cold_start": asked.cold, "cell_s": asked.seconds,

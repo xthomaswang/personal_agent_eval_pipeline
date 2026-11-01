@@ -14,8 +14,8 @@ environment.json); the dataset itself is not read. Sections:
   over the questions both arms were asked;
 - retrieval, the auto hit (what recall put in front of the model) and the search hit (what the `search_memory` tool
   returned) apart, with Wilson intervals: the rate of questions whose evidence session was reached, the rate with every
-  evidence session reached, the share of turns that searched, and how a search hit was found (named by the event, or
-  matched by words);
+  evidence session reached, the share of turns that searched, and how a search hit was read (the memory event's `searched`
+  items, the items the tool event names, or matched by words);
 - ingest: how many turns the index cut (a turn longer than the index keeps), per type with single-session-assistant on its own
   (its answers are in the assistant's long replies), the time and notes per ingest, and any embedding failure;
 - replies asked again: per arm, the turns in which localmelo asked the model again after a reply that was no answer (empty,
@@ -183,6 +183,7 @@ def retrieval_cell(rows: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
         "searched": rate(len(searched), len(ret)),
         "search_hit": rate(sum(1 for x in searched if x.get("search_hit")), len(searched)),
         "either": rate(sum(1 for x in ret if x.get("auto_hit") or x.get("search_hit")), len(ret)),
+        "via_memory": sum(1 for x in searched if x.get("search_via") == "memory"),
         "via_items": sum(1 for x in searched if x.get("search_via") == "items"),
         "via_text": sum(1 for x in searched if x.get("search_via") == "text"),
         "hints": sum(1 for x in ret if x.get("search_hint") not in (None, "")),
@@ -442,7 +443,8 @@ def render(rep: Mapping[str, Any]) -> str:
             ["turns that searched", *(hit(cells[a]["searched"]) for a in arms)],
             ["search hit (of those)", *(hit(cells[a]["search_hit"]) for a in arms)],
             ["either", *(hit(cells[a]["either"]) for a in arms)],
-            ["search hit found by event / by words", *(f"{cells[a]['via_items']} / {cells[a]['via_text']}" for a in arms)],
+            ["search hit read from memory event / tool items / words",
+             *(f"{cells[a]['via_memory']} / {cells[a]['via_items']} / {cells[a]['via_text']}" for a in arms)],
             ["turns with a `search_hint`", *(str(cells[a]["hints"]) for a in arms)]])
 
     ing = rep["ingest"]

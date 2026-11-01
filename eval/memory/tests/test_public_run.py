@@ -165,6 +165,23 @@ def test_search_hit_from_the_memory_events_searched_items_wins_over_the_tool_tex
     assert (miss["search_hit"], miss["search_via"]) == (False, "memory")
     assert run.retrieval(q, {"used": [], "searched": []}, [], ids)["search_hit"] is False  # a search that found nothing
 
+def test_a_build_that_sends_searched_is_never_matched_by_words(tmp_path):
+    q = mini_questions()[0]
+    ids = {"sess_a": "st1", "sess_b": "st2"}
+    words = search_events("1. User: I hold a degree in Business Administration. melo: Congratulations on the degree! (a chat, May 20)")
+    assert run.retrieval(q, {"used": []}, words, ids)["search_via"] == "text"  # an older build
+    exact = run.retrieval(q, {"used": []}, words, ids, exact=True)  # searched left out: the searches found nothing
+    assert (exact["search_hit"], exact["search_via"]) == (False, "memory")
+    found = run.retrieval(q, {"used": [], "searched": [{"session_id": "st1"}]}, words, ids, exact=True)
+    assert (found["search_hit"], found["search_via"]) == (True, "memory")
+    assert run.retrieval(q, {"used": []}, [], ids, exact=True)["search_hit"] is None  # no search call
+    doc = tmp_path / "docs" / "reference" / "events.md"
+    assert run.sends_searched(tmp_path) is False
+    doc.parent.mkdir(parents=True)
+    doc.write_text("| `turn.memory` | ... `searched` (`[{kind, id, text, source, session_id, turn, at}]`, ...) |\n")
+    assert run.sends_searched(tmp_path) is True
+
+
 def test_prompt_tokens_come_from_the_first_model_call():
     res = client.TurnResult("s", "t", 1, "completed", usage={"prompt_tokens": 900.0, "completion_tokens": 30.0})
     assert run.first_prompt_tokens(res) == 900
