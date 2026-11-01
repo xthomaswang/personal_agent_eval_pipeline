@@ -197,14 +197,21 @@ def iso_local(text: str) -> str:
 REPEAT_MARK = "#"  # no haystack id of the file holds it
 
 
-def file_session_ids(question: Mapping[str, Any]) -> list[str]:
-    """The id of each haystack session in the ingest file, in order: the haystack id, and ``<id>#<n>`` for its n-th use when
-    the haystack repeats it. 13 of the 500 questions hold one session twice, the same turns at two dates, and ingest refuses
-    an id used twice; both copies are kept, as the benchmark gives them."""
+def file_session_ids(question: Mapping[str, Any]) -> list[str | None]:
+    """The id of each haystack session in the ingest file, in order: the haystack id, ``<id>#<n>`` for its n-th use when the
+    haystack repeats it with other turns or another date, and None for a word-for-word repeat (same id, date and turns),
+    which is written once, as localmelo reads such a repeat once from TM21 on. 13 of the 500 questions hold one session
+    twice, the same turns at two dates, and ingest refuses an id used twice; both copies are kept, as the benchmark gives
+    them."""
     uses: dict[str, int] = {}
-    out = []
-    for sid in question["haystack_session_ids"]:
+    seen: list[tuple[str, Any, Any]] = []
+    out: list[str | None] = []
+    for sid, date, turns in zip(question["haystack_session_ids"], question["haystack_dates"], question["haystack_sessions"], strict=True):
         sid = str(sid)
+        if (sid, date, turns) in seen:
+            out.append(None)
+            continue
+        seen.append((sid, date, turns))
         uses[sid] = uses.get(sid, 0) + 1
         out.append(sid if uses[sid] == 1 else f"{sid}{REPEAT_MARK}{uses[sid]}")
     return out
@@ -212,7 +219,8 @@ def file_session_ids(question: Mapping[str, Any]) -> list[str]:
 
 def haystack_ids(question: Mapping[str, Any]) -> dict[str, str]:
     """Ingest file session id -> haystack session id (the same but for a repeat)."""
-    return dict(zip(file_session_ids(question), (str(s) for s in question["haystack_session_ids"]), strict=True))
+    pairs = zip(file_session_ids(question), (str(s) for s in question["haystack_session_ids"]), strict=True)
+    return {file: sid for file, sid in pairs if file is not None}
 
 
 def to_ingest(question: Mapping[str, Any]) -> dict[str, Any]:
@@ -225,6 +233,8 @@ def to_ingest(question: Mapping[str, Any]) -> dict[str, Any]:
     file's order; ingest sorts them by date itself."""
     sessions = []
     for sid, date, turns in zip(file_session_ids(question), question["haystack_dates"], question["haystack_sessions"], strict=True):
+        if sid is None:  # a word-for-word repeat
+            continue
         sessions.append({
             "id": str(sid), "date": iso_local(date),
             "turns": [{"role": str(t["role"]), "text": str(t["content"])} for t in turns],

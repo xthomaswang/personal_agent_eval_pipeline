@@ -73,6 +73,9 @@ def test_a_repeated_haystack_session_is_kept_under_a_marked_id():
     assert doc["sessions"][2]["turns"] == doc["sessions"][0]["turns"] and doc["sessions"][2]["date"] == "2023-05-22T09:30:00"
     assert data.haystack_ids(q) == {"sess_a": "sess_a", "sess_b": "sess_b", "sess_a#2": "sess_a"}
     assert data.file_session_ids(mini_questions()[0]) == ["sess_a", "sess_b", "sess_c"]
+    q["haystack_dates"][2] = q["haystack_dates"][0]  # word for word, the date too: written once
+    assert [s["id"] for s in data.to_ingest(q)["sessions"]] == ["sess_a", "sess_b"]
+    assert data.haystack_ids(q) == {"sess_a": "sess_a", "sess_b": "sess_b"}
 
 
 def test_dates_are_iso_local_time():
