@@ -76,6 +76,7 @@ INGEST_TIMEOUT_S = 3600.0
 TURN_TIMEOUT_S = 900.0
 ARM_KEYS = {"label", "x", "config", "extra_body", "embedding"}
 SEARCH_TOOL = "search_memory"
+OPEN_TOOL = "open_memory"  # builds with [memory] recall_form = "list": the model opens listed turns whole
 # Notices of a reply that was no answer; localmelo asks the model again after each, except for the reply that ends the turn.
 NO_ANSWER_NOTICES = ("empty_reply", "unfinished_answer", "tool_call_as_text")
 
@@ -432,10 +433,10 @@ def text_sessions(output: str, answer_texts: Mapping[str, Sequence[str]]) -> set
     return found
 
 
-def searches(events: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
-    """The ``search_memory`` calls of a turn, in order, each with its ``finished`` event's data."""
-    started = [e for e in events if e.get("type") == "tool.started" and (e.get("data") or {}).get("name") == SEARCH_TOOL]
-    finished = [e.get("data") or {} for e in events if e.get("type") == "tool.finished" and (e.get("data") or {}).get("name") == SEARCH_TOOL]
+def searches(events: Sequence[Mapping[str, Any]], tool: str = SEARCH_TOOL) -> list[dict[str, Any]]:
+    """The calls of ``tool`` (``search_memory`` unless named) in a turn, in order, each with its ``finished`` event's data."""
+    started = [e for e in events if e.get("type") == "tool.started" and (e.get("data") or {}).get("name") == tool]
+    finished = [e.get("data") or {} for e in events if e.get("type") == "tool.finished" and (e.get("data") or {}).get("name") == tool]
     calls = []
     for n in range(max(len(started), len(finished))):
         begun = (started[n].get("data") or {}) if n < len(started) else {}
@@ -448,6 +449,15 @@ def sends_searched(localmelo: Path) -> bool:
     the key; b9c02def and later). Such a build leaves the key out when the turn's searches found nothing."""
     doc = localmelo / "docs" / "reference" / "events.md"
     return doc.is_file() and "`searched` (`[" in doc.read_text(encoding="utf-8")
+
+
+def opens(memory: Mapping[str, Any] | None, store_to_file: Mapping[str, str], wanted: set[str]) -> dict[str, Any]:
+    """The turns the model opened with ``open_memory`` (the memory event's ``opened``, list-form builds): how many, and
+    ``open_hit``, whether one is from an answer session (None when nothing was opened or the question has no answer
+    session)."""
+    opened = [o for o in ((memory or {}).get("opened") or []) if isinstance(o, Mapping)]
+    files = {store_to_file.get(str(o.get("session_id") or "")) for o in opened} - {None}
+    return {"opens": len(opened), "open_hit": bool(files & wanted) if opened and wanted else None}
 
 
 def search_hint(memory: Mapping[str, Any] | None) -> Any:
@@ -476,6 +486,7 @@ def retrieval(
         "answer_sessions": sorted(wanted), "used": used,
         "search_hint": search_hint(memory), **evidence_seen(question, memory, events),
         "auto_hit": None, "auto_cover": None, "searches": 0, "search_hit": None, "search_via": None,
+        **opens(memory, store_to_file, wanted),
     }
     calls = searches(events)
     row["searches"] = len(calls)
@@ -513,11 +524,11 @@ def _words(text: str) -> set[str]:
 
 
 def evidence_seen(question: data.Question, memory: Mapping[str, Any] | None, events: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
-    """How much of the evidence turns the model was shown, in the text of the recalled items and the ``search_memory``
-    results: ``evidence_seen`` the largest share of one evidence turn's words, ``evidence_all`` the smallest over all of
+    """How much of the evidence turns the model was shown, in the text of the recalled items and the ``search_memory`` and
+    ``open_memory`` results: ``evidence_seen`` the largest share of one evidence turn's words, ``evidence_all`` the smallest over all of
     them (a question can need every one). Both None when the question marks no evidence turn with words."""
     shown = [str(u.get("text") or "") for u in ((memory or {}).get("used") or []) if isinstance(u, Mapping)]
-    shown += [str(c["finished"].get("output") or "") for c in searches(events) if c["finished"]]
+    shown += [str(c["finished"].get("output") or "") for tool in (SEARCH_TOOL, OPEN_TOOL) for c in searches(events, tool) if c["finished"]]
     seen = _words(" ".join(shown))
     shares = [len(w & seen) / len(w) for w in map(_words, data.evidence_texts(question)) if w]
     return {"evidence_seen": round(max(shares), 3) if shares else None, "evidence_all": round(min(shares), 3) if shares else None}
@@ -689,6 +700,7 @@ def control_row(
     row: dict[str, Any] = {
         "protocol": PROTOCOL, "at": across.now_iso(), "question_id": question["question_id"], "arm": arm.name, "index": index,
         "prompt": prompt, **turn_fields(res, asked.error), "used": used, "false_recall": bool(used),
+        "opens": len((memory or {}).get("opened") or []),
         "recall": ((memory or {}).get("recall") or (res.memory_recall if res else None)), "cold_start": asked.cold,
     }
     row["answer"] = row["answer"][:300]

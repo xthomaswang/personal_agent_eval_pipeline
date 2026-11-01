@@ -147,6 +147,20 @@ def test_evidence_seen_and_all_are_the_shares_of_the_evidence_turns_words_the_mo
     assert run.retrieval(q, shown, [], {"sess_a": "st1"})["evidence_all"] == 0.5
 
 
+def test_opened_turns_are_counted_and_their_text_counts_as_shown():
+    q = mini_questions()[0]
+    q["haystack_sessions"][0][0]["has_answer"] = True  # "I hold a degree in Business Administration."
+    ids = {"sess_a": "st1", "sess_b": "st2"}
+    listed = {"used": [{"kind": "chat", "session_id": "st1", "text": "“Which degree…” · cosine 0.61"}],
+              "opened": [{"session_id": "st2", "turn": 1, "id": 7}, {"session_id": "st1", "turn": 1, "id": 3}]}
+    opened = [{"type": "tool.started", "data": {"name": "open_memory", "arguments": {"ids": ["t7", "t3"]}}},
+              {"type": "tool.finished", "data": {"name": "open_memory", "output": "User: I hold a degree in Business Administration."}}]
+    row = run.retrieval(q, listed, opened, ids)
+    assert (row["opens"], row["open_hit"], row["evidence_all"]) == (2, True, 1.0)
+    assert run.retrieval(q, {"used": [], "opened": [{"session_id": "st2"}]}, [], ids)["open_hit"] is False
+    assert (run.retrieval(q, {"used": []}, [], ids)["opens"], run.retrieval(q, {"used": []}, [], ids)["open_hit"]) == (0, None)
+
+
 def test_search_hit_by_words_when_the_event_names_no_session():
     q = mini_questions()[0]
     ids = {"sess_a": "st1", "sess_b": "st2"}

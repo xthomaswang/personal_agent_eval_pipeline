@@ -187,6 +187,8 @@ def retrieval_cell(rows: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
         "via_items": sum(1 for x in searched if x.get("search_via") == "items"),
         "via_text": sum(1 for x in searched if x.get("search_via") == "text"),
         "hints": sum(1 for x in ret if x.get("search_hint") not in (None, "")),
+        "opened": rate(sum(1 for x in ret if x.get("opens")), len(ret)),
+        "open_hit": rate(sum(1 for x in ret if x.get("open_hit")), sum(1 for x in ret if x.get("opens"))),
     }
 
 
@@ -319,6 +321,7 @@ def control_table(
             "cells": len(mine), "failed": len(mine) - len(finished),
             "false_recall": rate(sum(1 for c in finished if c.get("false_recall")), len(finished)),
             "items_used": stats([float(len(c.get("used") or [])) for c in finished]),
+            "opened": rate(sum(1 for c in finished if c.get("opens")), len(finished)),
             "prompt_tokens": stats([num(c.get("prompt_tokens")) for c in finished]),
             "ttft_ms": stats([num(c.get("ttft_ms")) for c in finished]),
             "question_prompt_tokens": stats([num(r.get("prompt_tokens")) for r in asked]),
@@ -455,7 +458,9 @@ def render(rep: Mapping[str, Any]) -> str:
             ["either", *(hit(cells[a]["either"]) for a in arms)],
             ["search hit read from memory event / tool items / words",
              *(f"{cells[a]['via_memory']} / {cells[a]['via_items']} / {cells[a]['via_text']}" for a in arms)],
-            ["turns with a `search_hint`", *(str(cells[a]["hints"]) for a in arms)]])
+            ["turns with a `search_hint`", *(str(cells[a]["hints"]) for a in arms)],
+            ["turns that opened a listed turn", *(hit(cells[a]["opened"]) for a in arms)],
+            ["open hit (of those)", *(hit(cells[a]["open_hit"]) for a in arms)]])
 
     ing = rep["ingest"]
     out += ["## Ingest", "",
@@ -514,6 +519,7 @@ def render(rep: Mapping[str, Any]) -> str:
             ["control cells (failed)", *(f"{ct[a]['cells']} ({ct[a]['failed']})" for a in arms)],
             ["false recall", *(hit(ct[a]["false_recall"]) for a in arms)],
             ["items used per control prompt", *(med(ct[a]["items_used"]) for a in arms)],
+            ["control prompts that opened a listed turn", *(hit(ct[a]["opened"]) for a in arms)],
             ["control prompt tokens", *(med(ct[a]["prompt_tokens"]) for a in arms)],
             ["control first token ms", *(med(ct[a]["ttft_ms"]) for a in arms)],
             ["question prompt tokens", *(med(ct[a]["question_prompt_tokens"]) for a in arms)],

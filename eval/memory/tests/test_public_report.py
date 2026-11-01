@@ -171,6 +171,21 @@ def test_replies_asked_again_per_arm(tmp_path):
     assert "| turn ended on a text tool call | 1 | 0 |" in text and "| rows not recorded | 1 | 0 |" in text
 
 
+def test_opens_per_arm_and_on_the_controls(tmp_path):
+    rows = [result_row("q1", "single-session-user", "A", r, True) for r in (1, 2)]
+    rows[0]["retrieval"].update(opens=2, open_hit=True)
+    rows[1]["retrieval"].update(opens=0, open_hit=None)
+    controls = [{"question_id": "q1", "arm": "A", "index": 0, "prompt": "p", "state": "finished", "used": [], "false_recall": False,
+                 "opens": 1, "prompt_tokens": 100, "ttft_ms": 200.0}]
+    write_run(tmp_path / "run", rows, arms=("A",), questions=QUESTIONS[:1], repeats=2, controls=controls)
+    rep = report.analyse(tmp_path / "run", resamples=10)
+    cell = rep["retrieval"]["all"]["A"]
+    assert (cell["opened"]["k"], cell["opened"]["n"], cell["open_hit"]["k"], cell["open_hit"]["n"]) == (1, 2, 1, 1)
+    assert (rep["control"]["A"]["opened"]["k"], rep["control"]["A"]["opened"]["n"]) == (1, 1)
+    text = report.render(rep)
+    assert "turns that opened a listed turn" in text and "control prompts that opened a listed turn" in text
+
+
 def test_the_rendered_report(run_dir):
     text = report.render(report.analyse(run_dir, resamples=200))
     for heading in ("## Arms", "## Accuracy", "## Paired arm differences", "## Retrieval", "## Ingest", "## Judge", "## Control: ordinary prompts"):
