@@ -465,7 +465,8 @@ def retrieval(
     ``exact``: the build sends ``searched`` (``sends_searched``), so a turn that searched without it found nothing and is
     never matched by words. Everything is None when the question has no answer session."""
     wanted = set(data.answer_sessions(question))
-    store_to_file = {store: file for file, store in ids.items()}
+    origin = data.haystack_ids(question)  # a repeated session's copies are both the haystack session
+    store_to_file = {store: origin.get(file, file) for file, store in ids.items()}
     used = used_items(memory, store_to_file)
     row: dict[str, Any] = {
         "answer_sessions": sorted(wanted), "used": used,
@@ -772,6 +773,9 @@ def run_study(study: Study) -> int:
     env_path = study.run_dir / "environment.json"
     env_doc = json.loads(env_path.read_text()) if env_path.exists() else {}
     env_doc.setdefault("start", (study.snapshot or system_snapshot)(study))
+    bench = Path(__file__).resolve().parents[3]
+    env_doc.setdefault("resumes", []).append(  # the driver may change between windows of one run
+        {"at": across.now_iso(), "bench_sha": server.git_sha(bench), "bench_dirty": server.git_dirty(bench)})
     if study.do_warmup and "warmup" not in env_doc:  # the chat model is loaded once, before the first cell is timed
         env_doc["warmup"] = server.warmup(study.base_url, study.model, None)
     across.save(env_path, env_doc)

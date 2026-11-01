@@ -125,6 +125,14 @@ def search_events(*outputs, **extra):
     return events
 
 
+def test_the_copy_of_a_repeated_answer_session_is_a_hit():
+    q = mini_questions()[0]
+    q["haystack_session_ids"] = ["sess_a", "sess_b", "sess_a"]
+    ids = {"sess_a": "st1", "sess_b": "st2", "sess_a#2": "st3"}
+    row = run.retrieval(q, {"used": [{"kind": "chat", "session_id": "st3", "text": "x"}]}, [], ids)
+    assert row["auto_hit"] is True and row["used"][0]["file_id"] == "sess_a"
+
+
 def test_search_hit_by_words_when_the_event_names_no_session():
     q = mini_questions()[0]
     ids = {"sess_a": "st1", "sess_b": "st2"}

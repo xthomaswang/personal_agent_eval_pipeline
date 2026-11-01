@@ -17,7 +17,7 @@ A question holds:
     answer_session_ids     the sessions that hold the evidence (abstention questions have some too)
 
 Two conversions follow. `to_ingest` writes the haystack as the file `melo memory ingest` loads (one session per haystack
-session, its id the haystack id, dates as ISO local time), and `question_now` writes the day the question is asked as the
+session, its id the haystack id with a repeat mark on a repeated one, dates as ISO local time), and `question_now` writes the day the question is asked as the
 `LOCALMELO_NOW` value that pins localmelo's "today". The stage set is a seeded sample of the 500, stratified by question
 type, so a run costs a quarter of the full set and every run of it asks the same questions.
 """
@@ -194,16 +194,37 @@ def iso_local(text: str) -> str:
     return f"{year}-{month}-{day}T{hour}:{minute}:{second or '00'}"
 
 
+REPEAT_MARK = "#"  # no haystack id of the file holds it
+
+
+def file_session_ids(question: Mapping[str, Any]) -> list[str]:
+    """The id of each haystack session in the ingest file, in order: the haystack id, and ``<id>#<n>`` for its n-th use when
+    the haystack repeats it. 13 of the 500 questions hold one session twice, the same turns at two dates, and ingest refuses
+    an id used twice; both copies are kept, as the benchmark gives them."""
+    uses: dict[str, int] = {}
+    out = []
+    for sid in question["haystack_session_ids"]:
+        sid = str(sid)
+        uses[sid] = uses.get(sid, 0) + 1
+        out.append(sid if uses[sid] == 1 else f"{sid}{REPEAT_MARK}{uses[sid]}")
+    return out
+
+
+def haystack_ids(question: Mapping[str, Any]) -> dict[str, str]:
+    """Ingest file session id -> haystack session id (the same but for a repeat)."""
+    return dict(zip(file_session_ids(question), (str(s) for s in question["haystack_session_ids"]), strict=True))
+
+
 def to_ingest(question: Mapping[str, Any]) -> dict[str, Any]:
     """The haystack as the file ``melo memory ingest`` loads: ``{"sessions": [{"id", "date", "turns": [{"role", "text"}]}]}``.
 
-    One session per haystack session, its ``id`` the haystack session id (the store gives its own ids; ``ids`` of the
-    ingest report maps one to the other) and its ``date`` the haystack date as ISO local time. A turn keeps its role and its
+    One session per haystack session, its ``id`` the haystack session id, marked when repeated (``file_session_ids``; the
+    store gives its own ids; ``ids`` of the ingest report maps one to the other) and its ``date`` the haystack date as ISO local time. A turn keeps its role and its
     text; LongMemEval's `has_answer` marks are dropped, so the file tells localmelo nothing about the evidence. No title
     is set: a session id such as `answer_...` would show up in the chat label the model reads. Sessions stay in the
     file's order; ingest sorts them by date itself."""
     sessions = []
-    for sid, date, turns in zip(question["haystack_session_ids"], question["haystack_dates"], question["haystack_sessions"], strict=True):
+    for sid, date, turns in zip(file_session_ids(question), question["haystack_dates"], question["haystack_sessions"], strict=True):
         sessions.append({
             "id": str(sid), "date": iso_local(date),
             "turns": [{"role": str(t["role"]), "text": str(t["content"])} for t in turns],

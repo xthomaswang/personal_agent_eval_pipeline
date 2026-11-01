@@ -64,6 +64,17 @@ def test_to_ingest_matches_localmelos_format():
     assert json.loads(json.dumps(doc)) == doc
 
 
+def test_a_repeated_haystack_session_is_kept_under_a_marked_id():
+    q = mini_questions()[0]
+    q["haystack_session_ids"] = ["sess_a", "sess_b", "sess_a"]  # the same session twice, as 13 of the 500 questions have
+    q["haystack_sessions"][2] = q["haystack_sessions"][0]
+    doc = data.to_ingest(q)
+    assert [s["id"] for s in doc["sessions"]] == ["sess_a", "sess_b", "sess_a#2"]
+    assert doc["sessions"][2]["turns"] == doc["sessions"][0]["turns"] and doc["sessions"][2]["date"] == "2023-05-22T09:30:00"
+    assert data.haystack_ids(q) == {"sess_a": "sess_a", "sess_b": "sess_b", "sess_a#2": "sess_a"}
+    assert data.file_session_ids(mini_questions()[0]) == ["sess_a", "sess_b", "sess_c"]
+
+
 def test_dates_are_iso_local_time():
     assert data.iso_local("2023/05/30 (Tue) 23:40") == "2023-05-30T23:40:00"
     assert data.iso_local("2024/01/02 (Tue) 00:05") == "2024-01-02T00:05:00"
