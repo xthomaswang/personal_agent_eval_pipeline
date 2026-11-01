@@ -96,7 +96,7 @@ def test_day_one_teaches_round_by_round_then_one_sleep_then_day_two_and_only_the
     rep = report_v2.analyse(study.run_dir, tasks)
     assert set(rep["sleeps"]) == {"r1__S1"} and rep["sleeps"]["r1__S1"]["changes"][0]["op"] == "O1"
     assert set(rep["sleeps"]["r1__S1"]["items"]) == {"D1", "C1"}
-    assert set(rep["accuracy"]["sleep"]["S1"]) == {"all", "duplicate", "change", "abstain"}
+    assert set(rep["accuracy"]["sleep"]["S1"]) == {"all", "duplicate", "change", "abstain", "all, mixed"}
     text = report_v2.render(rep)
     assert "## Memory sleep" in text and "**r1__S1** after the night" in text
 

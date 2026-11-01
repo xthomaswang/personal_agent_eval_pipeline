@@ -271,6 +271,13 @@ def accuracy(rows: Sequence[Mapping[str, Any]], arms: Sequence[str], tasks: data
                     sub = [r for r in mine if r.get("category") == category]
                     if sub:
                         table[category] = rate(sum(r["correct"] for r in sub), len(sub))
+                # Not counted as correct above: the gold together with a reject string, often an old value named as
+                # history ("Thursday, moved from Tuesday"), which a reader may judge right.
+                table["all, mixed"] = rate(sum(r["outcome"] == score.MIXED for r in mine), len(mine))
+                for category in data_v2.CATEGORIES[kind]:
+                    sub = [r for r in mine if r.get("category") == category]
+                    if any(r["outcome"] == score.MIXED for r in sub):
+                        table[f"{category}, mixed"] = rate(sum(r["outcome"] == score.MIXED for r in sub), len(sub))
             elif kind == "longrange":
                 table["all"] = rate(sum(r["correct"] for r in mine), len(mine))
                 for flag, name in ((False, "note not expected"), (True, "note expected")):
@@ -548,7 +555,8 @@ def render(rep: Mapping[str, Any]) -> str:
 
     out += ["## Accuracy", "",
             "Correct / valid items with the 95% Wilson interval in brackets (percent). A reply is correct when it holds the gold answer or an alias and none of "
-            "the reject strings (a stale or look-alike value).", ""]
+            "the reject strings (a stale or look-alike value). The `mixed` rows count replies, not correct above, that hold the gold and a reject string, "
+            "often an old value named as history; judge those by hand.", ""]
     for kind in data_v2.KINDS:
         acc = rep["accuracy"][kind]
         names = list(dict.fromkeys(n for a in arms for n in acc.get(a, {})))

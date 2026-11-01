@@ -195,7 +195,7 @@ def test_the_report_has_the_import_table_and_recall_accuracy_by_category(tmp_pat
     rep = report_v2.analyse(study.run_dir, tasks)
     assert set(rep["kinds"]) == {"recall"} and rep["imports"]["r1__I1"]["written"] == 2
     acc = rep["accuracy"]["recall"]["I1"]
-    assert set(acc) == {"all", "habit", "project", "abstain", "harm"} and acc["all"]["n"] == 4
+    assert set(acc) == {"all", "habit", "project", "abstain", "harm", "all, mixed"} and acc["all"]["n"] == 4
     rows = {r["qid"]: r for r in rep["rows"]}
     assert rows["R2.q1"]["category"] == "abstain" and all("used_sources" in r for r in rows.values())
     text = report_v2.render(rep)
