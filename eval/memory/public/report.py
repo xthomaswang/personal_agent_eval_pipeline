@@ -18,6 +18,9 @@ environment.json); the dataset itself is not read. Sections:
   matched by words);
 - ingest: how many turns the index cut (a turn longer than the index keeps), per type with single-session-assistant on its own
   (its answers are in the assistant's long replies), the time and notes per ingest, and any embedding failure;
+- replies asked again: per arm, the turns in which localmelo asked the model again after a reply that was no answer (empty,
+  only thinking, or a tool call written as text; the counts per notice kind), the turns that ended on a tool call written as
+  text, and the model requests retried after an error; rows from before these fields were recorded are counted apart;
 - the judge: replies that needed a second ask (`judge_retry`), replies that stayed neither yes nor no (`judge_unparsed`),
   unreachable judges and turns that were not judged;
 - the control: the share of ordinary prompts for which recall used an item (false recall), and the prompt tokens and time to
@@ -231,6 +234,28 @@ def judge_table(rows: Sequence[Mapping[str, Any]], arms: Sequence[str]) -> dict[
     return out
 
 
+REPLY_KINDS = ("empty_reply", "unfinished_answer", "tool_call_as_text")
+
+
+def reply_table(rows: Sequence[Mapping[str, Any]], arms: Sequence[str]) -> dict[str, dict[str, int]]:
+    """Per arm, the no-answer replies localmelo asked the model again for (from each row's ``notices``)."""
+    out = {}
+    for arm in arms:
+        mine = [r for r in rows if r["arm"] == arm]
+        seen = [r for r in mine if isinstance(r.get("notices"), Mapping)]
+        cell = {
+            "rows": len(mine), "not_recorded": len(mine) - len(seen),
+            "turns_asked_again": sum(1 for r in seen if int(r.get("reply_retries") or 0)),
+            "asked_again": sum(int(r.get("reply_retries") or 0) for r in seen),
+            "final_text_tool_call": sum(1 for r in seen if r.get("final_text_tool_call")),
+            "request_retry": sum(int(r["notices"].get("retry") or 0) for r in seen),
+        }
+        for kind in REPLY_KINDS:
+            cell[kind] = sum(int(r["notices"].get(kind) or 0) for r in seen)
+        out[arm] = cell
+    return out
+
+
 # --- why a question was missed ---
 
 MISS_STEPS = (
@@ -313,7 +338,7 @@ def analyse(run_dir: Path, resamples: int = BOOTSTRAP, seed: int = SEED) -> dict
         "resamples": resamples, "seed": seed, "questions": len(config.get("questions") or run["questions"]),
         "accuracy": accuracy_table(rows, arms, resamples, seed), "paired": paired_table(rows, arms, resamples, seed),
         "retrieval": retrieval_table(rows, arms), "ingest": ingest_table(run["ingests"], run["questions"]),
-        "judge": judge_table(rows, arms), "control": control_table(run["controls"], rows, arms),
+        "judge": judge_table(rows, arms), "replies": reply_table(rows, arms), "control": control_table(run["controls"], rows, arms),
         "misses": miss_table(rows, arms),
         "rows": [
             {k: r.get(k) for k in ("question_id", "arm", "repeat", "state", "correct")}
@@ -439,6 +464,19 @@ def render(rep: Mapping[str, Any]) -> str:
             "not retrieved (neither the recall block nor a search reached an answer session), or retrieved but not used. "
             "From the row alone; read the answers before trusting a step.", ""]
     out += table(["", *arms], [[step, *(str(ms[a][step]) for a in arms)] for step in MISS_STEPS])
+
+    rp = rep["replies"]
+    out += ["## Replies asked again", "",
+            "A reply that was no answer (empty, only thinking, or a tool call written as text) makes localmelo ask the model "
+            "again; the notice counts include the reply that ended a turn. Builds before 8bb1b123 send no `tool_call_as_text` "
+            "notice, so their text tool calls are not counted here. Rows not recorded: written before the driver kept notices.", ""]
+    out += table(["", *arms], [
+        ["turns asked again", *(f"{rp[a]['turns_asked_again']} / {rp[a]['rows'] - rp[a]['not_recorded']}" for a in arms)],
+        ["times asked again", *(str(rp[a]["asked_again"]) for a in arms)],
+        *([kind, *(str(rp[a][kind]) for a in arms)] for kind in REPLY_KINDS),
+        ["turn ended on a text tool call", *(str(rp[a]["final_text_tool_call"]) for a in arms)],
+        ["model requests retried", *(str(rp[a]["request_retry"]) for a in arms)],
+        ["rows not recorded", *(str(rp[a]["not_recorded"]) for a in arms)]])
 
     out += ["## Judge", "",
             "`judge_retry`: the first reply was neither yes nor no, so it was asked again without sampling fields. `judge_unparsed`: "

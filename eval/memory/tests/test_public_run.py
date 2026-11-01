@@ -174,6 +174,19 @@ def test_prompt_tokens_come_from_the_first_model_call():
     assert run.first_prompt_tokens(client.TurnResult("s", "t", 1, "completed")) is None
 
 
+def test_reply_notices_count_the_replies_asked_again_and_a_turn_that_ended_on_a_text_tool_call():
+    def notice(kind):
+        return {"type": "notice", "data": {"kind": kind, "message": "m", "step": 1, "attempt": 1, "detail": {}}}
+    reply = {"type": "assistant.message", "data": {}}
+    events = [reply, notice("tool_call_as_text"), reply, notice("empty_reply"), notice("retry"), reply, notice("tool_call_as_text")]
+    assert run.reply_notices(events) == {
+        "notices": {"tool_call_as_text": 2, "empty_reply": 1, "retry": 1}, "reply_retries": 2, "final_text_tool_call": True}
+    assert run.reply_notices([reply, notice("empty_reply"), reply]) == {
+        "notices": {"empty_reply": 1}, "reply_retries": 1, "final_text_tool_call": False}
+    assert run.reply_notices([reply]) == {"notices": {}, "reply_retries": 0, "final_text_tool_call": False}
+    assert run.turn_fields(None, "boom")["notices"] == {}
+
+
 def test_proxy_view_reads_the_agent_request():
     log = [
         {"path": "/v1/embeddings", "t_start": 100.0, "t_first_byte": 100.1},

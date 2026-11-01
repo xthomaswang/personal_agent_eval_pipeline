@@ -152,6 +152,25 @@ def test_judge_retry_unparsed_and_control(run_dir):
     assert ct["A"]["question_prompt_tokens"]["median"] == 1150.0 and ct["A"]["question_ttft_ms"]["median"] == 375.0
 
 
+def test_replies_asked_again_per_arm(tmp_path):
+    def row(arm, repeat, notices, retries, final=False):
+        r = result_row("q1", "single-session-user", arm, repeat, True)
+        if notices is not None:
+            r.update(notices=notices, reply_retries=retries, final_text_tool_call=final)
+        return r
+    rows = [row("A", 1, {"tool_call_as_text": 2, "retry": 1}, 1, final=True), row("A", 2, {"empty_reply": 1}, 1),
+            row("A", 3, None, 0), row("B", 1, {}, 0)]
+    write_run(tmp_path / "run", rows, arms=("A", "B"), questions=QUESTIONS[:1], repeats=3)
+    rep = report.analyse(tmp_path / "run", resamples=10)
+    assert rep["replies"]["A"] == {
+        "rows": 3, "not_recorded": 1, "turns_asked_again": 2, "asked_again": 2, "final_text_tool_call": 1, "request_retry": 1,
+        "empty_reply": 1, "unfinished_answer": 0, "tool_call_as_text": 2}
+    assert rep["replies"]["B"]["turns_asked_again"] == 0 and rep["replies"]["B"]["not_recorded"] == 0
+    text = report.render(rep)
+    assert "## Replies asked again" in text and "| turns asked again | 2 / 2 | 0 / 1 |" in text
+    assert "| turn ended on a text tool call | 1 | 0 |" in text and "| rows not recorded | 1 | 0 |" in text
+
+
 def test_the_rendered_report(run_dir):
     text = report.render(report.analyse(run_dir, resamples=200))
     for heading in ("## Arms", "## Accuracy", "## Paired arm differences", "## Retrieval", "## Ingest", "## Judge", "## Control: ordinary prompts"):

@@ -71,6 +71,8 @@ INGEST_TIMEOUT_S = 3600.0
 TURN_TIMEOUT_S = 900.0
 ARM_KEYS = {"label", "x", "config", "extra_body", "embedding"}
 SEARCH_TOOL = "search_memory"
+# Notices of a reply that was no answer; localmelo asks the model again after each, except for the reply that ends the turn.
+NO_ANSWER_NOTICES = ("empty_reply", "unfinished_answer", "tool_call_as_text")
 
 # Ordinary prompts that need nothing from memory, for the control (`--control-prompts default`).
 CONTROL_PROMPTS = (
@@ -513,17 +515,37 @@ def proxy_view(log: Sequence[Mapping[str, Any]], started: float, ended: float) -
     }
 
 
+def reply_notices(events: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    """The turn's ``notice`` events: a count per kind, the no-answer replies localmelo asked the model again for (a no-answer
+    notice with a model reply after it) and whether the turn ended on a tool call written as text (that notice with no reply
+    after it). Builds before 8bb1b123 send no ``tool_call_as_text`` notice."""
+    kinds: dict[str, int] = {}
+    retries, final_text_call = 0, False
+    for i, event in enumerate(events):
+        if event.get("type") != "notice":
+            continue
+        kind = str((event.get("data") or {}).get("kind") or "")
+        kinds[kind] = kinds.get(kind, 0) + 1
+        if kind in NO_ANSWER_NOTICES:
+            if any(e.get("type") == "assistant.message" for e in events[i + 1:]):
+                retries += 1
+            elif kind == "tool_call_as_text":
+                final_text_call = True
+    return {"notices": kinds, "reply_retries": retries, "final_text_tool_call": final_text_call}
+
+
 def turn_fields(res: client.TurnResult | None, error: str) -> dict[str, Any]:
     """What a row keeps of a turn, whatever its kind: the outcome, the timings and the usage, the tools it called."""
     if res is None:
-        return {"state": "failed", "status": "", "cause": "", "error": error, "answer": "", "timed_out": False, "denied": 0}
+        return {"state": "failed", "status": "", "cause": "", "error": error, "answer": "", "timed_out": False, "denied": 0,
+                **reply_notices([])}
     return {
         "state": "finished" if res.status == "completed" else "failed", "status": res.status, "cause": res.cause,
         "error": res.error or error, "answer": res.answer, "session_id": res.session_id, "turn_id": res.turn_id,
         "wall_ms": res.wall_ms, "ttfe_ms": res.ttfe_ms, "server_ms": res.server_ms(), "usage": res.usage,
         "timed_out": res.status == "timeout", "denied": len(res.denied),
         "tools": [(e.get("data") or {}).get("name") for e in res.events if e.get("type") == "tool.started"],
-        "prompt_tokens": first_prompt_tokens(res),
+        "prompt_tokens": first_prompt_tokens(res), **reply_notices(res.events),
     }
 
 
