@@ -1,0 +1,931 @@
+"""LongMemEval-S against localmelo on this machine: ingest a question's history once, ask it in a fresh gateway per arm.
+
+    cd eval
+    uv run python -m memory.public.run --run-dir <dir> --localmelo <checkout> --localmelo-sha <sha> \\
+        --base-url http://127.0.0.1:8500/v1 --data <longmemeval_s_cleaned.json> --arms-file <arms.json> --dry-run
+    uv run python -m memory.public.run ... --questions 6          # a smoke run: 6 of the stage set, spread over the types
+    uv run python -m memory.public.run ... --questions id1,id2    # or these questions
+    uv run python -m memory.public.run ...                        # the stage set (120 questions); run again to resume
+    uv run python -m memory.public.report <dir>                   # report.md and report.json
+
+The benchmark (data.py) asks one question about a history of about 50 chats. Per question this driver
+
+1. builds a template HOME (config.toml with `[ui] mode = "developer"`, the embedding retriever and the model URLs, straight
+   to the model server) and runs `melo memory ingest FILE -j -X notes=rules` on it, with no gateway running. localmelo writes
+   the sessions through its chat store with their dates, embeds every turn and keeps the lasting facts as notes; no chat
+   model is called. The report it prints goes to `questions/<id>/ingest.json` (its `ids` map a file session id to the id
+   the store gave it);
+2. for every arm and repeat copies the template to a cell HOME, rewrites config.toml with the arm's settings (the gateway's
+   model calls go through a timing proxy), starts `melo serve` with `LOCALMELO_NOW` set to the day of the question, asks the
+   question in a new chat, stops the gateway, and has the model server judge the reply (judge.py). One row per
+   (question, arm, repeat) goes to `results.jsonl`; running again skips the rows that are there (a turn that failed or timed
+   out has its row too: delete the row to ask it again; a gateway that dies stops the run without one).
+
+Arms are data (`--arms-file`): `{name: {"label", "x": ["memory.retriever=bm25"], "config": {"memory.recall_records": 8},
+"extra_body": {...}, "embedding": true}}`. `x` are `melo serve -X` pairs, `config` dotted config.toml entries, `extra_body` the
+gateway's `[vllm.extra_body]` (none: production decoding, no sampling field sent) and `embedding` whether the gateway has
+the embedding model (default true).
+
+A hit is retrieval, not the answer. The auto hit: an item of the turn's `turn.memory.used` (what recall put in front of
+the model) comes from an answer session. The search hit: the same for what the `search_memory` tool returned in the turn;
+a build whose tool result names no session is matched by the words of the answer sessions' user turns instead, and the row
+says which (`search_via`). Both are recorded apart, with the `search_hint` of the memory event when the build sends one.
+
+`--control-prompts FILE` (`default` for the built-in list) adds a control: on the first `--control-homes` ingested HOMEs, per
+arm, one ordinary prompt that needs no memory (a unit conversion, a short poem, a regex) is asked instead of the question. Any
+item recall used is a false recall; the prompt tokens and the chat time to first token come with it (`controls.jsonl`).
+
+The operator holds the GPU lock (holder: agent-benchmark); the driver never takes or releases it. It stops cleanly before the
+next cell when <dir>/STOP exists, the lock is gone or the battery is low. The checkout must be at --localmelo-sha with a
+clean tree. The history of a question is the dataset: ingest files and HOMEs are removed after each question (unless
+`--keep-homes`) and nothing of the dataset's text is written outside the run directory, which stays local.
+"""
+
+from __future__ import annotations
+
+import argparse
+import http.client
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+import time
+from collections.abc import Callable, Mapping, Sequence
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any
+
+from memory.across import client, proxy, server
+from memory.across import run as across
+
+from . import data, judge
+
+PROTOCOL = "public-lme-v1"
+REPEATS = 1
+BASE_SETTINGS: dict[str, Any] = {"ui.mode": "developer", "memory.retriever": "embedding"}  # every config.toml; an arm may override
+INGEST_NOTES = "rules"
+INGEST_TIMEOUT_S = 3600.0
+TURN_TIMEOUT_S = 900.0
+ARM_KEYS = {"label", "x", "config", "extra_body", "embedding"}
+SEARCH_TOOL = "search_memory"
+
+# Ordinary prompts that need nothing from memory, for the control (`--control-prompts default`).
+CONTROL_PROMPTS = (
+    "Convert 72 degrees Fahrenheit to Celsius and show the arithmetic.",
+    "How many kilometres is 26.2 miles? Round to one decimal place.",
+    "Write a three-line poem about a quiet train station at dawn.",
+    "Write a regular expression that matches a US ZIP code with an optional four-digit extension, and explain it in one sentence.",
+    "Summarize this sentence in five words or fewer: The committee postponed the vote until next quarter because two members "
+    "were travelling and the budget figures were not final.",
+    "What is the capital of Australia?",
+    "Write a Python function that returns the n-th Fibonacci number without recursion.",
+    "Explain the difference between a mutex and a semaphore in two sentences.",
+    "Convert 3.5 hours to minutes.",
+    "Give me three synonyms for the word quick.",
+    "What is 17 multiplied by 23?",
+    "Rewrite this sentence in the passive voice: The chef prepared a delicious meal.",
+    "Write a SQL query that counts the rows of a table named orders for each value of its status column.",
+    "Translate good morning into French, Spanish and German.",
+    "Explain what a prime number is to a ten-year-old.",
+    "List the planets of the solar system in order from the sun.",
+    "Write a limerick about a cat who learns to code.",
+    "What does the shell command ls -la do?",
+    "How many seconds are in a day?",
+    "Give a one-sentence definition of photosynthesis.",
+)
+
+
+class IngestError(RuntimeError):
+    """`melo memory ingest` failed (exit code, or a report that is not JSON)."""
+
+
+# --- arms ---
+
+
+@dataclass(frozen=True)
+class Arm:
+    name: str
+    label: str
+    x: tuple[str, ...] = ()  # `-X KEY=VALUE` settings for `melo serve`
+    config: Mapping[str, Any] = field(default_factory=dict, hash=False)  # dotted config.toml entries, e.g. memory.recall_records
+    extra_body: Mapping[str, Any] = field(default_factory=dict, hash=False)  # [vllm.extra_body]; empty: no sampling field is sent
+    embedding: bool = True  # whether the gateway is given the embedding model
+
+    def identity(self) -> dict[str, Any]:
+        return {"x": list(self.x), "config": dict(self.config), "extra_body": dict(self.extra_body), "embedding": self.embedding}
+
+
+def load_arms(path: Path) -> dict[str, Arm]:
+    """Arms from a JSON file ``{name: {"label", "x": [...], "config": {...}, "extra_body": {...}, "embedding": bool}}``.
+    A key that is not one of these is an error (a misspelt setting would otherwise run as the default)."""
+    try:
+        raw = json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise ValueError(f"cannot read the arms file {path}: {exc}") from exc
+    if not isinstance(raw, dict) or not raw:
+        raise ValueError(f"{path}: expected an object with one entry per arm")
+    arms: dict[str, Arm] = {}
+    for name, row in raw.items():
+        if not isinstance(row, dict) or set(row) - ARM_KEYS:
+            got = sorted(row) if isinstance(row, dict) else repr(row)
+            raise ValueError(f"arm {name}: expected an object with keys from {sorted(ARM_KEYS)}, got {got}")
+        x = tuple(str(p) for p in row.get("x", ())) if isinstance(row.get("x", ()), list) else ()
+        if any("=" not in p for p in x):
+            raise ValueError(f"arm {name}: every x entry is KEY=VALUE, got {list(x)}")
+        config, extra_body = row.get("config", {}), row.get("extra_body", {})
+        if not isinstance(config, dict) or not isinstance(extra_body, dict) or not isinstance(row.get("x", []), list):
+            raise ValueError(f"arm {name}: x is a list, config and extra_body are objects")
+        arms[name] = Arm(name, str(row.get("label", name)), x, dict(config), dict(extra_body), bool(row.get("embedding", True)))
+    return arms
+
+
+def load_control_prompts(spec: str) -> tuple[str, ...]:
+    """The control prompts: ``default`` for the built-in list, else a JSON list of strings or a text file with one prompt per line."""
+    if spec == "default":
+        return CONTROL_PROMPTS
+    text = Path(spec).read_text(encoding="utf-8")
+    if Path(spec).suffix == ".json":
+        prompts = json.loads(text)
+        if not isinstance(prompts, list) or not all(isinstance(p, str) for p in prompts):
+            raise ValueError(f"{spec}: expected a JSON list of strings")
+    else:
+        prompts = [line.strip() for line in text.splitlines() if line.strip() and not line.startswith("#")]
+    if not prompts:
+        raise ValueError(f"{spec}: no prompts")
+    return tuple(p.strip() for p in prompts if p.strip())
+
+
+# --- the study ---
+
+
+@dataclass
+class Study:
+    run_dir: Path
+    questions: list[data.Question]  # the whole file
+    ids: tuple[str, ...]  # the questions this run asks, sorted
+    arms: dict[str, Arm]
+    arm_names: tuple[str, ...]
+    repeats: int
+    localmelo: Path
+    expect_sha: str
+    base_url: str
+    model: str
+    embedding_model: str
+    judge_model: str
+    data_path: Path = Path("longmemeval_s_cleaned.json")
+    data_sha256: str = ""
+    stage: tuple[int, int, int] = (data.PER_TYPE, data.ABSTENTION_COUNT, data.SEED)  # per type, abstention, seed
+    work_dir: Path | None = None  # where ingest files and HOMEs live (default <run-dir>/work)
+    keep_homes: bool = False
+    control_prompts: tuple[str, ...] = ()
+    control_homes: int = 20
+    cold_start: bool = True  # unload the embedding model before each cell, so every cell starts without it
+    unload_timeout_s: float = 60.0
+    turn_timeout_s: float = TURN_TIMEOUT_S
+    ingest_timeout_s: float = INGEST_TIMEOUT_S
+    poll_s: float = 0.25
+    use_stream: bool = True
+    do_warmup: bool = True
+    scratch: Path | None = None  # where the preflight makes its throwaway HOME (default: the system temp dir)
+    # seams, replaced in tests
+    launcher: Callable[[server.LaunchSpec], Any] = server.launch
+    turn_guard: Callable[[], str | None] = lambda: None
+    cell_guard: Callable[[], str | None] = lambda: None
+    snapshot: Callable[[Study], dict[str, Any]] | None = None
+    verdict: Callable[[data.Question, str], judge.Verdict] | None = None
+    sleep: Callable[[float], None] = time.sleep
+
+    @property
+    def melo(self) -> Path:
+        return self.localmelo / ".venv" / "bin" / "melo"
+
+    @property
+    def work(self) -> Path:
+        return self.work_dir or self.run_dir / "work"
+
+    def by_id(self) -> dict[str, data.Question]:
+        return {str(q["question_id"]): q for q in self.questions}
+
+    def judge_answer(self, question: data.Question, answer: str) -> judge.Verdict:
+        if self.verdict:
+            return self.verdict(question, answer)
+        return judge.judge(
+            self.base_url, self.judge_model, str(question["question_type"]), str(question["question"]), question["answer"], answer,
+            abstention=data.is_abstention(question))
+
+    def identity(self) -> dict[str, Any]:
+        return {
+            "protocol": PROTOCOL,
+            "data": {"name": self.data_path.name, "sha256": self.data_sha256},
+            "stage": {"per_type": self.stage[0], "abstention": self.stage[1], "seed": self.stage[2]},
+            "questions": list(self.ids),
+            "arms": {a: self.arms[a].identity() for a in self.arm_names},
+            "repeats": self.repeats,
+            "localmelo_sha": server.git_sha(self.localmelo),
+            "base_url": self.base_url,
+            "model": self.model,
+            "embedding_model": self.embedding_model,
+            "judge_model": self.judge_model,
+            "base_settings": BASE_SETTINGS,
+            "ingest": {"notes": INGEST_NOTES},
+            "control": {"prompts": list(self.control_prompts), "homes": self.control_homes} if self.control_prompts else None,
+            "cold_start": self.cold_start,
+            "turn_timeout_s": self.turn_timeout_s,
+        }
+
+
+def settings_of(arm: Arm) -> dict[str, Any]:
+    """The dotted config.toml entries of an arm's cell: the shared ones, then the arm's own over them."""
+    return {**BASE_SETTINGS, **arm.config}
+
+
+# --- preflight and environment ---
+
+
+def knows_setting(melo: Path, home: Path, key: str) -> bool:
+    """`melo config get KEY` on a throwaway HOME: whether this build knows the setting."""
+    try:
+        done = subprocess.run(
+            [str(melo), "config", "get", key], capture_output=True, text=True, timeout=60, check=False,
+            stdin=subprocess.DEVNULL, env=server.serve_env(home))
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    return done.returncode == 0 and bool(done.stdout.strip())
+
+
+def preflight(study: Study) -> list[str]:
+    """Everything that would make the study invalid, as messages."""
+    problems: list[str] = []
+    sha = server.git_sha(study.localmelo)
+    if not study.expect_sha or not sha.startswith(study.expect_sha):
+        problems.append(
+            f"localmelo at {study.localmelo.name} is {sha[:10] or 'not a git checkout'}, not {study.expect_sha or '(no sha given)'}")
+    elif server.git_dirty(study.localmelo):
+        problems.append(f"localmelo at {study.localmelo.name} has uncommitted changes")
+    if not study.melo.exists():
+        problems.append(f"{study.melo} does not exist (run uv sync in the checkout)")
+    else:
+        with tempfile.TemporaryDirectory(dir=study.scratch) as probe:
+            keys = {k for a in study.arm_names for k in (*(p.partition("=")[0] for p in study.arms[a].x), *settings_of(study.arms[a]))}
+            problems += [
+                f"this localmelo build does not know the setting {k}" for k in sorted(keys) if not knows_setting(study.melo, Path(probe), k)]
+    try:
+        listed, _ = server.model_ids(study.base_url)
+    except (OSError, ValueError) as exc:
+        problems.append(f"{study.base_url}/models is not readable: {exc}")
+    else:
+        for role, model in (("chat", study.model), ("embedding", study.embedding_model), ("judge", study.judge_model)):
+            if model not in listed:
+                problems.append(f"{role} model {model!r} is not listed by {study.base_url}/models")
+    if study.cold_start and server.loaded_models(study.base_url).get("loaded") is None:
+        problems.append(f"{study.base_url} does not say which models are loaded (its admin routes need --admin-token-cmd); "
+                        "pass it, or --no-cold-start")
+    known = {str(q["question_id"]) for q in study.questions}
+    problems += [f"selected question {q} is not in the file" for q in study.ids if q not in known]
+    if not study.ids:
+        problems.append("no question selected")
+    if study.control_prompts and study.control_homes < 1:
+        problems.append("--control-homes must be at least 1")
+    return problems
+
+
+def system_snapshot(study: Study) -> dict[str, Any]:
+    """The machine, the builds and the data a run was made on: macOS and Xcode builds, the localmelo and benchmark commits,
+    the dataset's fingerprint, the model server (models listed, process, rss)."""
+    bench = Path(__file__).resolve().parents[3]  # <repo>/eval/memory/public/run.py
+    snap: dict[str, Any] = {
+        "timestamp": time.time(),
+        "sw_vers": server.out(["sw_vers"]),
+        "xcodebuild_version": server.out(["xcodebuild", "-version"]),
+        "localmelo_sha": server.git_sha(study.localmelo),
+        "bench_sha": server.git_sha(bench),
+        "bench_dirty": server.git_dirty(bench),
+        "pmset_batt": server.out(["pmset", "-g", "batt"]),
+        "python": sys.version.split()[0],
+        "data": {"name": study.data_path.name, "sha256": study.data_sha256, "questions": len(study.questions)},
+    }
+    try:
+        listed, listing = server.model_ids(study.base_url)
+        snap["model_server"] = {
+            "base_url": study.base_url, "listed": listed, "models_response": listing, **server.model_server_state(study.base_url)}
+    except (OSError, ValueError) as exc:
+        snap["model_server"] = {"base_url": study.base_url, "error": str(exc)}
+    return snap
+
+
+# --- ingest ---
+
+
+def template_home(study: Study, qdir: Path) -> Path:
+    """A new HOME for ``qdir``'s question with the config.toml ingest needs: developer mode, the model URLs, the embedding model."""
+    home = qdir / "template"
+    shutil.rmtree(home, ignore_errors=True)
+    home.mkdir(parents=True)
+    server.write_config(home, server.config_document(study.base_url, study.model, study.embedding_model, None, BASE_SETTINGS))
+    return home
+
+
+def parse_report(stdout: str) -> dict[str, Any]:
+    """The JSON object `melo memory ingest -j` printed: the whole output, else its last line that is one."""
+    text = stdout.strip()
+    candidates = [text, *reversed(text.splitlines())]
+    for candidate in candidates:
+        try:
+            doc = json.loads(candidate)
+        except ValueError:
+            continue
+        if isinstance(doc, dict) and "sessions" in doc:
+            return doc
+    raise IngestError(f"the ingest report is not JSON: {text[:200]!r}")
+
+
+def ingest(study: Study, question: data.Question, qdir: Path) -> dict[str, Any]:
+    """Ingest a question's history into a new template HOME, with no gateway on it. Returns the `-j` report (`ids` included).
+
+    The ingest file is written under ``qdir`` and removed afterwards (it is the dataset's text). IngestError for an exit
+    code other than 0 (2: not in developer mode or a bad file, 1: a gateway owns the HOME) or an output that is not JSON."""
+    home = template_home(study, qdir)
+    source = qdir / "ingest_input.json"
+    source.write_text(json.dumps(data.to_ingest(question), ensure_ascii=False), encoding="utf-8")
+    cmd = [str(study.melo), "memory", "ingest", str(source), "-j", "-X", f"notes={INGEST_NOTES}"]
+    try:
+        done = subprocess.run(
+            cmd, capture_output=True, text=True, timeout=study.ingest_timeout_s, check=False, stdin=subprocess.DEVNULL,
+            cwd=home, env=server.serve_env(home))
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise IngestError(f"{question['question_id']}: melo memory ingest did not run to the end: {exc}") from exc
+    finally:
+        if not study.keep_homes:
+            source.unlink(missing_ok=True)
+    if done.returncode != 0:
+        raise IngestError(f"{question['question_id']}: melo memory ingest exited {done.returncode}: {done.stderr.strip()[-300:]}")
+    shutil.rmtree(home / ".cache" / "localmelo" / "gateway" / "auth", ignore_errors=True)  # no stale token for a cell to read
+    return parse_report(done.stdout)
+
+
+# --- reading a turn ---
+
+
+def used_items(memory: Mapping[str, Any] | None, store_to_file: Mapping[str, str]) -> list[dict[str, Any]]:
+    """The items of ``turn.memory.used`` without their text: kind, id, the chat they came from (store id) and that chat's
+    id in the ingest file (``file_id``, None for a chat the file does not hold, such as the question's own)."""
+    out = []
+    for item in (memory or {}).get("used") or []:
+        if isinstance(item, Mapping):
+            sid = str(item.get("session_id") or "")
+            out.append({
+                "kind": item.get("kind"), "id": item.get("id"), "turn": item.get("turn"), "session_id": sid,
+                "file_id": store_to_file.get(sid)})
+    return out
+
+
+def _flat(text: str) -> str:
+    return " ".join(str(text).split())
+
+
+def structured_sessions(finished: Mapping[str, Any]) -> list[str] | None:
+    """The store session ids a ``tool.finished`` event names when it carries its results as data (``items``, ``results`` or
+    a JSON ``output``); None when it carries text only, which is what a build without them sends."""
+    for key in ("items", "results", "output"):
+        value = finished.get(key)
+        if isinstance(value, str) and value.lstrip().startswith(("[", "{")):
+            try:
+                value = json.loads(value)
+            except ValueError:
+                continue
+        if isinstance(value, Mapping):
+            value = value.get("items") or value.get("results")
+        if isinstance(value, list) and value and all(isinstance(v, Mapping) for v in value):
+            return [str(v["session_id"]) for v in value if v.get("session_id")]
+    return None
+
+
+def text_sessions(output: str, answer_texts: Mapping[str, Sequence[str]]) -> set[str]:
+    """The answer sessions (file ids) a search result's text shows, by words, for a build that names no session.
+
+    A result line reads `N. User: <what the user typed> melo: ... (chat, day)` for a chat turn and `N. the user said
+    “<their words>” (chat, day)` for a note. A turn is shown when its first 48 characters start a line's text; a note when
+    its quoted words are part of one of the session's user turns. Turns under 12 characters are too short to tell apart."""
+    lines = [_flat(line) for line in output.splitlines() if line.strip()]
+    found: set[str] = set()
+    for sid, texts in answer_texts.items():
+        for text in texts:
+            flat = _flat(text)
+            if len(flat) < 12:
+                continue
+            head = "User: " + flat[:48]
+            for line in lines:
+                quoted = re.search(r"“(.+)”", line)
+                if head in line or (quoted and len(quoted.group(1)) >= 12 and quoted.group(1) in flat):
+                    found.add(sid)
+    return found
+
+
+def searches(events: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
+    """The ``search_memory`` calls of a turn, in order, each with its ``finished`` event's data."""
+    started = [e for e in events if e.get("type") == "tool.started" and (e.get("data") or {}).get("name") == SEARCH_TOOL]
+    finished = [e.get("data") or {} for e in events if e.get("type") == "tool.finished" and (e.get("data") or {}).get("name") == SEARCH_TOOL]
+    calls = []
+    for n in range(max(len(started), len(finished))):
+        begun = (started[n].get("data") or {}) if n < len(started) else {}
+        calls.append({"arguments": begun.get("arguments"), "finished": finished[n] if n < len(finished) else None})
+    return calls
+
+
+def search_hint(memory: Mapping[str, Any] | None) -> Any:
+    """The ``search_hint`` a build puts in the memory event (or in its ``recall``), as it sent it; None when it sends none."""
+    found = (memory or {}).get("search_hint")
+    return found if found is not None else ((memory or {}).get("recall") or {}).get("search_hint")
+
+
+def retrieval(
+    question: data.Question, memory: Mapping[str, Any] | None, events: Sequence[Mapping[str, Any]], ids: Mapping[str, str],
+) -> dict[str, Any]:
+    """Whether the memory reached the evidence: the auto hit and the search hit of a turn, apart (see the module docstring).
+
+    ``ids`` is the ingest report's file id -> store id. ``auto_hit``: an item of ``turn.memory.used`` is from an answer
+    session; ``auto_cover``: the share of the answer sessions that some item is from. ``search_hit`` is None when the
+    turn made no search call, else whether a result is from an answer session; ``search_via`` is "items" (the event names the
+    sessions) or "text" (matched by words). Everything is None when the question has no answer session."""
+    wanted = set(data.answer_sessions(question))
+    store_to_file = {store: file for file, store in ids.items()}
+    used = used_items(memory, store_to_file)
+    row: dict[str, Any] = {
+        "answer_sessions": sorted(wanted), "used": used,
+        "search_hint": search_hint(memory),
+        "auto_hit": None, "auto_cover": None, "searches": 0, "search_hit": None, "search_via": None,
+    }
+    calls = searches(events)
+    row["searches"] = len(calls)
+    reached = {u["file_id"] for u in used if u["file_id"] in wanted}
+    if wanted:
+        row["auto_hit"] = bool(reached)
+        row["auto_cover"] = round(len(reached) / len(wanted), 4)
+    if calls and wanted:
+        found: set[str] = set()
+        via = None
+        texts = data.answer_user_texts(question)
+        for call in calls:
+            done = call["finished"] or {}
+            named = structured_sessions(done)
+            if named is not None:
+                found |= {store_to_file[s] for s in named if s in store_to_file} & wanted
+                via = via or "items"
+            else:
+                found |= text_sessions(str(done.get("output") or ""), texts)
+                via = via or "text"
+        row["search_hit"] = bool(found)
+        row["search_via"] = via
+    return row
+
+
+def first_prompt_tokens(res: client.TurnResult) -> int | None:
+    """Prompt tokens of the turn's first model call (the prompt with the recalled memory in it), from the usage of its first
+    ``assistant.message``; else the turn's total prompt tokens, else None."""
+    for event in res.events:
+        usage = (event.get("data") or {}).get("usage") if event.get("type") == "assistant.message" else None
+        if isinstance(usage, Mapping) and isinstance(usage.get("prompt_tokens"), (int, float)):
+            return int(usage["prompt_tokens"])
+    value = res.usage.get("prompt_tokens")
+    return int(value) if value is not None else None
+
+
+def proxy_view(log: Sequence[Mapping[str, Any]], started: float, ended: float) -> dict[str, Any]:
+    """The timing proxy's view of a turn: its agent request (the first chat completion in the turn that offers tools) and the
+    time from its start to its first byte; for a request that streams, that is the first token."""
+    chats = sorted((r for r in log if str(r.get("path", "")).endswith("/chat/completions") and r.get("t_start")), key=lambda r: r["t_start"])
+    inside = [r for r in chats if not (started and ended) or started <= r["t_start"] <= ended]
+    agent = next((r for r in inside if r.get("tools")), None)
+    first = agent.get("t_first_byte") if agent else None
+    embeds = [r for r in log if str(r.get("path", "")).endswith("/embeddings")]
+    return {
+        "ttft_ms": round((first - agent["t_start"]) * 1000.0, 1) if agent and first else None,
+        "req_bytes": agent.get("req_bytes") if agent else None, "streamed": bool(agent.get("stream")) if agent else None,
+        "chat_requests": len(inside), "embed_requests": len(embeds),
+    }
+
+
+def turn_fields(res: client.TurnResult | None, error: str) -> dict[str, Any]:
+    """What a row keeps of a turn, whatever its kind: the outcome, the timings and the usage, the tools it called."""
+    if res is None:
+        return {"state": "failed", "status": "", "cause": "", "error": error, "answer": "", "timed_out": False, "denied": 0}
+    return {
+        "state": "finished" if res.status == "completed" else "failed", "status": res.status, "cause": res.cause,
+        "error": res.error or error, "answer": res.answer, "session_id": res.session_id, "turn_id": res.turn_id,
+        "wall_ms": res.wall_ms, "ttfe_ms": res.ttfe_ms, "server_ms": res.server_ms(), "usage": res.usage,
+        "timed_out": res.status == "timeout", "denied": len(res.denied),
+        "tools": [(e.get("data") or {}).get("name") for e in res.events if e.get("type") == "tool.started"],
+        "prompt_tokens": first_prompt_tokens(res),
+    }
+
+
+# --- one cell ---
+
+
+@dataclass
+class Asked:
+    """What came back from a cell's gateway, read after it was stopped."""
+
+    res: client.TurnResult | None
+    error: str
+    cold: dict[str, Any]
+    log: list[dict[str, Any]]
+    seconds: float
+
+
+def ask(study: Study, arm: Arm, question: data.Question, text: str, tag: str, template: Path) -> Asked:
+    """One question in a new chat of a fresh gateway on a copy of ``template``.
+
+    The cell's HOME is a copy of the template (the ingested memory), its config.toml is rewritten for the arm with the gateway's
+    model URLs pointing at a timing proxy, and ``melo serve`` starts with ``LOCALMELO_NOW`` at the question's day. The gateway
+    is stopped before this returns, and the HOME removed unless ``keep_homes``. server.LaunchError for a gateway that dies."""
+    qid = str(question["question_id"])
+    cell_dir = study.run_dir / "cells" / f"{qid}__{tag}"
+    shutil.rmtree(cell_dir, ignore_errors=True)  # a cell that died halfway is started again
+    cell_dir.mkdir(parents=True)
+    root = study.work / qid / tag
+    shutil.rmtree(root, ignore_errors=True)
+    home, work = root / "home", root / "work"
+    shutil.copytree(template, home, symlinks=True)
+    work.mkdir(parents=True)
+    timing = proxy.TimingProxy(study.base_url, cell_dir / "proxy.jsonl")
+    spec = server.LaunchSpec(
+        study.melo, home, server.free_port(), arm.x, cell_dir / "gateway.log", env={"LOCALMELO_NOW": data.question_now(question)})
+    running = None
+    res: client.TurnResult | None = None
+    error = ""
+    cold: dict[str, Any] = {"skipped": True}
+    started = time.monotonic()
+    try:
+        server.write_config(home, server.config_document(
+            timing.url, study.model, study.embedding_model if arm.embedding else None, arm.extra_body or None, settings_of(arm)))
+        if study.cold_start and arm.embedding:
+            cold = server.ensure_unloaded(study.base_url, study.embedding_model, timeout=study.unload_timeout_s, sleep=study.sleep)
+        running = study.launcher(spec)
+        gw = server.wait_ready(running)
+        key = f"plm-{re.sub('[^A-Za-z0-9]', '', qid)}-{re.sub('[^A-Za-z0-9]', '', tag)}"
+        try:
+            res = client.run_turn(
+                gw, text, key, workspace=str(work.resolve()), poll_s=study.poll_s, use_stream=study.use_stream,
+                timeout_s=study.turn_timeout_s)
+        except (client.GatewayError, OSError, http.client.HTTPException, ValueError) as exc:
+            if not running.alive():
+                raise server.LaunchError(f"the gateway died during {qid} {tag}: {exc}") from exc
+            error = f"{type(exc).__name__}: {exc}"
+    finally:
+        if running is not None:
+            running.stop()
+        timing.stop()
+        if not study.keep_homes:
+            shutil.rmtree(root, ignore_errors=True)
+        else:
+            shutil.rmtree(home / ".cache" / "localmelo" / "gateway" / "auth", ignore_errors=True)  # the token stays out of run records
+    if res is not None:
+        across.save(cell_dir / "turn.json", {"events": res.events, "memory_recall": res.memory_recall})
+    return Asked(res, error, cold, proxy.read_log(cell_dir / "proxy.jsonl"), round(time.monotonic() - started, 1))
+
+
+def question_row(
+    study: Study, arm: Arm, repeat: int, question: data.Question, ids: Mapping[str, str], asked: Asked,
+) -> dict[str, Any]:
+    """The results.jsonl row of one question cell: the turn, what memory did, the retrieval hits and the judge's verdict."""
+    res = asked.res
+    memory = res.memory() if res else None
+    row: dict[str, Any] = {
+        "protocol": PROTOCOL, "at": across.now_iso(), "question_id": question["question_id"],
+        "question_type": question["question_type"], "abstention": data.is_abstention(question), "arm": arm.name, "repeat": repeat,
+        **turn_fields(res, asked.error),
+        "recall": ((memory or {}).get("recall") or (res.memory_recall if res else None)),
+        "retrieval": retrieval(question, memory, res.events if res else [], ids),
+        "remembered": len((memory or {}).get("remembered") or []),
+        "cold_start": asked.cold, "cell_s": asked.seconds,
+    }
+    if res is not None:
+        row.update(proxy_view(asked.log, res.started_epoch, res.ended_epoch))
+    if row["state"] == "finished":
+        verdict = study.judge_answer(question, row["answer"])
+        row["judge"] = verdict.to_json()
+        row["correct"] = verdict.correct
+        row["judge_retry"], row["judge_unparsed"] = int(verdict.retry), int(verdict.unparsed)
+    else:
+        row["judge"] = None
+        row["correct"] = False  # a turn that did not finish is a wrong answer, not a missing one
+        row["judge_retry"] = row["judge_unparsed"] = 0
+    return row
+
+
+def control_row(
+    arm: Arm, question: data.Question, index: int, prompt: str, ids: Mapping[str, str], asked: Asked,
+) -> dict[str, Any]:
+    """The controls.jsonl row of one control cell: any item recall used is a false recall."""
+    res = asked.res
+    memory = res.memory() if res else None
+    used = used_items(memory, {s: f for f, s in ids.items()})
+    row: dict[str, Any] = {
+        "protocol": PROTOCOL, "at": across.now_iso(), "question_id": question["question_id"], "arm": arm.name, "index": index,
+        "prompt": prompt, **turn_fields(res, asked.error), "used": used, "false_recall": bool(used),
+        "recall": ((memory or {}).get("recall") or (res.memory_recall if res else None)), "cold_start": asked.cold,
+    }
+    row["answer"] = row["answer"][:300]
+    if res is not None:
+        row.update(proxy_view(asked.log, res.started_epoch, res.ended_epoch))
+    return row
+
+
+# --- running the study ---
+
+
+def read_rows(path: Path) -> list[dict[str, Any]]:
+    return across.Journal(path).read()
+
+
+def load_state(study: Study) -> dict[str, Any]:
+    checkpoint = study.run_dir / "public.json"
+    config = study.identity()
+    if checkpoint.exists():
+        state = json.loads(checkpoint.read_text())
+        if state.get("config") != config:
+            raise ValueError("the study's config, question set, arms or localmelo build changed; use a fresh directory")
+        return state
+    if study.run_dir.exists() and any(study.run_dir.iterdir()):
+        raise ValueError(f"{study.run_dir} is not empty and has no public.json checkpoint; use a fresh directory")
+    state = {"config": config, "complete": False}
+    across.save(study.run_dir / "questions.json", [data.summary(study.by_id()[q]) for q in study.ids])
+    across.save(checkpoint, state)
+    return state
+
+
+def cell_plan(study: Study, index: int) -> list[tuple[str, int]]:
+    """(arm, repeat) of one question's cells in the order they run: repeat by repeat, the arms rotated by the question's
+    number and the repeat, so no arm always goes first."""
+    plan = []
+    for repeat in range(1, study.repeats + 1):
+        for arm in across.rotated(list(study.arm_names), index + repeat - 1):
+            plan.append((arm, repeat))
+    return plan
+
+
+def finished_cells(study: Study) -> set[tuple[str, str, int]]:
+    """(question, arm, repeat) of every row of results.jsonl that belongs to this study."""
+    wanted = set(study.ids)
+    return {(r["question_id"], r["arm"], r["repeat"]) for r in read_rows(study.run_dir / "results.jsonl") if r.get("question_id") in wanted}
+
+
+def control_prompt(study: Study, index: int) -> str | None:
+    """The control prompt of the ``index``-th question's HOME, or None when that HOME has no control cells."""
+    if not study.control_prompts or index >= study.control_homes:
+        return None
+    return study.control_prompts[index % len(study.control_prompts)]
+
+
+def missing_controls(study: Study) -> list[tuple[str, str]]:
+    """(question, arm) of the control cells that have no row yet."""
+    have = {(r["question_id"], r["arm"]) for r in read_rows(study.run_dir / "controls.jsonl")}
+    return [
+        (qid, a) for i, qid in enumerate(study.ids) if control_prompt(study, i) is not None
+        for a in study.arm_names if (qid, a) not in have]
+
+
+def rejudge_pending(study: Study, path: Path) -> int:
+    """Ask the judge again for every row whose judge could not be reached; rewrite results.jsonl. Returns how many are settled."""
+    rows = read_rows(path)
+    todo = [r for r in rows if isinstance(r.get("judge"), dict) and r["judge"].get("error")]
+    if not todo:
+        return 0
+    questions = study.by_id()
+    settled = 0
+    for row in todo:
+        question = questions.get(str(row["question_id"]))
+        if question is None:
+            continue
+        verdict = study.judge_answer(question, str(row.get("answer") or ""))
+        row["judge"], row["correct"] = verdict.to_json(), verdict.correct
+        row["judge_retry"], row["judge_unparsed"] = int(verdict.retry), int(verdict.unparsed)
+        settled += int(not verdict.error)
+    tmp = path.with_suffix(".jsonl.tmp")
+    tmp.write_text("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in rows), encoding="utf-8")
+    tmp.replace(path)
+    return settled
+
+
+def run_study(study: Study) -> int:
+    """0: every cell has a row. 2: refused to start. 3: stopped early (run again to resume). 1: a gateway or an ingest failed."""
+    study.run_dir = study.run_dir.resolve()
+    study.localmelo = study.localmelo.resolve()
+    study.run_dir.mkdir(parents=True, exist_ok=True)
+    problems = preflight(study)
+    if problems:
+        print("Preflight failed:", *problems, sep="\n  - ", file=sys.stderr)
+        return 2
+    try:
+        state = load_state(study)
+    except ValueError as exc:
+        print(exc, file=sys.stderr)
+        return 2
+    log_path = study.run_dir / "public.log"
+    results, controls = study.run_dir / "results.jsonl", study.run_dir / "controls.jsonl"
+    env_path = study.run_dir / "environment.json"
+    env_doc = json.loads(env_path.read_text()) if env_path.exists() else {}
+    env_doc.setdefault("start", (study.snapshot or system_snapshot)(study))
+    if study.do_warmup and "warmup" not in env_doc:  # the chat model is loaded once, before the first cell is timed
+        env_doc["warmup"] = server.warmup(study.base_url, study.model, None)
+    across.save(env_path, env_doc)
+    if (fixed := rejudge_pending(study, results)):
+        across.log(log_path, f"judged again: {fixed} rows")
+    questions = study.by_id()
+    code = 0
+    for index, qid in enumerate(study.ids):
+        question = questions[qid]
+        done = {(r["arm"], r["repeat"]) for r in read_rows(results) if r.get("question_id") == qid}
+        ctl_done = {r["arm"] for r in read_rows(controls) if r.get("question_id") == qid}
+        todo = [(a, r) for a, r in cell_plan(study, index) if (a, r) not in done]
+        prompt = control_prompt(study, index)
+        todo_ctl = [a for a in study.arm_names if prompt is not None and a not in ctl_done]
+        if not todo and not todo_ctl:
+            continue
+        reason = study.cell_guard()
+        if reason:
+            across.log(log_path, f"== {reason} before {qid}; stopping")
+            code = 3
+            break
+        qdir = study.work / qid
+        try:
+            across.log(log_path, f"[{index + 1}/{len(study.ids)}] {qid}: ingest, {len(todo)} cells, {len(todo_ctl)} controls")
+            ids_path = study.run_dir / "questions" / qid / "ingest.json"
+            report = ingest(study, question, qdir)
+            across.save(ids_path, report)
+            if report.get("error"):
+                across.log(log_path, f"{qid}: the embedding model failed during ingest: {report['error']}")
+            template = qdir / "template"
+            ids = report.get("ids") or {}
+            stopped = False
+            for arm_name, repeat in todo:
+                reason = study.turn_guard()
+                if reason:
+                    across.log(log_path, f"== {reason} before {qid} {arm_name} r{repeat}; stopping")
+                    stopped = True
+                    break
+                arm = study.arms[arm_name]
+                asked = ask(study, arm, question, str(question["question"]), f"{arm_name}__r{repeat}", template)
+                row = question_row(study, arm, repeat, question, ids, asked)
+                across.Journal(results).append(row)
+                across.log(log_path, f"{qid} {arm_name} r{repeat}: {row['state']}, correct={row['correct']}")
+            for arm_name in [] if stopped else todo_ctl:  # the controls come after the question's own cells
+                reason = study.turn_guard()
+                if reason:
+                    across.log(log_path, f"== {reason} before {qid} {arm_name} control; stopping")
+                    stopped = True
+                    break
+                arm = study.arms[arm_name]
+                asked = ask(study, arm, question, str(prompt), f"{arm_name}__ctl", template)
+                row = control_row(arm, question, index, str(prompt), ids, asked)
+                across.Journal(controls).append(row)
+                across.log(log_path, f"{qid} {arm_name} control: {row['state']}, false_recall={row['false_recall']}")
+            if stopped:
+                code = 3
+                break
+        except (IngestError, server.LaunchError, server.ColdStartError) as exc:
+            across.log(log_path, f"{qid}: {exc}")
+            print(f"{qid}: {exc}", file=sys.stderr)
+            code = 2 if isinstance(exc, server.ColdStartError) else 1
+            break
+        finally:
+            if not study.keep_homes:
+                shutil.rmtree(qdir, ignore_errors=True)
+    have, total = len(finished_cells(study)), len(study.ids) * len(study.arm_names) * study.repeats
+    state["complete"] = have == total and not missing_controls(study)
+    across.save(study.run_dir / "public.json", state)
+    print(f"{have}/{total} rows in {results}" + (" (stopped early; see public.log)" if code == 3 else ""))
+    return code
+
+
+# --- command line ---
+
+
+def print_plan(study: Study, problems: list[str]) -> None:
+    by_id = study.by_id()
+    groups: dict[str, int] = {}
+    for qid in study.ids:
+        name = data.group(by_id[qid]) if qid in by_id else "unknown"
+        groups[name] = groups.get(name, 0) + 1
+    cells = len(study.ids) * len(study.arm_names) * study.repeats
+    controls = len(study.arm_names) * min(study.control_homes, len(study.ids)) if study.control_prompts else 0
+    print(f"LongMemEval-S plan: {len(study.ids)} questions ({', '.join(f'{g} {n}' for g, n in sorted(groups.items()))}) x "
+          f"{len(study.arm_names)} arms x {study.repeats} repeats = {cells} question cells, {controls} control cells, "
+          f"{len(study.ids)} ingests.")
+    print(f"Output: {study.run_dir} (public.json, questions.json, environment.json, results.jsonl, controls.jsonl, cells/, questions/)")
+    for name in study.arm_names:
+        arm = study.arms[name]
+        config = f" [config.toml: {', '.join(f'{k}={v}' for k, v in arm.config.items())}]" if arm.config else ""
+        embedding = "" if arm.embedding else " [no embedding model]"
+        print(f"Arm {name}: melo serve {' '.join(f'-X {x}' for x in arm.x)}{config}{embedding}  # {arm.label}")
+    print(f"Model server {study.base_url}: chat {study.model}, embedding {study.embedding_model}, judge {study.judge_model}; "
+          f"turns stop after {study.turn_timeout_s:g} s; the embedding model is "
+          + ("unloaded before every cell." if study.cold_start else "left as it is (--no-cold-start)."))
+    print("Preflight: " + ("ok" if not problems else "PROBLEMS"))
+    for problem in problems:
+        print(f"  - {problem}")
+    print(f"Guards: {study.cell_guard() or 'ok'}; STOP file: {'present' if (study.run_dir / 'STOP').exists() else 'absent'}")
+
+
+def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap.add_argument("--run-dir", type=Path, required=True, help="output directory; running again there resumes from results.jsonl")
+    ap.add_argument("--localmelo", type=Path, required=True, help="the localmelo checkout (its .venv/bin/melo is used; it is never changed)")
+    ap.add_argument("--localmelo-sha", required=True, help="the commit prefix the checkout must be at, with a clean tree")
+    ap.add_argument("--base-url", required=True, help="the model server's URL up to /v1, e.g. http://127.0.0.1:8500/v1")
+    ap.add_argument("--model", default=across.CHAT_MODEL, help="the chat model id as the server lists it (default %(default)s)")
+    ap.add_argument(
+        "--embedding-model", default=across.EMBEDDING_MODEL, help="the embedding model id of the same server (default %(default)s)")
+    ap.add_argument("--judge-model", default=None, help="the model id that grades the replies, on the same server (default: --model)")
+    ap.add_argument(
+        "--data", type=Path, default=os.environ.get("LONGMEMEVAL_DATA"), help="longmemeval_s_cleaned.json (default: $LONGMEMEVAL_DATA)")
+    ap.add_argument(
+        "--arms-file", type=Path, required=True,
+        help='JSON file: {name: {label, x: ["KEY=VALUE"], config: {}, extra_body: {}, embedding: true}}')
+    ap.add_argument("--arms", default=None, help="comma-separated arms of the file (default: all of them)")
+    ap.add_argument("--repeats", type=int, default=REPEATS, help="repeats per arm and question (default %(default)s)")
+    ap.add_argument(
+        "--questions", default="",
+        help="a count (that many of the stage set, spread over the types) or comma-separated ids (default: the stage set)")
+    ap.add_argument("--per-type", type=int, default=data.PER_TYPE, help="stage set: non-abstention questions per type (default %(default)s)")
+    ap.add_argument("--abstention", type=int, default=data.ABSTENTION_COUNT, help="stage set: abstention questions (default %(default)s)")
+    ap.add_argument("--seed", type=int, default=data.SEED, help="stage set: the seed (default %(default)s)")
+    ap.add_argument(
+        "--control-prompts", default=None, metavar="FILE",
+        help="run the false-recall control with the prompts of this JSON list or text file (`default`: the built-in 20)")
+    ap.add_argument(
+        "--control-homes", type=int, default=20, help="the control runs on the first N ingested HOMEs, once per arm (default %(default)s)")
+    ap.add_argument(
+        "--work-dir", type=Path, default=None, help="where ingest files and HOMEs live while a question runs (default <run-dir>/work)")
+    ap.add_argument("--keep-homes", action="store_true", help="keep the ingest files and HOMEs (they hold the dataset's text)")
+    ap.add_argument("--turn-timeout", type=float, default=TURN_TIMEOUT_S, help="seconds a question's turn may take (default %(default)s)")
+    ap.add_argument("--ingest-timeout", type=float, default=INGEST_TIMEOUT_S, help="seconds one ingest may take (default %(default)s)")
+    ap.add_argument(
+        "--admin-token-cmd", default=os.environ.get("BENCH_UPSTREAM_TOKEN_CMD"),
+        help="a command that prints the model server's API key, for its admin routes (status, unload); run once, never recorded "
+        "(default: $BENCH_UPSTREAM_TOKEN_CMD)")
+    ap.add_argument("--no-cold-start", action="store_true", help="do not unload the embedding model before a cell")
+    ap.add_argument(
+        "--unload-timeout", type=float, default=60.0, help="seconds to wait for the embedding model to unload (default %(default)s)")
+    ap.add_argument("--no-stream", action="store_true", help="poll for the end of a turn instead of following the event stream")
+    ap.add_argument("--no-warmup", action="store_true", help="skip the one-token request that loads the chat model before the first cell")
+    ap.add_argument("--gpu-lock", type=Path, default=across.GPU_LOCK, help="the shared GPU lock file (default %(default)s)")
+    ap.add_argument("--lock-holder", default=across.LOCK_HOLDER, help="the holder the lock must name (default %(default)s)")
+    ap.add_argument(
+        "--battery-start", type=int, default=across.BATTERY_START_PCT,
+        help="do not start a cell on battery below this percent (default %(default)s)")
+    ap.add_argument(
+        "--battery-stop", type=int, default=across.BATTERY_STOP_PCT,
+        help="stop before the next cell on battery below this percent (default %(default)s)")
+    ap.add_argument(
+        "--dry-run", action="store_true",
+        help="print the plan and the checks; ingest nothing, start no gateway, send no request to a model")
+    return ap.parse_args(argv)
+
+
+def build_study(args: argparse.Namespace) -> Study:
+    if not args.data:
+        raise SystemExit("--data (or $LONGMEMEVAL_DATA) names the LongMemEval-S file")
+    try:
+        arms = load_arms(args.arms_file)
+        questions = data.load(args.data)
+        ids = tuple(data.select(questions, args.questions, args.per_type, args.abstention, args.seed))
+        prompts = load_control_prompts(args.control_prompts) if args.control_prompts else ()
+    except (ValueError, OSError) as exc:
+        raise SystemExit(str(exc)) from None
+    names = tuple(a.strip() for a in (args.arms or ",".join(arms)).split(",") if a.strip())
+    unknown = [a for a in names if a not in arms]
+    if unknown or len(set(names)) != len(names) or not names:
+        raise SystemExit(f"unknown or repeated arm {', '.join(unknown) or ', '.join(names)}; choose from {', '.join(arms)}")
+    if args.repeats < 1:
+        raise SystemExit("--repeats must be at least 1")
+    run_dir = args.run_dir.resolve()
+    turn_guard, cell_guard = across.make_guards(run_dir, args.gpu_lock, args.lock_holder, args.battery_start, args.battery_stop)
+    return Study(
+        run_dir=run_dir, questions=questions, ids=ids, arms=arms, arm_names=names, repeats=args.repeats, localmelo=args.localmelo,
+        expect_sha=args.localmelo_sha, base_url=args.base_url, model=args.model, embedding_model=args.embedding_model,
+        judge_model=args.judge_model or args.model, data_path=args.data, data_sha256=data.file_sha256(args.data),
+        stage=(args.per_type, args.abstention, args.seed), work_dir=args.work_dir, keep_homes=args.keep_homes,
+        control_prompts=prompts, control_homes=args.control_homes, cold_start=not args.no_cold_start,
+        unload_timeout_s=args.unload_timeout, turn_timeout_s=args.turn_timeout, ingest_timeout_s=args.ingest_timeout,
+        use_stream=not args.no_stream, do_warmup=not args.no_warmup, turn_guard=turn_guard, cell_guard=cell_guard)
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    args = parse_args(argv)
+    server.set_admin_token(across.admin_token(args.admin_token_cmd))
+    study = build_study(args)
+    if args.dry_run:
+        study.localmelo = study.localmelo.resolve()
+        problems = preflight(study)
+        print_plan(study, problems)
+        return 2 if problems else 0
+    return run_study(study)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -21,7 +21,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -115,14 +115,18 @@ def serve_command(melo: Path, port: int, x_pairs: Sequence[str]) -> list[str]:
     return [str(melo), "serve", "--port", str(port), *(a for pair in x_pairs for a in ("-X", pair))]
 
 
-def serve_env(home: Path, base: Mapping[str, str] | None = None) -> dict[str, str]:
-    """The environment of a gateway: no credentials, its own HOME and TMPDIR, no browser, no terminal."""
+def serve_env(home: Path, base: Mapping[str, str] | None = None, extra: Mapping[str, str] | None = None) -> dict[str, str]:
+    """The environment of a gateway: no credentials, its own HOME and TMPDIR, no browser, no terminal.
+
+    ``extra`` is a cell's own variables (``LOCALMELO_NOW`` pins the date a memory question is asked on). They are merged
+    before the isolating ones, so they cannot give the gateway back the real HOME."""
     env = {k: v for k, v in (os.environ if base is None else base).items() if not SECRET_ENV.match(k)}
     # the other assistants' folders of the real user: localmelo's memory import reads what these name
     for name in ("LOCALMELO_APP_INSTANCE", "SSH_CONNECTION", "SSH_CLIENT", "SSH_TTY", "CLAUDE_CONFIG_DIR", "CODEX_HOME", "HERMES_HOME"):
         env.pop(name, None)
     tmp = Path(home) / "tmp"
     tmp.mkdir(parents=True, exist_ok=True)
+    env.update(extra or {})
     env.update(HOME=str(home), TMPDIR=str(tmp), BROWSER=NO_BROWSER, TERM="dumb", NO_COLOR="1", PYTHONDONTWRITEBYTECODE="1")
     return env
 
@@ -134,6 +138,7 @@ class LaunchSpec:
     port: int
     x_pairs: tuple[str, ...]
     log: Path
+    env: Mapping[str, str] | None = field(default=None, hash=False)  # more variables for the gateway (see serve_env)
 
 
 class GatewayProcess:
@@ -201,7 +206,7 @@ def launch(spec: LaunchSpec) -> GatewayProcess:
         process = subprocess.Popen(
             serve_command(spec.melo, spec.port, spec.x_pairs),
             stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT,
-            cwd=spec.home, env=serve_env(spec.home), start_new_session=True,
+            cwd=spec.home, env=serve_env(spec.home, extra=spec.env), start_new_session=True,
         )
     return GatewayProcess(spec, process)
 

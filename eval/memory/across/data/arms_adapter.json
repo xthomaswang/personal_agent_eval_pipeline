@@ -1,0 +1,9 @@
+{
+  "T": {"label": "teaching only (M2, developer mode): the taught state A0 and A1 copy", "x": ["memory.retriever=embedding"],
+        "embedding": true, "base": "M2", "config": {"ui.mode": "developer"}, "teach_only": true},
+  "A0": {"label": "query adapter off, asks from T's copy", "x": ["memory.retriever=embedding"], "embedding": true, "base": "M2",
+         "config": {"ui.mode": "developer"}, "teach_from": "T"},
+  "A1": {"label": "query adapter on, built on T's copy before the questions", "x": ["memory.retriever=embedding"],
+         "embedding": true, "base": "M2", "config": {"ui.mode": "developer", "memory.adapter": "on"}, "teach_from": "T",
+         "adapter": true}
+}

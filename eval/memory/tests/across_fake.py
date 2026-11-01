@@ -31,7 +31,7 @@ import sys
 import threading
 import time
 import tomllib
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
@@ -512,11 +512,16 @@ class FakeGateway:
 
 class FakeModelServer:
     """An oMLX stand-in: `GET /v1/models`, the status routes, `POST /v1/chat/completions` (whole or streamed, with a
-    delay before the first byte) and `POST /v1/embeddings` (with a delay); every POST is kept in `calls`."""
+    delay before the first byte) and `POST /v1/embeddings` (with a delay); every POST is kept in `calls`, its JSON body in
+    `bodies`. A reply that is not streamed says "ok", or what `replies` says: a list (one reply per request, the last one
+    repeated) or a function of the request body (for the public-benchmark judge)."""
 
     def __init__(self, ids: Sequence[str], *, first_delay: float = 0.0, chunk_delay: float = 0.0, embed_delay: float = 0.0, slow_embed_delay: float | None = None, loaded: Sequence[str] | None = None,
         unload_delay: float = 0.0, stuck: bool = False, status_routes: bool = True,
+        replies: Sequence[str] | Callable[[dict[str, Any]], str] | None = None,
     ) -> None:
+        self.replies = replies
+        self.bodies: list[dict[str, Any]] = []
         self.ids = list(ids)
         self.loaded = list(ids if loaded is None else loaded)
         self.first_delay, self.chunk_delay, self.embed_delay = first_delay, chunk_delay, embed_delay
@@ -573,12 +578,15 @@ class FakeModelServer:
                     if body.get("model") in owner.ids and body["model"] not in owner.loaded:
                         owner.loaded.append(body["model"])  # a request loads the model it names
                     owner.calls.append({"path": self.path, "stream": bool(body.get("stream")), "tools": bool(body.get("tools")), "model": body.get("model")})
+                    owner.bodies.append(body)
+                    n_chat = sum(1 for c in owner.calls if c["path"].endswith("/chat/completions"))
                 if self.path.endswith("/embeddings"):
                     time.sleep(owner.slow_embed_delay if body.get("slow") else owner.embed_delay)
                     return self.send_json({"data": [{"embedding": [0.1, 0.2, 0.3]}]})
                 time.sleep(owner.first_delay)
                 if not body.get("stream"):
-                    return self.send_json({"choices": [{"message": {"role": "assistant", "content": "ok"}}], "usage": {"prompt_tokens": 5, "completion_tokens": 1}})
+                    reply = owner.replies(body) if callable(owner.replies) else owner.replies[min(n_chat, len(owner.replies)) - 1] if owner.replies else "ok"
+                    return self.send_json({"choices": [{"message": {"role": "assistant", "content": reply}}], "usage": {"prompt_tokens": 5, "completion_tokens": 1}})
                 self.send_response(200)
                 self.send_header("Content-Type", "text/event-stream")
                 self.send_header("Transfer-Encoding", "chunked")
@@ -601,9 +609,75 @@ class FakeModelServer:
         self.server.server_close()
 
 
-def melo_main(argv: Sequence[str]) -> int:
-    """The `melo` command line of the fake: `config get KEY` and `serve --port N [-X K=V]...`."""
+def ingest_main(argv: Sequence[str]) -> int:
+    """`melo memory ingest FILE [-j] [-X notes=rules|none]` as the fake does it: every user turn with its reply becomes a document
+    ("User: ..." then "melo: ...") and, with notes=rules, every statement a note, in the memory.json the FakeGateway reads. A document
+    over 2000 characters counts as cut. Exit 2 outside developer mode or for a file that is not an ingest file, 1 while a gateway
+    owns the HOME (its token file is there). The arguments it got go to `ingest-argv.json` in the HOME."""
+    home = Path(os.environ["HOME"])
+    base = home / ".cache" / "localmelo"
+    document = tomllib.loads((base / "config.toml").read_text()) if (base / "config.toml").exists() else {}
+    if document.get("ui", {}).get("mode") != "developer":
+        print('melo: memory ingest needs [ui] mode = "developer"', file=sys.stderr)
+        return 2
+    if (base / "gateway" / "auth" / "token").exists():
+        print("melo: memory ingest: melo serve owns the chats of this HOME", file=sys.stderr)
+        return 1
     args = list(argv)
+    (home / "ingest-argv.json").write_text(json.dumps(args))
+    notes = next((args[i + 1].partition("=")[2] for i, a in enumerate(args) if a == "-X" and args[i + 1].startswith("notes=")), "rules")
+    try:
+        sessions = json.loads(Path(args[0]).read_text(encoding="utf-8"))["sessions"]
+    except (OSError, ValueError, KeyError, IndexError) as exc:
+        print(f"melo: memory ingest: cannot read the file: {exc}", file=sys.stderr)
+        return 2
+    memory: dict[str, list[dict[str, Any]]] = {"records": [], "documents": []}
+    report: dict[str, Any] = {"sessions": 0, "turns": 0, "docs": 0, "notes": 0, "embedded_chars": 0, "cut": 0, "skipped": 0, "trimmed": 0}
+    ids: dict[str, str] = {}
+
+    def keep(store_id: str, typed: str, answer: str) -> None:
+        text = f"User: {typed}\nmelo: {answer}"
+        memory["documents"].append({"id": len(memory["documents"]) + 1, "session_id": store_id, "text": text})
+        report["turns"] += 1
+        report["docs"] += 1
+        report["embedded_chars"] += min(len(text), 2000)
+        report["cut"] += int(len(text) > 2000)
+        if notes == "rules" and not typed.rstrip().endswith(("?", "？")):
+            memory["records"].append({"id": len(memory["records"]) + 1, "text": typed, "session_id": store_id})
+            report["notes"] += 1
+
+    for number, session in enumerate(sorted(sessions, key=lambda s: str(s.get("date", ""))), 1):
+        store_id = f"st{number:03d}"
+        waiting: str | None = None
+        for turn in session["turns"]:
+            text = str(turn.get("text", ""))
+            if not text.strip():
+                report["skipped"] += 1
+            elif turn["role"] == "user":
+                if waiting is not None:
+                    keep(store_id, waiting, "")
+                waiting = text
+            elif waiting is not None:
+                keep(store_id, waiting, text)
+                waiting = None
+            else:
+                report["skipped"] += 1
+        if waiting is not None:
+            keep(store_id, waiting, "")
+        ids[str(session["id"])] = store_id
+        report["sessions"] += 1
+    (base / "memory").mkdir(parents=True, exist_ok=True)
+    (base / "memory" / "memory.json").write_text(json.dumps(memory))
+    report.update(seconds=0.01, model=document.get("vllm", {}).get("embedding_model", ""), error="", ids=ids)
+    print(json.dumps(report) if "-j" in args else f"Ingested {report['sessions']} sessions, {report['turns']} turns.")
+    return 0
+
+
+def melo_main(argv: Sequence[str]) -> int:
+    """The `melo` command line of the fake: `config get KEY`, `memory ingest FILE ...` and `serve --port N [-X K=V]...`."""
+    args = list(argv)
+    if args[:2] == ["memory", "ingest"]:
+        return ingest_main(args[2:])
     if args[:2] == ["config", "get"]:
         value = KNOWN_SETTINGS.get(args[2])
         if value is None:
@@ -618,6 +692,7 @@ def melo_main(argv: Sequence[str]) -> int:
         (home / "env.json").write_text(json.dumps({
             "home": str(home), "browser": os.environ.get("BROWSER"), "stdin_tty": sys.stdin.isatty() if sys.stdin else False,
             "cwd": os.getcwd(), "secret_visible": "ACROSS_TEST_SECRET_KEY" in os.environ, "argv": args,
+            "now": os.environ.get("LOCALMELO_NOW"),
         }))
         gateway = FakeGateway(home, x_pairs, port=port)
         done = threading.Event()
