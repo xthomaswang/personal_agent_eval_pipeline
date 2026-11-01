@@ -569,7 +569,8 @@ def evidence_seen(question: data.Question, memory: Mapping[str, Any] | None, eve
     """How much of the evidence turns the model was shown, in the text of the recalled items and the ``search_memory`` and
     ``open_memory`` results: ``evidence_seen`` the largest share of one evidence turn's words, ``evidence_all`` the smallest over all of
     them (a question can need every one). Both None when the question marks no evidence turn with words."""
-    shown = [str(u.get("text") or "") for u in ((memory or {}).get("used") or []) if isinstance(u, Mapping)]
+    # an entry's ``shown`` (newer builds) is the line the model read; ``text`` is the stored head, which may differ
+    shown = [str(u.get("shown") or u.get("text") or "") for u in ((memory or {}).get("used") or []) if isinstance(u, Mapping)]
     shown += [str(c["finished"].get("output") or "") for tool in (SEARCH_TOOL, OPEN_TOOL) for c in searches(events, tool) if c["finished"]]
     seen = _words(" ".join(shown))
     shares = [len(w & seen) / len(w) for w in map(_words, data.evidence_texts(question)) if w]

@@ -165,6 +165,8 @@ def test_evidence_seen_and_all_are_the_shares_of_the_evidence_turns_words_the_mo
     assert run.evidence_seen(q, shown, []) == {"evidence_seen": 0.75, "evidence_all": 0.5}
     assert run.evidence_seen(mini_questions()[0], shown, []) == {"evidence_seen": None, "evidence_all": None}
     assert run.retrieval(q, shown, [], {"sess_a": "st1"})["evidence_all"] == 0.5
+    cut = {"used": [{"kind": "chat", "text": "User: I hold a degree in Business Administration.", "shown": "the user said “I hold a …”"}]}
+    assert run.evidence_seen(q, cut, [])["evidence_seen"] == 0.25  # the line the model read counts, not the stored head
 
 
 def test_opened_turns_are_counted_and_their_text_counts_as_shown():
