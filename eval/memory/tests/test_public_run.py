@@ -219,6 +219,16 @@ def test_opened_turns_are_counted_and_their_text_counts_as_shown():
     assert (run.retrieval(q, {"used": []}, [], ids)["opens"], run.retrieval(q, {"used": []}, [], ids)["open_hit"]) == (0, None)
 
 
+def test_a_first_turn_digest_is_counted_by_the_chats_it_names():
+    q = mini_questions()[0]
+    ids = {"sess_a": "st1", "sess_b": "st2"}
+    lines = [{"session_id": "st2", "turn": 3, "line": "a chat · 4 min ago: …"}, {"session_id": "st1", "turn": 1, "line": "…"}]
+    row = run.retrieval(q, {"used": [], "digest": {"minutes": 30, "items": lines}}, [], ids)
+    assert (row["digest_items"], row["digest_hit"]) == (2, True)
+    assert run.retrieval(q, {"used": [], "digest": {"minutes": 30, "items": lines[:1]}}, [], ids)["digest_hit"] is False
+    assert {k: run.retrieval(q, {"used": []}, [], ids)[k] for k in ("digest_items", "digest_hit")} == {"digest_items": 0, "digest_hit": None}
+
+
 def compress_report():
     """A compress ingest's -j section for mini_questions()[0]: sess_a's exchange 0 holds the evidence."""
     return {"model_calls": 3, "cache_hits": 0,

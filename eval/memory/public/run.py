@@ -577,6 +577,14 @@ def opens(memory: Mapping[str, Any] | None, store_to_file: Mapping[str, str], wa
             "opened_items": sorted({o["item"] for o in opened if o.get("item") is not None})}
 
 
+def digest(memory: Mapping[str, Any] | None, store_to_file: Mapping[str, str], wanted: set[str]) -> dict[str, Any]:
+    """The other chats' turns a new chat's first turn got as a digest (the memory event's ``digest``, newer builds): how
+    many, and ``digest_hit``, whether one is from an answer session (None when there is no digest or no answer session)."""
+    items = [i for i in (((memory or {}).get("digest") or {}).get("items") or []) if isinstance(i, Mapping)]
+    files = {store_to_file.get(str(i.get("session_id") or "")) for i in items} - {None}
+    return {"digest_items": len(items), "digest_hit": bool(files & wanted) if items and wanted else None}
+
+
 def search_hint(memory: Mapping[str, Any] | None) -> Any:
     """The ``search_hint`` a build puts in the memory event (or in its ``recall``), as it sent it; None when it sends none."""
     found = (memory or {}).get("search_hint")
@@ -603,7 +611,7 @@ def retrieval(
         "answer_sessions": sorted(wanted), "used": used,
         "search_hint": search_hint(memory), **evidence_seen(question, memory, events),
         "auto_hit": None, "auto_cover": None, "searches": 0, "search_hit": None, "search_via": None,
-        **opens(memory, store_to_file, wanted),
+        **opens(memory, store_to_file, wanted), **digest(memory, store_to_file, wanted),
     }
     calls = searches(events)
     row["searches"] = len(calls)
