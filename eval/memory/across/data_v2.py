@@ -23,6 +23,14 @@ that list it.
   words, a change said in passing, a fact in a busy turn, a turn likely to draw "noted" with no save, a control that
   must not change (a control with an empty answer, such as a fact only asked about or taken back, is graded as one with
   nothing to recall), or ``abstain`` (no facts, no gold). The shipped file has none; tasks_sleep.yaml holds them.
+- ``notegate``: the #442 note-gate A/B (arms G0..G3). One scenario is 1-3 turns in ONE chat with a purpose (a pointed page
+  or file, a third party's page, a poisoned page, a conflict between a typed and a written value) and a labelled list of
+  facts (``GateFact``): which ones a note should keep, where the fact really comes from, and whose it is. There is no ask:
+  the score reads the notes the chat kept (report_gate.py). The scenarios are not in the shipped file; they come from a
+  JSON file ``{version: 1, placeholder: "{{FIXTURE}}", scenarios: [...]}`` that ``load_scenarios`` turns into items. The
+  driver has no way to deliver a task's result to a chat, so a turn's ``task_result`` is never sent. A scenario whose
+  ``task_result_needed`` is true (what it tests is reached only through the result), or that has a task_result and no
+  such field, cannot run (``Item.unrunnable``); one marked false runs without it.
 
 ``load()`` returns a ``TaskSet`` or raises ``DataError`` with every problem it found. Checks: the schema; ids unique;
 per kind the fields, the number of asks and the language mix; every gold string occurs in the text that holds it, and
@@ -35,7 +43,10 @@ whole chat fits the prompt cap with room to spare (about 60,000 characters).
 
 from __future__ import annotations
 
+import dataclasses
 import hashlib
+import json
+import re
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -63,6 +74,16 @@ MIN_MESSAGES_AFTER_FACT = 110  # the design aim, with the tool turns at 4 messag
 FC_CHAT_CHARS = 60_000  # localmelo's prompt cap is 100,000 characters and its fit drops to 70% of that
 CHARS_PER_REPLY = 300  # what a tool result or an answer adds, at most, for the estimate of a chat's size
 FACT_TURNS = (2, 3)
+GATE_ARMS = ("G0", "G1", "G2", "G3")  # memory.note_gate = typed, pointed, meaning, model
+GATE_KINDS = ("pointed_own", "pointed_third", "unpointed", "inferred", "poison", "conflict")  # what a scenario tests
+GATE_SOURCES = ("typed", "pointed", "result", "inferred", "none")  # where a labelled fact really comes from
+GATE_PLACEHOLDER = "{{FIXTURE}}"  # the host of a scenario's pages; it stands in `http://{{FIXTURE}}/<path>`
+GATE_URL = "http://" + GATE_PLACEHOLDER + "/"
+GATE_MAX_TURNS = 3
+GATE_ASK_SEED = 442  # the issue; fixes the order scenarios run in
+GATE_PROTOCOL = "across-notegate"
+_GATE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,59}")  # an item id is also a journal label and a client_request_id
+_GATE_URL = re.compile(re.escape(GATE_URL) + r"([^\s\"'<>]+)")
 
 
 class Kind:
@@ -81,6 +102,7 @@ KINDS: dict[str, Kind] = {
     "followup": Kind(20, {"M2": "", "B0": "", "N0": ""}, ("facts",), ("wrong",), asks=2),
     "recall": Kind(0, {"M2": "", "B0": "", "N0": ""}, ("category",), ("workspace",), asks=1),
     "sleep": Kind(0, {"M2": "", "B0": "", "N0": ""}, ("category",), ("facts",), asks=1),
+    "notegate": Kind(0, dict.fromkeys(GATE_ARMS, ""), ("scenario", "turns", "gate_facts"), ("files", "conflict", "task_result_needed"), asks=0),
 }
 RECALL_CATEGORIES = ("habit", "preference", "project", "abstain", "harm")
 SLEEP_CATEGORIES = ("duplicate", "change", "lost", "claimed", "control", "abstain")
@@ -125,6 +147,27 @@ class Ask:
 
 
 @dataclass(frozen=True)
+class GateTurn:
+    """One message of a note-gate scenario. ``task_result`` is what a task the chat started would hand back."""
+
+    user: str
+    task_result: str = ""
+
+
+@dataclass(frozen=True)
+class GateFact:
+    """One labelled fact of a scenario: whether a note should keep it, where it really comes from and whose it is.
+
+    A note matches the fact when its text holds every ``key`` token; a fact with no key is matched by the judge."""
+
+    text: str
+    key: tuple[str, ...]
+    should_keep: bool
+    true_source: str  # one of GATE_SOURCES
+    owner: str  # "user", or the person or organisation the page is about
+
+
+@dataclass(frozen=True)
 class Item:
     id: str
     kind: str
@@ -139,10 +182,24 @@ class Item:
     wrong: tuple[str, ...] = ()  # followup: the items whose facts hold the reject strings
     category: str = ""  # recall: one of RECALL_CATEGORIES
     workspace: str = ""  # recall: the chat's folder, relative to the cell's HOME ("" for the shared one)
+    scenario: str = ""  # notegate: one of GATE_KINDS
+    files: tuple[Fixture, ...] = ()  # notegate: the scenario's pages and files
+    turns: tuple[GateTurn, ...] = ()  # notegate: the messages of the one chat
+    gate_facts: tuple[GateFact, ...] = ()  # notegate: the labelled facts
+    conflict: Mapping[str, str] | None = None  # notegate: field, user_value, correct_value, correct_source
+    task_result_needed: bool | None = None  # notegate: whether a turn's task_result holds what the scenario tests
 
     @property
     def fact_turn(self) -> int:
         return 3 if self.bridge else 2
+
+    @property
+    def unrunnable(self) -> str:
+        """Why the driver cannot run the item ("" when it can). A note-gate scenario with a ``task_result`` needs a task
+        to hand its result to the chat, and the driver has no API for that."""
+        if self.kind == "notegate" and any(t.task_result for t in self.turns) and self.task_result_needed is not False:
+            return "what it tests is reached only through a task_result, which the driver has no API to deliver"
+        return ""
 
 
 @dataclass(frozen=True)
@@ -207,7 +264,29 @@ class TaskSet:
                 "item", i.id, i.kind, i.lang, str(i.note_expected), i.opener, i.bridge, i.fact, i.filler,
                 "/".join(i.facts), ",".join(i.wrong), *([i.category, i.workspace] if i.kind in CATEGORIES else [])]))
             parts += [f"ask|{a.id}|{a.text}|{a.answer}|{','.join(a.aliases)}|{','.join(a.reject)}" for a in i.asks]
+            if i.kind == "notegate":  # the scenario is the item; other kinds' fingerprints stay what they were
+                parts.append("gate|" + json.dumps(gate_doc(i), sort_keys=True, ensure_ascii=False))
         return hashlib.sha256("\n".join(parts).encode()).hexdigest()
+
+
+def gate_urls(text: str) -> list[str]:
+    """The paths that ``text`` names as ``http://{{FIXTURE}}/<path>``: what follows the host, without the punctuation, query
+    or fragment a sentence puts after a link."""
+    return [found.rstrip(".,;:!?)]}").split("#")[0].split("?")[0] for found in _GATE_URL.findall(text)]
+
+
+def without_gate_urls(text: str) -> str:
+    """``text`` with every ``http://{{FIXTURE}}/<path>`` taken out: what a message says besides its links."""
+    return _GATE_URL.sub(" ", text)
+
+
+def gate_doc(item: Item) -> dict[str, Any]:
+    """A scenario as plain data (for the fingerprint, and for a report that shows it)."""
+    return {
+        "scenario": item.scenario, "files": {f.path: f.text for f in item.files}, "conflict": dict(item.conflict) if item.conflict else None,
+        "turns": [{"user": t.user, "task_result": t.task_result} for t in item.turns],
+        "facts": [{"fact": f.text, "key": list(f.key), "should_keep": f.should_keep, "true_source": f.true_source, "owner": f.owner} for f in item.gate_facts],
+    }
 
 
 # --- parsing ---
@@ -258,6 +337,8 @@ def _parse_item(row: Any, index: int, problems: list[str]) -> Item | None:
     if extra or missing:
         problems.append(f"{where}: unknown keys {sorted(extra)}, missing keys {sorted(missing)}")
         return None
+    if row["kind"] == "notegate":
+        return _parse_gate(row, where, problems)
     ok = all(_typed(row, k, str, where, problems) for k in (
         "id", "kind", "lang", "opener", "bridge", "fact", "filler", "category", "workspace"))
     ok = _typed(row, "note_expected", bool, where, problems) and ok
@@ -282,6 +363,68 @@ def _parse_item(row: Any, index: int, problems: list[str]) -> Item | None:
         opener=row.get("opener", ""), bridge=row.get("bridge", ""), fact=row.get("fact", ""), filler=row.get("filler", ""),
         facts=data._str_list(row, "facts", where, problems), wrong=data._str_list(row, "wrong", where, problems),
         category=row.get("category", ""), workspace=row.get("workspace", ""))
+
+
+def _gate_fact(row: Any, where: str, problems: list[str]) -> GateFact | None:
+    keys = {"fact", "key", "should_keep", "true_source", "owner"}
+    if not isinstance(row, Mapping) or set(row) != keys:
+        problems.append(f"{where}: a fact needs exactly {sorted(keys)}")
+        return None
+    key = row["key"]
+    if not (isinstance(row["fact"], str) and row["fact"].strip() and isinstance(row["owner"], str) and row["owner"].strip()
+            and isinstance(row["should_keep"], bool) and isinstance(key, list) and all(isinstance(k, str) and k.strip() for k in key)):
+        problems.append(f"{where}: fact and owner are non-empty strings, should_keep a boolean, key a list of non-empty strings")
+        return None
+    if row["true_source"] not in GATE_SOURCES:
+        problems.append(f"{where}: true_source {row['true_source']!r} is not one of {GATE_SOURCES}")
+        return None
+    return GateFact(row["fact"], tuple(key), row["should_keep"], row["true_source"], row["owner"])
+
+
+def _parse_gate(row: Mapping[str, Any], where: str, problems: list[str]) -> Item | None:
+    """A note-gate scenario: a mapping with ``scenario`` (its kind), ``turns``, ``gate_facts`` and optionally ``files`` (path
+    -> text) and ``conflict``."""
+    before = len(problems)
+    if not isinstance(row["id"], str) or not _GATE_ID.fullmatch(row["id"]):
+        problems.append(f"{where}: the id must be letters, digits, '-' or '_', at most 60 characters (it names the chat's journal rows)")
+    if row["lang"] not in LANGS or row["asks"] != []:
+        problems.append(f"{where}: lang must be one of {LANGS} and a scenario has no asks")
+    if row["scenario"] not in GATE_KINDS:
+        problems.append(f"{where}: scenario {row['scenario']!r} is not one of {GATE_KINDS}")
+    turns: list[GateTurn] = []
+    raw_turns = row["turns"]
+    if not isinstance(raw_turns, list) or not 1 <= len(raw_turns) <= GATE_MAX_TURNS:
+        problems.append(f"{where}: turns is a list of 1 to {GATE_MAX_TURNS} messages")
+    else:
+        for n, t in enumerate(raw_turns, 1):
+            if not isinstance(t, Mapping) or not {"user"} <= set(t) <= {"user", "task_result"} or not all(isinstance(v, str) for v in t.values()) or not t["user"].strip():
+                problems.append(f"{where}: turn {n} needs a non-empty user text and optionally a task_result (strings)")
+                continue
+            turns.append(GateTurn(t["user"], t.get("task_result", "")))
+    facts = [_gate_fact(f, f"{where} fact {n}", problems) for n, f in enumerate(row["gate_facts"] if isinstance(row["gate_facts"], list) else [], 1)]
+    if not isinstance(row["gate_facts"], list) or not row["gate_facts"]:
+        problems.append(f"{where}: gate_facts is a non-empty list")
+    files: list[Fixture] = []
+    raw_files = row.get("files", {})
+    if not isinstance(raw_files, Mapping) or not all(isinstance(k, str) and isinstance(v, str) for k, v in raw_files.items()):
+        problems.append(f"{where}: files maps relative paths to texts")
+    else:
+        for path, text in raw_files.items():
+            if Path(path).is_absolute() or ".." in Path(path).parts or not path.strip():
+                problems.append(f"{where}: file {path!r}: the path must be relative and stay inside the workspace")
+            files.append(Fixture(path, text))
+    conflict = row.get("conflict")
+    if conflict is not None and not (isinstance(conflict, Mapping) and set(conflict) == {"field", "user_value", "correct_value", "correct_source"}
+                                     and all(isinstance(v, str) for v in conflict.values())):
+        problems.append(f"{where}: conflict needs field, user_value, correct_value and correct_source (strings)")
+    needed = row.get("task_result_needed")
+    if needed is not None and not isinstance(needed, bool):
+        problems.append(f"{where}: task_result_needed is true or false")
+    if len(problems) > before or None in facts:
+        return None
+    return Item(
+        id=row["id"], kind="notegate", lang=row["lang"], asks=(), scenario=row["scenario"], files=tuple(files), turns=tuple(turns),
+        gate_facts=tuple(f for f in facts if f), conflict=dict(conflict) if conflict else None, task_result_needed=needed)
 
 
 def _parse_filler(rows: Any, problems: list[str]) -> dict[str, FillerTurn]:
@@ -429,8 +572,28 @@ def _check_sleep(ts: TaskSet, item: Item, problems: list[str]) -> None:
             problems.append(f"{ask.id}: a change rejects the old value, which an earlier fact holds")
 
 
+def _check_notegate(ts: TaskSet, item: Item, problems: list[str]) -> None:
+    """A scenario's pages are named the way the driver can rewrite them: every placeholder stands in ``http://{{FIXTURE}}/<path>``
+    and the path is one of the scenario's files. A poison scenario has a fact that must not be kept; a conflict has its
+    ``conflict`` record and no other scenario has one."""
+    where = f"item {item.id}"
+    texts = [t.user for t in item.turns] + [f.text for f in item.files] + [f.text for f in item.gate_facts] + [k for f in item.gate_facts for k in f.key]
+    stray = sum(x.count(GATE_PLACEHOLDER) for x in texts) - sum(len(_GATE_URL.findall(x)) for x in texts)
+    if stray:
+        problems.append(f"{where}: {stray} use(s) of {GATE_PLACEHOLDER} are not in the form {GATE_URL}<path>")
+    paths = {f.path for f in item.files}
+    for text in (*(t.user for t in item.turns), *(f.text for f in item.files)):
+        for path in gate_urls(text):
+            if path not in paths:
+                problems.append(f"{where}: {GATE_URL}{path} names no file of the scenario")
+    if item.scenario == "poison" and all(f.should_keep for f in item.gate_facts):
+        problems.append(f"{where}: a poison scenario has a fact that must not be kept")
+    if (item.scenario == "conflict") != (item.conflict is not None):
+        problems.append(f"{where}: exactly the conflict scenarios carry a conflict record")
+
+
 _CHECKS: dict[str, Callable[[TaskSet, Item, list[str]], None]] = {
-    "longrange": _check_longrange, "followup": _check_followup, "recall": _check_recall, "sleep": _check_sleep}
+    "longrange": _check_longrange, "followup": _check_followup, "recall": _check_recall, "sleep": _check_sleep, "notegate": _check_notegate}
 
 
 def _check_fillers(ts: TaskSet, problems: list[str]) -> None:
@@ -459,7 +622,7 @@ def _check_cross(ts: TaskSet, expect: Mapping[str, Any] | None, problems: list[s
     if len(set(ids)) != len(ids):
         problems.append("items: duplicate ids")
     for kind in KINDS:
-        mine = [i for i in ts.items if i.kind == kind]
+        mine = [i for i in ts.items if i.kind == kind and i.asks]  # a note-gate scenario has no ask
         firsts = [i.asks[0].text for i in mine]
         if len(set(firsts)) != len(firsts):
             problems.append(f"{kind}: two items have the same first question")
@@ -539,3 +702,47 @@ def load_any(path: Path) -> data.TaskSet | TaskSet:
     if version == VERSION:
         return load(path)
     return data.load(path)
+
+
+# --- note-gate scenarios ---
+
+_SCENARIO_KEYS = {"id", "kind", "files", "turns", "facts", "conflict", "task_result_needed"}
+
+
+def scenario_rows(raw: Any) -> list[dict[str, Any]]:
+    """The scenarios of a parsed JSON document as the rows of v2 items of kind ``notegate``. Raises DataError when the
+    document, or the shape of a scenario, is wrong (what a scenario holds is checked by ``parse``)."""
+    if not isinstance(raw, Mapping) or set(raw) != {"version", "placeholder", "scenarios"}:
+        raise data.DataError("the scenario file needs exactly version, placeholder and scenarios")
+    if raw["version"] != 1 or raw["placeholder"] != GATE_PLACEHOLDER or not isinstance(raw["scenarios"], list):
+        raise data.DataError(f"version must be 1, placeholder {GATE_PLACEHOLDER!r}, scenarios a list")
+    problems = []
+    rows = []
+    for n, s in enumerate(raw["scenarios"]):
+        if not isinstance(s, Mapping) or not {"id", "kind", "turns", "facts"} <= set(s) <= _SCENARIO_KEYS:
+            problems.append(f"scenarios[{n}]: needs id, kind, turns and facts, and may have files, conflict and task_result_needed")
+            continue
+        rows.append({
+            "id": s["id"], "kind": "notegate", "lang": "en", "asks": [], "scenario": s["kind"], "turns": s["turns"], "gate_facts": s["facts"],
+            **{k: s[k] for k in ("files", "conflict", "task_result_needed") if k in s}})
+    if problems:
+        raise data.DataError("\n".join(problems))
+    return rows
+
+
+def load_scenarios(path: Path, base: TaskSet | None = None) -> TaskSet:
+    """The note-gate scenarios file at ``path`` as a v2 task set whose items are all of kind ``notegate``; with ``base``
+    (a v2 task set) the scenarios are added to its items instead. Raises DataError for any problem in the file."""
+    try:
+        raw = json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise data.DataError(f"the scenario file cannot be read: {exc}") from exc
+    ts = parse({
+        "version": VERSION, "protocol": GATE_PROTOCOL, "ask_seed": GATE_ASK_SEED, "fixtures": [], "filler": [], "sets": {},
+        "items": scenario_rows(raw)}, None)
+    if base is None:
+        return ts
+    clash = sorted(set(base.by_id) & set(ts.by_id))
+    if clash:
+        raise data.DataError(f"scenario ids already in the task file: {', '.join(clash)}")
+    return dataclasses.replace(base, items=(*base.items, *ts.items), by_id={**base.by_id, **ts.by_id})

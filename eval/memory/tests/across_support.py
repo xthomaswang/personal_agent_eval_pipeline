@@ -1,4 +1,5 @@
 """Helpers the across-chats tests share: a launcher around the fake gateway, a fake localmelo checkout, a study."""
+import json
 import os
 import subprocess
 import sys
@@ -6,8 +7,17 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
-from memory.across import client, data, data_v2, run, server
-from memory.tests.across_fake import MINI_SAVE_ONLY, MINI_TOOL_WORDS, FakeGateway, FakeModelServer, mini_raw, mini_raw_v2
+from memory.across import client, data, data_v2, gate, run, server
+from memory.tests.across_fake import (
+    MINI_GATE_NOTES,
+    MINI_SAVE_ONLY,
+    MINI_TOOL_WORDS,
+    FakeGateway,
+    FakeModelServer,
+    mini_gate_raw,
+    mini_raw,
+    mini_raw_v2,
+)
 
 EVAL_ROOT = Path(__file__).resolve().parents[2]
 ARMS3 = ("M2", "L1", "N0")
@@ -126,3 +136,55 @@ def v2_run(tmp_path_factory) -> V2Run:
         _V2_RUN = V2Run(study, launcher, study.tasks, code)
     return _V2_RUN
 
+
+
+def gate_launcher(**kw):
+    """A launcher whose gateways keep the SQLite store and the scripted notes of the mini note-gate set."""
+    return Launcher(**{"store": True, "gate_notes": MINI_GATE_NOTES, "delay": 0.002, **kw})
+
+
+def write_scenarios(path: Path, raw=None) -> Path:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(raw or mini_gate_raw(), ensure_ascii=False), encoding="utf-8")
+    return path
+
+
+def gate_study(tmp_path, repo, models, launcher=None, scenarios=None, **kw):
+    """A study of the mini note-gate scenarios on G0, G1 and G3 (the shipped arms file), in files mode unless told otherwise."""
+    scenarios = scenarios or write_scenarios(tmp_path / "scenarios.json")
+    kw.setdefault("arm_names", ("G0", "G1", "G3"))
+    return make_study(tmp_path, repo, models, launcher or gate_launcher(), tasks=data_v2.load_scenarios(scenarios), arms=run.load_arms(gate.ARMS_FILE), **kw)
+
+
+@dataclass
+class GateRun:
+    study: run.Study
+    launcher: Launcher
+    tasks: data_v2.TaskSet
+    scenarios: Path
+    code: int
+
+
+_GATE_RUN: GateRun | None = None
+
+
+def gate_run(tmp_path_factory) -> GateRun:
+    """One study of the mini note-gate scenarios on G0, G1 and G3, run once per pytest session and read, never changed, by the
+    tests of the driver and of the report."""
+    global _GATE_RUN
+    if _GATE_RUN is None:
+        base = tmp_path_factory.mktemp("gaterun")
+        home = base / "realhome"
+        home.mkdir()
+        patch = pytest.MonkeyPatch()
+        patch.setenv("HOME", str(home))
+        models = FakeModelServer(["chat-model", "embed-model"])
+        try:
+            study = gate_study(base, make_repo(base), models)
+            code = run.run_study(study)
+        finally:
+            models.stop()
+            patch.undo()
+        assert list(home.iterdir()) == []  # the real HOME was never used
+        _GATE_RUN = GateRun(study, study.launcher, study.tasks, base / "scenarios.json", code)
+    return _GATE_RUN

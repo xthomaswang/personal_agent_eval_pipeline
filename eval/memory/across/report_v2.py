@@ -19,6 +19,9 @@ the proxy logs and the task file, and the SQLite files of each finished cell's H
 - turn wall time, recall time, time to the first event, the size of the agent's request and the recall block, with
   its characters read from `turn.memory.recall.block_chars` when the build reports it and estimated from the used
   items otherwise (the table says which); the `turn.memory.recall.context` each question had (off, used, none);
+- for a run with note-gate scenarios (kind ``notegate``; ``--scenarios``), the section of report_gate.py: per arm what the chats kept as
+  notes against the labelled facts, the paired differences against G0, and the scenarios where the arms differ. A run that has
+  no other kind stops after that section;
 - with ``--compare <other run dir> [arm]``, the same question of the same arm in two runs of one task file (two
   localmelo builds, say) paired: exact McNemar per kind and the questions whose verdict differs. Without an arm, every
   arm both runs have.
@@ -31,8 +34,9 @@ from __future__ import annotations
 
 import json
 import math
+import sys
 from collections import Counter
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from contextlib import closing
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
@@ -83,6 +87,7 @@ class Ctx:
     req: Mapping[tuple[str, int, str, str], Mapping[str, Any]]
     notes: Mapping[str, list[dict[str, Any]]] | None  # saved notes by chat; None: memory off or not read
     problems: list[str] = field(default_factory=list)
+    judge: Callable[[str, str], dict[str, Any]] | None = None  # notegate: answers "does this note state this fact?" for a fact with no key
 
     @property
     def home(self) -> Path:
@@ -219,18 +224,26 @@ def sleep_rows(ctx: Ctx, item: data_v2.Item) -> tuple[dict[str, Any], list[dict[
     return chat, rows
 
 
-ROW_BUILDERS = {"longrange": longrange_rows, "followup": followup_rows, "recall": recall_rows, "sleep": sleep_rows}
+def notegate_rows(ctx: Ctx, item: data_v2.Item) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    """A note-gate scenario: no ask rows; its score is in the chat row (report_gate.py)."""
+    from . import report_gate
+
+    return report_gate.chat_row(ctx, item)
+
+
+ROW_BUILDERS = {"longrange": longrange_rows, "followup": followup_rows, "recall": recall_rows, "sleep": sleep_rows, "notegate": notegate_rows}
 
 
 def cell_rows(
     cell: Mapping[str, Any], tasks: data_v2.TaskSet, req: Mapping[Any, Any], bases: Mapping[str, str],
+    judge: Callable[[str, str], dict[str, Any]] | None = None,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[str]]:
     info = cell["info"]
     off = run.memory_is_off(info.get("x") or [])
     finished = info.get("state") == "finished"
     ctx = Ctx(
         cell, info["arm"], bases.get(info["arm"], info["arm"]), info["cell"]["repeat"], off, bool(info.get("embedding")) and not off, finished,
-        {(t["phase"], t["item"]): t for t in cell["turns"]}, req, None)
+        {(t["phase"], t["item"]): t for t in cell["turns"]}, req, None, judge=judge)
     if finished and not off:
         try:
             ctx.notes = stores.notes_by_chat(ctx.home)
@@ -413,7 +426,9 @@ def render_compare(cmp: Mapping[str, Any]) -> list[str]:
 # --- the report ---
 
 
-def analyse(run_dir: Path, tasks: data_v2.TaskSet) -> dict[str, Any]:
+def analyse(run_dir: Path, tasks: data_v2.TaskSet, judge: Callable[[str, str], dict[str, Any]] | None = None) -> dict[str, Any]:
+    """The report of the run in ``run_dir``. ``judge`` answers, for a note-gate fact with no key, whether a note states it
+    (report_gate.NoteJudge); without one such a pair counts as no match, and the report says so."""
     loaded = report.load_run(run_dir)
     config = loaded["state"]["config"]
     arms = [a for a in config["arms"] if any(c["info"]["arm"] == a for c in loaded["cells"])]
@@ -424,7 +439,7 @@ def analyse(run_dir: Path, tasks: data_v2.TaskSet) -> dict[str, Any]:
     problems: list[str] = []
     bases = {a: (spec or {}).get("base") or a for a, spec in config["arms"].items()}
     for cell in loaded["cells"]:
-        c, a, p = cell_rows(cell, tasks, req, bases)
+        c, a, p = cell_rows(cell, tasks, req, bases, judge)
         chats, asks, problems = chats + c, asks + a, problems + p
     notes = list(problems)
     if config.get("tasks_sha256") != tasks.sha256():
@@ -436,6 +451,13 @@ def analyse(run_dir: Path, tasks: data_v2.TaskSet) -> dict[str, Any]:
         notes.append("No cell has a proxy log, so there are no request sizes and the full-context arm is not checked against the prompt cap.")
     if any(r["block_estimated"] for r in asks if r["block_chars"] is not None):
         notes.append("This localmelo build does not report `turn.memory.recall.block_chars`: the recall-block characters below are an estimate (the used items' text plus their source lines).")
+    gate_summary = None
+    if any(c["kind"] == "notegate" for c in chats):
+        from . import report_gate
+
+        gate_summary = report_gate.summarize(chats, arms, tasks)
+        if gate_summary:
+            notes = [*report_gate.poison_warning(gate_summary), *notes]
     invalid = {a: [{"item": c["item"], "kind": c["kind"], "repeat": c["repeat"], "reason": c["reason"]} for c in chats if c["arm"] == a and not c["valid"]] for a in arms}
     valid_asks = [r for r in asks if r["valid"]]
     sources = {a: counts([r for r in valid_asks if r["arm"] == a and r["source"]], "source", score.SOURCES) for a in arms}
@@ -453,6 +475,7 @@ def analyse(run_dir: Path, tasks: data_v2.TaskSet) -> dict[str, Any]:
         "ran": {a: {"items": sum(1 for c in chats if c["arm"] == a), "valid": sum(1 for c in chats if c["arm"] == a and c["valid"])} for a in arms},
         "invalid": invalid, "accuracy": accuracy(asks, arms, tasks), "misses": misses, "sources": sources,
         "latency": latency(asks, arms), "paired": pairs(asks, arms, tasks, bases), "contexts": contexts(asks, arms), "chats": chats, "rows": asks,
+        **({"gate": gate_summary} if gate_summary else {}),
     }
 
 
@@ -553,6 +576,12 @@ def render(rep: Mapping[str, Any]) -> str:
         for bad in rep["invalid"][a]:
             out.append(f"- {a} {bad['item']} (repeat {bad['repeat']}): {bad['reason']}")
     out += [""]
+    if rep.get("gate"):
+        from . import report_gate
+
+        out += report_gate.render(rep["gate"])
+        if not rep["rows"]:  # a run of scenarios only has no question to grade
+            return "\n".join(out).rstrip() + "\n"
 
     out += ["## Accuracy", "",
             "Correct / valid items with the 95% Wilson interval in brackets (percent). A reply is correct when it holds the gold answer or an alias and none of "
@@ -644,10 +673,29 @@ def frac(chats: Sequence[Mapping[str, Any]], key: str) -> str:
     return report.frac(sum(1 for c in known if c[key]), len(known))
 
 
-def main(run_dir: Path, tasks_path: Path, compare_with: Sequence[str] | None = None) -> int:
-    """Write report.md and report.json of a v2 run. ``compare_with``: the other run's directory, and optionally one arm."""
-    tasks = data_v2.load(tasks_path)
-    rep = analyse(run_dir, tasks)
+def main(
+    run_dir: Path, tasks_path: Path | None, compare_with: Sequence[str] | None = None, scenarios: Path | None = None,
+    judge_url: str | None = None, judge_model: str | None = None,
+) -> int:
+    """Write report.md and report.json of a v2 run. ``compare_with``: the other run's directory, and optionally one arm.
+    ``scenarios``: the note-gate scenarios file the run used, alone (``tasks_path`` None) or added to the task file's items;
+    ``judge_url`` and ``judge_model`` name the model that answers for a fact with no key (answers are kept in the run's
+    ``gate_judge.jsonl``)."""
+    try:
+        base = data_v2.load(tasks_path) if tasks_path else None
+        tasks = data_v2.load_scenarios(scenarios, base) if scenarios else base
+    except (ValueError, OSError) as exc:
+        raise SystemExit(str(exc)) from None
+    if tasks is None:
+        raise SystemExit("a task file or --scenarios is needed")
+    from . import report_gate
+
+    judge = None
+    if judge_url or judge_model:
+        if not (judge_url and judge_model):
+            raise SystemExit("--judge-url and --judge-model go together")
+        judge = report_gate.NoteJudge(judge_url, judge_model, run_dir / report_gate.JUDGE_CACHE)
+    rep = analyse(run_dir, tasks, judge)
     if compare_with:
         if len(compare_with) > 2:
             raise SystemExit("--compare takes a run directory and optionally an arm")
@@ -658,4 +706,6 @@ def main(run_dir: Path, tasks_path: Path, compare_with: Sequence[str] | None = N
     (run_dir / "report.json").write_text(json.dumps(rep, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     (run_dir / "report.md").write_text(render(rep), encoding="utf-8")
     print(f"wrote {run_dir / 'report.md'} and report.json")
+    for line in report_gate.poison_warning(rep["gate"]) if rep.get("gate") else []:
+        print(f"WARNING: {line}", file=sys.stderr)
     return 0

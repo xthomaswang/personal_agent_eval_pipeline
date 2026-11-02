@@ -337,6 +337,23 @@ the used items, labelled ESTIMATE); and `recall.context` per question. `report .
 pairs the same asks of the same arm in two runs of one task file (two localmelo builds) with McNemar per kind and the
 asks whose verdict differs.
 
+**Note-gate scenarios (`notegate`, the #442 A/B).** Labelled purposeful chats for the arms `G0` to `G3`
+(`data/arms_notegate.json`: `memory.note_gate` typed, pointed, meaning, model; every arm has `tools.web_fetch=true`,
+`tasks.follow_up=false` and the embedding retriever). A scenario is 1 to 3 messages in one chat plus a list of labelled
+facts (should a note keep it, where it really comes from, whose it is). The scenarios are a JSON file kept outside the
+repository: `--scenarios <file.json>` (`{version: 1, placeholder: "{{FIXTURE}}", scenarios: [...]}`, see `data_v2.load_scenarios`);
+alone it is a whole study, with `--tasks` its scenarios are added to that file's items. `--fixtures files` (default) writes
+a scenario's files to its chat's folder under the cell's HOME and turns `http://{{FIXTURE}}/<path>` into `<path>`;
+`--fixtures http` serves them from a stdlib server on 127.0.0.1 (one per cell, showing the running scenario's files) and passes
+`-X <--fixture-setting>=127.0.0.1:<port>` (default `tools.web_fetch_allow_local`, a name that is not final) to the gateway.
+A scenario with a `task_result` turn is skipped (the driver cannot deliver one), and the plan lists them. The report
+(`report ... --scenarios <file.json> [--judge-url ... --judge-model ...]`, `report_gate.py`) scores the notes each chat kept
+(active `long_term` rows of its session): precision, recall, wrong-owner notes, poisoning acceptance (must be 0, flagged at the
+top), refused `remember` calls and steps per turn, source-tag accuracy (a build that sends no `source` in
+`turn.memory.remembered` gives unknown tags), bootstrap intervals over scenarios, paired differences against G0 and the
+scenarios where the arms differ. A fact with no `key` is matched by the judge model, and its answers are cached in the run's
+`gate_judge.jsonl`. The run directory holds the scenario texts: keep it out of public commits.
+
 ```sh
 cd eval
 # smoke: two items per kind (L01 and L15 are long-range, P01 and P14 follow-up), all four arms, plan and preflight first

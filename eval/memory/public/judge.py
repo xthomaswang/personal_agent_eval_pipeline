@@ -112,12 +112,10 @@ def ask(
     return (content or "").strip(), ms
 
 
-def judge(
-    base_url: str, model: str, question_type: str, question: str, answer: Any, response: str, *, abstention: bool = False,
-    post: Callable[..., tuple[float, Any]] = server.http_json, timeout: float = TIMEOUT_S,
+def judge_prompt(
+    base_url: str, model: str, prompt: str, *, post: Callable[..., tuple[float, Any]] = server.http_json, timeout: float = TIMEOUT_S,
 ) -> Verdict:
-    """Ask the model server whether ``response`` answers ``question`` the way LongMemEval's prompt for the type wants."""
-    prompt = get_anscheck_prompt(question_type, question, answer, response, abstention)
+    """Ask the model server one yes/no ``prompt`` the way ``judge`` asks LongMemEval's: a reply that is neither is asked again once."""
     verdict = Verdict(label=None, model=model)
     try:
         verdict.reply, verdict.ms = ask(base_url, request_body(model, prompt), post, timeout)
@@ -133,3 +131,11 @@ def judge(
         verdict.label = None
         verdict.unparsed = False
     return verdict
+
+
+def judge(
+    base_url: str, model: str, question_type: str, question: str, answer: Any, response: str, *, abstention: bool = False,
+    post: Callable[..., tuple[float, Any]] = server.http_json, timeout: float = TIMEOUT_S,
+) -> Verdict:
+    """Ask the model server whether ``response`` answers ``question`` the way LongMemEval's prompt for the type wants."""
+    return judge_prompt(base_url, model, get_anscheck_prompt(question_type, question, answer, response, abstention), post=post, timeout=timeout)

@@ -1,0 +1,10 @@
+{
+  "G0": {"label": "note gate typed: today's rule (what the user typed)", "x": ["memory.retriever=embedding", "memory.note_gate=typed", "tools.web_fetch=true", "tasks.follow_up=false"],
+         "embedding": true, "v1": false},
+  "G1": {"label": "note gate pointed: also what the user pointed at", "x": ["memory.retriever=embedding", "memory.note_gate=pointed", "tools.web_fetch=true", "tasks.follow_up=false"],
+         "embedding": true, "v1": false},
+  "G2": {"label": "note gate meaning: by what the note says", "x": ["memory.retriever=embedding", "memory.note_gate=meaning", "tools.web_fetch=true", "tasks.follow_up=false"],
+         "embedding": true, "v1": false},
+  "G3": {"label": "note gate model: the model decides", "x": ["memory.retriever=embedding", "memory.note_gate=model", "tools.web_fetch=true", "tasks.follow_up=false"],
+         "embedding": true, "v1": false}
+}

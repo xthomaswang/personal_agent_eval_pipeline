@@ -32,6 +32,11 @@ folder and its teaching rows (``copied_from`` in turns.jsonl), so it sends only 
 teach_only arm first in every repeat). An arm with ``adapter`` builds localmelo's query adapter once between the
 teaching and the questions (``cells/<cell>/adapter.json`` and ``adapter.npz``); it needs ``--keep-ask-chats``.
 
+Items of kind ``notegate`` (the #442 note-gate A/B; ``--scenarios <file.json>``, arms G0..G3 of data/arms_notegate.json) are
+1-3 messages in one chat, with the scenario's pages written to the chat's folder (``--fixtures files``) or served by a
+localhost server of the cell (``--fixtures http``, see gate.py). A turn's ``task_result`` is never sent; a scenario that
+needs it is skipped (data_v2.py). The score is made by the report from the cell's notes.
+
 The operator holds the GPU lock (holder: agent-benchmark); the driver never takes or releases it. It stops
 cleanly before the next turn when <dir>/STOP exists, when the lock is gone, or when the battery is low;
 running the same command again resumes: finished cells are skipped, a stopped cell continues in its own
@@ -60,7 +65,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from . import client, data, data_v2, proxy, server, stores
+from . import client, data, data_v2, gate, proxy, server, stores
 
 # <repo>/eval/memory/across/run.py: four levels up is the directory that holds the shared lock
 GPU_LOCK = Path(__file__).resolve().parents[4] / ".gpu-lock"
@@ -564,6 +569,8 @@ class Study:
     poll_s: float = 0.25  # how often to look at a turn when there is no event stream
     use_stream: bool = True
     do_warmup: bool = True
+    fixture_mode: str = "files"  # v2 notegate: how a scenario's pages reach its chat (gate.FIXTURE_MODES)
+    fixture_setting: str = gate.FIXTURE_SETTING  # v2 notegate, http mode: the gateway setting that lets web_fetch reach the fixture server
     scratch: Path | None = None  # where the preflight makes its throwaway HOME (default: the system temp dir)
     # seams, replaced in tests
     launcher: Callable[[server.LaunchSpec], Any] = server.launch
@@ -601,7 +608,11 @@ class Study:
         base = (self.arms[arm].base or arm) if arm in self.arms else arm
         return tuple(
             i for kind, spec in data_v2.KINDS.items() for i in order
-            if i.kind == kind and (not self.question_ids or i.id in self.question_ids) and (arm is None or base in spec.arms))
+            if i.kind == kind and not i.unrunnable and (not self.question_ids or i.id in self.question_ids) and (arm is None or base in spec.arms))
+
+    def skipped(self) -> tuple[data_v2.Item, ...]:
+        """v2: the selected items the driver cannot run (a note-gate scenario with a task_result), in the task file's order."""
+        return tuple(i for i in self.tasks.items if i.unrunnable and (not self.question_ids or i.id in self.question_ids)) if self.v2 else ()
 
     def rss(self) -> dict[str, Any]:
         """The model server process's rss and loaded models now."""
@@ -626,6 +637,8 @@ class Study:
         }
         if self.v2:  # a v1 study's identity stays what it was
             doc.update(protocol=PROTOCOL_V2, long_timeout_s=self.long_timeout_s)
+            if any(i.kind == "notegate" for i in self.items()):
+                doc["fixtures"] = {"mode": self.fixture_mode, **({"setting": self.fixture_setting} if self.fixture_mode == "http" else {})}
         return doc
 
 
@@ -661,7 +674,8 @@ def preflight(study: Study) -> list[str]:
     else:
         with tempfile.TemporaryDirectory(dir=study.scratch) as probe_home:
             for arm in (study.arms[a] for a in study.arm_names):
-                for key in [*(pair.partition("=")[0] for pair in arm.x), *(k for k, _ in arm.config)]:
+                needs_fixtures = study.v2 and study.fixture_mode == "http" and any(i.kind == "notegate" for i in study.items(arm.name))
+                for key in [*(pair.partition("=")[0] for pair in arm.x), *(k for k, _ in arm.config), *([study.fixture_setting] if needs_fixtures else [])]:
                     if not _config_get_ok(study, Path(probe_home), key):
                         problems.append(f"arm {arm.name}: this localmelo build does not know the setting {key}")
     try:
@@ -674,6 +688,8 @@ def preflight(study: Study) -> list[str]:
             problems.append(f"chat model {study.model!r} is not listed by {study.base_url}/models")
         if any(study.arms[a].embedding for a in study.arm_names) and study.embedding_model not in ids:
             problems.append(f"embedding model {study.embedding_model!r} is not listed by {study.base_url}/models (arm M2 needs it)")
+    if study.fixture_mode not in gate.FIXTURE_MODES:
+        problems.append(f"fixtures must be one of {gate.FIXTURE_MODES}, not {study.fixture_mode!r}")
     known = {i.id for i in study.tasks.items} if study.v2 else {x.id for x in study.tasks.questions}
     problems += [f"selected question {q} does not exist" for q in study.question_ids if q not in known]
     for name in study.arm_names:
@@ -814,6 +830,7 @@ class Live:
     home: Path | None = None  # the cell's HOME: a recall question's workspace is a folder below it
     night: Callable[[], None] = lambda: None  # the arm's memory sleep and query adapter, once per cell (a no-op without either)
     phase: str = "all"  # Arm.phase: "teach" sends only the teaching, "ask" only what follows it (the teaching is copied)
+    fixtures: gate.Fixtures | None = None  # notegate: how the scenarios' pages reach their chats (None: the cell runs none)
 
 
 def prepare_workspace(tasks: data_v2.TaskSet, path: Path) -> None:
@@ -974,9 +991,38 @@ def run_sleep(live: Live, items: Sequence[data_v2.Item]) -> bool:
     return run_recall(live, items)
 
 
+def run_notegate(live: Live, items: Sequence[data_v2.Item]) -> bool:
+    """One chat per scenario: its messages in order, in the scenario's folder under the cell's HOME (its pages written there
+    or served, see gate.py). The chats are kept: the report reads the notes each one made from the cell's SQLite files.
+    True when a guard stopped the cell."""
+    if live.phase != "all":
+        raise ValueError("a scenario teaches and is scored in one chat: it cannot run in a teach_only or teach_from cell")
+    assert live.fixtures is not None and live.home is not None
+    study = live.study
+    for item in items:
+        labels = [gate.step_label(item, n) for n in range(1, len(item.turns) + 1)]
+        if all((gate.PHASE, label) in live.done["turns"] for label in labels):
+            continue
+        session = next((r.get("session_id") for label in labels if (r := live.done["turns"].get((gate.PHASE, label))) and r.get("session_id")), None)
+        folder = live.home / "gate" / item.id
+        messages = live.fixtures.start_scenario(item, folder)
+        for number, (label, text) in enumerate(zip(labels, messages, strict=True)):
+            if (gate.PHASE, label) in live.done["turns"]:
+                continue
+            if session is None and number:
+                break  # the chat never started
+            if study.turn_guard():
+                return True
+            row = live.send(gate.PHASE, label, text, session_id=session, workspace=folder, timeout_s=study.long_timeout_s)
+            session = row.get("session_id") or session
+            if row.get("timed_out") and session:
+                settle(live.gw, session, study.sleep)
+    return False
+
+
 # one runner per kind of data_v2.KINDS: (live cell, the items of that kind this arm runs) -> stopped by a guard
 KIND_RUNNERS: dict[str, Callable[[Live, Sequence[data_v2.Item]], bool]] = {
-    "longrange": run_longrange, "followup": run_followup, "recall": run_recall, "sleep": run_sleep}
+    "longrange": run_longrange, "followup": run_followup, "recall": run_recall, "sleep": run_sleep, "notegate": run_notegate}
 
 
 def run_items(live: Live) -> bool:
@@ -1041,10 +1087,14 @@ def run_cell(study: Study, cell: Mapping[str, Any]) -> str:
     timing = proxy.TimingProxy(
         study.base_url, cell_dir / "proxy.jsonl", capture=cell_dir / "proxy_captures.jsonl" if study.capture_chars > 0 else None,
         capture_chars=study.capture_chars) if study.use_proxy else None
-    spec = server.LaunchSpec(study.melo, home, server.free_port(), arm.x, cell_dir / "gateway.log")
     running = None
+    fixtures: gate.Fixtures | None = None
     stopped = False
     try:
+        if study.v2 and any(i.kind == "notegate" for i in study.items(arm.name)):  # a server of the cell, up before its gateway starts
+            fixtures = gate.open_fixtures(study.fixture_mode)
+            info["fixtures"] = {"mode": fixtures.mode, "host": fixtures.host, **({"setting": study.fixture_setting} if fixtures.host else {})}
+        spec = server.LaunchSpec(study.melo, home, server.free_port(), (*arm.x, *gate.serve_pair(study.fixture_setting, fixtures)), cell_dir / "gateway.log")
         # the gateway talks to the proxy when there is one; the port is new at every start, so the config is too
         server.write_config(home, server.config_document(
             timing.url if timing else study.base_url, study.model, embedding_model, study.extra_body, arm.settings()))
@@ -1093,6 +1143,8 @@ def run_cell(study: Study, cell: Mapping[str, Any]) -> str:
                     row["tools"] = [(e.get("data") or {}).get("name") for e in res.events if e.get("type") == "tool.started"]
                     if stats := run_memory_stats(res):
                         row["memory_stats"] = stats
+                    if phase == gate.PHASE:  # the steps and note-tool calls of a scenario's turn
+                        row["gate"] = gate.turn_digest(res)
             journal.append(row)
             return row
 
@@ -1125,7 +1177,7 @@ def run_cell(study: Study, cell: Mapping[str, Any]) -> str:
             return False
 
         if study.v2:
-            stopped = run_items(Live(study, arm, cell, gw, journal, work, done, send, home, night, arm.phase))
+            stopped = run_items(Live(study, arm, cell, gw, journal, work, done, send, home, night, arm.phase, fixtures))
         else:
             stopped = teach()
             if not stopped:
@@ -1136,12 +1188,15 @@ def run_cell(study: Study, cell: Mapping[str, Any]) -> str:
     finally:
         if running is not None:
             info["gateway_exit"] = running.stop()
+        if fixtures:
+            fixtures.stop()
         if timing:
             timing.stop()
         info["wall_s"] = round(info.get("wall_s", 0.0) + time.monotonic() - started, 1)
         if not stopped:
             info["rss"]["after"] = study.rss()
-        info["counts"] = cell_counts(journal.read(), ("teach", "long", "ask") if study.v2 else ("teach", "ask"))
+        info["counts"] = cell_counts(
+            journal.read(), (("teach", "long", "ask", *([gate.PHASE] if fixtures else [])) if study.v2 else ("teach", "ask")))
         save(cell_dir / "cell.json", info)
     if stopped:
         info["state"] = "paused"
@@ -1180,6 +1235,7 @@ def load_state(study: Study, planned: list[dict[str, Any]]) -> dict[str, Any]:
             "protocol": study.tasks.protocol, "tasks_sha256": study.tasks.sha256(), "ask_seed": study.tasks.ask_seed,
             "kinds": {k: dict(spec.arms) for k, spec in data_v2.KINDS.items()},
             "items": [{"id": i.id, "kind": i.kind, "lang": i.lang, "note_expected": i.note_expected} for i in study.items()],
+            **({"skipped": [{"id": i.id, "kind": i.kind, "scenario": i.scenario, "reason": i.unrunnable} for i in study.skipped()]} if study.skipped() else {}),
         })
     else:
         save(study.run_dir / "tasks.json", {  # the teaching order (an old value before its replacement) and the ask order
@@ -1270,9 +1326,11 @@ def run_study(study: Study) -> int:
 
 def v2_turns(study: Study, arm: str) -> dict[str, int]:
     """The turns one cell of ``arm`` sends on a v2 task file, by phase (a teach_from cell's copied teaching is not sent)."""
-    tasks, turns = study.tasks, {"long": 0, "teach": 0, "ask": 0}
+    tasks, turns = study.tasks, {"long": 0, "teach": 0, "ask": 0, "gate": 0}
     for item in study.items(arm):
-        if item.kind == "longrange":
+        if item.kind == "notegate":
+            turns["gate"] += len(item.turns)
+        elif item.kind == "longrange":
             steps = tasks.long_steps(item)
             turns["long"] += len(steps) - len(item.asks)
             turns["ask"] += len(item.asks)
@@ -1283,6 +1341,22 @@ def v2_turns(study: Study, arm: str) -> dict[str, int]:
     if phase != "all":  # a teach_only cell asks nothing; a teach_from cell sends no teaching of its own
         turns["ask" if phase == "teach" else "teach"] = 0
     return turns
+
+
+def print_gate_plan(study: Study, scenarios: Sequence[data_v2.Item]) -> None:
+    """The note-gate scenarios: how many run, which are skipped and why, and how their pages reach the chat."""
+    skipped = study.skipped()
+    runs = [i for i in scenarios if not i.unrunnable and (not study.question_ids or i.id in study.question_ids)]
+    by_kind = Counter(i.scenario for i in runs)
+    print(f"Note-gate scenarios: {len(runs)} run ({', '.join(f'{k} {n}' for k, n in by_kind.items()) or 'none'}), one chat each, kept for the report.")
+    if skipped:
+        print(f"  {len(skipped)} skipped, {skipped[0].unrunnable}: " + ", ".join(f"{i.id} ({i.scenario})" for i in skipped))
+        print(f"  skipped by scenario kind: {', '.join(f'{k} {n}' for k, n in Counter(i.scenario for i in skipped).items())}")
+    if study.fixture_mode == "http":
+        print(f"  Fixtures: http. One server per cell on 127.0.0.1 and a free port; the gateway gets -X {study.fixture_setting}=127.0.0.1:<port> "
+              "(the setting's name is not final: --fixture-setting).")
+    else:
+        print("  Fixtures: files. Each scenario's files are written to its chat's folder under the cell's HOME; http://{{FIXTURE}}/<path> becomes <path>.")
 
 
 def print_plan(study: Study, planned: list[dict[str, Any]], problems: list[str]) -> None:
@@ -1297,8 +1371,12 @@ def print_plan(study: Study, planned: list[dict[str, Any]], problems: list[str])
         for name in study.arm_names:
             t = per_arm[name]
             kinds = sorted({i.kind for i in study.items(name)})
-            print(f"  {name}: {sum(t.values())} turns ({t['long']} in long chats, {t['teach']} teaching, {t['ask']} questions); kinds {', '.join(kinds) or 'none'}")
+            gate_turns = f", {t['gate']} in scenario chats" if t["gate"] else ""
+            print(f"  {name}: {sum(t.values())} turns ({t['long']} in long chats, {t['teach']} teaching, {t['ask']} questions{gate_turns}); kinds {', '.join(kinds) or 'none'}")
         print(f"Ask chats of followup items are {'kept' if study.keep_ask_chats else 'deleted after the item'}; long chats are kept.")
+        scenarios = [i for i in study.tasks.items if i.kind == "notegate"]
+        if scenarios:
+            print_gate_plan(study, scenarios)
     else:
         asked, taught = study.asked(), study.taught()
         turns = len(taught) + len(asked)
@@ -1348,7 +1426,13 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     ap.add_argument("--arms", default=None, help=f"comma-separated arms (default {','.join(DEFAULT_ARMS)} on tasks_v1, {','.join(DEFAULT_ARMS_V2)} on tasks_v2)")
     ap.add_argument("--arms-file", type=Path, help="JSON file that replaces the built-in arms: {name: {label, x: [KEY=VALUE...], embedding}}")
     ap.add_argument("--repeats", type=int, default=None, help=f"repeats per arm (default {REPEATS} on tasks_v1, {REPEATS_V2} on tasks_v2)")
-    ap.add_argument("--tasks", type=Path, default=data.DATA_FILE, help="the task file: tasks_v1.yaml (default) or tasks_v2.yaml, which selects the v2 protocol")
+    ap.add_argument("--tasks", type=Path, default=None, help=f"the task file: tasks_v1.yaml (default {data.DATA_FILE.name}) or tasks_v2.yaml, which selects the v2 protocol")
+    ap.add_argument(
+        "--scenarios", type=Path, default=None,
+        help="the note-gate scenarios JSON file (kept out of the repository): a v2 study of kind notegate, alone or added to the items of --tasks "
+        f"(a v2 file); without --arms-file the arms are {', '.join(data_v2.GATE_ARMS)} of {gate.ARMS_FILE.name}")
+    ap.add_argument("--fixtures", choices=gate.FIXTURE_MODES, default="files", help="scenarios: write their files to the chat's folder (files), or serve them from a localhost server of the cell (http) (default %(default)s)")
+    ap.add_argument("--fixture-setting", default=gate.FIXTURE_SETTING, help="scenarios, --fixtures http: the localmelo setting (-X NAME=127.0.0.1:<port>) that lets web_fetch reach the server (default %(default)s; the name is not final)")
     ap.add_argument(
         "--questions", default="",
         help="comma-separated question ids to ask (default all); teaches only the facts they need, plus the fillers. "
@@ -1382,16 +1466,23 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
 
 
 def build_study(args: argparse.Namespace) -> Study:
+    arms_file = args.arms_file or (gate.ARMS_FILE if args.scenarios else None)
     try:
-        arms = load_arms(args.arms_file) if args.arms_file else dict(ARMS)
+        arms = load_arms(arms_file) if arms_file else dict(ARMS)
     except ValueError as exc:
         raise SystemExit(str(exc)) from None
     try:
-        tasks = data_v2.load_any(args.tasks)
+        tasks = data_v2.load_any(args.tasks or data.DATA_FILE) if args.tasks or not args.scenarios else None
+        if args.scenarios:
+            if tasks is not None and not isinstance(tasks, data_v2.TaskSet):
+                raise SystemExit("--scenarios goes with a v2 task file (or none): the file given is a v1 one")
+            tasks = data_v2.load_scenarios(args.scenarios, tasks)
     except (ValueError, OSError) as exc:
         raise SystemExit(str(exc)) from None
+    assert tasks is not None
     v2 = isinstance(tasks, data_v2.TaskSet)
-    names = tuple(a.strip() for a in (args.arms or ",".join(DEFAULT_ARMS_V2 if v2 else DEFAULT_ARMS)).split(",") if a.strip())
+    default_arms = data_v2.GATE_ARMS if args.scenarios and not args.tasks else DEFAULT_ARMS_V2 if v2 else DEFAULT_ARMS
+    names = tuple(a.strip() for a in (args.arms or ",".join(default_arms)).split(",") if a.strip())
     unknown = [a for a in names if a not in arms]
     if unknown:
         raise SystemExit(f"unknown arm {', '.join(unknown)}; choose from {', '.join(arms)}")
@@ -1412,6 +1503,7 @@ def build_study(args: argparse.Namespace) -> Study:
         use_proxy=not args.no_proxy, capture_chars=args.capture_short_replies,
         use_stream=not args.no_stream,
         do_warmup=not args.no_warmup, turn_guard=turn_guard, cell_guard=cell_guard,
+        fixture_mode=args.fixtures, fixture_setting=args.fixture_setting,
     )
     try:
         check_study(study)

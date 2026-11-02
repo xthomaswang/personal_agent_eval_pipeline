@@ -155,9 +155,9 @@ def judge(facts: WindowFacts, rule: str) -> tuple[bool, str]:
 
 
 def notes_by_chat(home: Path) -> dict[str, list[dict[str, Any]]]:
-    """Every saved note (``long_term`` row) by the id of the chat that made it."""
-    rows = _query(Path(home) / RECORDS_DB, "SELECT session_id, text, status, kind FROM long_term ORDER BY id")
+    """Every saved note (``long_term`` row, with its ``id``) by the id of the chat that made it."""
+    rows = _query(Path(home) / RECORDS_DB, "SELECT session_id, text, status, kind, id FROM long_term ORDER BY id")
     out: dict[str, list[dict[str, Any]]] = {}
-    for session_id, text, status, kind in rows:
-        out.setdefault(str(session_id), []).append({"text": str(text), "status": str(status), "kind": str(kind)})
+    for session_id, text, status, kind, note_id in rows:
+        out.setdefault(str(session_id), []).append({"text": str(text), "status": str(status), "kind": str(kind), "id": int(note_id)})
     return out

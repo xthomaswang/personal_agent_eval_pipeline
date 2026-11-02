@@ -657,6 +657,9 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     ap.add_argument(
         "--compare", nargs="+", metavar=("OTHER_RUN_DIR", "ARM"),
         help="v2: pair this run with another run of the same task file, ask by ask: the arm in both (default: every arm both have)")
+    ap.add_argument("--scenarios", type=Path, default=None, help="v2: the note-gate scenarios file the run used (alone, unless --tasks is given too)")
+    ap.add_argument("--judge-url", default=None, help="v2 note gate: the model server (up to /v1) that says whether a note states a fact that has no key")
+    ap.add_argument("--judge-model", default=None, help="v2 note gate: the judge model's id on that server")
     return ap.parse_args(argv)
 
 
@@ -678,9 +681,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parse_args(argv)
     config = json.loads((args.run_dir / "across.json").read_text(encoding="utf-8")).get("config", {})
     if config.get("protocol") == "across-run-v3":  # a run on a v2 task file (run.PROTOCOL_V2): report_v2 reads it
-        from . import data_v2, report_v2
+        from . import report_v2
 
-        return report_v2.main(args.run_dir, args.tasks or v2_task_file(config.get("tasks_sha256")), args.compare)
+        listed = json.loads((args.run_dir / "tasks.json").read_text(encoding="utf-8")).get("items", []) if (args.run_dir / "tasks.json").exists() else []
+        if not args.scenarios and any(i.get("kind") == "notegate" for i in listed):
+            raise SystemExit("this run has note-gate scenarios: give the scenarios file it ran with, --scenarios <file.json>")
+        tasks = args.tasks or (None if args.scenarios else v2_task_file(config.get("tasks_sha256")))
+        return report_v2.main(args.run_dir, tasks, args.compare, args.scenarios, args.judge_url, args.judge_model)
     if args.compare:
         raise SystemExit("--compare reads runs of the v2 task file")
     pair = tuple(a.strip() for a in args.pair.split(","))
