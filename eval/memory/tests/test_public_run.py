@@ -578,6 +578,7 @@ def test_control_prompts_are_asked_on_the_first_homes_and_false_recall_is_counte
 
 def test_dry_run_prints_the_plan_and_writes_nothing(tmp_path, repo, models, capsys, monkeypatch):
     monkeypatch.setattr(tempfile, "tempdir", str(tmp_path))  # the preflight's throwaway HOME
+    monkeypatch.setattr(run, "gateway_problem", lambda melo, home: None)  # the fake checkout has no python of its own
     monkeypatch.delenv("BENCH_UPSTREAM_TOKEN_CMD", raising=False)
     monkeypatch.delenv("LONGMEMEVAL_DATA", raising=False)
     dataset = write_dataset(tmp_path / "mini.json")
@@ -618,3 +619,17 @@ def test_preflight_names_what_is_wrong(tmp_path, repo, models):
         assert run.preflight(cold) == []
     finally:
         bare.stop()
+
+
+def test_preflight_names_a_checkout_that_cannot_start_its_gateway(tmp_path, repo, models):
+    broken = make_public_study(tmp_path, repo, models, serve_check=lambda melo, home: f"{melo.name} cannot start melo serve")
+    assert run.preflight(broken) == ["melo cannot start melo serve"]
+    python = repo / ".venv" / "bin" / "python"
+    python.write_text("#!/bin/sh\necho 'ImportError: Gateway requires fastapi and uvicorn' >&2\nexit 1\n")
+    python.chmod(0o755)
+    problem = run.gateway_problem(repo / ".venv" / "bin" / "melo", tmp_path)
+    assert "cannot start melo serve (ImportError: Gateway requires fastapi and uvicorn)" in problem and "--all-extras" in problem
+    python.write_text("#!/bin/sh\nexit 0\n")
+    assert run.gateway_problem(repo / ".venv" / "bin" / "melo", tmp_path) is None
+    python.unlink()
+    assert "cannot be run" in run.gateway_problem(repo / ".venv" / "bin" / "melo", tmp_path)

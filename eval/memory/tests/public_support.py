@@ -108,6 +108,7 @@ def make_public_study(tmp_path, repo, models, launcher=None, questions=None, arm
         embedding_model="embed-model", judge_model="chat-model", data_path=Path("mini.json"), data_sha256="0" * 64,
         poll_s=0.01, launcher=launcher or PublicLauncher(), snapshot=lambda study: {"sw_vers": "ProductName: test", "xcodebuild_version": "Xcode test"},
         cold_start=False, do_warmup=False, sleep=lambda s: None, scratch=tmp_path, work_dir=tmp_path / "work",
+        serve_check=lambda melo, home: None,
     )
     options.update(kw)
     return run.Study(**options)

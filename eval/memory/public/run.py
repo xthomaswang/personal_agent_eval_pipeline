@@ -169,6 +169,21 @@ def load_control_prompts(spec: str) -> tuple[str, ...]:
 # --- the study ---
 
 
+def gateway_problem(melo: Path, home: Path) -> str | None:
+    """Why the checkout of ``melo`` cannot start `melo serve` (its gateway's packages are not installed), or None."""
+    python = melo.parent / "python"
+    try:
+        done = subprocess.run(
+            [str(python), "-c", "import localmelo.support.gateway"], capture_output=True, text=True, timeout=60, check=False,
+            stdin=subprocess.DEVNULL, env=server.serve_env(home))
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return f"{python} cannot be run: {exc}"
+    if done.returncode == 0:
+        return None
+    last = (done.stderr.strip().splitlines() or ["no output"])[-1]
+    return f"this localmelo checkout cannot start melo serve ({last}); set it up with uv sync --frozen --all-extras"
+
+
 @dataclass
 class Study:
     run_dir: Path
@@ -204,6 +219,7 @@ class Study:
     turn_guard: Callable[[], str | None] = lambda: None
     cell_guard: Callable[[], str | None] = lambda: None
     snapshot: Callable[[Study], dict[str, Any]] | None = None
+    serve_check: Callable[[Path, Path], str | None] | None = None  # None: gateway_problem
     verdict: Callable[[data.Question, str], judge.Verdict] | None = None
     sleep: Callable[[float], None] = time.sleep
 
@@ -281,6 +297,7 @@ def preflight(study: Study) -> list[str]:
             keys = {k for a in study.arm_names for k in (*(p.partition("=")[0] for p in study.arms[a].x), *settings_of(study.arms[a]))}
             problems += [
                 f"this localmelo build does not know the setting {k}" for k in sorted(keys) if not knows_setting(study.melo, Path(probe), k)]
+            problems += [p for p in [(study.serve_check or gateway_problem)(study.melo, Path(probe))] if p]
     try:
         listed, _ = server.model_ids(study.base_url)
     except (OSError, ValueError) as exc:
