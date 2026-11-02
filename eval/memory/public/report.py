@@ -361,7 +361,7 @@ def control_table(
 
 def cost_table(rows: Sequence[Mapping[str, Any]], arms: Sequence[str]) -> dict[str, dict[str, Any]]:
     """Per arm, what a finished question turn cost: prompt tokens of its first request and of all its requests, time to
-    first token and of the whole turn, model requests (a search or an open adds one) and listed items opened."""
+    first token and of the whole turn, model requests (a search or an open adds one) and the turns and items opened (list form or excerpt opens)."""
     out = {}
     for arm in arms:
         asked = [r for r in rows if r["arm"] == arm and r.get("state") == "finished"]
@@ -505,7 +505,7 @@ def render(rep: Mapping[str, Any]) -> str:
             ["search hit read from memory event / tool items / words",
              *(f"{cells[a]['via_memory']} / {cells[a]['via_items']} / {cells[a]['via_text']}" for a in arms)],
             ["turns with a `search_hint`", *(str(cells[a]["hints"]) for a in arms)],
-            ["turns that opened a listed turn", *(hit(cells[a]["opened"]) for a in arms)],
+            ["turns that opened a turn (`open_memory`)", *(hit(cells[a]["opened"]) for a in arms)],
             ["open hit (of those)", *(hit(cells[a]["open_hit"]) for a in arms)]])
 
     cost = rep.get("cost") or {}
@@ -520,7 +520,7 @@ def render(rep: Mapping[str, Any]) -> str:
             ["first request ms, to its first byte", *(med(cost[a]["ttft_ms"]) for a in arms)],
             ["turn ms", *(med(cost[a]["turn_ms"]) for a in arms)],
             ["model requests", *(med(cost[a]["chat_requests"]) for a in arms)],
-            ["listed items opened", *(med(cost[a]["opens"]) for a in arms)]])
+            ["turns and items opened (`open_memory`)", *(med(cost[a]["opens"]) for a in arms)]])
 
     ing = rep["ingest"]
     out += ["## Ingest", "",
@@ -587,7 +587,7 @@ def render(rep: Mapping[str, Any]) -> str:
             ["control cells (failed)", *(f"{ct[a]['cells']} ({ct[a]['failed']})" for a in arms)],
             ["false recall", *(hit(ct[a]["false_recall"]) for a in arms)],
             ["items used per control prompt", *(med(ct[a]["items_used"]) for a in arms)],
-            ["control prompts that opened a listed turn", *(hit(ct[a]["opened"]) for a in arms)],
+            ["control prompts that opened a turn", *(hit(ct[a]["opened"]) for a in arms)],
             ["control prompt tokens", *(med(ct[a]["prompt_tokens"]) for a in arms)],
             ["control first token ms", *(med(ct[a]["ttft_ms"]) for a in arms)],
             ["question prompt tokens", *(med(ct[a]["question_prompt_tokens"]) for a in arms)],

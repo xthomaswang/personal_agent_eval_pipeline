@@ -183,7 +183,7 @@ def test_opens_per_arm_and_on_the_controls(tmp_path):
     assert (cell["opened"]["k"], cell["opened"]["n"], cell["open_hit"]["k"], cell["open_hit"]["n"]) == (1, 2, 1, 1)
     assert (rep["control"]["A"]["opened"]["k"], rep["control"]["A"]["opened"]["n"]) == (1, 1)
     text = report.render(rep)
-    assert "turns that opened a listed turn" in text and "control prompts that opened a listed turn" in text
+    assert "turns that opened a turn (`open_memory`)" in text and "control prompts that opened a turn" in text
 
 
 def test_an_items_arm_puts_a_wrong_answer_at_the_step_the_item_lost_it():

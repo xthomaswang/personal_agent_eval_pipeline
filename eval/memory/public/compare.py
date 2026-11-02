@@ -107,12 +107,12 @@ def render(cmp: Mapping[str, Any], note: str = "") -> str:
     out += report.table(["", *names], [
         ["auto hit", *(report.hit(rt[n]["auto_hit"]) for n in names)], ["turns that searched", *(report.hit(rt[n]["searched"]) for n in names)],
         ["search hit (of those)", *(report.hit(rt[n]["search_hit"]) for n in names)], ["either", *(report.hit(rt[n]["either"]) for n in names)],
-        ["turns that opened a listed turn", *(report.hit(rt[n]["opened"]) for n in names)]])
+        ["turns that opened a turn (`open_memory`)", *(report.hit(rt[n]["opened"]) for n in names)]])
     ct = cmp["control"]
     out += ["## Control and cost", ""]
     out += report.table(["", *names], [
         ["false recall", *(report.hit(ct[n]["false_recall"]) for n in names)],
-        ["control prompts that opened a listed turn", *(report.hit(ct[n]["opened"]) for n in names)],
+        ["control prompts that opened a turn", *(report.hit(ct[n]["opened"]) for n in names)],
         ["question prompt tokens", *(report.med(ct[n]["question_prompt_tokens"]) for n in names)],
         ["question first token ms", *(report.med(ct[n]["question_ttft_ms"]) for n in names)]])
     return "\n".join(out).rstrip() + "\n"
