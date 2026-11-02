@@ -1,0 +1,17 @@
+{
+  "A": {"label": "localmelo as shipped (notes + turns, 3 + 2 items, 900 characters); web_fetch and task follow-up off in every arm",
+        "x": ["memory.retriever=embedding"], "embedding": true,
+        "config": {"tools.web_fetch": false, "tasks.follow_up": false}},
+  "A-long": {"label": "a longer look at each turn: 900 characters per turn, 4000 per block",
+             "x": ["memory.retriever=embedding"], "embedding": true,
+             "config": {"tools.web_fetch": false, "tasks.follow_up": false, "memory.recall_item_chars": 900, "memory.recall_chars": 4000}},
+  "A-match": {"label": "the sentences of a turn that best match the question instead of its head",
+              "x": ["memory.retriever=embedding"], "embedding": true,
+              "config": {"tools.web_fetch": false, "tasks.follow_up": false, "memory.recall_excerpt": "match"}},
+  "A-loose": {"label": "lower recall bars: cosine 0.45, word coverage 0.4",
+              "x": ["memory.retriever=embedding"], "embedding": true,
+              "config": {"tools.web_fetch": false, "tasks.follow_up": false, "memory.recall_min_cosine": 0.45, "memory.recall_min_coverage": 0.4}},
+  "C-list-raw": {"label": "recall as a list of titles the model opens with open_memory (20 lines, 4000 characters per opened turn)",
+                 "x": ["memory.retriever=embedding"], "embedding": true,
+                 "config": {"tools.web_fetch": false, "tasks.follow_up": false, "memory.recall_form": "list"}}
+}
