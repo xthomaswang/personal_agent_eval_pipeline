@@ -204,6 +204,7 @@ class Study:
     work_dir: Path | None = None  # where ingest files and HOMEs live (default <run-dir>/work)
     keep_homes: bool = False
     ingest_x: tuple[str, ...] = ()  # more `melo memory ingest -X` pairs, e.g. ingest=compress (the same for every arm)
+    ingest_settings: dict[str, Any] = field(default_factory=dict)  # dotted config.toml entries of the ingest HOME only
     control_prompts: tuple[str, ...] = ()
     control_homes: int = 20
     cold_start: bool = True  # unload the embedding model before each cell, so every cell starts without it
@@ -255,7 +256,8 @@ class Study:
             "embedding_model": self.embedding_model,
             "judge_model": self.judge_model,
             "base_settings": BASE_SETTINGS,
-            "ingest": {"notes": INGEST_NOTES, **({"x": list(self.ingest_x)} if self.ingest_x else {})},
+            "ingest": {"notes": INGEST_NOTES, **({"x": list(self.ingest_x)} if self.ingest_x else {}),
+                       **({"settings": dict(self.ingest_settings)} if self.ingest_settings else {})},
             "control": {"prompts": list(self.control_prompts), "homes": self.control_homes} if self.control_prompts else None,
             "cold_start": self.cold_start,
             "turn_timeout_s": self.turn_timeout_s,
@@ -351,7 +353,8 @@ def template_home(study: Study, qdir: Path) -> Path:
     home = qdir / "template"
     shutil.rmtree(home, ignore_errors=True)
     home.mkdir(parents=True)
-    server.write_config(home, server.config_document(study.base_url, study.model, study.embedding_model, None, BASE_SETTINGS))
+    settings = {**BASE_SETTINGS, **study.ingest_settings}  # e.g. memory.compress_cache, which `melo memory ingest -X` refuses
+    server.write_config(home, server.config_document(study.base_url, study.model, study.embedding_model, None, settings))
     return home
 
 
@@ -971,6 +974,8 @@ def print_plan(study: Study, problems: list[str]) -> None:
     print(f"Output: {study.run_dir} (public.json, questions.json, environment.json, results.jsonl, controls.jsonl, cells/, questions/)")
     if study.ingest_x:
         print(f"Ingest: melo memory ingest -X notes={INGEST_NOTES} {' '.join(f'-X {x}' for x in study.ingest_x)}")
+    if study.ingest_settings:
+        print(f"Ingest HOME config.toml: {', '.join(f'{k}={v!r}' for k, v in study.ingest_settings.items())}")
     for name in study.arm_names:
         arm = study.arms[name]
         config = f" [config.toml: {', '.join(f'{k}={v}' for k, v in arm.config.items())}]" if arm.config else ""
@@ -1019,6 +1024,10 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     ap.add_argument(
         "--ingest-x", action="append", default=[], metavar="KEY=VALUE",
         help="one more `melo memory ingest -X` pair for every question, e.g. ingest=compress (repeat for more)")
+    ap.add_argument(
+        "--ingest-setting", action="append", default=[], metavar="KEY=VALUE",
+        help="a dotted config.toml entry of the ingest HOME only, e.g. memory.compress_cache=/path (a JSON value, else a string; "
+        "repeat for more)")
     ap.add_argument("--turn-timeout", type=float, default=TURN_TIMEOUT_S, help="seconds a question's turn may take (default %(default)s)")
     ap.add_argument("--ingest-timeout", type=float, default=INGEST_TIMEOUT_S, help="seconds one ingest may take (default %(default)s)")
     ap.add_argument(
@@ -1044,6 +1053,20 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     return ap.parse_args(argv)
 
 
+def parse_settings(pairs: Sequence[str]) -> dict[str, Any]:
+    """``KEY=VALUE`` pairs as dotted config entries: a value that reads as JSON (true, 4000) is that, else the string."""
+    out: dict[str, Any] = {}
+    for pair in pairs:
+        key, equals, value = pair.partition("=")
+        if not equals or not key.strip():
+            raise SystemExit(f"--ingest-setting takes KEY=VALUE, got {pair!r}")
+        try:
+            out[key.strip()] = json.loads(value)
+        except ValueError:
+            out[key.strip()] = value
+    return out
+
+
 def build_study(args: argparse.Namespace) -> Study:
     if not args.data:
         raise SystemExit("--data (or $LONGMEMEVAL_DATA) names the LongMemEval-S file")
@@ -1067,6 +1090,7 @@ def build_study(args: argparse.Namespace) -> Study:
         expect_sha=args.localmelo_sha, base_url=args.base_url, model=args.model, embedding_model=args.embedding_model,
         judge_model=args.judge_model or args.model, data_path=args.data, data_sha256=data.file_sha256(args.data),
         stage=(args.per_type, args.abstention, args.seed), work_dir=args.work_dir, keep_homes=args.keep_homes, ingest_x=tuple(args.ingest_x),
+        ingest_settings=parse_settings(args.ingest_setting),
         control_prompts=prompts, control_homes=args.control_homes, cold_start=not args.no_cold_start,
         unload_timeout_s=args.unload_timeout, turn_timeout_s=args.turn_timeout, ingest_timeout_s=args.ingest_timeout,
         use_stream=not args.no_stream, do_warmup=not args.no_warmup, turn_guard=turn_guard, cell_guard=cell_guard)

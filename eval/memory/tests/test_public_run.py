@@ -71,6 +71,21 @@ def test_ingest_passes_the_runs_extra_pairs_and_only_then_names_them(tmp_path, m
     assert plain.identity()["ingest"] == {"notes": "rules"}  # the identity of a run without them is as before
 
 
+def test_ingest_settings_go_into_the_ingest_home_only(tmp_path):
+    assert run.parse_settings(["memory.compress_cache=/r/c.json", "memory.compress_at_chars=8000", "a.b=true"]) == {
+        "memory.compress_cache": "/r/c.json", "memory.compress_at_chars": 8000, "a.b": True}
+    with pytest.raises(SystemExit):
+        run.parse_settings(["memory.compress_cache"])
+    study = run.Study(run_dir=tmp_path, questions=mini_questions(), ids=("q1aa",), arms={}, arm_names=(), repeats=1,
+                      localmelo=tmp_path, expect_sha="", base_url="http://127.0.0.1:1/v1", model="m", embedding_model="e",
+                      judge_model="", ingest_settings={"memory.compress_cache": "/r/c.json"})
+    home = run.template_home(study, tmp_path / "q")
+    config = tomllib.loads((home / ".cache" / "localmelo" / "config.toml").read_text())
+    assert config["memory"]["compress_cache"] == "/r/c.json" and config["memory"]["retriever"] == "embedding"
+    assert study.identity()["ingest"] == {"notes": "rules", "settings": {"memory.compress_cache": "/r/c.json"}}
+    assert run.Study(**{**study.__dict__, "ingest_settings": {}}).identity()["ingest"] == {"notes": "rules"}
+
+
 def test_launch_env_is_merged_and_cannot_undo_the_isolation(tmp_path):
     base = {"PATH": "/usr/bin", "HOME": "/real", "EXAMPLE_API_KEY": "k"}
     assert "LOCALMELO_NOW" not in server.serve_env(tmp_path, base) and server.serve_env(tmp_path, base) == server.serve_env(tmp_path, base, None)
