@@ -39,3 +39,22 @@ def test_runs_of_other_questions_or_a_missing_arm_are_refused(tmp_path, capsys):
     assert any("questions differs" in p for p in problems) and any("no arm 'B'" in p for p in problems)
     assert compare.main([f"{a}:A", f"{b}:L"]) == 2
     assert "questions differs" in capsys.readouterr().err
+
+
+def test_shared_keeps_every_column_to_the_questions_all_asked(tmp_path, capsys):
+    a, b = two_runs(tmp_path)
+    public = json.loads((b / "public.json").read_text())
+    public["config"]["questions"] = ["q1", "q2"]
+    (b / "public.json").write_text(json.dumps(public))
+    columns, problems = compare.load_columns([f"{b}:L", f"{a}:A"], shared=True)
+    assert problems == []
+    cmp = compare.compare(columns, resamples=100, shared=True)
+    assert cmp["shared"] == 2 and [c["expected"] for c in cmp["columns"]] == [4, 4]
+    assert abs(cmp["accuracy"]["all"]["tm22/A"]["accuracy"] - 0.75) < 1e-9
+    paired = next(p for p in cmp["paired"] if p["group"] == "all")
+    assert (paired["questions"], paired["a_better"], paired["b_better"]) == (2, 1, 0)
+    assert "kept to the 2 questions all of them asked" in compare.render(cmp)
+    public["config"]["questions"] = ["q9"]
+    (b / "public.json").write_text(json.dumps(public))
+    assert compare.main([f"{a}:A", f"{b}:L", "--shared"]) == 2
+    assert "share no question" in capsys.readouterr().err
