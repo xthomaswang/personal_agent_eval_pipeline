@@ -512,11 +512,12 @@ def render(rep: Mapping[str, Any]) -> str:
     if cost:
         out += ["## Cost per question turn", "",
                 "Medians / p90 over the finished question turns. The first request's prompt is what recall adds to every turn; a "
-                "search or an open makes another request, whose prompt counts in the turn's total.", ""]
+                "search or an open makes another request, whose prompt counts in the turn's total. The first request's time runs to "
+                "its first byte: the first token when it streams, the whole reply (often a short tool call) when it does not.", ""]
         out += table(["", *arms], [
             ["prompt tokens, first request", *(med(cost[a]["prompt_tokens"]) for a in arms)],
             ["prompt tokens, all requests", *(med(cost[a]["turn_prompt_tokens"]) for a in arms)],
-            ["first token ms", *(med(cost[a]["ttft_ms"]) for a in arms)],
+            ["first request ms, to its first byte", *(med(cost[a]["ttft_ms"]) for a in arms)],
             ["turn ms", *(med(cost[a]["turn_ms"]) for a in arms)],
             ["model requests", *(med(cost[a]["chat_requests"]) for a in arms)],
             ["listed items opened", *(med(cost[a]["opens"]) for a in arms)]])
