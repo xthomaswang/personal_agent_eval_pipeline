@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import http.client
 import json
+import re
 import threading
 import time
 import urllib.parse
@@ -34,6 +35,9 @@ from typing import Any
 HOP_BY_HOP = {"connection", "keep-alive", "proxy-authenticate", "proxy-authorization", "te", "trailers", "transfer-encoding", "upgrade", "host"}
 CHUNK = 65536
 JSON_BODY_LIMIT = 8 * 1024 * 1024
+TAIL_BYTES = 4096  # what is kept of a reply's end for its finish_reason and completion_tokens
+FINISH_RE = re.compile(rb'"finish_reason"\s*:\s*"([a-z_]+)"')
+TOKENS_RE = re.compile(rb'"completion_tokens"\s*:\s*(\d+)')
 
 
 def describe(path: str, body: bytes) -> dict[str, Any]:
@@ -162,7 +166,9 @@ class TimingProxy:
                 h.send_header("Transfer-Encoding", "chunked")
             h.end_headers()
             kept: list[bytes] | None = [] if self.capture and row["stream"] is False and resp.status == 200 else None
-            self.stream_body(h, resp, row, chunked=length is None, keep=kept)
+            tail = self.stream_body(h, resp, row, chunked=length is None, keep=kept)
+            if h.path.endswith("/chat/completions"):
+                row.update(reply_end(tail))
             if kept is not None:
                 self.capture_short(t_start, body, b"".join(kept))
         except (BrokenPipeError, ConnectionResetError) as exc:
@@ -193,11 +199,13 @@ class TimingProxy:
     def stream_body(
         h: BaseHTTPRequestHandler, resp: http.client.HTTPResponse, row: dict[str, Any], *, chunked: bool,
         keep: list[bytes] | None = None,
-    ) -> None:
+    ) -> bytes:
+        tail = b""
         while True:
             data = resp.read1(CHUNK)
             if not data:
                 break
+            tail = (tail + data)[-TAIL_BYTES:]
             if keep is not None and sum(map(len, keep)) + len(data) <= JSON_BODY_LIMIT:
                 keep.append(data)
             if row["t_first_byte"] is None:
@@ -209,6 +217,16 @@ class TimingProxy:
             h.wfile.write(b"0\r\n\r\n")
             h.wfile.flush()
         row["t_end"] = time.time()
+        return tail
+
+
+def reply_end(tail: bytes) -> dict[str, Any]:
+    """``finish_reason`` and ``completion_tokens`` of a chat completion, from the last bytes of its body (a JSON reply or
+    the last events of a stream both end with them); None where the tail does not say."""
+    reasons = FINISH_RE.findall(tail)
+    tokens = TOKENS_RE.findall(tail)
+    return {"finish_reason": reasons[-1].decode() if reasons else None,
+            "completion_tokens": int(tokens[-1]) if tokens else None}
 
 
 def read_log(path: Path) -> list[dict[str, Any]]:

@@ -167,3 +167,13 @@ def test_a_reply_longer_than_the_limit_is_not_captured_and_without_a_path_nothin
         q.stop()
     assert not (tmp_path / "cap.jsonl").exists()
     assert sorted(f.name for f in tmp_path.iterdir()) == ["log.jsonl", "log2.jsonl"]
+
+
+def test_reply_end_reads_how_a_chat_reply_ended():
+    whole = json.dumps({"choices": [{"message": {"content": "x" * 9000}, "finish_reason": "length"}],
+                        "usage": {"prompt_tokens": 10, "completion_tokens": 2000}}).encode()
+    assert proxy.reply_end(whole[-proxy.TAIL_BYTES:]) == {"finish_reason": "length", "completion_tokens": 2000}
+    stream = (b'data: {"choices": [{"delta": {"content": "a"}, "finish_reason": null}]}\n\n'
+              b'data: {"choices": [{"delta": {}, "finish_reason": "stop"}], "usage": {"completion_tokens": 7}}\n\ndata: [DONE]\n\n')
+    assert proxy.reply_end(stream) == {"finish_reason": "stop", "completion_tokens": 7}
+    assert proxy.reply_end(b"") == {"finish_reason": None, "completion_tokens": None}

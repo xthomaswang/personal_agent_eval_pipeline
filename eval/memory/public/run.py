@@ -205,6 +205,8 @@ class Study:
     keep_homes: bool = False
     ingest_x: tuple[str, ...] = ()  # more `melo memory ingest -X` pairs, e.g. ingest=compress (the same for every arm)
     ingest_settings: dict[str, Any] = field(default_factory=dict)  # dotted config.toml entries of the ingest HOME only
+    ingest_extra_body: dict[str, Any] = field(default_factory=dict)  # the ingest HOME's [vllm.extra_body] (e.g. thinking off)
+    ingest_fail_fast: bool = False  # stop the run after its first ingest when the encoder failed (ingest_problem)
     control_prompts: tuple[str, ...] = ()
     control_homes: int = 20
     cold_start: bool = True  # unload the embedding model before each cell, so every cell starts without it
@@ -257,7 +259,8 @@ class Study:
             "judge_model": self.judge_model,
             "base_settings": BASE_SETTINGS,
             "ingest": {"notes": INGEST_NOTES, **({"x": list(self.ingest_x)} if self.ingest_x else {}),
-                       **({"settings": dict(self.ingest_settings)} if self.ingest_settings else {})},
+                       **({"settings": dict(self.ingest_settings)} if self.ingest_settings else {}),
+                       **({"extra_body": dict(self.ingest_extra_body)} if self.ingest_extra_body else {})},
             "control": {"prompts": list(self.control_prompts), "homes": self.control_homes} if self.control_prompts else None,
             "cold_start": self.cold_start,
             "turn_timeout_s": self.turn_timeout_s,
@@ -348,14 +351,56 @@ def system_snapshot(study: Study) -> dict[str, Any]:
 # --- ingest ---
 
 
-def template_home(study: Study, qdir: Path) -> Path:
-    """A new HOME for ``qdir``'s question with the config.toml ingest needs: developer mode, the model URLs, the embedding model."""
+def template_home(study: Study, qdir: Path, url: str | None = None) -> Path:
+    """A new HOME for ``qdir``'s question with the config.toml ingest needs: developer mode, the model URLs (``url``, else
+    the model server), the embedding model, and the ingest's own extra body and settings."""
     home = qdir / "template"
     shutil.rmtree(home, ignore_errors=True)
     home.mkdir(parents=True)
-    settings = {**BASE_SETTINGS, **study.ingest_settings}  # e.g. memory.compress_cache, which `melo memory ingest -X` refuses
-    server.write_config(home, server.config_document(study.base_url, study.model, study.embedding_model, None, settings))
+    write_ingest_config(study, home, url or study.base_url)
     return home
+
+
+def write_ingest_config(study: Study, home: Path, url: str) -> None:
+    settings = {**BASE_SETTINGS, **study.ingest_settings}  # e.g. memory.compress_cache, which `melo memory ingest -X` refuses
+    server.write_config(home, server.config_document(
+        url, study.model, study.embedding_model, study.ingest_extra_body or None, settings))
+
+
+def ingest_requests(rows: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    """The chat requests an ingest made (the encoder's, with ingest=compress), from its proxy log: how many, how many stopped
+    at the token cap (``finish_reason`` length) or did not say, and the largest reply."""
+    chat = [r for r in rows if str(r.get("path", "")).endswith("/chat/completions")]
+    tokens = [int(r["completion_tokens"]) for r in chat if isinstance(r.get("completion_tokens"), int)]
+    return {"chat": len(chat), "length": sum(1 for r in chat if r.get("finish_reason") == "length"),
+            "finish_unknown": sum(1 for r in chat if not r.get("finish_reason")), "completion_tokens_max": max(tokens, default=None)}
+
+
+def compress_summary(compress: Any) -> dict[str, int] | None:
+    """A compress ingest's windows (failed, from the cache, cut), the items it wrote and the items the rules forced."""
+    if not isinstance(compress, Mapping):
+        return None
+    sessions = [s for s in compress.values() if isinstance(s, Mapping)]
+    windows = [w for s in sessions for w in (s.get("windows") or []) if isinstance(w, Mapping)]
+    return {"windows": len(windows), "failed": sum(1 for w in windows if w.get("failed")),
+            "cached": sum(1 for w in windows if w.get("cached")), "cut": sum(1 for w in windows if w.get("cut")),
+            "items": sum(len(s.get("items") or []) for s in sessions),
+            "forced": sum(len((s.get("gate") or {}).get("forced") or []) for s in sessions)}
+
+
+INGEST_FAILED_MAX = 0.10  # --ingest-fail-fast: the most windows the first ingest may fail
+
+
+def ingest_problem(report: Mapping[str, Any]) -> str:
+    """Why an ingest's encoder cannot be trusted ("" when it can): a reply that stopped at the token cap, or more than
+    INGEST_FAILED_MAX of the windows failed."""
+    length = (report.get("requests") or {}).get("length") or 0
+    if length:
+        return f"{length} encoder repl{'y' if length == 1 else 'ies'} stopped at the token cap (finish_reason length)"
+    summary = report.get("compress_summary") or {}
+    if summary.get("windows") and summary["failed"] / summary["windows"] > INGEST_FAILED_MAX:
+        return f"{summary['failed']} of {summary['windows']} encoder windows failed (more than {INGEST_FAILED_MAX:.0%})"
+    return ""
 
 
 def parse_report(stdout: str) -> dict[str, Any]:
@@ -377,7 +422,9 @@ def ingest(study: Study, question: data.Question, qdir: Path) -> dict[str, Any]:
 
     The ingest file is written under ``qdir`` and removed afterwards (it is the dataset's text). IngestError for an exit
     code other than 0 (2: not in developer mode or a bad file, 1: a gateway owns the HOME) or an output that is not JSON."""
-    home = template_home(study, qdir)
+    # the ingest talks to the model server through a proxy, whose log says how each encoder reply ended
+    timing = proxy.TimingProxy(study.base_url, qdir / "ingest_proxy.jsonl") if study.base_url.startswith("http") else None
+    home = template_home(study, qdir, timing.url if timing else None)
     source = qdir / "ingest_input.json"
     source.write_text(json.dumps(data.to_ingest(question), ensure_ascii=False), encoding="utf-8")
     cmd = [str(study.melo), "memory", "ingest", str(source), "-j", "-X", f"notes={INGEST_NOTES}"]
@@ -389,12 +436,21 @@ def ingest(study: Study, question: data.Question, qdir: Path) -> dict[str, Any]:
     except (OSError, subprocess.TimeoutExpired) as exc:
         raise IngestError(f"{question['question_id']}: melo memory ingest did not run to the end: {exc}") from exc
     finally:
+        if timing:
+            timing.stop()
         if not study.keep_homes:
             source.unlink(missing_ok=True)
     if done.returncode != 0:
         raise IngestError(f"{question['question_id']}: melo memory ingest exited {done.returncode}: {done.stderr.strip()[-300:]}")
     shutil.rmtree(home / ".cache" / "localmelo" / "gateway" / "auth", ignore_errors=True)  # no stale token for a cell to read
-    return parse_report(done.stdout)
+    write_ingest_config(study, home, study.base_url)  # the proxy is gone (a cell writes its own config.toml anyway)
+    report = parse_report(done.stdout)
+    if timing:
+        report["requests"] = ingest_requests(proxy.read_log(qdir / "ingest_proxy.jsonl"))
+    summary = compress_summary(report.get("compress"))
+    if summary is not None:
+        report["compress_summary"] = summary
+    return report
 
 
 # --- reading a turn ---
@@ -892,6 +948,7 @@ def run_study(study: Study) -> int:
         across.log(log_path, f"judged again: {fixed} rows")
     questions = study.by_id()
     code = 0
+    first_ingest = True  # --ingest-fail-fast checks the first ingest of this run
     for index, qid in enumerate(study.ids):
         question = questions[qid]
         done = {(r["arm"], r["repeat"]) for r in read_rows(results) if r.get("question_id") == qid}
@@ -914,6 +971,15 @@ def run_study(study: Study) -> int:
             across.save(ids_path, report)
             if report.get("error"):
                 across.log(log_path, f"{qid}: the embedding model failed during ingest: {report['error']}")
+            problem = ingest_problem(report) if study.ingest_fail_fast and first_ingest else ""
+            first_ingest = False
+            if problem:
+                across.log(log_path, f"== {qid}: {problem}; stopping the run (--ingest-fail-fast)")
+                print(f"{qid}: {problem}; stopping the run (--ingest-fail-fast)", file=sys.stderr)
+                code = 4
+                break
+            encoder = {**report["compress_summary"], "length": (report.get("requests") or {}).get("length")} \
+                if report.get("compress_summary") else None
             template = qdir / "template"
             ids = report.get("ids") or {}
             stopped = False
@@ -926,6 +992,8 @@ def run_study(study: Study) -> int:
                 arm = study.arms[arm_name]
                 asked = ask(study, arm, question, str(question["question"]), f"{arm_name}__r{repeat}", template)
                 row = question_row(study, arm, repeat, question, ids, asked, report.get("compress"))
+                if encoder:
+                    row["ingest_encoder"] = encoder  # the question's compress ingest: windows, failed, forced, replies at the cap
                 across.Journal(results).append(row)
                 across.log(log_path, f"{qid} {arm_name} r{repeat}: {row['state']}, correct={row['correct']}")
             for arm_name in [] if stopped else todo_ctl:  # the controls come after the question's own cells
@@ -976,6 +1044,11 @@ def print_plan(study: Study, problems: list[str]) -> None:
         print(f"Ingest: melo memory ingest -X notes={INGEST_NOTES} {' '.join(f'-X {x}' for x in study.ingest_x)}")
     if study.ingest_settings:
         print(f"Ingest HOME config.toml: {', '.join(f'{k}={v!r}' for k, v in study.ingest_settings.items())}")
+    if study.ingest_extra_body:
+        print(f"Ingest HOME [vllm.extra_body]: {json.dumps(study.ingest_extra_body)}")
+    if study.ingest_fail_fast:
+        print(f"Ingest fail-fast: the run stops after its first ingest if an encoder reply hit the token cap or over "
+              f"{INGEST_FAILED_MAX:.0%} of its windows failed")
     for name in study.arm_names:
         arm = study.arms[name]
         config = f" [config.toml: {', '.join(f'{k}={v}' for k, v in arm.config.items())}]" if arm.config else ""
@@ -1025,6 +1098,13 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         "--ingest-x", action="append", default=[], metavar="KEY=VALUE",
         help="one more `melo memory ingest -X` pair for every question, e.g. ingest=compress (repeat for more)")
     ap.add_argument(
+        "--ingest-extra-body", type=json.loads, default={}, metavar="JSON",
+        help='the ingest HOME\'s [vllm.extra_body], e.g. \'{"chat_template_kwargs": {"enable_thinking": false}}\' (cells keep their arm\'s)')
+    ap.add_argument(
+        "--ingest-fail-fast", action="store_true",
+        help=f"stop the run (exit 4) when its first ingest had an encoder reply at the token cap or more than "
+        f"{INGEST_FAILED_MAX:.0%} failed windows")
+    ap.add_argument(
         "--ingest-setting", action="append", default=[], metavar="KEY=VALUE",
         help="a dotted config.toml entry of the ingest HOME only, e.g. memory.compress_cache=/path (a JSON value, else a string; "
         "repeat for more)")
@@ -1051,6 +1131,12 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         "--dry-run", action="store_true",
         help="print the plan and the checks; ingest nothing, start no gateway, send no request to a model")
     return ap.parse_args(argv)
+
+
+def ingest_body(value: Any) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        raise SystemExit("--ingest-extra-body takes a JSON object")
+    return value
 
 
 def parse_settings(pairs: Sequence[str]) -> dict[str, Any]:
@@ -1090,7 +1176,8 @@ def build_study(args: argparse.Namespace) -> Study:
         expect_sha=args.localmelo_sha, base_url=args.base_url, model=args.model, embedding_model=args.embedding_model,
         judge_model=args.judge_model or args.model, data_path=args.data, data_sha256=data.file_sha256(args.data),
         stage=(args.per_type, args.abstention, args.seed), work_dir=args.work_dir, keep_homes=args.keep_homes, ingest_x=tuple(args.ingest_x),
-        ingest_settings=parse_settings(args.ingest_setting),
+        ingest_settings=parse_settings(args.ingest_setting), ingest_extra_body=ingest_body(args.ingest_extra_body),
+        ingest_fail_fast=args.ingest_fail_fast,
         control_prompts=prompts, control_homes=args.control_homes, cold_start=not args.no_cold_start,
         unload_timeout_s=args.unload_timeout, turn_timeout_s=args.turn_timeout, ingest_timeout_s=args.ingest_timeout,
         use_stream=not args.no_stream, do_warmup=not args.no_warmup, turn_guard=turn_guard, cell_guard=cell_guard)

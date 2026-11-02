@@ -59,7 +59,7 @@ def test_ingest_passes_the_runs_extra_pairs_and_only_then_names_them(tmp_path, m
         stdout = json.dumps({"sessions": 1, "ids": {}})
 
     monkeypatch.setattr(run.subprocess, "run", lambda cmd, **kw: seen.append(cmd) or Done())
-    monkeypatch.setattr(run, "template_home", lambda study, qdir: tmp_path / "home")
+    monkeypatch.setattr(run, "template_home", lambda study, qdir, url=None: tmp_path / "home")
     study = run.Study(run_dir=tmp_path, questions=mini_questions(), ids=("q1aa",), arms={}, arm_names=(), repeats=1,
                       localmelo=tmp_path, expect_sha="", base_url="", model="", embedding_model="", judge_model="",
                       ingest_x=("ingest=compress", "memory.compress_cache=/c.jsonl"))
@@ -78,12 +78,33 @@ def test_ingest_settings_go_into_the_ingest_home_only(tmp_path):
         run.parse_settings(["memory.compress_cache"])
     study = run.Study(run_dir=tmp_path, questions=mini_questions(), ids=("q1aa",), arms={}, arm_names=(), repeats=1,
                       localmelo=tmp_path, expect_sha="", base_url="http://127.0.0.1:1/v1", model="m", embedding_model="e",
-                      judge_model="", ingest_settings={"memory.compress_cache": "/r/c.json"})
-    home = run.template_home(study, tmp_path / "q")
+                      judge_model="", ingest_settings={"memory.compress_cache": "/r/c.json"},
+                      ingest_extra_body={"chat_template_kwargs": {"enable_thinking": False}})
+    home = run.template_home(study, tmp_path / "q", "http://127.0.0.1:2/v1")
     config = tomllib.loads((home / ".cache" / "localmelo" / "config.toml").read_text())
     assert config["memory"]["compress_cache"] == "/r/c.json" and config["memory"]["retriever"] == "embedding"
-    assert study.identity()["ingest"] == {"notes": "rules", "settings": {"memory.compress_cache": "/r/c.json"}}
-    assert run.Study(**{**study.__dict__, "ingest_settings": {}}).identity()["ingest"] == {"notes": "rules"}
+    assert config["vllm"]["chat_url"] == "http://127.0.0.1:2/v1"  # the ingest's proxy
+    assert config["vllm"]["extra_body"] == {"chat_template_kwargs": {"enable_thinking": False}}
+    assert study.identity()["ingest"] == {"notes": "rules", "settings": {"memory.compress_cache": "/r/c.json"},
+                                          "extra_body": {"chat_template_kwargs": {"enable_thinking": False}}}
+    assert run.Study(**{**study.__dict__, "ingest_settings": {}, "ingest_extra_body": {}}).identity()["ingest"] == {"notes": "rules"}
+
+
+def test_an_encoder_at_its_token_cap_or_failing_windows_stops_the_run():
+    window = {"exchanges": 3, "chars": 9000, "cached": False, "failed": False, "cut": False, "dropped": 0}
+    compress = {"s1": {"windows": [window, {**window, "failed": True}], "gate": {"forced": [4]}, "items": [{}, {}]},
+                "s2": {"windows": [{**window, "cached": True}] * 8, "gate": {"forced": []}, "items": [{}]}}
+    summary = run.compress_summary(compress)
+    assert summary == {"windows": 10, "failed": 1, "cached": 8, "cut": 0, "items": 3, "forced": 1} and run.compress_summary(None) is None
+    rows = [{"path": "/v1/chat/completions", "finish_reason": "stop", "completion_tokens": 900},
+            {"path": "/v1/chat/completions", "finish_reason": "length", "completion_tokens": 2000},
+            {"path": "/v1/embeddings"}, {"path": "/v1/chat/completions"}]
+    assert run.ingest_requests(rows) == {"chat": 3, "length": 1, "finish_unknown": 1, "completion_tokens_max": 2000}
+    assert run.ingest_problem({"compress_summary": summary, "requests": {"length": 0}}) == ""  # 10% is allowed
+    assert "token cap" in run.ingest_problem({"compress_summary": summary, "requests": {"length": 1}})
+    many = {**summary, "failed": 2}
+    assert run.ingest_problem({"compress_summary": many, "requests": {"length": 0}}) == "2 of 10 encoder windows failed (more than 10%)"
+    assert run.ingest_problem({"requests": {"chat": 0, "length": 0}}) == ""  # a turns ingest has no encoder
 
 
 def test_launch_env_is_merged_and_cannot_undo_the_isolation(tmp_path):
