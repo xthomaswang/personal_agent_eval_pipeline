@@ -1,7 +1,9 @@
 {
-  "A": {"label": "localmelo as shipped (recall gives 900 characters per item, 4000 in all, from this build on); web_fetch and task follow-up off in every arm",
-        "x": ["memory.retriever=embedding"], "embedding": true, "config": {"tools.web_fetch": false, "tasks.follow_up": false}},
+  "A": {"label": "localmelo as shipped (recall gives 900 characters per item, 4000 in all, from this build on); web_fetch, task follow-up and a new chat's digest of other chats off in every arm",
+        "x": ["memory.retriever=embedding"], "embedding": true,
+        "config": {"tools.web_fetch": false, "tasks.follow_up": false, "chat.recent_digest_minutes": 0}},
   "A-open": {"label": "A, and a cut excerpt line starts with its turn tag, which the model can open whole with open_memory",
              "x": ["memory.retriever=embedding"], "embedding": true,
-             "config": {"tools.web_fetch": false, "tasks.follow_up": false, "memory.excerpt_open": "on"}}
+             "config": {"tools.web_fetch": false, "tasks.follow_up": false, "chat.recent_digest_minutes": 0,
+                        "memory.excerpt_open": "on"}}
 }
