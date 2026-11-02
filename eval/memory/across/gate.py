@@ -16,6 +16,7 @@ Nothing here reads a note: the score is made after the cell from the cell's SQLi
 
 from __future__ import annotations
 
+import json
 import threading
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -174,15 +175,24 @@ def steps_used(events: list[dict[str, Any]]) -> int | None:
     return max(steps) if steps else None
 
 
+NOTE_CALL_CHARS = 1000  # what a row keeps of a note call's arguments, output (the gate's whole refusal) and error
+
+
 def note_calls(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """The turn's calls of the note tool, as ``tool.finished`` reports them (the output and error cut at 200 characters)."""
+    """The turn's calls of the note tool, as ``tool.finished`` reports them, with the arguments of their ``tool.started``
+    (what the model asked to keep): the output, which holds the gate's refusal and its reasons, and the error, each cut at
+    NOTE_CALL_CHARS characters."""
+    asked = {(e.get("data") or {}).get("call_id"): (e.get("data") or {}).get("arguments")
+             for e in events if e.get("type") == "tool.started"}
     out = []
     for event in events:
         data = event.get("data") or {}
         if event.get("type") == "tool.finished" and data.get("name") in NOTE_TOOLS:
+            arguments = asked.get(data.get("call_id"))
             out.append({
-                "name": data["name"], "status": data.get("status"), "output": str(data.get("output") or "")[:200],
-                "error": str(data.get("error") or "")[:200]})
+                "name": data["name"], "status": data.get("status"),
+                "arguments": json.dumps(arguments, ensure_ascii=False)[:NOTE_CALL_CHARS] if arguments is not None else None,
+                "output": str(data.get("output") or "")[:NOTE_CALL_CHARS], "error": str(data.get("error") or "")[:NOTE_CALL_CHARS]})
     return out
 
 

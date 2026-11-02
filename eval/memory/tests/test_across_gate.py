@@ -221,6 +221,16 @@ def test_refusals_and_steps_come_from_the_events():
     assert gate.steps_used([]) is None and gate.is_refusal({"output": "  NOT REMEMBERED: a secret"}) and not gate.is_refusal({"output": "Already remembered: x"})
 
 
+def test_a_note_call_keeps_what_was_asked_and_the_whole_refusal():
+    why = "Not remembered: not something the user said. kept: not in what the user typed in this chat. " + "x" * 400
+    events = [{"type": "tool.started", "data": {"call_id": "c1", "name": "remember", "arguments": {"text": "The user lives in Atlantis", "source": "pointed"}}},
+              {"type": "tool.finished", "data": {"call_id": "c1", "name": "remember", "status": "success", "output": why, "error": ""}},
+              {"type": "tool.finished", "data": {"call_id": "c9", "name": "remember", "status": "success", "output": "Remembered: x", "error": ""}}]
+    first, second = gate.note_calls(events)
+    assert first["output"] == why and json.loads(first["arguments"]) == {"text": "The user lives in Atlantis", "source": "pointed"}
+    assert second["arguments"] is None  # no tool.started seen for it
+
+
 # --- the driver on the fake gateway ---
 
 
