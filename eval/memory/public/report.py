@@ -359,6 +359,23 @@ def control_table(
     return out
 
 
+def cost_table(rows: Sequence[Mapping[str, Any]], arms: Sequence[str]) -> dict[str, dict[str, Any]]:
+    """Per arm, what a finished question turn cost: prompt tokens of its first request and of all its requests, time to
+    first token and of the whole turn, model requests (a search or an open adds one) and listed items opened."""
+    out = {}
+    for arm in arms:
+        asked = [r for r in rows if r["arm"] == arm and r.get("state") == "finished"]
+        out[arm] = {
+            "prompt_tokens": stats([num(r.get("prompt_tokens")) for r in asked]),
+            "turn_prompt_tokens": stats([num((r.get("usage") or {}).get("prompt_tokens")) for r in asked]),
+            "ttft_ms": stats([num(r.get("ttft_ms")) for r in asked]),
+            "turn_ms": stats([num(r.get("wall_ms")) for r in asked]),
+            "chat_requests": stats([num(r.get("chat_requests")) for r in asked]),
+            "opens": stats([num((r.get("retrieval") or {}).get("opens")) for r in asked]),
+        }
+    return out
+
+
 # --- the report ---
 
 
@@ -382,7 +399,7 @@ def analyse(run_dir: Path, resamples: int = BOOTSTRAP, seed: int = SEED) -> dict
         "accuracy": accuracy_table(rows, arms, resamples, seed), "paired": paired_table(rows, arms, resamples, seed),
         "retrieval": retrieval_table(rows, arms), "ingest": ingest_table(run["ingests"], run["questions"]),
         "judge": judge_table(rows, arms), "replies": reply_table(rows, arms), "control": control_table(run["controls"], rows, arms),
-        "misses": miss_table(rows, arms), "routes": route_table(rows),
+        "misses": miss_table(rows, arms), "routes": route_table(rows), "cost": cost_table(rows, arms),
         "rows": [
             {k: r.get(k) for k in ("question_id", "arm", "repeat", "state", "correct")}
             | {"auto_hit": (r.get("retrieval") or {}).get("auto_hit"), "search_hit": (r.get("retrieval") or {}).get("search_hit"),
@@ -490,6 +507,19 @@ def render(rep: Mapping[str, Any]) -> str:
             ["turns with a `search_hint`", *(str(cells[a]["hints"]) for a in arms)],
             ["turns that opened a listed turn", *(hit(cells[a]["opened"]) for a in arms)],
             ["open hit (of those)", *(hit(cells[a]["open_hit"]) for a in arms)]])
+
+    cost = rep.get("cost") or {}
+    if cost:
+        out += ["## Cost per question turn", "",
+                "Medians / p90 over the finished question turns. The first request's prompt is what recall adds to every turn; a "
+                "search or an open makes another request, whose prompt counts in the turn's total.", ""]
+        out += table(["", *arms], [
+            ["prompt tokens, first request", *(med(cost[a]["prompt_tokens"]) for a in arms)],
+            ["prompt tokens, all requests", *(med(cost[a]["turn_prompt_tokens"]) for a in arms)],
+            ["first token ms", *(med(cost[a]["ttft_ms"]) for a in arms)],
+            ["turn ms", *(med(cost[a]["turn_ms"]) for a in arms)],
+            ["model requests", *(med(cost[a]["chat_requests"]) for a in arms)],
+            ["listed items opened", *(med(cost[a]["opens"]) for a in arms)]])
 
     ing = rep["ingest"]
     out += ["## Ingest", "",

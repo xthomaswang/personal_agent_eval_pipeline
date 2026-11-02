@@ -270,3 +270,15 @@ def test_a_wrong_answer_is_put_at_the_step_that_lost_the_evidence():
         "5b evidence shown, not used by the reader"
     table = report.miss_table([{**base, "retrieval": none, "evidence": {}}, {**base, "correct": True}], ["A"])
     assert table["A"]["3 not retrieved"] == 1 and sum(table["A"].values()) == 1
+
+
+def test_the_cost_of_a_question_turn_per_arm():
+    rows = [result_row(f"q{i}", "single-session-user", arm, 1, True, prompt_tokens=base + i, ttft_ms=100.0 * (i + 1))
+            | {"usage": {"prompt_tokens": 2 * (base + i)}, "wall_ms": 1000.0 * (i + 1), "chat_requests": 1 + (arm == "L"),
+               "retrieval": {"opens": int(arm == "L")}}
+            for arm, base in (("A", 3000), ("L", 3400)) for i in range(5)]
+    rows.append(result_row("q9", "single-session-user", "A", 1, False, prompt_tokens=99999, state="failed"))
+    cost = report.cost_table(rows, ["A", "L"])
+    assert cost["A"]["prompt_tokens"]["n"] == 5 and cost["A"]["prompt_tokens"]["median"] == 3002  # the failed turn is left out
+    assert cost["L"]["turn_prompt_tokens"]["median"] == 6804 and cost["L"]["chat_requests"]["median"] == 2
+    assert cost["A"]["opens"]["median"] == 0 and cost["L"]["opens"]["median"] == 1 and cost["A"]["turn_ms"]["median"] == 3000
