@@ -1,0 +1,8 @@
+{
+  "A": {"label": "localmelo as shipped (900 characters per recalled item, 4000 in all), a new chat's digest of other chats off; web_fetch and task follow-up off in every arm",
+        "x": ["memory.retriever=embedding"], "embedding": true,
+        "config": {"tools.web_fetch": false, "tasks.follow_up": false, "chat.recent_digest_minutes": 0}},
+  "A-digest": {"label": "A with the digest as shipped: a new chat's first turn gets the other chats' turns of the last 30 minutes (ingested turns near the question's time)",
+               "x": ["memory.retriever=embedding"], "embedding": true,
+               "config": {"tools.web_fetch": false, "tasks.follow_up": false}}
+}
