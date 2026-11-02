@@ -12,6 +12,7 @@ The shapes, read at localmelo 05ff696c (support/gateway/console/routes_turns.py 
     GET    /api/health                      {"ok", "configured", "sessions": {"store": "ok"}, ...}
     GET    /api/sessions/{id}               {"session": {...}, "pending_approvals": [{"request_id", "tool_name", ...}], ...}
     POST   /api/approvals/{request_id}      {"choice": "deny", "reason"}   200 {"request_id", "outcome": "denied"}
+                                            {"choice": "once"}             200 {"request_id", "outcome": "allowed"}
                                             (404 unknown, 409 answered already)
     POST   /api/turns/{turn_id}/cancel      202 {"turn_id", "cancelling": true}; 409 when the turn is not running
 
@@ -33,7 +34,7 @@ import json
 import re
 import time
 import urllib.parse
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Collection, Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -111,7 +112,14 @@ class Gateway:
 
     def deny(self, request_id: str, reason: str) -> bool:
         """Deny one approval request; True when this call denied it (False: unknown or answered already)."""
-        status, _ = self.request("POST", f"/api/approvals/{request_id}", {"choice": "deny", "reason": reason})
+        return self.answer(request_id, {"choice": "deny", "reason": reason})
+
+    def allow_once(self, request_id: str) -> bool:
+        """Allow one approval request for this call only; True when this call allowed it."""
+        return self.answer(request_id, {"choice": "once"})
+
+    def answer(self, request_id: str, body: dict[str, Any]) -> bool:
+        status, _ = self.request("POST", f"/api/approvals/{request_id}", body)
         if status in (404, 409):
             return False
         if status != 200:
@@ -179,6 +187,7 @@ class TurnResult:
     wall_source: str = "stream"  # "stream": the turn.finished frame arrived; "poll": the row was seen finished
     http_status: int = 0
     denied: list[dict[str, str]] = field(default_factory=list)  # approval requests this call denied: request_id, tool
+    allowed: list[dict[str, str]] = field(default_factory=list)  # approval requests of ``allow_tools`` it allowed once
     cancelled: bool = False  # a turn that timed out was asked to stop
     memory_recall: dict[str, Any] | None = None  # the turn row's result.memory_recall (the same as turn.memory's recall)
     started_epoch: float = 0.0  # seconds since the epoch, just before the POST and when the turn was seen finished
@@ -238,6 +247,7 @@ def run_turn(
     use_stream: bool = True,
     after: int = 0,
     deny_approvals: bool = True,
+    allow_tools: Collection[str] = (),
     clock: Callable[[], float] = time.perf_counter,
     sleep: Callable[[float], None] = time.sleep,
     epoch: Callable[[], float] = time.time,
@@ -247,7 +257,8 @@ def run_turn(
     The wall time runs from just before the POST to the ``turn.finished`` frame (stream) or to the poll that
     saw the row finished. A turn that does not end in ``timeout_s`` is asked to stop and comes back with status
     ``timeout``. With ``deny_approvals`` every approval request of the turn is denied, so a tool call cannot
-    keep the turn waiting; the denials are in ``TurnResult.denied``. ``after`` is the id of the newest event of the chat
+    keep the turn waiting; the denials are in ``TurnResult.denied``. A request whose tool is in ``allow_tools`` (e.g.
+    ``browser:http://127.0.0.1:PORT``, a fixture server the chat asks about) is allowed once instead (``TurnResult.allowed``). ``after`` is the id of the newest event of the chat
     seen so far: the stream starts there, so a later turn of a long chat does not replay (and wait for) the earlier ones.
     """
     if not KEY_RE.fullmatch(key):
@@ -268,10 +279,13 @@ def run_turn(
     denied_ids: set[str] = set()
 
     def deny(request_id: str, tool: str) -> None:
-        if deny_approvals and request_id and request_id not in denied_ids:
+        allow = tool in allow_tools
+        if (deny_approvals or allow) and request_id and request_id not in denied_ids:
             denied_ids.add(request_id)
             try:
-                if gw.deny(request_id, DENY_REASON):
+                if allow and gw.allow_once(request_id):
+                    result.allowed.append({"request_id": request_id, "tool": tool})
+                elif not allow and gw.deny(request_id, DENY_REASON):
                     result.denied.append({"request_id": request_id, "tool": tool})
             except (GatewayError, OSError, http.client.HTTPException):
                 denied_ids.discard(request_id)  # asked again at the next poll
@@ -306,7 +320,7 @@ def run_turn(
             if finished_at is None:
                 finished_at, result.ended_epoch = clock(), epoch()
             break
-        if deny_approvals:
+        if deny_approvals or allow_tools:
             for pending in gw.pending_approvals(session_id):
                 deny(str(pending.get("request_id") or ""), str(pending.get("tool_name") or ""))
         if clock() - t0 > timeout_s:

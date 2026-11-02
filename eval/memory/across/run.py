@@ -769,6 +769,7 @@ def turn_record(cell: Mapping[str, Any], phase: str, item: str, key: str, res: c
         "server_ms": res.server_ms(), "usage": res.usage,
         "timed_out": res.status == "timeout", "cancelled": res.cancelled,
         "approvals_denied": len(res.denied), "denied_tools": [d["tool"] for d in res.denied],
+        "approvals_allowed": len(res.allowed), "allowed_tools": [d["tool"] for d in res.allowed],
         "memory": memory, "recall": (memory or {}).get("recall") or res.memory_recall,
         "event_types": [e.get("type") for e in res.events],
     }
@@ -1130,7 +1131,7 @@ def run_cell(study: Study, cell: Mapping[str, Any]) -> str:
             try:
                 res = client.run_turn(
                     gw, text, key, session_id=session_id, workspace=str((workspace or work).resolve()), poll_s=study.poll_s,
-                    use_stream=study.use_stream, after=seen.get(session_id or "", 0),
+                    use_stream=study.use_stream, after=seen.get(session_id or "", 0), allow_tools=gate.fixture_tools(fixtures),
                     timeout_s=timeout_s or (study.teach_timeout_s if phase == "teach" else study.turn_timeout_s))
             except (client.GatewayError, OSError, http.client.HTTPException, ValueError) as exc:
                 if not running.alive():

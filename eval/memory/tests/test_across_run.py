@@ -5,10 +5,11 @@ import sys
 import tempfile
 import time
 import tomllib
+from types import SimpleNamespace
 from pathlib import Path
 
 import pytest
-from memory.across import client, proxy, report, run, server
+from memory.across import client, gate, proxy, report, run, server
 from memory.tests.across_fake import FakeGateway, FakeModelServer
 from memory.tests.across_support import Launcher, git, make_repo, make_study
 
@@ -491,6 +492,22 @@ def test_approvals_and_cancel_answer_as_the_gateway_does(tmp_path):
         assert gw.deny(done.denied[0]["request_id"], "again") is False  # 409: answered already
         assert gw.cancel_turn(done.turn_id) is False  # 409: not running
         assert client.run_turn(gw, "save it but do not deny", "k-2", deny_approvals=False, timeout_s=0.3, use_stream=False).status == "timeout"
+    finally:
+        fake.stop()
+
+
+def test_the_fixture_site_is_allowed_once_and_every_other_request_denied(tmp_path):
+    site = gate.fixture_tools(gate.Fixtures("http", SimpleNamespace(host="127.0.0.1:5555")))
+    assert site == ("browser:http://127.0.0.1:5555",) and gate.fixture_tools(None) == ()
+    fake = FakeGateway(tmp_path, [], approval_texts=("read",), approval_tool=site[0])
+    try:
+        gw = client.Gateway(fake.base_url, "fake-token", timeout=5.0)
+        done = client.run_turn(gw, "read my page", "k-1", allow_tools=site)
+        assert [d["tool"] for d in done.allowed] == [site[0]] and done.denied == []  # (the fake fails a turn it was not denied)
+        assert next(a for a in fake.approvals.values())["outcome"] == "allowed"
+        other = client.run_turn(gw, "read my page again", "k-2", allow_tools=("browser:http://127.0.0.1:6666",))
+        assert [d["tool"] for d in other.denied] == [site[0]] and other.allowed == []
+        assert client.run_turn(gw, "read it once more", "k-3", deny_approvals=False, allow_tools=site, use_stream=False).allowed
     finally:
         fake.stop()
 

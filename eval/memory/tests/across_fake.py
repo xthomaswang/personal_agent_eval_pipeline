@@ -65,7 +65,7 @@ class FakeGateway:
         approval_texts: Sequence[str] = (), hang_texts: Sequence[str] = (), hang_seconds: float = 3.0,
         store: bool = False, tool_words: Mapping[str, str] | None = None, save_only: Sequence[str] | None = None,
         answers: Mapping[str, str] | None = None, new_build: bool = False, sleep_changes: Sequence[Mapping[str, Any]] = (),
-        gate_notes: Mapping[str, Any] | None = None, fetch: bool = False,
+        gate_notes: Mapping[str, Any] | None = None, fetch: bool = False, approval_tool: str = "file_write",
     ) -> None:
         settings = dict(p.split("=", 1) for p in x_pairs)
         self.retriever = settings.get("memory.retriever", "auto")
@@ -85,7 +85,7 @@ class FakeGateway:
         self.delay, self.recall_timings, self.synonyms = delay, recall_timings, dict(synonyms or {})
         self.drop_stream, self.busy_deletes, self.fail_texts = drop_stream, busy_deletes, tuple(fail_texts)
         self.token = token
-        self.model_calls, self.approval_texts = model_calls, tuple(approval_texts)
+        self.model_calls, self.approval_texts, self.approval_tool = model_calls, tuple(approval_texts), approval_tool
         self.hang_texts, self.hang_seconds = tuple(hang_texts), hang_seconds
         self.approvals: dict[str, dict[str, Any]] = {}
         self.cancels: dict[str, threading.Event] = {}
@@ -442,12 +442,12 @@ class FakeGateway:
         denied = False
         if any(m in text for m in self.approval_texts):  # the model tries to save the fact to a file
             request_id = f"ap-{sid}-{row['turn']}"
-            asked = {"session": sid, "tool": "file_write", "outcome": None, "event": threading.Event()}
+            asked = {"session": sid, "tool": self.approval_tool, "outcome": None, "event": threading.Event()}
             with self.lock:
                 self.approvals[request_id] = asked
-            self.add(session, row, "approval.requested", {"request_id": request_id, "call_id": "c1", "tool_name": "file_write", "arguments": {}, "preview": "write notes.txt", "workspace_root": None})
+            self.add(session, row, "approval.requested", {"request_id": request_id, "call_id": "c1", "tool_name": self.approval_tool, "arguments": {}, "preview": "write notes.txt", "workspace_root": None})
             denied = asked["event"].wait(5.0) and asked["outcome"] == "denied"
-            self.add(session, row, "approval.resolved", {"request_id": request_id, "tool_name": "file_write", "outcome": asked["outcome"] or "timeout"})
+            self.add(session, row, "approval.resolved", {"request_id": request_id, "tool_name": self.approval_tool, "outcome": asked["outcome"] or "timeout"})
         cancelled = False
         if any(m in text for m in self.hang_texts):  # a turn that does not come back
             cancelled = cancel.wait(self.hang_seconds)

@@ -152,6 +152,12 @@ def serve_pair(setting: str, fixtures: Fixtures | None) -> tuple[str, ...]:
     return (f"{setting}={fixtures.host}",) if fixtures and fixtures.host else ()
 
 
+def fixture_tools(fixtures: Fixtures | None) -> tuple[str, ...]:
+    """The approval a chat asks before web_fetch reads a listed local server (``browser:<origin>``): the driver allows
+    that one once and still denies every other request. Without it the fetch is refused like any denied tool."""
+    return (f"browser:http://{fixtures.host}",) if fixtures and fixtures.host else ()
+
+
 # --- what a turn of a scenario did ---
 
 
