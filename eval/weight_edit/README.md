@@ -49,11 +49,11 @@ The numbers above were checked against the run logs; the result JSONs themselves
 
 ## Editor models
 
-| Editor model | Passes used | Budget | Cost (USD) | Best dev arm | Dev delta | Test delta |
-|---|---|---|---|---|---|---|
-| Hand-written closed-form edits (no editor model) | 0 model-edit passes (4 arms evaluated by the harness owner) | none | 0 | `v-e24c1a05` | +0.025 (nDCG@10) | +0.0040 LongMemEval test, +0.0028 LoCoMo |
-| Claude Opus 5.5 | pending (overnight run 2026-11-03) | 15 passes, $18 cap | pending | pending | pending | pending |
-| GPT-6 Astra | planned | pending | pending | pending | pending | pending |
+| Editor model | Passes used | Budget | Cost (USD) | Wall time | Best dev arm | Dev delta | Test delta |
+|---|---|---|---|---|---|---|---|
+| None (hand-written: 4 fixed settings of the blog-style edit) | 6 dev passes (base at N=20 and N=40, 1 acts, 4 arms) | not budgeted | 0 (no API) | 33 min on MPS | `v-e24c1a05` | +0.025 (nDCG@10) | +0.0040 LongMemEval test, +0.0028 LoCoMo |
+| Claude Opus 5.5 | pending (overnight run 2026-11-03) | 15 passes, $18 cap | pending | pending | pending | pending | pending |
+| GPT-6 Astra | planned | pending | pending | pending | pending | pending | pending |
 
 The editing agent gets `examples/editor_brief.md` (the task and its rules), a pass budget shared by all of its arms, and a
 USD cap. The test suite is run by the harness owner on the agent's chosen arm only if that arm beat base on dev
