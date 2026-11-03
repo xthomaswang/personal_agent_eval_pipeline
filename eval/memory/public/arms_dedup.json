@@ -1,0 +1,29 @@
+{
+  "C-items": {
+    "label": "memory items in a list the model opens; open returns the item only (the R2 pilot's best arm)",
+    "x": [
+      "memory.retriever=embedding"
+    ],
+    "embedding": true,
+    "config": {
+      "tools.web_fetch": false,
+      "tasks.follow_up": false,
+      "memory.recall_source": "items",
+      "memory.recall_form": "list"
+    }
+  },
+  "C-items+notes-dedup": {
+    "label": "C-items with memory.notes_text=dedup: a shorter memory guide in the system text (475 to 329 tokens)",
+    "x": [
+      "memory.retriever=embedding",
+      "memory.notes_text=dedup"
+    ],
+    "embedding": true,
+    "config": {
+      "tools.web_fetch": false,
+      "tasks.follow_up": false,
+      "memory.recall_source": "items",
+      "memory.recall_form": "list"
+    }
+  }
+}
