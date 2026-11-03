@@ -10,12 +10,14 @@ the probes at the end send one-token requests to the model server the caller nam
 from __future__ import annotations
 
 import contextlib
+import functools
 import json
 import os
 import re
 import signal
 import socket
 import subprocess
+import tempfile
 import time
 import urllib.error
 import urllib.parse
@@ -92,6 +94,27 @@ def config_document(
                 raise ValueError(f"config key {key} runs into a value that is not a table")
         table[leaf] = value
     return document
+
+
+# Settings a bench gateway gets only on builds that know them (`melo config get KEY`), so that older pinned builds keep
+# the config they were run with: approvals.auto_asks false keeps Auto mode's old block, with no approval card to wait on.
+OPTIONAL_SETTINGS: dict[str, Any] = {"approvals.auto_asks": False}
+
+
+@functools.lru_cache(maxsize=None)
+def optional_settings(melo: Path) -> tuple[tuple[str, Any], ...]:
+    """The OPTIONAL_SETTINGS this build of ``melo`` knows, as (key, value) pairs (asked once per build, on a throwaway HOME)."""
+    known = []
+    with tempfile.TemporaryDirectory() as probe:
+        for key, value in OPTIONAL_SETTINGS.items():
+            try:
+                done = subprocess.run([str(melo), "config", "get", key], capture_output=True, text=True, timeout=60,
+                                      check=False, stdin=subprocess.DEVNULL, env=serve_env(Path(probe)))
+            except (OSError, subprocess.TimeoutExpired):
+                continue
+            if done.returncode == 0 and done.stdout.strip():
+                known.append((key, value))
+    return tuple(known)
 
 
 def write_config(home: Path, document: Mapping[str, Any]) -> Path:

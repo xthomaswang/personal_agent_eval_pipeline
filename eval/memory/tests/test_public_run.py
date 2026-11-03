@@ -689,3 +689,16 @@ def test_preflight_names_a_checkout_that_cannot_start_its_gateway(tmp_path, repo
     assert run.gateway_problem(repo / ".venv" / "bin" / "melo", tmp_path) is None
     python.unlink()
     assert "cannot be run" in run.gateway_problem(repo / ".venv" / "bin" / "melo", tmp_path)
+
+
+def test_optional_settings_only_on_builds_that_know_them(tmp_path):
+    knows = tmp_path / "melo-new"
+    knows.write_text("#!/bin/sh\n[ \"$1 $2 $3\" = \"config get approvals.auto_asks\" ] && echo true && exit 0\nexit 2\n")
+    knows.chmod(0o755)
+    older = tmp_path / "melo-old"
+    older.write_text("#!/bin/sh\nexit 2\n")
+    older.chmod(0o755)
+    from memory.across import server
+    assert dict(server.optional_settings(knows)) == {"approvals.auto_asks": False}
+    assert server.optional_settings(older) == ()
+    assert server.optional_settings(tmp_path / "missing") == ()

@@ -764,7 +764,8 @@ def ask(study: Study, arm: Arm, question: data.Question, text: str, tag: str, te
     started = time.monotonic()
     try:
         server.write_config(home, server.config_document(
-            timing.url, study.model, study.embedding_model if arm.embedding else None, arm.extra_body or None, settings_of(arm)))
+            timing.url, study.model, study.embedding_model if arm.embedding else None, arm.extra_body or None,
+            {**dict(server.optional_settings(study.melo)), **settings_of(arm)}))
         if study.cold_start and arm.embedding:
             cold = server.ensure_unloaded(study.base_url, study.embedding_model, timeout=study.unload_timeout_s, sleep=study.sleep)
         running = study.launcher(spec)

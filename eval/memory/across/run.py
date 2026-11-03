@@ -1098,7 +1098,8 @@ def run_cell(study: Study, cell: Mapping[str, Any]) -> str:
         spec = server.LaunchSpec(study.melo, home, server.free_port(), (*arm.x, *gate.serve_pair(study.fixture_setting, fixtures)), cell_dir / "gateway.log")
         # the gateway talks to the proxy when there is one; the port is new at every start, so the config is too
         server.write_config(home, server.config_document(
-            timing.url if timing else study.base_url, study.model, embedding_model, study.extra_body, arm.settings()))
+            timing.url if timing else study.base_url, study.model, embedding_model, study.extra_body,
+            {**dict(server.optional_settings(study.melo)), **arm.settings()}))
         running = study.launcher(spec)
         gw = server.wait_ready(running)
         info["port"] = spec.port
