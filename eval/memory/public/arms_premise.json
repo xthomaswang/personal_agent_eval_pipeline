@@ -1,0 +1,8 @@
+{
+  "C-items": {"label": "memory items in a list the model opens; open returns the item only (the R2 stage's best arm)",
+              "x": ["memory.retriever=embedding"], "embedding": true,
+              "config": {"tools.web_fetch": false, "tasks.follow_up": false, "memory.recall_source": "items", "memory.recall_form": "list"}},
+  "C-items+premise": {"label": "C-items plus one guide sentence: check the question's premise against the listed items before answering",
+                      "x": ["memory.retriever=embedding", "memory.premise_check=on"], "embedding": true,
+                      "config": {"tools.web_fetch": false, "tasks.follow_up": false, "memory.recall_source": "items", "memory.recall_form": "list"}}
+}
