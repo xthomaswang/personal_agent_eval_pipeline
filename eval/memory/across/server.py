@@ -97,8 +97,9 @@ def config_document(
 
 
 # Settings a bench gateway gets only on builds that know them (`melo config get KEY`), so that older pinned builds keep
-# the config they were run with: approvals.auto_asks false keeps Auto mode's old block, with no approval card to wait on.
-OPTIONAL_SETTINGS: dict[str, Any] = {"approvals.auto_asks": False}
+# the config they were run with: approvals.auto_asks false keeps Auto mode's old block, with no approval card to wait on;
+# agent.empty_reply_fallback off keeps an empty reply a failed run, not a retry or an answer taken from the thinking.
+OPTIONAL_SETTINGS: dict[str, Any] = {"approvals.auto_asks": False, "agent.empty_reply_fallback": "off"}
 
 
 @functools.lru_cache(maxsize=None)
