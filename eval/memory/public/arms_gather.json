@@ -1,0 +1,43 @@
+{
+  "C-items": {
+    "label": "memory items in a list the model opens; open returns the item only (the R2 stage's best arm)",
+    "x": [
+      "memory.retriever=embedding"
+    ],
+    "embedding": true,
+    "config": {
+      "tools.web_fetch": false,
+      "tasks.follow_up": false,
+      "memory.recall_source": "items",
+      "memory.recall_form": "list"
+    }
+  },
+  "C-items+gather-wide": {
+    "label": "C-items; for counting/total/compare questions, list-form recall and search use a 0.40 cosine floor",
+    "x": [
+      "memory.retriever=embedding",
+      "memory.gather=wide"
+    ],
+    "embedding": true,
+    "config": {
+      "tools.web_fetch": false,
+      "tasks.follow_up": false,
+      "memory.recall_source": "items",
+      "memory.recall_form": "list"
+    }
+  },
+  "C-items+gather-guide": {
+    "label": "gather-wide plus one guide sentence: open every item that may belong, search again per kind not listed, count only what items say",
+    "x": [
+      "memory.retriever=embedding",
+      "memory.gather=guide"
+    ],
+    "embedding": true,
+    "config": {
+      "tools.web_fetch": false,
+      "tasks.follow_up": false,
+      "memory.recall_source": "items",
+      "memory.recall_form": "list"
+    }
+  }
+}
