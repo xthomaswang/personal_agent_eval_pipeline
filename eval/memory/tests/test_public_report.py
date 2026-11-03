@@ -282,3 +282,13 @@ def test_the_cost_of_a_question_turn_per_arm():
     assert cost["A"]["prompt_tokens"]["n"] == 5 and cost["A"]["prompt_tokens"]["median"] == 3002  # the failed turn is left out
     assert cost["L"]["turn_prompt_tokens"]["median"] == 6804 and cost["L"]["chat_requests"]["median"] == 2
     assert cost["A"]["opens"]["median"] == 0 and cost["L"]["opens"]["median"] == 1 and cost["A"]["turn_ms"]["median"] == 3000
+
+
+def test_encoder_totals_sum_the_compress_ingests():
+    ingests = {"q1": {"compress_summary": {"windows": 10, "failed": 1, "split": 2, "failed_parts": 0, "cut": 0, "cached": 3,
+                                           "items": 40, "forced": 1}, "requests": {"length": 2}},
+               "q2": {"compress_summary": {"windows": 5, "failed": 0, "split": 0, "failed_parts": 0, "cut": 1, "cached": 0,
+                                           "items": 20, "forced": 0}, "requests": {"length": 0}}}
+    assert report.encoder_totals(ingests) == {"ingests": 2, "windows": 15, "failed": 1, "split": 2, "failed_parts": 0,
+                                              "cut": 1, "cached": 3, "items": 60, "forced": 1, "length": 2}
+    assert report.encoder_totals({"q": {"turns": 3}}) is None  # a turns ingest

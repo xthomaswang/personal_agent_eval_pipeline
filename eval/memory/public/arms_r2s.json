@@ -1,0 +1,8 @@
+{
+  "A": {"label": "localmelo as shipped (turns and notes, excerpt_open on by default from TM34); web_fetch and task follow-up off in every arm",
+        "x": ["memory.retriever=embedding"], "embedding": true,
+        "config": {"tools.web_fetch": false, "tasks.follow_up": false}},
+  "C-items": {"label": "memory items in a list the model opens; open returns the item only (the R2 pilot's best arm)",
+              "x": ["memory.retriever=embedding"], "embedding": true,
+              "config": {"tools.web_fetch": false, "tasks.follow_up": false, "memory.recall_source": "items", "memory.recall_form": "list"}}
+}

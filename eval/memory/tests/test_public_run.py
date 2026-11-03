@@ -107,6 +107,16 @@ def test_an_encoder_at_its_token_cap_or_failing_windows_stops_the_run():
     assert run.ingest_problem({"requests": {"chat": 0, "length": 0}}) == ""  # a turns ingest has no encoder
 
 
+def test_a_splitting_encoder_counts_only_failed_windows():
+    window = {"exchanges": 3, "chars": 9000, "cached": False, "failed": False, "cut": False, "dropped": 0,
+              "split": 0, "failed_parts": 0, "part": None}
+    compress = {"s1": {"windows": [window, {**window, "split": 2, "failed_parts": 1}], "gate": {"forced": []}, "items": [{}]}}
+    summary = run.compress_summary(compress)
+    assert summary["split"] == 2 and summary["failed_parts"] == 1 and summary["failed"] == 0
+    assert run.ingest_problem({"compress_summary": summary, "requests": {"length": 2}}) == ""  # the capped replies were split
+    assert "failed" in run.ingest_problem({"compress_summary": {**summary, "failed": 1}, "requests": {"length": 0}})
+
+
 def test_launch_env_is_merged_and_cannot_undo_the_isolation(tmp_path):
     base = {"PATH": "/usr/bin", "HOME": "/real", "EXAMPLE_API_KEY": "k"}
     assert "LOCALMELO_NOW" not in server.serve_env(tmp_path, base) and server.serve_env(tmp_path, base) == server.serve_env(tmp_path, base, None)

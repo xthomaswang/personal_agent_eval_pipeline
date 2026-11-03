@@ -220,6 +220,23 @@ def ingest_table(ingests: Mapping[str, Mapping[str, Any]], questions: Sequence[M
     return out
 
 
+ENCODER_KEYS = ("windows", "failed", "split", "failed_parts", "cut", "cached", "items", "forced")
+
+
+def encoder_totals(ingests: Mapping[str, Mapping[str, Any]]) -> dict[str, Any] | None:
+    """A compress ingest's encoder, summed over the questions (None for a turns ingest): windows, failed, split and failed
+    sub-windows (builds that split), cut, cached, items, forced, and the replies that stopped at the token cap."""
+    summaries = [(r.get("compress_summary"), r.get("requests") or {}) for r in ingests.values() if r.get("compress_summary")]
+    if not summaries:
+        return None
+    out: dict[str, Any] = {"ingests": len(summaries)}
+    for key in ENCODER_KEYS:
+        if any(key in s for s, _ in summaries):
+            out[key] = sum(int(s.get(key) or 0) for s, _ in summaries)
+    out["length"] = sum(int(q.get("length") or 0) for _, q in summaries)
+    return out
+
+
 # --- judge ---
 
 
@@ -398,6 +415,7 @@ def analyse(run_dir: Path, resamples: int = BOOTSTRAP, seed: int = SEED) -> dict
         "resamples": resamples, "seed": seed, "questions": len(config.get("questions") or run["questions"]),
         "accuracy": accuracy_table(rows, arms, resamples, seed), "paired": paired_table(rows, arms, resamples, seed),
         "retrieval": retrieval_table(rows, arms), "ingest": ingest_table(run["ingests"], run["questions"]),
+        "encoder": encoder_totals(run["ingests"]),
         "judge": judge_table(rows, arms), "replies": reply_table(rows, arms), "control": control_table(run["controls"], rows, arms),
         "misses": miss_table(rows, arms), "routes": route_table(rows), "cost": cost_table(rows, arms),
         "rows": [
@@ -534,6 +552,12 @@ def render(rep: Mapping[str, Any]) -> str:
         [[("**" + t + "**") if t == "single-session-assistant" else t, str(s["ingests"]), str(s["turns"]), str(s["cut"]),
           hit(s["cut_rate"]), med(s["seconds"]), med(s["notes"]), str(s["skipped"]), str(s["trimmed"]), str(s["errors"])]
          for t, s in shown])
+    enc = rep.get("encoder")
+    if enc:
+        out += ["", "The compress encoder, summed over the questions' ingests (`length`: replies that stopped at the token cap; "
+                "a build that splits a window answers those with sub-windows, `split`, of which `failed_parts` failed):", ""]
+        keys = ["ingests", *(k for k in ENCODER_KEYS if k in enc), "length"]
+        out += table(keys, [[str(enc[k]) for k in keys]])
 
     ms = rep["misses"]
     out += ["## Why answers were wrong", "",

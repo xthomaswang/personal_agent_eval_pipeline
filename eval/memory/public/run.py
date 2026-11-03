@@ -385,19 +385,23 @@ def compress_summary(compress: Any) -> dict[str, int] | None:
     return {"windows": len(windows), "failed": sum(1 for w in windows if w.get("failed")),
             "cached": sum(1 for w in windows if w.get("cached")), "cut": sum(1 for w in windows if w.get("cut")),
             "items": sum(len(s.get("items") or []) for s in sessions),
-            "forced": sum(len((s.get("gate") or {}).get("forced") or []) for s in sessions)}
+            "forced": sum(len((s.get("gate") or {}).get("forced") or []) for s in sessions),
+            **({"split": sum(int(w.get("split") or 0) for w in windows),
+                "failed_parts": sum(int(w.get("failed_parts") or 0) for w in windows)}
+               if any("split" in w for w in windows) else {})}
 
 
 INGEST_FAILED_MAX = 0.10  # --ingest-fail-fast: the most windows the first ingest may fail
 
 
 def ingest_problem(report: Mapping[str, Any]) -> str:
-    """Why an ingest's encoder cannot be trusted ("" when it can): a reply that stopped at the token cap, or more than
-    INGEST_FAILED_MAX of the windows failed."""
-    length = (report.get("requests") or {}).get("length") or 0
-    if length:
-        return f"{length} encoder repl{'y' if length == 1 else 'ies'} stopped at the token cap (finish_reason length)"
+    """Why an ingest's encoder cannot be trusted ("" when it can): more than INGEST_FAILED_MAX of the windows failed, or,
+    on a build whose encoder does not split a window (no ``split`` in the summary), a reply that stopped at the token cap.
+    A build that splits answers a capped reply with a split, so only its failed windows count."""
     summary = report.get("compress_summary") or {}
+    length = (report.get("requests") or {}).get("length") or 0
+    if length and "split" not in summary:
+        return f"{length} encoder repl{'y' if length == 1 else 'ies'} stopped at the token cap (finish_reason length)"
     if summary.get("windows") and summary["failed"] / summary["windows"] > INGEST_FAILED_MAX:
         return f"{summary['failed']} of {summary['windows']} encoder windows failed (more than {INGEST_FAILED_MAX:.0%})"
     return ""
