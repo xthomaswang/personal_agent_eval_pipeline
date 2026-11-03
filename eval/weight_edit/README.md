@@ -52,8 +52,10 @@ The numbers above were checked against the run logs; the result JSONs themselves
 | Editor model | Passes used | Budget | Cost (USD) | Wall time | Best dev arm | Dev delta | Test delta |
 |---|---|---|---|---|---|---|---|
 | None (hand-written: 4 fixed settings of the blog-style edit) | 6 dev passes (base at N=20 and N=40, 1 acts, 4 arms) | not budgeted | 0 (no API) | 33 min on MPS | `v-e24c1a05` | +0.025 (nDCG@10) | +0.0040 LongMemEval test, +0.0028 LoCoMo |
-| Claude Opus 5.5 | pending (overnight run 2026-11-03) | 15 passes, $18 cap | pending | pending | pending | pending | pending |
+| Claude Opus 5.5 (effort xhigh, 2026-11-03) | 3 of 15 (1 acts read of all 15,195 dev texts at depths 26-28, 2 evals) | 15 passes, $18 cap | 4.39 | 33 min, 44 turns | `opus1-b81a6` | +0.016 nDCG@10 (r@5 +0.050 [0.000, +0.125]) | LongMemEval -0.0023 [-0.0086, +0.0030], LoCoMo +0.0019 [-0.0009, +0.0047]; NFCorpus -0.0030* and ArguAna -0.0026* |
 | GPT-6 Astra | planned | pending | pending | pending | pending | pending | pending |
+
+**Claude Opus 5.5's edit** (`opus1-b81a6`) changes one column of `layers.27.mlp.down_proj` (1022 of 3.1M entries). At the pooled token, MLP neuron 81 of block 27 fires almost the same way for every input, so it works as a bias channel. The edit uses it to subtract 0.6 times the mean embedding direction before the L2 norm: "all-but-the-top" centering, done inside the weights, in closed form from activation means. Its predicted dev numbers matched the measured ones (r@5 0.90, nDCG 0.664 predicted vs 0.662 measured). The dev gain rested on 2 questions that flipped and did not transfer; held out, it lost slightly on NFCorpus and ArguAna (* = CI excludes zero). It is the same pattern as the `pca1` post-map, which also centers on the dev mean. The hand-written `v-e24c1a05` remains the only edit with a significant held-out gain. Lesson: 40 dev questions are too few to select an edit on; a 2-question flip passed the gate. The next editor model keeps the same protocol so that the rows compare. Cost is the API bill of the editing run; passes are model runs charged to the shared budget.
 
 The editing agent gets `examples/editor_brief.md` (the task and its rules), a pass budget shared by all of its arms, and a
 USD cap. The test suite is run by the harness owner on the agent's chosen arm only if that arm beat base on dev
