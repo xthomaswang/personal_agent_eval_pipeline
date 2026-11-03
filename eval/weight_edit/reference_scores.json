@@ -1,0 +1,40 @@
+{
+  "_note": "Official MTEB scores of Qwen/Qwen3-Embedding-0.6B (test split, mteb 1.38.9, model max_length 8192, fp16, official Qwen3 task instructions). Our harness truncates documents to 512 and queries to 128 tokens, so small differences are expected.",
+  "model": "Qwen/Qwen3-Embedding-0.6B",
+  "model_revision": "b22da495047858cce924d27d76261e96be6febc0",
+  "tasks": {
+    "SciFact": {
+      "split": "test",
+      "ndcg_at_10": 0.69718,
+      "recall_at_100": 0.96,
+      "mrr_at_10": 0.658307,
+      "main_score": 0.69718,
+      "mteb_version": "1.38.9",
+      "dataset_revision": "0228b52cf27578f30900b9e5271d331663a030d7",
+      "source_url": "https://raw.githubusercontent.com/embeddings-benchmark/results/main/results/Qwen__Qwen3-Embedding-0.6B/b22da495047858cce924d27d76261e96be6febc0/SciFact.json",
+      "browse_url": "https://github.com/embeddings-benchmark/results/blob/main/results/Qwen__Qwen3-Embedding-0.6B/b22da495047858cce924d27d76261e96be6febc0/SciFact.json"
+    },
+    "NFCorpus": {
+      "split": "test",
+      "ndcg_at_10": 0.36709,
+      "recall_at_100": 0.34117,
+      "mrr_at_10": 0.563164,
+      "main_score": 0.36709,
+      "mteb_version": "1.38.9",
+      "dataset_revision": "ec0fa4fe99da2ff19ca1214b7966684033a58814",
+      "source_url": "https://raw.githubusercontent.com/embeddings-benchmark/results/main/results/Qwen__Qwen3-Embedding-0.6B/b22da495047858cce924d27d76261e96be6febc0/NFCorpus.json",
+      "browse_url": "https://github.com/embeddings-benchmark/results/blob/main/results/Qwen__Qwen3-Embedding-0.6B/b22da495047858cce924d27d76261e96be6febc0/NFCorpus.json"
+    },
+    "ArguAna": {
+      "split": "test",
+      "ndcg_at_10": 0.70965,
+      "recall_at_100": 0.99644,
+      "mrr_at_10": 0.632539,
+      "main_score": 0.70965,
+      "mteb_version": "1.38.9",
+      "dataset_revision": "c22ab2a51041ffd869aaddef7af8d8215647e41a",
+      "source_url": "https://raw.githubusercontent.com/embeddings-benchmark/results/main/results/Qwen__Qwen3-Embedding-0.6B/b22da495047858cce924d27d76261e96be6febc0/ArguAna.json",
+      "browse_url": "https://github.com/embeddings-benchmark/results/blob/main/results/Qwen__Qwen3-Embedding-0.6B/b22da495047858cce924d27d76261e96be6febc0/ArguAna.json"
+    }
+  }
+}

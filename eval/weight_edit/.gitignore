@@ -1,0 +1,6 @@
+state/
+results/
+work/
+models/
+.venv/
+*.egg-info/

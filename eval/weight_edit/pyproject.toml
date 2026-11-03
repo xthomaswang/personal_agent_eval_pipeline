@@ -1,0 +1,30 @@
+[project]
+name = "wsp"
+version = "0.1.0"
+description = "Weight-space programming harness for Qwen3-Embedding-0.6B: edit a copy, measure retrieval"
+requires-python = ">=3.11,<3.14"
+dependencies = [
+    "torch>=2.4",
+    "transformers>=4.51",
+    "numpy>=1.26",
+    "safetensors>=0.4",
+    "datasets>=3.0",
+    "huggingface_hub>=0.25",
+]
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+[project.scripts]
+wsp = "wsp.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["wsp"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

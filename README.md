@@ -13,6 +13,7 @@ eval/backend           per-model runs: speed leg + capability leg (start here)
 eval/agent_ability     the harness task suite and its checkers
 eval/agent_ability/ui_vision  synthetic and real-web UI probes
 eval/memory            T4: memory consolidation over a synthetic 10-day timeline
+eval/weight_edit       frontier LLMs editing an embedding model's weights directly (no training)
 eval/bench             shared: the recorder proxy and the harness adapters
 eval/customize         your own private tasks (gitignored, never pushed)
 site/                  website source: shared shell, styles, scripts and avatar
