@@ -1040,7 +1040,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         "--localmelo-args",
         default="",
         help="extra flags for every localmelo run, shell-quoted, appended after the arm's own "
-        '(e.g. "-X agent.reflection_gate=patient"; one flag without a space needs the = form, --localmelo-args=-v); '
+        '(e.g. "-X agent.answer_on_stop=on"; one flag without a space needs the = form, --localmelo-args=-v); '
         "not --mcp, --mcp-only, -o, -m, -u or --",
     )
     ap.add_argument(
