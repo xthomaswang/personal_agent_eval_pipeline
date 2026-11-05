@@ -147,8 +147,24 @@ def _served(port: int) -> dict[str, Any] | None:
     return info if str(info.get("pid")) in listeners.split() else None
 
 
+def _splash_stack(served: dict[str, Any]) -> dict[str, Any]:
+    """The stack scripts/serve-splash.sh started: Splash for chat, an embedding-only oMLX, one router in front."""
+    return {
+        "name": "splash-stack",
+        "base_url": OMLX_BASE_URL,
+        "version": _run(["splash", "--version"]),
+        "chat": served.get("chat"),
+        "chat_model": served.get("chat_model"),
+        "embed_base_path": served.get("embed_base_path"),
+        "verified": True,
+        "pid": served["pid"],
+    }
+
+
 def _model_server() -> dict[str, Any]:
     served = _served(urllib.parse.urlsplit(OMLX_BASE_URL).port or 8500)
+    if served and served.get("server") == "splash-stack":
+        return _splash_stack(served)
     repo = Path(served["repo"]) if served else OMLX_REPO
     home = Path(served["base_path"]) if served else OMLX_HOME
     settings: dict[str, Any] | None = None

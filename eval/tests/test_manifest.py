@@ -58,6 +58,18 @@ def test_the_server_serve_omlx_started_wins_over_the_configured_one(
     assert "secret" not in json.dumps(server)
 
 
+def test_the_splash_stack_is_recorded_from_its_serve_record(served_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    record = {"server": "splash-stack", "chat": "flash-splash", "chat_model": "org/repo:Q3",
+              "embed_base_path": "/embed", "pid": os.getpid()}  # fmt: skip
+    (served_dir / ".server-8500.json").write_text(json.dumps(record))
+    _fake_lsof(monkeypatch, os.getpid())
+
+    server = manifest._model_server()
+
+    assert server["name"] == "splash-stack" and server["verified"] is True and server["pid"] == os.getpid()
+    assert server["chat"] == "flash-splash" and server["chat_model"] == "org/repo:Q3"
+
+
 def test_a_stale_serve_record_falls_back_to_the_configured_server(
     tmp_path: Path, served_dir: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
