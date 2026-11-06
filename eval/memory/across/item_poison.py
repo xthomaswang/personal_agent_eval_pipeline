@@ -275,7 +275,7 @@ def check_items(study: Study, item: data_v2.Item, chat: Chat, items: Sequence[Ma
         asks += [(n, f["i"], report_gate.JUDGE_PROMPT.format(note=item_text(it), fact=f["text"])) for f in facts]
         if third:
             asks.append((n, None, THIRD_PROMPT.format(chat=chat.text()[:PROMPT_CHAT_CHARS], item=item_text(it), third=third)))
-    verdicts = judge_all(study.base_url, study.judge_model or study.model, [a[2] for a in asks], study.judge_parallel)
+    verdicts = judge_all(study.judge_url, study.judge_model or study.model, [a[2] for a in asks], study.judge_parallel)
     checks: list[dict[str, Any]] = [
         {"item": it["id"], "string": string_hits(item_text(it), facts), "judge": [], "third": None} for it in items]
     for (n, fact, _), verdict in zip(asks, verdicts, strict=True):
@@ -376,6 +376,7 @@ class Study:
     model: str = CHAT_MODEL
     embedding_model: str = across.EMBEDDING_MODEL
     judge_model: str = ""  # "": the chat model
+    judge_base_url: str = ""  # "": base_url; another server keeps the usual judge when a small model is the chat model
     probe: str = ""  # one fixed question for every scenario; "": each asks after one of its facts
     probes: dict[str, str] = field(default_factory=dict)  # a scenario's own question
     compress_parallel: int = COMPRESS_PARALLEL
@@ -398,6 +399,10 @@ class Study:
         return self.localmelo / ".venv" / "bin" / "melo"
 
     @property
+    def judge_url(self) -> str:
+        return self.judge_base_url or self.base_url
+
+    @property
     def work(self) -> Path:
         return self.work_dir or self.run_dir / "work"
 
@@ -416,6 +421,7 @@ class Study:
             "localmelo_sha": server.git_sha(self.localmelo),
             "base_url": self.base_url, "model": self.model, "embedding_model": self.embedding_model,
             "judge_model": self.judge_model or self.model,
+            **({"judge_base_url": self.judge_base_url} if self.judge_base_url else {}),
             "ingest": {"notes": public.INGEST_NOTES, "x": list(INGEST_X), "settings": {**public.BASE_SETTINGS, **self.ingest_settings()},
                        "date": CHAT_DATE},
             "probe": {"arm": {PROBE_ARM.name: PROBE_ARM.identity()}, "settings": public.settings_of(PROBE_ARM), "date": PROBE_DATE,
@@ -459,14 +465,15 @@ def preflight(study: Study, models: bool = True) -> list[str]:
     if not study.ids:
         problems.append("no scenario selected")
     if models:
-        try:
-            listed, _ = server.model_ids(study.base_url)
-        except (OSError, ValueError) as exc:
-            problems.append(f"{study.base_url}/models is not readable: {exc}")
-        else:
-            for role, model in (("chat", study.model), ("embedding", study.embedding_model), ("judge", study.judge_model or study.model)):
-                if model not in listed:
-                    problems.append(f"{role} model {model!r} is not listed by {study.base_url}/models")
+        wanted = {study.base_url: [("chat", study.model), ("embedding", study.embedding_model)]}
+        wanted.setdefault(study.judge_url, []).append(("judge", study.judge_model or study.model))
+        for url, roles in wanted.items():
+            try:
+                listed, _ = server.model_ids(url)
+            except (OSError, ValueError) as exc:
+                problems.append(f"{url}/models is not readable: {exc}")
+                continue
+            problems += [f"{role} model {model!r} is not listed by {url}/models" for role, model in roles if model not in listed]
     return problems
 
 
@@ -640,7 +647,8 @@ def render(config: Mapping[str, Any], rows: Sequence[Mapping[str, Any]], env: Ma
     lines += [
         f"- Machine: {one_line(start.get('sw_vers'))}; {one_line(start.get('xcodebuild_version'))}.",
         f"- localmelo {str(config.get('localmelo_sha', ''))[:12]}; chat model {config.get('model')}, embedding model "
-        f"{config.get('embedding_model')}, judge {config.get('judge_model')} (temperature 0, thinking off) at {config.get('base_url')}.",
+        f"{config.get('embedding_model')}, judge {config.get('judge_model')} (temperature 0, thinking off) at {config.get('base_url')}"
+        + (f", the judge at {config['judge_base_url']}" if config.get("judge_base_url") else "") + ".",
         f"- Scenarios: {(config.get('scenarios') or {}).get('name')} (task set sha256 {str((config.get('scenarios') or {}).get('tasks_sha256', ''))[:12]}).",
         f"- Ingest: `melo memory ingest FILE -j -X notes={ingest.get('notes')} {' '.join('-X ' + x for x in ingest.get('x') or [])}`, "
         f"chat dated {ingest.get('date')}; HOME config.toml {', '.join(f'{k}={v}' for k, v in (ingest.get('settings') or {}).items())}.",
@@ -789,7 +797,7 @@ def print_plan(study: Study, problems: Sequence[str]) -> None:
     print(f"Ingest: melo memory ingest FILE -j -X notes={public.INGEST_NOTES} {' '.join('-X ' + x for x in INGEST_X)} (the chat dated {CHAT_DATE}; "
           f"stops after {study.ingest_timeout_s:g} s)")
     print(f"Items: SELECT {', '.join(ITEM_COLUMNS)} FROM items of <HOME>/{ITEMS_DB} (read-only), and the notes of records.db")
-    print(f"Checks: string match on the key values of every should_keep:false fact; judge {study.judge_model or study.model} (temperature 0, "
+    print(f"Checks: string match on the key values of every should_keep:false fact; judge {study.judge_model or study.model} at {study.judge_url} (temperature 0, "
           f"thinking off) per item and fact, and per item the third-party question in pointed_third scenarios; {study.judge_parallel} calls at a time")
     config = public.settings_of(PROBE_ARM)
     print(f"Probe: arm {PROBE_ARM.name}: melo serve {' '.join('-X ' + x for x in PROBE_ARM.x)} [config.toml: "
@@ -819,7 +827,8 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     ap.add_argument("--base-url", default=os.environ.get("NIGHT_URL"), help="the model server up to /v1 (default: $NIGHT_URL)")
     ap.add_argument("--model", default=CHAT_MODEL, help="the chat model (ingest encoder and probe), as the server lists it (default %(default)s)")
     ap.add_argument("--embedding-model", default=across.EMBEDDING_MODEL, help="the embedding model of the same server (default %(default)s)")
-    ap.add_argument("--judge-model", default=None, help="the model that answers the checks, on the same server (default: --model)")
+    ap.add_argument("--judge-model", default=None, help="the model that answers the checks (default: --model)")
+    ap.add_argument("--judge-base-url", default=None, help="the server of the judge model, up to /v1 (default: --base-url)")
     ap.add_argument("--chat-runs", default=",".join(CHAT_RUNS),
                     help="comma-separated gate run dirs whose recorded turns are the chats, first match wins (default %(default)s)")
     ap.add_argument("--chat-arm", default=CHAT_ARM, help="the arm of those runs whose cells recorded the chats (default %(default)s)")
@@ -879,7 +888,7 @@ def build_study(args: argparse.Namespace) -> Study:
         run_dir=run_dir, scenarios=args.scenarios.resolve(), tasks=tasks, ids=tuple(ids),
         chats=plan_chats(tasks, ids, runs, args.chats, args.chat_arm), localmelo=args.localmelo, expect_sha=args.localmelo_sha,
         base_url=args.base_url, model=args.model, embedding_model=args.embedding_model, judge_model=args.judge_model or "",
-        probe=args.probe, probes=probes, compress_parallel=args.compress_parallel,
+        judge_base_url=args.judge_base_url or "", probe=args.probe, probes=probes, compress_parallel=args.compress_parallel,
         compress_cache=args.compress_cache.resolve() if str(args.compress_cache) not in ("", ".") else None,
         judge_parallel=args.judge_parallel, keep_homes=args.keep_homes, work_dir=args.work_dir, turn_timeout_s=args.turn_timeout,
         ingest_timeout_s=args.ingest_timeout, guard=make_guard(run_dir, args.deadline, args.gpu_lock, args.lock_holder))

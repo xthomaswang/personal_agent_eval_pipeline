@@ -328,6 +328,31 @@ def test_a_judge_that_does_not_answer_fails_the_scenario(tmp_path, repo, models,
     assert row["state"] == "failed" and row["error"] == "3 judge call(s) got no answer" and row["judge"]["errors"] == 3
 
 
+def test_the_judge_can_sit_on_another_server(tmp_path, repo, models):
+    """A small chat model keeps the usual judge: only the checks go to judge_base_url, and the run records where."""
+    judges = FakeModelServer(["judge-model"], replies=fake_judge)
+    try:
+        study = make_study(tmp_path, repo, models, ids=("poison-site-04",), judge_model="judge-model", judge_base_url=judges.base_url)
+        assert item_poison.run_study(study) == 0
+        row = rows(study)["poison-site-04"]
+        assert row["state"] == "done" and row["judge"]["errors"] == 0 and row["judge"]["calls"] > 0
+        assert sum(c["path"].endswith("/chat/completions") for c in judges.calls) == row["judge"]["calls"]
+        assert study.identity()["judge_base_url"] == judges.base_url
+        assert f"the judge at {judges.base_url}" in (study.run_dir / "report.md").read_text()
+    finally:
+        judges.stop()
+
+
+def test_preflight_asks_each_server_for_its_own_models(tmp_path, repo, models):
+    judges = FakeModelServer(["other-model"], replies=fake_judge)
+    try:
+        study = make_study(tmp_path, repo, models, judge_model="judge-model", judge_base_url=judges.base_url)
+        assert item_poison.preflight(study) == [f"judge model 'judge-model' is not listed by {judges.base_url}/models"]
+    finally:
+        judges.stop()
+    assert "judge_base_url" not in make_study(tmp_path, repo, models).identity()  # an old run dir still resumes
+
+
 def test_the_guard_stops_at_the_deadline_the_stop_file_and_a_missing_lock(tmp_path, monkeypatch):
     monkeypatch.setattr(across, "battery_problem", lambda pct, *a: None)
     lock = tmp_path / "lock"
