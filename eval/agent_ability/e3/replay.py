@@ -9,7 +9,7 @@ sent again `--repeats` times, exactly as the recorder proxy forwarded it (its sa
 settings included), straight to the model server, one request at a time. The order is repeat-major, so the arms
 interleave and a stopped replay has a similar count for every reflection. Each reply is classified:
 
-- readable: it holds a JSON object with a recommended_action key (the report's has_decision);
+- readable: it holds a JSON object whose recommended_action is one localmelo reads (the report's has_decision);
 - tool_call: no text, a tool call instead;
 - invalid: it names recommended_action but no JSON object around it parses;
 - no_json: anything else;

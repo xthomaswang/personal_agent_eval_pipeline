@@ -16,12 +16,13 @@ Definitions:
   a task counts once per side, as the mean over that side's passing runs of its output tokens, uncached
   tokens, steps (model calls) and wall s; the figures are means over the paired tasks, and the ratio is
   the arm's mean over S0's, for output and for uncached tokens;
-- a reflection request is one whose last user message starts with localmelo's REFLECTION_PROMPT, or a
+- a reflection request is one whose last user message holds the first line of localmelo's REFLECTION_PROMPT
+  (lead lines, such as the used-notes line, can come before it), or a
   tool-less one that carries that text in a system message (the default mode's, and the fixed-prefix
   mode's fallback and retry). Tool-less requests without the text are counted apart (toolless_other);
 - a reflection is the first request of a chain: a reflection request that follows an unreadable
   reflection request at once is its retry, not a new reflection. It is unreadable when its reply has no
-  JSON object with a recommended_action key;
+  JSON object whose recommended_action is one of localmelo's REFLECTION_ACTIONS;
 - loss: S0 passed a task in every repeat and the arm did not; discordant: the arm's pass count of a task
   differs from S0's (such pairs are listed for a rerun).
 """
@@ -47,6 +48,7 @@ from bench.proxy.steps import is_generation, is_ok  # noqa: E402
 
 VENDOR = Path(__file__).resolve().parent / "vendor" / "localmelo"
 PROMPT_SOURCE = Path("melo") / "agent" / "_chat.py"
+REFLECTION_ACTIONS = ("continue", "stop", "decompose", "done")  # melo/agent/_reflection.py
 # A tie in cache efficiency goes to the simpler arm
 SIMPLICITY = ("S0", "C1", "S2", "B1", "B2")
 UNREADABLE_MARGIN = 0.02
@@ -107,7 +109,7 @@ def is_reflection_request(body: dict[str, Any], prompt: str) -> bool | None:
     """True for a reflection request, None for a tool-less request that is not one, else False."""
     messages = [m for m in body.get("messages") or [] if isinstance(m, dict)]
     last_user = next((m for m in reversed(messages) if m.get("role") == "user"), None)
-    if last_user is not None and _text(last_user.get("content")).startswith(prompt):
+    if last_user is not None and prompt.split("\n", 1)[0] in _text(last_user.get("content")):
         return True
     if not body.get("tools"):
         if any(prompt in _text(m.get("content")) for m in messages if m.get("role") == "system"):
@@ -165,7 +167,8 @@ def reply_excerpt(raw: bytes, name: str, limit: int = 200) -> str:
 
 
 def has_decision(text: str) -> bool:
-    """Whether text holds a JSON object with a recommended_action key (markdown fences and prose around it are fine)."""
+    """Whether text holds a JSON object whose recommended_action is one localmelo reads (markdown fences and prose
+    around it are fine)."""
     decoder = json.JSONDecoder()
     start = text.find("{")
     while start != -1:
@@ -174,7 +177,7 @@ def has_decision(text: str) -> bool:
         except json.JSONDecodeError:
             start = text.find("{", start + 1)
             continue
-        if isinstance(obj, dict) and "recommended_action" in obj:
+        if isinstance(obj, dict) and obj.get("recommended_action") in REFLECTION_ACTIONS:
             return True
         start = text.find("{", start + 1)
     return False

@@ -136,6 +136,8 @@ def test_reflection_prompt_folds_concatenation_and_keeps_the_opening_shared_with
         (f"I think so. {DECISION} Done.", True),
         ('{"summary": "x", "next": {"recommended_action": "stop"}}', True),  # found by scanning, even nested
         ('{"summary": "no action"}', False),
+        ('{"recommended_action": "retry"}', False),  # not an action localmelo reads
+        ('{"recommended_action": ["stop"]}', False),
         ("I would stop here.", False),
         ('{"recommended_action": "continue"', False),
         ("", False),
@@ -158,6 +160,8 @@ def test_reflection_request_classification() -> None:
     assert e3_report.is_reflection_request(reflect_body(in_system=False), PROMPT) is None
     list_content = {"messages": [{"role": "user", "content": [{"type": "text", "text": PROMPT + "x"}]}], "tools": TOOLS}
     assert e3_report.is_reflection_request(list_content, PROMPT) is True
+    lead = {"messages": [{"role": "user", "content": "Notes used: 2.\n" + PROMPT}], "tools": TOOLS}
+    assert e3_report.is_reflection_request(lead, PROMPT) is True
 
 
 # --- one run ---
