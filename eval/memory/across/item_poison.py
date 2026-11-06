@@ -658,15 +658,16 @@ def render(config: Mapping[str, Any], rows: Sequence[Mapping[str, Any]], env: Ma
         + (f"; own probes for {', '.join(probe.get('own'))}" if probe.get("own") else "") + ".",
         "",
     ]
-    # totals
-    items = sum(len(r.get("items") or []) for r in done)
-    refused = sum(int((r.get("ingest") or {}).get("refused") or 0) for r in done)
+    # totals: what was stored and flagged counts every attempted ingest, since a probe that fails later does not undo its items;
+    # the probe lines count the scenarios that finished
+    items = sum(len(r.get("items") or []) for r in rows)
+    refused = sum(int((r.get("ingest") or {}).get("refused") or 0) for r in rows)
 
     def count(key: str) -> tuple[int, int]:
-        return sum(len((r.get("flags") or {}).get(key) or []) for r in done), sum(bool((r.get("flags") or {}).get(key)) for r in done)
+        return sum(len((r.get("flags") or {}).get(key) or []) for r in rows), sum(bool((r.get("flags") or {}).get(key)) for r in rows)
 
-    third_rows = [r for r in done if r.get("kind") == "pointed_third"]
-    judge_calls = sum((r.get("judge") or {}).get("calls", 0) for r in done)
+    third_rows = [r for r in rows if r.get("kind") == "pointed_third"]
+    judge_calls = sum((r.get("judge") or {}).get("calls", 0) for r in rows)
     reached_bad = [r["scenario"] for r in done if (r.get("probe") or {}).get("reached_flagged")]
     no_item = [r["scenario"] for r in done if not (r.get("probe") or {}).get("reached")]
     missed = [r["scenario"] for r in done if any((r.get("flags") or {}).values()) and not (r.get("probe") or {}).get("reached_flagged")]
@@ -677,7 +678,7 @@ def render(config: Mapping[str, Any], rows: Sequence[Mapping[str, Any]], env: Ma
         f"- Scenarios done: {len(done)} of {len(want)} ({by_kind}); failed: "
         + (", ".join(f"{r['scenario']} ({r.get('error')})" for r in rows if r.get("state") != "done") or "none")
         + (f"; not run yet: {', '.join(s for s in want if s not in {r['scenario'] for r in rows})}" if len(rows) < len(want) else "") + ".",
-        f"- Items stored: {items}; refused by the item secret gate at ingest: {refused}.",
+        f"- Items stored, in every attempted ingest: {items}; refused by the item secret gate at ingest: {refused}.",
         "- Items holding every key value of a should_keep: false fact (string match): {} in {} scenario(s).".format(*count("string")),
         "- Items the judge says state a should_keep: false fact: {} in {} scenario(s); flagged by both: {}.".format(*count("judge"), count("both")[0]),
         f"- pointed_third: items the judge says state a third party's fact as the user's: {count('third')[0]} of "
@@ -688,8 +689,8 @@ def render(config: Mapping[str, Any], rows: Sequence[Mapping[str, Any]], env: Ma
         f"- Probes that reached no item at all: {len(no_item)} of {len(done)}" + (f" ({', '.join(no_item)})" if no_item else "")
         + ". Such a probe is no evidence about recall, either way.",
         f"- Scenarios with a flagged item the probe did not reach: {len(missed)}" + (f" ({', '.join(missed)})" if missed else "") + ".",
-        f"- Judge: {judge_calls} calls, {sum((r.get('judge') or {}).get('errors', 0) for r in done)} without an answer, "
-        f"{sum((r.get('judge') or {}).get('unparsed', 0) for r in done)} unparsed (counted as no).",
+        f"- Judge: {judge_calls} calls, {sum((r.get('judge') or {}).get('errors', 0) for r in rows)} without an answer, "
+        f"{sum((r.get('judge') or {}).get('unparsed', 0) for r in rows)} unparsed (counted as no).",
         "",
         "| scenario | kind | chat | items | refused | string | judge | both | third | probe reached | flagged reached | answer holds | state |",
         "|---|---|---|---|---|---|---|---|---|---|---|---|---|",

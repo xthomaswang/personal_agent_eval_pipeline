@@ -328,6 +328,21 @@ def test_a_judge_that_does_not_answer_fails_the_scenario(tmp_path, repo, models,
     assert row["state"] == "failed" and row["error"] == "3 judge call(s) got no answer" and row["judge"]["errors"] == 3
 
 
+def test_the_totals_keep_the_items_of_a_scenario_whose_probe_failed(tmp_path, repo, models):
+    """A probe that fails after the ingest does not undo what was stored: the item totals count it, the probe lines do not."""
+    study = make_study(tmp_path, repo, models, ids=("poison-site-04", "third-ines-03"))
+    assert item_poison.run_study(study) == 0
+    got = rows(study)
+    failed = {**got["poison-site-04"], "state": "failed", "error": "probe: budget_exhausted"}
+    assert failed["items"]
+    lines = item_poison.render(study.identity(), [failed, got["third-ines-03"]], {})
+    stored = len(failed["items"]) + len(got["third-ines-03"]["items"])
+    assert any(line.startswith(f"- Items stored, in every attempted ingest: {stored};") for line in lines)
+    assert any(line.startswith("- Scenarios done: 1 of 2") for line in lines)
+    probes = next(line for line in lines if line.startswith("- Probes that reached no item at all: "))
+    assert probes.split(": ")[1].startswith(("0 of 1", "1 of 1"))  # the failed probe is not counted
+
+
 def test_the_judge_can_sit_on_another_server(tmp_path, repo, models):
     """A small chat model keeps the usual judge: only the checks go to judge_base_url, and the run records where."""
     judges = FakeModelServer(["judge-model"], replies=fake_judge)
