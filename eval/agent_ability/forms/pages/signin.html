@@ -1,0 +1,20 @@
+<section class="card narrow">
+  <h1>{{heading}}</h1>
+  <p class="muted">{{subheading}}</p>
+  <form method="post" action="{{action}}">
+    <div class="field">
+      <label for="username">Username</label>
+      <input type="text" id="username" name="username" autocomplete="username">
+    </div>
+    <div class="field">
+      <label for="password">Password</label>
+      <input type="password" id="password" name="password" autocomplete="current-password">
+    </div>
+    <label class="check"><input type="checkbox" name="remember"> Keep me signed in on this device</label>
+    <div class="actions">
+      <button type="submit" class="btn primary">Sign in</button>
+      <a href="#">Forgot your password?</a>
+    </div>
+  </form>
+  <p class="muted">New here? <a href="#">Create an account</a></p>
+</section>

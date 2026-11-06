@@ -1,0 +1,31 @@
+<div class="split">
+  <form class="side filters" method="get" action="/supply/search" aria-label="Filters">
+    <div class="field">
+      <label for="q">Search the catalog</label>
+      <input type="search" id="q" name="q">
+    </div>
+    <div class="field">
+      <label for="material">Material</label>
+      <select id="material" name="material">
+        <option value="">Any</option>
+        <option>Zinc-plated steel</option><option>Stainless steel A2</option><option>Stainless steel A4</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="length">Length</label>
+      <select id="length" name="length">
+        <option value="">Any</option>
+        <option value="30">30 mm</option><option value="40">40 mm</option><option value="50">50 mm</option>
+      </select>
+    </div>
+    <div class="actions"><button type="submit" class="btn primary">Search</button></div>
+  </form>
+  <section class="card">
+    <h1>Catalog</h1>
+    <p class="muted" data-qa="result-count">{{count}}</p>
+    <table class="lines">
+      <thead><tr><th>Product</th><th>Thread</th><th>Length</th><th>Material</th><th>Pack price</th></tr></thead>
+      <tbody>{{rows}}</tbody>
+    </table>
+  </section>
+</div>

@@ -1,0 +1,33 @@
+<section class="card">
+  <p class="muted">Cart &rsaquo; Shipping &rsaquo; <strong>Payment</strong></p>
+  <h1>Payment</h1>
+  <p class="muted">Shipping to {{ship_to}} by {{delivery}}.</p>
+  <table class="lines">
+    <tbody>
+      <tr><th>Subtotal</th><td>{{subtotal}}</td></tr>
+      <tr><th>Delivery</th><td>{{delivery_cost}}</td></tr>
+      {{discount}}
+    </tbody>
+    <tfoot><tr><th>Total</th><td data-qa="total">{{total}}</td></tr></tfoot>
+  </table>
+  <form method="post" action="/shop/checkout/payment">
+    <div class="field">
+      <label for="gift_code">Discount code or gift card</label>
+      <input type="text" id="gift_code" name="gift_code">
+    </div>
+    <div class="actions">
+      <button type="submit" class="btn" name="action" value="apply">Apply</button>
+    </div>
+    <fieldset class="choices">
+      <legend>Payment method</legend>
+      <label><input type="radio" name="payment" value="bank_transfer"> Bank transfer</label>
+      <label><input type="radio" name="payment" value="invoice"> Invoice (business accounts)</label>
+      <label><input type="radio" name="payment" value="store_credit"> Store credit</label>
+    </fieldset>
+    <label class="check"><input type="checkbox" name="terms"> I agree to the terms of sale</label>
+    <div class="actions">
+      <button type="submit" class="btn primary" name="action" value="place">Place order</button>
+      <a class="btn" href="/shop/checkout">Return to shipping</a>
+    </div>
+  </form>
+</section>

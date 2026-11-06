@@ -1,0 +1,72 @@
+<div class="split">
+  <nav class="side" aria-label="Settings">
+    <a href="#">Profile</a>
+    <a href="/taskmere/settings/notifications" aria-current="page"><strong>Notifications</strong></a>
+    <a href="#">Security</a>
+    <a href="#">Billing</a>
+    <a href="#">Integrations</a>
+  </nav>
+  <section class="card">
+    <h1>Notifications</h1>
+    <form method="post" action="/taskmere/settings/notifications">
+      <h2>Email</h2>
+      {{switch_product_updates}}
+      {{switch_weekly_digest}}
+      {{switch_comments}}
+      {{switch_mentions}}
+      <h2>Push</h2>
+      {{switch_desktop}}
+      {{switch_mobile_push}}
+      <h2>SMS</h2>
+      {{switch_sms}}
+      <h2>Delivery</h2>
+      <div class="field">
+        <label for="digest_frequency">Digest frequency</label>
+        <select id="digest_frequency" name="digest_frequency">
+          <option>Daily</option>
+          <option>Weekly</option>
+          <option>Monthly</option>
+        </select>
+      </div>
+      <fieldset class="row">
+        <legend>Quiet hours</legend>
+        <div class="field">
+          <label for="quiet_from">From</label>
+          <input type="text" id="quiet_from" name="quiet_from" placeholder="HH:MM">
+        </div>
+        <div class="field">
+          <label for="quiet_to">To</label>
+          <input type="text" id="quiet_to" name="quiet_to" placeholder="HH:MM">
+        </div>
+      </fieldset>
+      <div class="field">
+        <label for="time_zone">Time zone</label>
+        <select id="time_zone" name="time_zone">
+          <option>(UTC-08:00) Pacific Time (US &amp; Canada)</option>
+          <option>(UTC-07:00) Mountain Time (US &amp; Canada)</option>
+          <option>(UTC-06:00) Central Time (US &amp; Canada)</option>
+          <option>(UTC-05:00) Eastern Time (US &amp; Canada)</option>
+          <option>(UTC+00:00) London</option>
+          <option>(UTC+01:00) Berlin</option>
+          <option>(UTC+08:00) Singapore</option>
+          <option>(UTC+09:00) Tokyo</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="language">Language</label>
+        <select id="language" name="language">
+          <option>English (US)</option>
+          <option>English (UK)</option>
+          <option>French</option>
+          <option>German</option>
+          <option>Japanese</option>
+          <option>Spanish</option>
+        </select>
+      </div>
+      <div class="actions">
+        <button type="submit" class="btn primary">Save changes</button>
+        <a class="btn" href="/taskmere/settings/notifications">Discard</a>
+      </div>
+    </form>
+  </section>
+</div>

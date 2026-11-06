@@ -1,0 +1,76 @@
+<section class="card">
+  <p class="muted">Cart &rsaquo; <strong>Shipping</strong> &rsaquo; Payment</p>
+  <h1>Shipping</h1>
+  <form method="post" action="/shop/checkout">
+    <h2>Contact</h2>
+    <div class="field">
+      <label for="email">Email</label>
+      <input type="email" id="email" name="email" autocomplete="email">
+    </div>
+    <label class="check"><input type="checkbox" name="news" checked> Email me with news and offers</label>
+    <h2>Shipping address</h2>
+    <div class="grid">
+      <div class="field">
+        <label for="first_name">First name</label>
+        <input type="text" id="first_name" name="first_name" autocomplete="given-name">
+      </div>
+      <div class="field">
+        <label for="last_name">Last name</label>
+        <input type="text" id="last_name" name="last_name" autocomplete="family-name">
+      </div>
+      <div class="field">
+        <label for="company">Company (optional)</label>
+        <input type="text" id="company" name="company" autocomplete="organization">
+      </div>
+      <div class="field">
+        <label for="address">Address</label>
+        <input type="text" id="address" name="address" autocomplete="address-line1">
+      </div>
+      <div class="field">
+        <label for="address2">Apartment, suite, etc. (optional)</label>
+        <input type="text" id="address2" name="address2" autocomplete="address-line2">
+      </div>
+      <div class="field">
+        <label for="city">City</label>
+        <input type="text" id="city" name="city" autocomplete="address-level2">
+      </div>
+      <div class="field">
+        <label for="state">State</label>
+        <select id="state" name="state">
+          <option value="">Select...</option>
+          <option>Alabama</option><option>Alaska</option><option>Arizona</option><option>Arkansas</option>
+          <option>California</option><option>Colorado</option><option>Connecticut</option><option>Delaware</option>
+          <option>District of Columbia</option><option>Florida</option><option>Georgia</option><option>Hawaii</option>
+          <option>Idaho</option><option>Illinois</option><option>Indiana</option><option>Iowa</option>
+          <option>Kansas</option><option>Kentucky</option><option>Louisiana</option><option>Maine</option>
+          <option>Maryland</option><option>Massachusetts</option><option>Michigan</option><option>Minnesota</option>
+          <option>Mississippi</option><option>Missouri</option><option>Montana</option><option>Nebraska</option>
+          <option>Nevada</option><option>New Hampshire</option><option>New Jersey</option><option>New Mexico</option>
+          <option>New York</option><option>North Carolina</option><option>North Dakota</option><option>Ohio</option>
+          <option>Oklahoma</option><option>Oregon</option><option>Pennsylvania</option><option>Rhode Island</option>
+          <option>South Carolina</option><option>South Dakota</option><option>Tennessee</option><option>Texas</option>
+          <option>Utah</option><option>Vermont</option><option>Virginia</option><option>Washington</option>
+          <option>West Virginia</option><option>Wisconsin</option><option>Wyoming</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="zip">ZIP code</label>
+        <input type="text" id="zip" name="zip" autocomplete="postal-code" inputmode="numeric">
+      </div>
+      <div class="field">
+        <label for="phone">Phone</label>
+        <input type="tel" id="phone" name="phone" autocomplete="tel">
+      </div>
+    </div>
+    <fieldset class="choices">
+      <legend>Delivery method</legend>
+      <label><input type="radio" name="delivery" value="standard" checked> Standard, 5 to 7 business days, free</label>
+      <label><input type="radio" name="delivery" value="express"> Express, 2 business days, $12.00</label>
+      <label><input type="radio" name="delivery" value="overnight"> Overnight, next business day, $29.00</label>
+    </fieldset>
+    <div class="actions">
+      <button type="submit" class="btn primary">Continue to payment</button>
+      <a class="btn" href="/shop/cart">Return to cart</a>
+    </div>
+  </form>
+</section>

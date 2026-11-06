@@ -1,0 +1,58 @@
+<section class="card">
+  <p class="muted">Applying for {{job_title}} ({{job_id}}) &middot; Step 2 of 2</p>
+  <h1>Background and eligibility</h1>
+  <p class="muted">Applying as {{applicant}}. <span class="req">*</span> Required</p>
+  <form method="post" action="/careers/apply/{{job_id}}/2">
+    <div class="grid">
+      <div class="field">
+        <label for="school">School</label>
+        <input type="text" id="school" name="school">
+      </div>
+      <div class="field">
+        <label for="degree">Degree</label>
+        <select id="degree" name="degree">
+          <option value="">Select...</option>
+          <option>Bachelor's</option><option>Master's</option><option>PhD</option><option>Other</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="grad_date">Graduation date</label>
+        <input type="text" id="grad_date" name="grad_date" placeholder="MM/YYYY">
+      </div>
+    </div>
+    <fieldset class="choices">
+      <legend>Are you legally authorized to work in the United States?<span class="req">*</span></legend>
+      <label><input type="radio" name="authorized" value="yes"> Yes</label>
+      <label><input type="radio" name="authorized" value="no"> No</label>
+    </fieldset>
+    <fieldset class="choices">
+      <legend>Will you now or in the future require sponsorship for employment visa status?<span class="req">*</span></legend>
+      <label><input type="radio" name="sponsorship" value="yes"> Yes</label>
+      <label><input type="radio" name="sponsorship" value="no"> No</label>
+    </fieldset>
+    <div class="field">
+      <label for="hear_about">How did you hear about us?</label>
+      <select id="hear_about" name="hear_about">
+        <option value="">Select...</option>
+        <option>Company website</option><option>Job board</option><option>Employee referral</option>
+        <option>University career fair</option><option>Social media</option><option>Recruiter outreach</option>
+        <option>Other</option>
+      </select>
+    </div>
+    <h2>Voluntary self-identification</h2>
+    <p class="muted">Answering is optional and will not affect how your application is reviewed.</p>
+    <div class="field">
+      <label for="gender">Gender</label>
+      <select id="gender" name="gender">
+        <option value="">Select...</option>
+        <option>Female</option><option>Male</option><option>Non-binary</option><option>Decline to self-identify</option>
+      </select>
+    </div>
+    <label class="check"><input type="checkbox" name="consent"> I consent to Quillmont processing my personal data for recruiting purposes.<span class="req">*</span></label>
+    <div class="actions">
+      <button type="submit" class="btn primary" name="action" value="submit">Submit application</button>
+      <button type="submit" class="btn" name="action" value="draft">Save draft</button>
+      <a class="btn" href="/careers/apply/{{job_id}}/1">Back</a>
+    </div>
+  </form>
+</section>

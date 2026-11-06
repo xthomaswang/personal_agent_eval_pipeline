@@ -1,0 +1,15 @@
+<form method="post" action="/forum/checkin">
+  <p class="muted">Signed in as {{user}}. Your streak is {{streak}} days.</p>
+  <fieldset class="choices">
+    <legend>How is today going?</legend>
+    <label><input type="radio" name="mood" value="Focused"> Focused</label>
+    <label><input type="radio" name="mood" value="Relaxed"> Relaxed</label>
+    <label><input type="radio" name="mood" value="Busy"> Busy</label>
+    <label><input type="radio" name="mood" value="Tired"> Tired</label>
+  </fieldset>
+  <div class="field">
+    <label for="note">Note for today (optional)</label>
+    <input type="text" id="note" name="note" maxlength="80">
+  </div>
+  <div class="actions"><button type="submit" class="btn primary">Check in</button></div>
+</form>

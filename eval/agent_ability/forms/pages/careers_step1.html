@@ -1,0 +1,54 @@
+<section class="card">
+  <p class="muted">Applying for {{job_title}} ({{job_id}}) &middot; Step 1 of 2</p>
+  <h1>Your details</h1>
+  <p class="muted"><span class="req">*</span> Required</p>
+  <form method="post" action="/careers/apply/{{job_id}}/1" {{enctype}}>
+    <div class="grid">
+      <div class="field">
+        <label for="first_name">Legal first name<span class="req">*</span></label>
+        <input type="text" id="first_name" name="first_name">
+      </div>
+      <div class="field">
+        <label for="last_name">Legal last name<span class="req">*</span></label>
+        <input type="text" id="last_name" name="last_name">
+      </div>
+      <div class="field">
+        <label for="preferred_name">Preferred first name</label>
+        <input type="text" id="preferred_name" name="preferred_name">
+        <p class="hint">If different from legal name</p>
+      </div>
+      <div class="field">
+        <label for="email">Email<span class="req">*</span></label>
+        <input type="email" id="email" name="email">
+      </div>
+      <div class="field">
+        <label for="phone_country">Country code</label>
+        <select id="phone_country" name="phone_country">
+          <option>+1</option><option>+44</option><option>+49</option><option>+52</option>
+          <option>+61</option><option>+81</option><option>+91</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="phone">Phone<span class="req">*</span></label>
+        <input type="tel" id="phone" name="phone" placeholder="(201) 555-0123">
+      </div>
+      <div class="field">
+        <label for="city">Current location (city)</label>
+        <input type="text" id="city" name="city" placeholder="City">
+      </div>
+      <div class="field">
+        <label for="linkedin">Professional profile URL</label>
+        <input type="url" id="linkedin" name="linkedin" placeholder="https://">
+      </div>
+      <div class="field">
+        <label for="website">Website / portfolio</label>
+        <input type="url" id="website" name="website" placeholder="https://">
+      </div>
+    </div>
+    {{resume}}
+    <div class="actions">
+      <button type="submit" class="btn primary">Continue</button>
+      <a class="btn" href="/careers/jobs/{{job_id}}">Back to the job</a>
+    </div>
+  </form>
+</section>

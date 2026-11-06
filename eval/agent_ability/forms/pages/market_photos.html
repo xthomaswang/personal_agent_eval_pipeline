@@ -1,0 +1,14 @@
+<section class="card">
+  <p class="muted">New listing &rsaquo; Details &rsaquo; <strong>Photos</strong> &rsaquo; Review</p>
+  <h1>Choose photos for your listing</h1>
+  <p class="muted">Your phone's camera roll is shown below. Press a photo to add it to the listing, and press it again to take it out.</p>
+  <form method="post" action="/market/listing/photos">
+    <input type="hidden" id="selected" name="selected" value="">
+    <div class="tiles" role="group" aria-label="Camera roll">{{tiles}}</div>
+    <p class="muted"><span id="selected_count">0</span> selected</p>
+    <div class="actions">
+      <button type="submit" class="btn primary">Use selected photos</button>
+      <button type="button" class="btn" data-clear-tiles>Clear selection</button>
+    </div>
+  </form>
+</section>
