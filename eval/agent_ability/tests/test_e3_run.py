@@ -71,6 +71,7 @@ def test_arms_are_the_agreed_flag_sets() -> None:
         "LSH": ("-X", "agent.lean_output=true", "--builtins", "file_read,file_write,python_exec,shell_exec"),
         "S0-C": ("-X", "agent.confine_direct_runs=true"),
         "SH-C": ("--builtins", "file_read,file_write,python_exec,shell_exec", "-X", "agent.confine_direct_runs=true"),
+        "A10": ("-X", "agent.steps_per_attempt=10"),
     }
     assert e3_run.DEFAULT_ARMS == ("S0", "C1", "B1", "B2", "S2")
     assert e3_run.arm_args("B2")[:2] == ["--output-format", "json"]
