@@ -1,0 +1,8 @@
+{
+  "C-half": {
+    "label": "memory items for the older half of the chats, turns for the newer half, in a list the model opens (run with --encode-share 0.5)",
+    "x": ["memory.retriever=embedding"],
+    "embedding": true,
+    "config": {"tools.web_fetch": false, "tasks.follow_up": false, "memory.recall_source": "items", "memory.recall_form": "list"}
+  }
+}

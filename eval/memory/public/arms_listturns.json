@@ -1,0 +1,8 @@
+{
+  "C-list": {
+    "label": "turns, as in A, in a list the model opens (no items): what a live user can have before the live item encoder",
+    "x": ["memory.retriever=embedding"],
+    "embedding": true,
+    "config": {"tools.web_fetch": false, "tasks.follow_up": false, "memory.recall_form": "list"}
+  }
+}

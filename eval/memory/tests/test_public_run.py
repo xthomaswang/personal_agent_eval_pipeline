@@ -71,6 +71,45 @@ def test_ingest_passes_the_runs_extra_pairs_and_only_then_names_them(tmp_path, m
     assert plain.identity()["ingest"] == {"notes": "rules"}  # the identity of a run without them is as before
 
 
+def test_encode_share_ingests_the_oldest_sessions_with_the_pairs_and_the_rest_plain(tmp_path, monkeypatch):
+    seen = []
+
+    class Done:
+        returncode, stderr = 0, ""
+
+    def fake_run(cmd, **kw):
+        sessions = json.loads(Path(cmd[3]).read_text())["sessions"]
+        seen.append((cmd, [x["id"] for x in sessions]))
+        done = Done()
+        compress = "ingest=compress" in cmd
+        done.stdout = json.dumps({"sessions": len(sessions), "turns": 2 * len(sessions), "ids": {x["id"]: "st-" + x["id"] for x in sessions},
+                                  "error": "", **({"ingest": "compress", "model_calls": 3, "compress": {"w": 1}} if compress else {})})
+        return done
+
+    monkeypatch.setattr(run.subprocess, "run", fake_run)
+    monkeypatch.setattr(run, "template_home", lambda study, qdir, url=None: tmp_path / "home")
+    study = run.Study(run_dir=tmp_path, questions=mini_questions(), ids=("q1aa", "q2bb_abs"), arms={}, arm_names=(), repeats=1,
+                      localmelo=tmp_path, expect_sha="", base_url="", model="", embedding_model="", judge_model="",
+                      ingest_x=("ingest=compress", "memory.x=1"), encode_share=0.5)
+    (tmp_path / "q").mkdir()
+    report = run.ingest(study, mini_questions()[0], tmp_path / "q")
+    assert [ids for _, ids in seen] == [["sess_a", "sess_b"], ["sess_c"]]  # ceil(0.5 x 3) = 2, oldest first
+    assert seen[0][0][-4:] == ["-X", "ingest=compress", "-X", "memory.x=1"] and seen[1][0][-2:] == ["-X", "memory.x=1"]
+    assert report["sessions"] == 3 and report["turns"] == 6 and report["model_calls"] == 3 and report["ingest"] == "compress"
+    assert report["ids"] == {"sess_a": "st-sess_a", "sess_b": "st-sess_b", "sess_c": "st-sess_c"}
+    assert (report["encoded_sessions"], report["plain_sessions"], report["error"]) == (2, 1, "")
+    assert not list((tmp_path / "q").glob("ingest_*.json"))  # both ingest files are removed
+    seen.clear()
+    run.ingest(study, mini_questions()[1], tmp_path / "q")
+    assert [ids for _, ids in seen] == [["sess_y"], ["sess_x"]]  # by date, not the file's order
+    assert study.identity()["ingest"]["encode_share"] == 0.5
+    assert "encode_share" not in run.Study(**{**study.__dict__, "encode_share": None}).identity()["ingest"]
+    assert run.encode_share(None, ()) is None and run.encode_share(0.5, ["ingest=compress"]) == 0.5
+    for share, pairs in ((0.5, []), (1.0, ["ingest=compress"]), (0.0, ["ingest=compress"])):
+        with pytest.raises(SystemExit):
+            run.encode_share(share, pairs)
+
+
 def test_ingest_settings_go_into_the_ingest_home_only(tmp_path):
     assert run.parse_settings(["memory.compress_cache=/r/c.json", "memory.compress_at_chars=8000", "a.b=true"]) == {
         "memory.compress_cache": "/r/c.json", "memory.compress_at_chars": 8000, "a.b": True}

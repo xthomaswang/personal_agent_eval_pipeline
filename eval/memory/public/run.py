@@ -51,6 +51,7 @@ from __future__ import annotations
 import argparse
 import http.client
 import json
+import math
 import os
 import re
 import shutil
@@ -207,6 +208,7 @@ class Study:
     ingest_settings: dict[str, Any] = field(default_factory=dict)  # dotted config.toml entries of the ingest HOME only
     ingest_extra_body: dict[str, Any] = field(default_factory=dict)  # the ingest HOME's [vllm.extra_body] (e.g. thinking off)
     ingest_fail_fast: bool = False  # stop the run after its first ingest when the encoder failed (ingest_problem)
+    encode_share: float | None = None  # ingest_x for the oldest ceil(share x n) sessions only, the rest plain (split_sessions)
     control_prompts: tuple[str, ...] = ()
     control_homes: int = 20
     cold_start: bool = True  # unload the embedding model before each cell, so every cell starts without it
@@ -260,7 +262,8 @@ class Study:
             "base_settings": BASE_SETTINGS,
             "ingest": {"notes": INGEST_NOTES, **({"x": list(self.ingest_x)} if self.ingest_x else {}),
                        **({"settings": dict(self.ingest_settings)} if self.ingest_settings else {}),
-                       **({"extra_body": dict(self.ingest_extra_body)} if self.ingest_extra_body else {})},
+                       **({"extra_body": dict(self.ingest_extra_body)} if self.ingest_extra_body else {}),
+                       **({"encode_share": self.encode_share} if self.encode_share is not None else {})},
             "control": {"prompts": list(self.control_prompts), "homes": self.control_homes} if self.control_prompts else None,
             "cold_start": self.cold_start,
             "turn_timeout_s": self.turn_timeout_s,
@@ -421,18 +424,36 @@ def parse_report(stdout: str) -> dict[str, Any]:
     raise IngestError(f"the ingest report is not JSON: {text[:200]!r}")
 
 
-def ingest(study: Study, question: data.Question, qdir: Path) -> dict[str, Any]:
-    """Ingest a question's history into a new template HOME, with no gateway on it. Returns the `-j` report (`ids` included).
+def split_sessions(document: Mapping[str, Any], share: float) -> tuple[dict[str, Any], dict[str, Any]]:
+    """The ingest file's oldest ceil(share x n) sessions by date (the file's order breaks a tie, as ingest's does) and the
+    rest, as two ingest files."""
+    ordered = sorted(document["sessions"], key=lambda s: s["date"])
+    cut = math.ceil(share * len(ordered))
+    return {"sessions": ordered[:cut]}, {"sessions": ordered[cut:]}
 
-    The ingest file is written under ``qdir`` and removed afterwards (it is the dataset's text). IngestError for an exit
-    code other than 0 (2: not in developer mode or a bad file, 1: a gateway owns the HOME) or an output that is not JSON."""
-    # the ingest talks to the model server through a proxy, whose log says how each encoder reply ended
-    timing = proxy.TimingProxy(study.base_url, qdir / "ingest_proxy.jsonl") if study.base_url.startswith("http") else None
-    home = template_home(study, qdir, timing.url if timing else None)
-    source = qdir / "ingest_input.json"
-    source.write_text(json.dumps(data.to_ingest(question), ensure_ascii=False), encoding="utf-8")
+
+SUMMED = ("sessions", "turns", "docs", "notes", "embedded_chars", "cut", "skipped", "trimmed", "seconds", "model_calls",
+          "cache_hits", "split", "failed_parts", "refused", "input_tokens", "output_tokens")
+
+
+def merge_reports(encoded: Mapping[str, Any], plain: Mapping[str, Any]) -> dict[str, Any]:
+    """One report for an ingest done in two parts: counts summed, ``ids`` joined, the encoder's own fields from the first."""
+    report = {**plain, **encoded}
+    for key in SUMMED:
+        if key in encoded or key in plain:
+            report[key] = encoded.get(key, 0) + plain.get(key, 0)
+    report["ids"] = {**(plain.get("ids") or {}), **(encoded.get("ids") or {})}
+    report["error"] = "; ".join(e for e in (encoded.get("error"), plain.get("error")) if e)
+    report["encoded_sessions"], report["plain_sessions"] = encoded.get("sessions", 0), plain.get("sessions", 0)
+    return report
+
+
+def run_ingest(study: Study, question: data.Question, home: Path, source: Path, document: Mapping[str, Any],
+               xs: Sequence[str]) -> dict[str, Any]:
+    """One `melo memory ingest` of ``document`` (written to ``source``, removed afterwards unless homes are kept)."""
+    source.write_text(json.dumps(document, ensure_ascii=False), encoding="utf-8")
     cmd = [str(study.melo), "memory", "ingest", str(source), "-j", "-X", f"notes={INGEST_NOTES}"]
-    cmd += [part for pair in study.ingest_x for part in ("-X", pair)]
+    cmd += [part for pair in xs for part in ("-X", pair)]
     try:
         done = subprocess.run(
             cmd, capture_output=True, text=True, timeout=study.ingest_timeout_s, check=False, stdin=subprocess.DEVNULL,
@@ -440,15 +461,38 @@ def ingest(study: Study, question: data.Question, qdir: Path) -> dict[str, Any]:
     except (OSError, subprocess.TimeoutExpired) as exc:
         raise IngestError(f"{question['question_id']}: melo memory ingest did not run to the end: {exc}") from exc
     finally:
-        if timing:
-            timing.stop()
         if not study.keep_homes:
             source.unlink(missing_ok=True)
     if done.returncode != 0:
         raise IngestError(f"{question['question_id']}: melo memory ingest exited {done.returncode}: {done.stderr.strip()[-300:]}")
+    return parse_report(done.stdout)
+
+
+def ingest(study: Study, question: data.Question, qdir: Path) -> dict[str, Any]:
+    """Ingest a question's history into a new template HOME, with no gateway on it. Returns the `-j` report (`ids` included).
+
+    The ingest file is written under ``qdir`` and removed afterwards (it is the dataset's text). IngestError for an exit
+    code other than 0 (2: not in developer mode or a bad file, 1: a gateway owns the HOME) or an output that is not JSON.
+    With ``encode_share`` the oldest share of the sessions is ingested first with the run's -X pairs and the rest after it
+    without its ``ingest=`` pair (plain), into the same HOME, so ingest still writes them oldest first."""
+    # the ingest talks to the model server through a proxy, whose log says how each encoder reply ended
+    timing = proxy.TimingProxy(study.base_url, qdir / "ingest_proxy.jsonl") if study.base_url.startswith("http") else None
+    home = template_home(study, qdir, timing.url if timing else None)
+    document = data.to_ingest(question)
+    try:
+        if study.encode_share is None:
+            report = run_ingest(study, question, home, qdir / "ingest_input.json", document, study.ingest_x)
+        else:
+            old, new = split_sessions(document, study.encode_share)
+            plain_x = [x for x in study.ingest_x if not x.startswith("ingest=")]
+            encoded = run_ingest(study, question, home, qdir / "ingest_input.json", old, study.ingest_x) if old["sessions"] else {}
+            plain = run_ingest(study, question, home, qdir / "ingest_plain.json", new, plain_x) if new["sessions"] else {}
+            report = merge_reports(encoded, plain)
+    finally:
+        if timing:
+            timing.stop()
     shutil.rmtree(home / ".cache" / "localmelo" / "gateway" / "auth", ignore_errors=True)  # no stale token for a cell to read
     write_ingest_config(study, home, study.base_url)  # the proxy is gone (a cell writes its own config.toml anyway)
-    report = parse_report(done.stdout)
     if timing:
         report["requests"] = ingest_requests(proxy.read_log(qdir / "ingest_proxy.jsonl"))
     summary = compress_summary(report.get("compress"))
@@ -1055,6 +1099,9 @@ def print_plan(study: Study, problems: list[str]) -> None:
     print(f"Output: {study.run_dir} (public.json, questions.json, environment.json, results.jsonl, controls.jsonl, cells/, questions/)")
     if study.ingest_x:
         print(f"Ingest: melo memory ingest -X notes={INGEST_NOTES} {' '.join(f'-X {x}' for x in study.ingest_x)}")
+    if study.encode_share is not None:
+        print(f"Encode share: the oldest {study.encode_share:g} of each haystack's sessions with those pairs, the rest plain "
+              f"(no ingest= pair) in a second ingest on the same HOME")
     if study.ingest_settings:
         print(f"Ingest HOME config.toml: {', '.join(f'{k}={v!r}' for k, v in study.ingest_settings.items())}")
     if study.ingest_extra_body:
@@ -1118,6 +1165,9 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         help=f"stop the run (exit 4) when its first ingest had an encoder reply at the token cap or more than "
         f"{INGEST_FAILED_MAX:.0%} failed windows")
     ap.add_argument(
+        "--encode-share", type=float, default=None, metavar="F",
+        help="give the --ingest-x pairs to the oldest ceil(F x n) sessions of each haystack only; the rest is ingested plain")
+    ap.add_argument(
         "--ingest-setting", action="append", default=[], metavar="KEY=VALUE",
         help="a dotted config.toml entry of the ingest HOME only, e.g. memory.compress_cache=/path (a JSON value, else a string; "
         "repeat for more)")
@@ -1144,6 +1194,16 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         "--dry-run", action="store_true",
         help="print the plan and the checks; ingest nothing, start no gateway, send no request to a model")
     return ap.parse_args(argv)
+
+
+def encode_share(share: float | None, ingest_x: Sequence[str]) -> float | None:
+    if share is None:
+        return None
+    if not 0 < share < 1:
+        raise SystemExit("--encode-share takes a share between 0 and 1 (without it every session gets the --ingest-x pairs)")
+    if not any(x.startswith("ingest=") for x in ingest_x):
+        raise SystemExit("--encode-share needs an --ingest-x ingest=... pair to give to the oldest sessions")
+    return share
 
 
 def ingest_body(value: Any) -> dict[str, Any]:
@@ -1190,7 +1250,7 @@ def build_study(args: argparse.Namespace) -> Study:
         judge_model=args.judge_model or args.model, data_path=args.data, data_sha256=data.file_sha256(args.data),
         stage=(args.per_type, args.abstention, args.seed), work_dir=args.work_dir, keep_homes=args.keep_homes, ingest_x=tuple(args.ingest_x),
         ingest_settings=parse_settings(args.ingest_setting), ingest_extra_body=ingest_body(args.ingest_extra_body),
-        ingest_fail_fast=args.ingest_fail_fast,
+        ingest_fail_fast=args.ingest_fail_fast, encode_share=encode_share(args.encode_share, args.ingest_x),
         control_prompts=prompts, control_homes=args.control_homes, cold_start=not args.no_cold_start,
         unload_timeout_s=args.unload_timeout, turn_timeout_s=args.turn_timeout, ingest_timeout_s=args.ingest_timeout,
         use_stream=not args.no_stream, do_warmup=not args.no_warmup, turn_guard=turn_guard, cell_guard=cell_guard)
