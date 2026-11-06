@@ -1,0 +1,6 @@
+{
+  "T-first": {
+    "description": "thinks on an attempt's first plan and after a failed step, off after a tool step that worked",
+    "settings": {"agent.thinking_steps": "first_and_failed"}
+  }
+}
