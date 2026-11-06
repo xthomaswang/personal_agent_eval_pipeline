@@ -13,6 +13,10 @@ It serves web/tap.py's 13 tools of chrome-devtools-mcp, plus:
 ``navigate_page`` and ``new_page`` open only ``$FORMS_TAP_SITE``, the run's fixture site, so a run stays on this
 computer. Everything else (the log, the refusals, the child's life) is web/tap.py's. Like it, this file uses the
 standard library only.
+
+melo hides a password the person gives in their message: the model reads and types the handle ``[password-1]``, and only
+melo's own browser tool types the value. These runs reach Chrome through this tap instead, so the tap does that step:
+``fill``, ``fill_form`` and ``type_text`` get ``$FORMS_TAP_PASSWORD`` in place of the handle, and the log keeps the handle.
 """
 
 from __future__ import annotations
@@ -30,6 +34,9 @@ from web import tap as base  # noqa: E402
 
 UPLOAD_ROOT_ENV = "FORMS_TAP_UPLOAD_ROOT"
 SITE_ENV = "FORMS_TAP_SITE"
+PASSWORD_ENV = "FORMS_TAP_PASSWORD"
+PASSWORD_HANDLE = "[password-1]"
+TYPING_TOOLS = ("fill", "fill_form", "type_text")
 EXTRA_TOOLS = ("fill_form", "upload_file", "take_screenshot")
 TOOLS = (*base.DOM_TOOLS, *EXTRA_TOOLS)
 JPEG_QUALITY = 70
@@ -57,6 +64,17 @@ def upload_refusal(paths: Any, root: str | None) -> str | None:
     return None
 
 
+def with_password(value: Any, password: str) -> Any:
+    """*value*, a tool's arguments, with the handle in its strings replaced by *password*."""
+    if isinstance(value, str):
+        return value.replace(PASSWORD_HANDLE, password)
+    if isinstance(value, dict):
+        return {k: with_password(v, password) for k, v in value.items()}
+    if isinstance(value, list):
+        return [with_password(v, password) for v in value]
+    return value
+
+
 class FormsTap(base.Tap):
     def _call_dom(self, name: str, args: dict[str, Any], detail: dict[str, Any]) -> dict[str, Any]:
         if name in ("navigate_page", "new_page") and "url" in args:
@@ -69,6 +87,9 @@ class FormsTap(base.Tap):
                 raise base.Refused(problem)
         if name == "take_screenshot":
             return self._screenshot(args, detail)
+        password = os.environ.get(PASSWORD_ENV)
+        if password and name in TYPING_TOOLS:
+            args = with_password(args, password)
         return super()._call_dom(name, args, detail)
 
     def _screenshot(self, args: dict[str, Any], detail: dict[str, Any]) -> dict[str, Any]:

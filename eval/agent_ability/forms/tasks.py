@@ -69,6 +69,7 @@ class Task:
     upload: Mapping[str, str] | None = None  # the field, file name and sha256 of the file that must arrive
     workspace_files: Mapping[str, bytes] = field(default_factory=dict)
     answer: str | None = None
+    password: str | None = None  # the one the prompt gives: the tap types it for melo's handle (forms/tap.py)
 
     def text(self, workspace: Path) -> str:
         return f"{self.prompt.format(workspace=workspace)}\n\n{CLOSING}"
@@ -112,6 +113,7 @@ TASKS: tuple[Task, ...] = (
             "The task is done when you see the signed-in home page."
         ),
         kind="taskmere.signin",
+        password=fixture.TASKMERE_ACCOUNT[1],
         pick="any",
         expected={"username": fixture.TASKMERE_ACCOUNT[0], "ok": True},
     ),
@@ -266,6 +268,7 @@ TASKS: tuple[Task, ...] = (
             f"{fixture.FORUM_ACCOUNT[1]}. Today is going Focused, and the note for today is: Thesis draft, chapter 2"
         ),
         kind="forum.checkin",
+        password=fixture.FORUM_ACCOUNT[1],
         expected={"user": fixture.FORUM_ACCOUNT[0], "mood": "Focused", "note": "Thesis draft, chapter 2"},
         normalize={"note": "text"},
     ),

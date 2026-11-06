@@ -354,7 +354,7 @@ def signin_steps() -> list[Callable[[str], Any] | None]:
     def elements(latest: str) -> tuple[str, dict[str, Any]]:
         fields = [
             {"uid": find_uid(latest, "textbox", "Username"), "value": fixture.TASKMERE_ACCOUNT[0]},
-            {"uid": find_uid(latest, "textbox", "Password"), "value": fixture.TASKMERE_ACCOUNT[1]},
+            {"uid": find_uid(latest, "textbox", "Password"), "value": forms_tap.PASSWORD_HANDLE},
         ]
         return "fill_form", {"elements": fields}
 

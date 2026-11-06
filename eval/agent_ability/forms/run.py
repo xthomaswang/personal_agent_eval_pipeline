@@ -358,7 +358,7 @@ def execute(item: dict[str, Any], ctx: Context) -> dict[str, Any]:
             try:
                 with arms.overrides(
                     ctx.harness, arm, run_dir=run_root, browser_url=browser.browser_url, workspace=workspace,
-                    site_url=site.base_url, model=ctx.model, embedding_model=ctx.embedding_model,
+                    site_url=site.base_url, password=task.password, model=ctx.model, embedding_model=ctx.embedding_model,
                     max_calls=ctx.max_calls, wall_cap_s=ctx.wall_cap_s, extra=ctx.extra,
                 ) as plan:  # fmt: skip
                     summary = ctx.harness.run(

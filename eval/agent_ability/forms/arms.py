@@ -130,9 +130,13 @@ def flag_template(arm: Arm, max_calls: int, wall_cap_s: float, extra: Sequence[s
     return list(melo_flags(arm, Path("<mcp.json>"), max_calls, wall_cap_s, extra))
 
 
-def mcp_config(run_dir: Path, browser_url: str, workspace: Path, site_url: str) -> dict[str, Any]:
-    """The ``mcpServers`` document of a run: the forms tap, on the run's Chrome."""
+def mcp_config(
+    run_dir: Path, browser_url: str, workspace: Path, site_url: str, password: str | None = None
+) -> dict[str, Any]:
+    """The ``mcpServers`` document of a run: the forms tap, on the run's Chrome. *password* is the fixture account's."""
     env = {**web_arms.tap_env(), forms_tap.UPLOAD_ROOT_ENV: str(workspace), forms_tap.SITE_ENV: site_url}
+    if password:
+        env[forms_tap.PASSWORD_ENV] = password
     args = [str(TAP), "--mode", "dom", "--log", str(run_dir / "tap.jsonl"), "--browser-url", browser_url]
     return {"mcpServers": {SERVER: {"type": "stdio", "command": sys.executable, "args": args, "env": env}}}
 
@@ -183,13 +187,15 @@ def overrides(
     max_calls: int,
     wall_cap_s: float,
     extra: Sequence[str] = (),
+    password: str | None = None,
 ) -> Iterator[Plan]:
     """Swap in the arm's localmelo builder for one run and restore it after; writes ``<run_dir>/mcp.json``."""
     saved = dict(harness_module.BUILDERS)
     try:
         run_dir.mkdir(parents=True, exist_ok=True)
         mcp_json = run_dir / "mcp.json"
-        mcp_json.write_text(json.dumps(mcp_config(run_dir, browser_url, workspace, site_url), indent=2) + "\n")
+        config = mcp_config(run_dir, browser_url, workspace, site_url, password)
+        mcp_json.write_text(json.dumps(config, indent=2) + "\n")
         harness_module.BUILDERS[HARNESS] = melo_builder(saved[HARNESS], arm, model, embedding_model)
         yield Plan(melo_flags(arm, mcp_json, max_calls, wall_cap_s, extra), mcp_json)
     finally:

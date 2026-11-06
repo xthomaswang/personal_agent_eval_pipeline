@@ -86,6 +86,32 @@ def test_a_run_without_a_workspace_uploads_nothing() -> None:
     assert forms_tap.upload_refusal(["a.pdf"], None) == "there is no upload folder in this run"
 
 
+def test_the_tap_types_the_password_for_melos_handle(rig: test_web_tap.Rig, tmp_path: Path) -> None:
+    (tmp_path / "ws").mkdir()
+    client = rig.start(
+        "dom",
+        **{
+            forms_tap.UPLOAD_ROOT_ENV: str(tmp_path / "ws"),
+            forms_tap.SITE_ENV: SITE,
+            forms_tap.PASSWORD_ENV: "fixture-secret",
+        },
+    )
+    elements = [{"uid": "1_1", "value": "rowan"}, {"uid": "1_2", "value": forms_tap.PASSWORD_HANDLE}]
+    assert not client.call("fill_form", elements=elements).get("isError")
+    assert not client.call("fill", uid="1_2", value=forms_tap.PASSWORD_HANDLE).get("isError")
+    calls = rig.child_calls()
+    assert calls[0]["arguments"]["elements"][1]["value"] == "fixture-secret"
+    assert calls[0]["arguments"]["elements"][0]["value"] == "rowan"
+    assert calls[1]["arguments"]["value"] == "fixture-secret"
+    assert "fixture-secret" not in rig.log.read_text()
+
+
+def test_a_task_without_a_password_leaves_the_handle_alone(rig: test_web_tap.Rig, tmp_path: Path) -> None:
+    client = start(rig, tmp_path / "ws")
+    assert not client.call("fill", uid="1_2", value=forms_tap.PASSWORD_HANDLE).get("isError")
+    assert rig.child_calls()[0]["arguments"]["value"] == forms_tap.PASSWORD_HANDLE
+
+
 def test_only_the_site_can_be_opened(rig: test_web_tap.Rig, tmp_path: Path) -> None:
     client = start(rig, tmp_path / "ws")
     assert not client.call("navigate_page", url=f"{SITE}/forum/").get("isError")
