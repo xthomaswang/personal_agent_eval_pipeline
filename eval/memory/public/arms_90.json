@@ -1,0 +1,8 @@
+{
+  "C-90": {
+    "label": "memory items for the oldest 90% of the chats, turns for the newest 10%, in a list the model opens (run with --encode-share 0.9)",
+    "x": ["memory.retriever=embedding"],
+    "embedding": true,
+    "config": {"tools.web_fetch": false, "tasks.follow_up": false, "memory.recall_source": "items", "memory.recall_form": "list"}
+  }
+}
