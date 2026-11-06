@@ -48,6 +48,7 @@ TOKEN = "fake-token"
 KNOWN_SETTINGS = {
     "memory.retriever": "auto", "memory.across_chats": "true", "agent.window_messages": "64", "memory.context_query": "off", "ui.mode": "standard",
     "memory.note_gate": "typed", "tools.web_fetch": "true", "tasks.follow_up": "true", "tools.web_fetch_allow_local": "off",
+    "memory.recall_source": '"turns"', "memory.recall_form": '"excerpt"', "memory.compress_parallel": "1", "memory.compress_cache": '""',
 }
 
 
@@ -94,6 +95,7 @@ class FakeGateway:
         config = self.home / ".cache" / "localmelo" / "config.toml"
         document = tomllib.loads(config.read_text()) if config.exists() else {}
         self.window_cap = int(document.get("agent", {}).get("window_messages", 64))
+        self.recall_source = document.get("memory", {}).get("recall_source", "turns")  # "items": recall lists the ingested items
         self.developer = document.get("ui", {}).get("mode") == "developer"  # POST /api/memory/sleep and /adapter answer only then
         self.sleeps: list[Any] = []
         self.sleep_bodies: list[dict[str, Any]] = []
@@ -194,6 +196,10 @@ class FakeGateway:
         if self.retriever == "embedding":
             query |= {extra for t in list(query) for extra in terms(self.synonyms.get(t, ""))}
         need = max(1, int(0.6 * len(query) + 0.999)) if query and self.context_query != "on" else 1
+        if self.recall_source == "items":  # the items of a compress ingest stand in for the turns, behind the same bar
+            return [{"kind": "item", "id": i["id"], "item": i["id"], "text": i["text"], "source": "an earlier chat",
+                     "session_id": i["session_id"], "turn": 0, "at": 0, "sources": i["sources"]}
+                    for i in memory.get("items", []) if len(query & terms(i["text"])) >= need][:8]
         used = []
         for record in memory["records"]:
             if len(query & terms(record["text"])) >= need:
@@ -656,11 +662,63 @@ class FakeModelServer:
         self.server.server_close()
 
 
+ITEMS_SCHEMA = (  # localmelo's items table (support/memory/index.py)
+    "CREATE TABLE IF NOT EXISTS items (id INTEGER PRIMARY KEY AUTOINCREMENT, session_id TEXT NOT NULL, title TEXT NOT NULL DEFAULT '', "
+    "text TEXT NOT NULL, kind TEXT NOT NULL DEFAULT 'semantic', created_at REAL NOT NULL, sources TEXT NOT NULL DEFAULT '[]', "
+    "status TEXT NOT NULL DEFAULT 'active', replaced_by INTEGER, related TEXT NOT NULL DEFAULT '[]', conflicts TEXT NOT NULL DEFAULT '[]', "
+    "vector BLOB, embed_model TEXT NOT NULL DEFAULT '', encoder TEXT NOT NULL DEFAULT '')")
+
+
+def fake_encode(base: Path, vllm: Mapping[str, Any], ids: Mapping[str, str], exchanges: Mapping[str, list[tuple[str, str]]],
+                memory: dict[str, Any], report: dict[str, Any]) -> None:
+    """The fake ``ingest=compress``: per chat one request to the chat model, then one item per statement (see ingest_main)."""
+    report.update(ingest="compress", model_calls=0, cache_hits=0, refused=0, split=0, failed_parts=0, compress={})
+    conn = sqlite3.connect(base / "memory" / "index.db")
+    try:
+        conn.execute(ITEMS_SCHEMA)
+        for file_id, store_id in ids.items():
+            if vllm.get("chat_url"):
+                body = json.dumps({"model": vllm.get("chat_model"), "messages": [{"role": "user", "content": "encode this chat"}]}).encode()
+                request = urllib.request.Request(vllm["chat_url"] + "/chat/completions", data=body, headers={"Content-Type": "application/json"})
+                with urllib.request.urlopen(request, timeout=30) as reply:
+                    reply.read()
+                report["model_calls"] += 1
+            chat = exchanges.get(store_id, [])
+            items, refused = [], 0
+            for n, (typed, answer) in enumerate(chat):
+                for sentence in (s.strip() for s in re.split(r"(?<=[.!?])\s+", f"{typed} {answer}")):
+                    if sentence.endswith(("?", "？")) or len(sentence.split()) < 3:
+                        continue
+                    if "password" in sentence.lower():
+                        refused += 1
+                        continue
+                    title = " ".join(sentence.split()[:4])
+                    item_id = conn.execute(
+                        "INSERT INTO items (session_id, title, text, created_at, sources, encoder) VALUES (?, ?, ?, 0, ?, 'fake')",
+                        (store_id, title, sentence, json.dumps([[store_id, n]]))).lastrowid
+                    items.append({"id": item_id, "title": title, "text": sentence, "kind": "semantic", "sources": [[file_id, n]]})
+                    memory.setdefault("items", []).append({"id": item_id, "text": sentence, "session_id": store_id, "sources": [[store_id, n]]})
+            report["refused"] += refused
+            report["compress"][file_id] = {
+                "windows": [{"exchanges": len(chat), "chars": sum(len(t) + len(a) for t, a in chat), "cached": False, "failed": False,
+                             "cut": False, "dropped": 0, "split": 0, "failed_parts": 0, "part": None}],
+                "gate": {"kept": list(range(len(chat))), "ignored": [], "unmentioned": [], "forced": []}, "refused": refused,
+                "items": items, "routes": [{"action": "NEW", "item": i["id"], "target": None, "reason": "new", "title": i["title"]} for i in items]}
+        conn.commit()
+    finally:
+        conn.close()
+
+
 def ingest_main(argv: Sequence[str]) -> int:
     """`melo memory ingest FILE [-j] [-X notes=rules|none]` as the fake does it: every user turn with its reply becomes a document
     ("User: ..." then "melo: ...") and, with notes=rules, every statement a note, in the memory.json the FakeGateway reads. A document
     over 2000 characters counts as cut. Exit 2 outside developer mode or for a file that is not an ingest file, 1 while a gateway
-    owns the HOME (its token file is there). The arguments it got go to `ingest-argv.json` in the HOME."""
+    owns the HOME (its token file is there). The arguments it got go to `ingest-argv.json` in the HOME.
+
+    With ``-X ingest=compress`` a fake encoder also asks the configured chat model once per chat and keeps every statement of
+    three words or more of an exchange (typed text, then answer) as a memory item: a row of ``items`` in ``memory/index.db``
+    (localmelo's columns) and an entry the FakeGateway recalls. A statement that holds "password" is refused, as the item
+    secret gate refuses one; the report gains the compress fields."""
     home = Path(os.environ["HOME"])
     base = home / ".cache" / "localmelo"
     document = tomllib.loads((base / "config.toml").read_text()) if (base / "config.toml").exists() else {}
@@ -681,8 +739,10 @@ def ingest_main(argv: Sequence[str]) -> int:
     memory: dict[str, list[dict[str, Any]]] = {"records": [], "documents": []}
     report: dict[str, Any] = {"sessions": 0, "turns": 0, "docs": 0, "notes": 0, "embedded_chars": 0, "cut": 0, "skipped": 0, "trimmed": 0}
     ids: dict[str, str] = {}
+    exchanges: dict[str, list[tuple[str, str]]] = {}
 
     def keep(store_id: str, typed: str, answer: str) -> None:
+        exchanges.setdefault(store_id, []).append((typed, answer))
         text = f"User: {typed}\nmelo: {answer}"
         memory["documents"].append({"id": len(memory["documents"]) + 1, "session_id": store_id, "text": text})
         report["turns"] += 1
@@ -714,6 +774,8 @@ def ingest_main(argv: Sequence[str]) -> int:
         ids[str(session["id"])] = store_id
         report["sessions"] += 1
     (base / "memory").mkdir(parents=True, exist_ok=True)
+    if any(a == "-X" and b == "ingest=compress" for a, b in zip(args, args[1:], strict=False)):
+        fake_encode(base, document.get("vllm", {}), ids, exchanges, memory, report)
     (base / "memory" / "memory.json").write_text(json.dumps(memory))
     report.update(seconds=0.01, model=document.get("vllm", {}).get("embedding_model", ""), error="", ids=ids)
     print(json.dumps(report) if "-j" in args else f"Ingested {report['sessions']} sessions, {report['turns']} turns.")

@@ -468,17 +468,18 @@ def run_ingest(study: Study, question: data.Question, home: Path, source: Path, 
     return parse_report(done.stdout)
 
 
-def ingest(study: Study, question: data.Question, qdir: Path) -> dict[str, Any]:
+def ingest(study: Study, question: data.Question, qdir: Path, document: Mapping[str, Any] | None = None) -> dict[str, Any]:
     """Ingest a question's history into a new template HOME, with no gateway on it. Returns the `-j` report (`ids` included).
 
     The ingest file is written under ``qdir`` and removed afterwards (it is the dataset's text). IngestError for an exit
     code other than 0 (2: not in developer mode or a bad file, 1: a gateway owns the HOME) or an output that is not JSON.
     With ``encode_share`` the oldest share of the sessions is ingested first with the run's -X pairs and the rest after it
-    without its ``ingest=`` pair (plain), into the same HOME, so ingest still writes them oldest first."""
+    without its ``ingest=`` pair (plain), into the same HOME, so ingest still writes them oldest first. ``document`` is an
+    ingest file to load instead of the question's haystack (another bench's chats, as across/item_poison.py loads them)."""
     # the ingest talks to the model server through a proxy, whose log says how each encoder reply ended
     timing = proxy.TimingProxy(study.base_url, qdir / "ingest_proxy.jsonl") if study.base_url.startswith("http") else None
     home = template_home(study, qdir, timing.url if timing else None)
-    document = data.to_ingest(question)
+    document = data.to_ingest(question) if document is None else document
     try:
         if study.encode_share is None:
             report = run_ingest(study, question, home, qdir / "ingest_input.json", document, study.ingest_x)
