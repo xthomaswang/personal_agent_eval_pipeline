@@ -112,6 +112,14 @@ def test_a_task_without_a_password_leaves_the_handle_alone(rig: test_web_tap.Rig
     assert rig.child_calls()[0]["arguments"]["value"] == forms_tap.PASSWORD_HANDLE
 
 
+def test_the_child_may_read_a_workspace_outside_the_temp_folder(monkeypatch: pytest.MonkeyPatch) -> None:
+    for name in ("COMMON_CHILD_FLAGS", "DOM_TOOLS", "DOM_DROPPED_PARAMS", "Tap"):
+        monkeypatch.setattr(forms_tap.base, name, getattr(forms_tap.base, name))
+    forms_tap.install()
+    command = forms_tap.base.child_command("dom", "http://127.0.0.1:9222")
+    assert "--allow-unrestricted-paths" in command
+
+
 def test_only_the_site_can_be_opened(rig: test_web_tap.Rig, tmp_path: Path) -> None:
     client = start(rig, tmp_path / "ws")
     assert not client.call("navigate_page", url=f"{SITE}/forum/").get("isError")

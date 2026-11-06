@@ -40,6 +40,9 @@ TYPING_TOOLS = ("fill", "fill_form", "type_text")
 EXTRA_TOOLS = ("fill_form", "upload_file", "take_screenshot")
 TOOLS = (*base.DOM_TOOLS, *EXTRA_TOOLS)
 JPEG_QUALITY = 70
+# chrome-devtools-mcp reads files only under the system's temp folder unless told otherwise, and a run's workspace is not
+# there. upload_refusal keeps the same limit, to the run's workspace.
+CHILD_FLAGS = ("--allow-unrestricted-paths",)
 
 
 def origin(url: Any) -> tuple[str, str, int | None] | None:
@@ -110,6 +113,7 @@ def install() -> None:
     """Make web/tap.py serve this suite's tools: its ``main`` builds the tap and reads these names when it runs."""
     base.DOM_TOOLS = TOOLS
     base.DOM_DROPPED_PARAMS = {**base.DOM_DROPPED_PARAMS, "take_screenshot": ("filePath",)}
+    base.COMMON_CHILD_FLAGS = (*base.COMMON_CHILD_FLAGS, *CHILD_FLAGS)
     base.Tap = FormsTap
 
 
