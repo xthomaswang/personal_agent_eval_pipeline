@@ -209,6 +209,8 @@ class Study:
     ingest_extra_body: dict[str, Any] = field(default_factory=dict)  # the ingest HOME's [vllm.extra_body] (e.g. thinking off)
     ingest_fail_fast: bool = False  # stop the run after its first ingest when the encoder failed (ingest_problem)
     encode_share: float | None = None  # ingest_x for the oldest ceil(share x n) sessions only, the rest plain (split_sessions)
+    encode_turn_share: float | None = None  # oldest sessions until this share of the ingest file's turns is covered
+    keep_answer_sessions_plain: bool = False  # turn-share cut only: never encode a session named by the answer metadata
     control_prompts: tuple[str, ...] = ()
     control_homes: int = 20
     cold_start: bool = True  # unload the embedding model before each cell, so every cell starts without it
@@ -263,7 +265,9 @@ class Study:
             "ingest": {"notes": INGEST_NOTES, **({"x": list(self.ingest_x)} if self.ingest_x else {}),
                        **({"settings": dict(self.ingest_settings)} if self.ingest_settings else {}),
                        **({"extra_body": dict(self.ingest_extra_body)} if self.ingest_extra_body else {}),
-                       **({"encode_share": self.encode_share} if self.encode_share is not None else {})},
+                       **({"encode_share": self.encode_share} if self.encode_share is not None else {}),
+                       **({"encode_turn_share": self.encode_turn_share} if self.encode_turn_share is not None else {}),
+                       **({"keep_answer_sessions_plain": True} if self.keep_answer_sessions_plain else {})},
             "control": {"prompts": list(self.control_prompts), "homes": self.control_homes} if self.control_prompts else None,
             "cold_start": self.cold_start,
             "turn_timeout_s": self.turn_timeout_s,
@@ -432,6 +436,46 @@ def split_sessions(document: Mapping[str, Any], share: float) -> tuple[dict[str,
     return {"sessions": ordered[:cut]}, {"sessions": ordered[cut:]}
 
 
+def split_sessions_by_turns(
+    document: Mapping[str, Any], share: float, plain_ids: Sequence[str] = (),
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """The smallest oldest eligible prefix covering ``share`` of all file turns.
+
+    Stable date order breaks ties by file order, just as ``split_sessions`` does.
+    Protected sessions always stay plain, but their turns remain in the denominator.
+    If they prevent reaching the target, encode every eligible session; never move
+    protected evidence into the encoded part or discard the question.
+    """
+    if not 0 < share < 1:
+        raise ValueError("the turn share must be between 0 and 1")
+    ordered = sorted(document["sessions"], key=lambda s: s["date"])
+    total = sum(len(s["turns"]) for s in ordered)
+    protected = set(plain_ids)
+    encoded, plain = [], []
+    covered = 0
+    for session in ordered:
+        if session["id"] not in protected and total and covered / total < share:
+            encoded.append(session)
+            covered += len(session["turns"])
+        else:
+            plain.append(session)
+    return {"sessions": encoded}, {"sessions": plain}
+
+
+def answer_file_ids(question: data.Question, document: Mapping[str, Any]) -> list[str]:
+    """Map answer-session metadata to every retained ingest copy, without text matching."""
+    if "answer_session_ids" not in question:
+        raise IngestError("the answer-preserving cut needs answer_session_ids metadata")
+    answers = {str(sid) for sid in question["answer_session_ids"]}
+    file_to_original = data.haystack_ids(question)
+    if answers - set(file_to_original.values()):
+        raise IngestError("an answer session is absent from the question's haystack")
+    protected = [file for file, original in file_to_original.items() if original in answers]
+    if set(protected) - {s["id"] for s in document["sessions"]}:
+        raise IngestError("the ingest document omits an answer session needed by the cut")
+    return protected
+
+
 SUMMED = ("sessions", "turns", "docs", "notes", "embedded_chars", "cut", "skipped", "trimmed", "seconds", "model_calls",
           "cache_hits", "split", "failed_parts", "refused", "input_tokens", "output_tokens")
 
@@ -474,17 +518,27 @@ def ingest(study: Study, question: data.Question, qdir: Path, document: Mapping[
     The ingest file is written under ``qdir`` and removed afterwards (it is the dataset's text). IngestError for an exit
     code other than 0 (2: not in developer mode or a bad file, 1: a gateway owns the HOME) or an output that is not JSON.
     With ``encode_share`` the oldest share of the sessions is ingested first with the run's -X pairs and the rest after it
-    without its ``ingest=`` pair (plain), into the same HOME, so ingest still writes them oldest first. ``document`` is an
-    ingest file to load instead of the question's haystack (another bench's chats, as across/item_poison.py loads them)."""
+    without its ``ingest=`` pair (plain), into the same HOME. ``encode_turn_share`` instead cuts by file turns, optionally
+    protecting every answer session. ``document`` is an ingest file to load instead of the question's haystack
+    (another bench's chats, as across/item_poison.py loads them)."""
+    if study.encode_share is not None and study.encode_turn_share is not None:
+        raise IngestError("session-share and turn-share cuts are mutually exclusive")
+    if study.keep_answer_sessions_plain and study.encode_turn_share is None:
+        raise IngestError("the answer-preserving cut needs encode_turn_share")
     # the ingest talks to the model server through a proxy, whose log says how each encoder reply ended
     timing = proxy.TimingProxy(study.base_url, qdir / "ingest_proxy.jsonl") if study.base_url.startswith("http") else None
     home = template_home(study, qdir, timing.url if timing else None)
     document = data.to_ingest(question) if document is None else document
     try:
-        if study.encode_share is None:
+        if study.encode_share is None and study.encode_turn_share is None:
             report = run_ingest(study, question, home, qdir / "ingest_input.json", document, study.ingest_x)
         else:
-            old, new = split_sessions(document, study.encode_share)
+            if study.encode_turn_share is not None:
+                protected = answer_file_ids(question, document) if study.keep_answer_sessions_plain else []
+                old, new = split_sessions_by_turns(document, study.encode_turn_share, protected)
+            else:
+                assert study.encode_share is not None
+                old, new = split_sessions(document, study.encode_share)
             plain_x = [x for x in study.ingest_x if not x.startswith("ingest=")]
             encoded = run_ingest(study, question, home, qdir / "ingest_input.json", old, study.ingest_x) if old["sessions"] else {}
             plain = run_ingest(study, question, home, qdir / "ingest_plain.json", new, plain_x) if new["sessions"] else {}
@@ -1103,6 +1157,10 @@ def print_plan(study: Study, problems: list[str]) -> None:
     if study.encode_share is not None:
         print(f"Encode share: the oldest {study.encode_share:g} of each haystack's sessions with those pairs, the rest plain "
               f"(no ingest= pair) in a second ingest on the same HOME")
+    if study.encode_turn_share is not None:
+        protected = "; answer sessions stay plain even if the target cannot be reached" if study.keep_answer_sessions_plain else ""
+        print(f"Encode turn share: the oldest eligible prefix covering at least {study.encode_turn_share:g} of each file's turns"
+              f"{protected}; the rest plain")
     if study.ingest_settings:
         print(f"Ingest HOME config.toml: {', '.join(f'{k}={v!r}' for k, v in study.ingest_settings.items())}")
     if study.ingest_extra_body:
@@ -1165,9 +1223,16 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         "--ingest-fail-fast", action="store_true",
         help=f"stop the run (exit 4) when its first ingest had an encoder reply at the token cap or more than "
         f"{INGEST_FAILED_MAX:.0%} failed windows")
-    ap.add_argument(
+    cuts = ap.add_mutually_exclusive_group()
+    cuts.add_argument(
         "--encode-share", type=float, default=None, metavar="F",
         help="give the --ingest-x pairs to the oldest ceil(F x n) sessions of each haystack only; the rest is ingested plain")
+    cuts.add_argument(
+        "--encode-turn-share", type=float, default=None, metavar="F",
+        help="encode the smallest oldest prefix covering at least F of all ingest-file turns; the rest is ingested plain")
+    ap.add_argument(
+        "--keep-answer-sessions-plain", action="store_true",
+        help="with --encode-turn-share, exclude every answer session from encoding, even if the target becomes unreachable")
     ap.add_argument(
         "--ingest-setting", action="append", default=[], metavar="KEY=VALUE",
         help="a dotted config.toml entry of the ingest HOME only, e.g. memory.compress_cache=/path (a JSON value, else a string; "
@@ -1204,6 +1269,18 @@ def encode_share(share: float | None, ingest_x: Sequence[str]) -> float | None:
         raise SystemExit("--encode-share takes a share between 0 and 1 (without it every session gets the --ingest-x pairs)")
     if not any(x.startswith("ingest=") for x in ingest_x):
         raise SystemExit("--encode-share needs an --ingest-x ingest=... pair to give to the oldest sessions")
+    return share
+
+
+def encode_turn_share(share: float | None, ingest_x: Sequence[str], keep_answers_plain: bool = False) -> float | None:
+    if share is None:
+        if keep_answers_plain:
+            raise SystemExit("--keep-answer-sessions-plain needs --encode-turn-share")
+        return None
+    if not 0 < share < 1:
+        raise SystemExit("--encode-turn-share takes a share between 0 and 1")
+    if "ingest=compress" not in ingest_x:
+        raise SystemExit("--encode-turn-share needs --ingest-x ingest=compress")
     return share
 
 
@@ -1252,6 +1329,8 @@ def build_study(args: argparse.Namespace) -> Study:
         stage=(args.per_type, args.abstention, args.seed), work_dir=args.work_dir, keep_homes=args.keep_homes, ingest_x=tuple(args.ingest_x),
         ingest_settings=parse_settings(args.ingest_setting), ingest_extra_body=ingest_body(args.ingest_extra_body),
         ingest_fail_fast=args.ingest_fail_fast, encode_share=encode_share(args.encode_share, args.ingest_x),
+        encode_turn_share=encode_turn_share(args.encode_turn_share, args.ingest_x, args.keep_answer_sessions_plain),
+        keep_answer_sessions_plain=args.keep_answer_sessions_plain,
         control_prompts=prompts, control_homes=args.control_homes, cold_start=not args.no_cold_start,
         unload_timeout_s=args.unload_timeout, turn_timeout_s=args.turn_timeout, ingest_timeout_s=args.ingest_timeout,
         use_stream=not args.no_stream, do_warmup=not args.no_warmup, turn_guard=turn_guard, cell_guard=cell_guard)
