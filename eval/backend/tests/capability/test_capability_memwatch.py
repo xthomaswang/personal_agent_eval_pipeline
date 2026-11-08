@@ -7,8 +7,10 @@ children allocate memory page by page. Limits are a few hundred MiB and every al
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
+import signal
 import subprocess
 import sys
 import time
@@ -177,3 +179,125 @@ def test_short_cmdline() -> None:
     assert memwatch.short_cmdline(text, home) == "~/env/bin/python -c 'import x while True: pass' ~"
     long = memwatch.short_cmdline("/home/someone/" + "a" * 300, home)
     assert len(long) == memwatch.CMDLINE_CHARS and long.startswith("~/")
+
+
+# --- what a task leaves behind (reap) ---
+
+# An agent's shell tool: starts a command in its own session, as Claude Code's Bash tool does, prints
+# the command's pid (its session id) and exits after `linger` seconds, before the command does.
+# argv: linger, then the command.
+SHELL_TOOL = r"""
+import subprocess, sys, time
+p = subprocess.Popen(sys.argv[2:], start_new_session=True, stdin=subprocess.DEVNULL)
+print(p.pid, flush=True)
+time.sleep(float(sys.argv[1]))
+"""
+# A tree of copies: argv: this program, depth. Each node starts two copies one level down, then
+# every node sleeps 30 s. 2**(depth+1) - 1 processes in all.
+TREE = r"""
+import subprocess, sys, time
+me, depth = sys.argv[1], int(sys.argv[2])
+if depth > 0:
+    for _ in range(2):
+        subprocess.Popen([sys.executable, "-I", "-c", me, me, str(depth - 1)])
+time.sleep(30)
+"""
+# A chain like the 2026-10-31 runaway: each copy starts the next and exits at once, so one or two are
+# alive at a time, none for long. The first copy (the command the tool ran) waits 0.5 s, as that
+# script's top level waited on its children. argv: this program, generation (it stops at 3000).
+CHAIN = r"""
+import subprocess, sys, time
+me, gen = sys.argv[1], int(sys.argv[2])
+if gen < 3000:
+    subprocess.Popen([sys.executable, "-I", "-c", me, me, str(gen + 1)])
+time.sleep(0.5 if gen == 0 else 0.05)
+"""
+# Started by the watched process itself, in its session, so outside the tree: starts a command in a
+# new session (a process of someone else, started while the task runs) and exits.
+BYSTANDER = r"""
+import subprocess, sys
+p = subprocess.Popen([sys.executable, "-I", "-c", "import time; time.sleep(30)"], start_new_session=True,
+                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+print(p.pid, flush=True)
+"""
+
+
+def session_members(sid: int) -> set[int]:
+    lib = memwatch.LibProc()
+    return {pid for pid in lib.pids(os.getuid()) if lib.info(pid) is not None and memwatch._sid(pid) == sid}
+
+
+@pytest.fixture
+def sessions() -> Iterator[list[int]]:
+    """Session ids to clean up whatever the test's outcome (each is also its process group)."""
+    sids: list[int] = []
+    yield sids
+    for sid in sids:
+        for _ in range(3):
+            for pid in session_members(sid):
+                with contextlib.suppress(ProcessLookupError, PermissionError):
+                    os.kill(pid, signal.SIGKILL)
+            time.sleep(0.1)
+
+
+def agent_command(spawned: list[subprocess.Popen[str]], sessions: list[int], program: str, arg: str,
+                  linger: float) -> int:  # fmt: skip
+    """A fake harness whose shell tool runs `program` in its own session and exits after `linger` s;
+    the harness waits for the tool and exits. Returns the command's session id."""
+    command = [sys.executable, "-I", "-c", program, program, arg]
+    tool = [sys.executable, "-I", "-c", SHELL_TOOL, str(linger), *command]
+    proc = subprocess.Popen(tool, stdout=subprocess.PIPE, text=True, start_new_session=True)
+    spawned.append(proc)
+    sid = int(proc.stdout.readline())
+    sessions.append(sid)
+    proc.wait(timeout=60)
+    return sid
+
+
+def gone(sid: int, wait_s: float = 2.0) -> bool:
+    deadline = time.monotonic() + wait_s
+    while session_members(sid) and time.monotonic() < deadline:
+        time.sleep(0.05)
+    return not session_members(sid)
+
+
+def test_what_the_task_left_is_killed_when_it_ends(spawned, sessions) -> None:
+    """The shell tool exits, the command it started lives on in its own session (launchd adopts it):
+    the whole command tree is killed when the task ends and recorded; another session started while
+    the task ran, by a process outside the tree, is not touched."""
+    with watchdog(1.0, 2.0) as w:
+        bystander = subprocess.run([sys.executable, "-I", "-c", BYSTANDER], capture_output=True, text=True,
+                                   timeout=30, check=True)  # fmt: skip
+        other = int(bystander.stdout)
+        sessions.append(other)
+        sid = agent_command(spawned, sessions, TREE, "3", linger=1.0)
+        deadline = time.monotonic() + 10
+        while len(session_members(sid)) < 15 and time.monotonic() < deadline:
+            time.sleep(0.05)
+        left = session_members(sid)
+        assert len(left) == 15 and all(memwatch.LibProc().info(pid).ppid != os.getpid() for pid in left)
+    assert gone(sid)
+    assert w.leftover_count == 15 and {k["pid"] for k in w.leftovers} == left
+    flags = w.row_flags()
+    assert flags["memory_kills"] == [] and flags["leftover_kills"]["count"] == 15 and w.error is None
+    first = flags["leftover_kills"]["first"][0]
+    assert first.keys() == {"pid", "cmdline", "t"} and " -I -c " in first["cmdline"]
+    assert session_members(other) == {other}
+
+
+def test_a_chain_that_keeps_starting_copies_is_stopped(spawned, sessions) -> None:
+    with watchdog(1.0, 2.0) as w:
+        sid = agent_command(spawned, sessions, CHAIN, "0", linger=1.0)
+        time.sleep(0.5)
+        assert session_members(sid)  # the chain outlived its shell tool
+    assert gone(sid, wait_s=1.0)
+    time.sleep(0.5)
+    assert not session_members(sid)  # and nothing started again
+    assert w.leftover_count >= 1 and w.error is None
+
+
+def test_nothing_is_left_to_reap_after_a_clean_task(spawned) -> None:
+    with watchdog(1.0, 2.0) as w:
+        root = harness(spawned, (0.01, 0.2))
+        outcome(root)
+    assert w.leftover_count == 0 and w.row_flags() is None

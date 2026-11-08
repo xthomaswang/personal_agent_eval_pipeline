@@ -23,6 +23,17 @@ While a task runs, a thread polls every POLL_S seconds:
   command killed, as by an OOM killer, and the task goes on; the verdict is the checker's, as always.
   Each kill is recorded (pid, command line cut to 120 characters with the home directory as `~`,
   footprint, time, which limit) and the runner puts the list into the row's flags as `memory_kills`.
+- **Other sessions.** A member may start a new session (an agent's shell tool runs each command in its
+  own). Such a session stays in the tree while any process is in it, for the processes started since the
+  task began: a command's children whose parent exited (launchd adopts them) are still the task's. A
+  session is known once a poll has seen one of its processes in the tree, so a command that exits within
+  a poll, leaving children behind, can escape; a shell tool waits for its command, which then lives on.
+- **The end of the task.** When the `with` block ends, reap() SIGSTOPs every member until a scan finds
+  none running (a stopped process cannot start another), then SIGKILLs them all, so nothing the agent
+  started outlives its task. The row's flags then carry `leftover_kills`: the count and the first 20
+  (pid, command line, time). Why: on 2026-10-31 a script an agent wrote in claude_code/aider/sgf-parsing
+  (Qwen3.8-27B oQ5) ran copies of itself at import time; subprocess timeouts killed only the direct
+  children, the rest ran on for a week, ~900 processes and 5 CPU cores at a time.
 
 Stdlib only (ctypes), like the rest of the runner's imports; macOS only. If libproc cannot be loaded, the
 watchdog records why and the task runs unwatched.
@@ -31,6 +42,7 @@ watchdog records why and the task runs unwatched.
 from __future__ import annotations
 
 import collections
+import contextlib
 import ctypes
 import math
 import os
@@ -51,6 +63,8 @@ TREE_LIMIT_ENV = "MODELEVAL_AGENT_TREE_LIMIT_GB"
 POLL_S = 1.0
 CMDLINE_CHARS = 120
 GIB = 1 << 30
+REAP_S = 10.0  # how long reap() may chase processes that keep starting others
+LEFTOVER_LIST = 20  # reap() records this many of the processes it killed, and their count
 
 # <sys/proc_info.h>, <sys/resource.h>, <sys/sysctl.h>
 _PROC_UID_ONLY = 4
@@ -219,12 +233,17 @@ class Watchdog:
         self._uid = os.getuid()
         self._own_sid = _sid(parent)
         self._sessions: dict[int, tuple[int, int]] = {}  # root pid (= its session id) -> its start time
+        self._other_sessions: set[int] = set()  # other sessions of tree members, while a process is in them
+        self._t0 = 0.0  # when the task began (wall clock)
         self._killed: set[tuple[int, tuple[int, int]]] = set()
+        self.leftovers: list[dict[str, Any]] = []  # the first LEFTOVER_LIST processes reap() killed
+        self.leftover_count = 0
         self._lib: LibProc | None = None
         self._stop = threading.Event()
         self._thread = threading.Thread(target=self._loop, name="memory-watchdog", daemon=True)
 
     def __enter__(self) -> Self:
+        self._t0 = time.time()
         try:
             self._lib = LibProc()
         except (OSError, AttributeError) as exc:  # not macOS: the task runs unwatched, and the row says so
@@ -237,6 +256,51 @@ class Watchdog:
         self._stop.set()
         if self._thread.is_alive():
             self._thread.join(timeout=self.poll_s + 10)
+        try:
+            self.reap()
+        except Exception as error:  # noqa: BLE001 - the row records it; the run goes on
+            self._fail(error)
+
+    def reap(self) -> None:
+        """Once the task is over, kill what is left of its tree: scan and SIGSTOP every member until a
+        scan finds none that is not stopped (a stopped process cannot start another), then SIGKILL them
+        all. Why: on 2026-10-31 a script the agent wrote in claude_code/aider/sgf-parsing (Qwen3.8-27B
+        oQ5) started copies of itself that outlived the task and ran for a week, ~900 processes at a time."""
+        lib = self._lib
+        if lib is None:
+            return
+        stopped: dict[tuple[int, tuple[int, int]], str] = {}
+        deadline, chased_too_long = time.monotonic() + REAP_S, False
+        while True:
+            table = self._table(lib)
+            _roots, tree = self.tree(table)
+            done = stopped.keys() | self._killed  # stopped here, or killed by a limit and dying
+            fresh = [(pid, table[pid]) for pid in tree if (pid, table[pid].start) not in done]
+            if not fresh:
+                break
+            if time.monotonic() > deadline:  # the stopped ones are still killed below
+                chased_too_long = True
+                break
+            for pid, info in fresh:
+                cmdline = lib.cmdline(pid) or info.comm
+                with contextlib.suppress(ProcessLookupError, PermissionError):
+                    os.kill(pid, signal.SIGSTOP)
+                stopped[(pid, info.start)] = cmdline
+        t = round(time.time(), 3)
+        for (pid, start), cmdline in stopped.items():
+            info = lib.info(pid)
+            if info is None or info.start != start:  # gone, or the pid names another process now
+                continue
+            with contextlib.suppress(ProcessLookupError, PermissionError):
+                os.kill(pid, signal.SIGKILL)
+                self.leftover_count += 1
+                if len(self.leftovers) < LEFTOVER_LIST:
+                    self.leftovers.append({"pid": pid, "cmdline": short_cmdline(cmdline), "t": t})
+        if self.leftover_count:
+            _say(f"memory watchdog: killed {self.leftover_count} processes left after the task, first: "
+                 f"{self.leftovers[0]['cmdline']}")  # fmt: skip
+        if chased_too_long:
+            raise RuntimeError(f"processes kept starting after the task for {REAP_S:g} s; some may be left")
 
     @property
     def running(self) -> bool:
@@ -245,9 +309,11 @@ class Watchdog:
     def row_flags(self) -> dict[str, Any] | None:
         """What the row's `flags` start with: None when nothing happened (the orchestrator then fills the
         disturbance flags as before), else the kills (and a watchdog failure)."""
-        if not self.kills and self.error is None:
+        if not self.kills and self.error is None and not self.leftover_count:
             return None
         flags: dict[str, Any] = {"memory_kills": list(self.kills)}
+        if self.leftover_count:
+            flags["leftover_kills"] = {"count": self.leftover_count, "first": list(self.leftovers)}
         if self.error is not None:
             flags["memory_watchdog_error"] = self.error
         return flags
@@ -268,15 +334,16 @@ class Watchdog:
 
     def tree(self, table: Mapping[int, ProcInfo]) -> tuple[set[int], set[int]]:
         """(roots, every process of the watched tree) in a process table of this user."""
-        roots = {pid for pid, p in table.items() if p.ppid == self.parent and pid != self.parent and _sid(pid) == pid}
+        sids = {pid: _sid(pid) for pid in table}
+        roots = {pid for pid, p in table.items() if p.ppid == self.parent and pid != self.parent and sids[pid] == pid}
         for pid in roots:
             self._sessions[pid] = table[pid].start
         for sid, start in list(self._sessions.items()):
             if sid in table and table[sid].start != start:  # that session is over; its id names another process
                 del self._sessions[sid]
-        seeds = set(roots)
-        if self._sessions:
-            seeds |= {pid for pid in table if _sid(pid) in self._sessions}
+        self._other_sessions &= set(sids.values())  # a session with no process left is over
+        seeds = set(roots) | {pid for pid, sid in sids.items() if sid in self._sessions}
+        seeds |= {pid for pid, sid in sids.items() if sid in self._other_sessions and self._started_in_task(table[pid])}
         children: dict[int, list[int]] = collections.defaultdict(list)
         for pid, p in table.items():
             children[p.ppid].append(pid)
@@ -288,17 +355,28 @@ class Watchdog:
                 found.add(pid)
                 stack.extend(children.get(pid, ()))
         never = {self.parent, os.getpid(), 0, 1}
-        return roots, {pid for pid in found if pid not in never and _sid(pid) != self._own_sid}
+        tree = {pid for pid in found if pid not in never and sids[pid] != self._own_sid}
+        # A session a member leads or joined (an agent's shell tool starts commands in their own): its
+        # processes stay in the tree once their parent exits and launchd adopts them
+        self._other_sessions |= {sid for pid in tree if (sid := sids[pid]) is not None and sid not in self._sessions}
+        return roots, tree
 
-    def poll(self) -> None:
-        lib = self._lib
-        if lib is None:
-            return
+    def _started_in_task(self, info: ProcInfo) -> bool:
+        return info.start[0] + info.start[1] / 1e6 >= self._t0 - 1
+
+    def _table(self, lib: LibProc) -> dict[int, ProcInfo]:
         table = {}
         for pid in lib.pids(self._uid):
             info = lib.info(pid)
             if info is not None:
                 table[pid] = info
+        return table
+
+    def poll(self) -> None:
+        lib = self._lib
+        if lib is None:
+            return
+        table = self._table(lib)
         roots, tree = self.tree(table)
         members = []
         for pid in tree:

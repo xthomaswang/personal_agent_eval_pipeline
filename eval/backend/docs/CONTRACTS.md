@@ -227,7 +227,8 @@ warm-ups) and each run's allowlisted files after every task, through `capability
 
 Rows carry `flags: null` and `t_start`/`t_end`; when the memory watchdog (`capability/memwatch.py`, DESIGN §6.1)
 killed something during the task, `flags` starts as `{"memory_kills": [{"pid", "cmdline", "footprint_gib", "t",
-"limit": "process" | "tree"}]}`. After every runner exit the orchestrator adds `QuietGuard.flags(t_start, t_end)`
+"limit": "process" | "tree"}]}`, plus `"leftover_kills": {"count", "first": [{"pid", "cmdline", "t"}]}` when it
+killed processes the task left behind (TASK-DONE then has `leftover_kills=N`). After every runner exit the orchestrator adds `QuietGuard.flags(t_start, t_end)`
 to every row whose flags have no `disturbed` yet, keeping `memory_kills`, into `state.json` (so the runner's later
 rewrites keep them) and into `results.json` (through `export.write_results`).
 

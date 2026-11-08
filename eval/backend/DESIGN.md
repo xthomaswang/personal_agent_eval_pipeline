@@ -307,6 +307,12 @@ The three harnesses come from personal-agent-bench's `bench.harness` (and its pr
   scripts an agent wrote in claude_code/aider/variable-length-quantity (Nanbeige4.3-33B) grew until the
   compressor held ~60 GB more and memory pressure reached level 4 ("Your system has run out of application
   memory"), where macOS could have killed the model server or other users' sessions.
+- **Nothing outlives its task** (since 2026-11-07). The watchdog's tree also keeps every session a member
+  started (an agent's shell tool runs each command in its own), so a command's children that launchd
+  adopted stay in it. When the task ends, the watchdog SIGSTOPs every member until none runs, then
+  SIGKILLs them all. Why: a script the agent wrote in claude_code/aider/sgf-parsing (Qwen3.8-27B oQ5,
+  run 20261030-230008) started copies of itself at import time; subprocess timeouts killed only the direct
+  children, and the rest ran from 2026-10-31 to 2026-11-07, ~900 processes and 5 CPU cores at a time.
 - **Claude Code config.** Per-run copies of `agent/configs/claude-code/claude-code.env` and
   `agent/homes/claude-code/settings.json` from the epoch snapshot, byte copies with only these variables
   replaced by name: `ANTHROPIC_MODEL`, `ANTHROPIC_DEFAULT_{OPUS,SONNET,HAIKU}_MODEL`,
@@ -375,7 +381,8 @@ The three harnesses come from personal-agent-bench's `bench.harness` (and its pr
 - Every task records the flagged samples (with the §5.4 severity and the major and minor counts), peak
   foreign CPU and battery minimum that overlapped it (flags only).
 - Kills by the memory watchdog (§6.1) go into the row's flags as `memory_kills` (pid, command line,
-  footprint, time, limit) and onto `TASK-DONE` as `memory_kills=N`. The Qwen3.8-27B reference run
+  footprint, time, limit) and onto `TASK-DONE` as `memory_kills=N`; what it killed after the task as
+  `leftover_kills` (`count`, the `first` 20 with pid, command line, time) and `leftover_kills=N`. The Qwen3.8-27B reference run
   (20261026-062952) had no watchdog. Its memory.tsv shows pressure at most 1, but two runaways the watchdog
   would almost certainly have killed, both on failed claude_code ranking rows: aider/sgf-parsing (the
   checker's pytest, compressor +24 GB, ended by the checker's 180 s timeout, so the verdict cannot change)

@@ -837,6 +837,7 @@ def run_task(
     progress.emit(
         "TASK-DONE", set=set_name, harness=harness_name, task=task.id, attempt=n, verdict=full["verdict"],
         solved=full["solved"], wall_s=full.get("wall_s"), n_llm=full.get("n_llm"), memory_kills=len(watchdog.kills),
+        leftover_kills=watchdog.leftover_count,
     )  # fmt: skip
     return full
 
