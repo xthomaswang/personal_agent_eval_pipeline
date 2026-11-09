@@ -715,5 +715,101 @@ class ArgumentTests(unittest.TestCase):
                 judge.load_pairs(path, sha, judge.FROZEN_COUNTS)
 
 
+class GroupProfileTests(unittest.TestCase):
+    """TM68: pairs carry a group (and group A two more labels); the report is read per group by a fixed reading."""
+
+    @staticmethod
+    def grouped(group, index, **more):
+        label = judge.TM68_GROUPS[group][0]
+        return {**pair(label, index, old_kind="episodic"), "group": group, **more}
+
+    def frozen_set(self):
+        a = [self.grouped("A", i, says_stands=i % 2 == 0, occurrence="ahead" if i < 15 else "past") for i in range(20)]
+        return a + [self.grouped("B", 20 + i) for i in range(10)] + [self.grouped("C", 30 + i) for i in range(10)]
+
+    def load(self, values, **kwargs):
+        with tempfile.TemporaryDirectory(dir=_sandbox) as root:
+            payload = json.dumps(values).encode()
+            path = Path(root) / "grouped.json"
+            path.write_bytes(payload)
+            return judge.load_pairs(path, hashlib.sha256(payload).hexdigest(), **kwargs)
+
+    def test_the_grouped_schema_and_its_frozen_counts(self):
+        values = self.frozen_set()
+        self.assertEqual(self.load(values, groups=True), values)  # the group labels reach the runner
+        with self.assertRaisesRegex(ValueError, "pair schema mismatch"):
+            self.load(values)  # another profile does not take the extra fields
+        for broken in (
+            values[:-1],                                                    # 9 controls: a frozen count changed
+            [dict(values[0], label="changes"), *values[1:]],                # the group fixes the label
+            [dict(values[0], occurrence="soon"), *values[1:]],
+            [dict(values[0], says_stands="yes"), *values[1:]],
+            [{k: v for k, v in values[0].items() if k != "occurrence"}, *values[1:]],
+            [*values[:-1], dict(values[-1], says_stands=True)],             # only group A has the two labels
+            [*values[:-1], dict(values[-1], group="D")],
+            [*values[:-1], dict(values[-1], extra=1)],
+        ):
+            with self.assertRaisesRegex(ValueError, "group schema or frozen group counts"):
+                self.load(broken, groups=True)
+
+    def rows(self, a_changes=0, a_raw_only=0, c_changes=10, b_changes=7, a_same=0):
+        out = []
+        for index, source in enumerate(self.frozen_set()):
+            group = source["group"]
+            n = sum(r["group"] == group for r in out)  # position within the group
+            if group == "A":
+                raw = "changes" if n < a_changes + a_raw_only else "same" if n < a_changes + a_raw_only + a_same else "other"
+                after = "other" if a_changes <= n < a_changes + a_raw_only else raw
+            else:
+                raw = after = "changes" if n < (b_changes if group == "B" else c_changes) else "other"
+            row = metadata(source["label"], raw, after=after, chinese=index % 5 == 0)
+            row.update(pair_id=f"p{index:02d}", group=group)
+            row.update({k: source[k] for k in ("says_stands", "occurrence") if k in source})
+            out.append(row)
+        return out
+
+    def report(self, rows, total=40, **kwargs):
+        return judge.render_report(rows, total, dict(config_for([]), gate_profile="tm68"), **kwargs)
+
+    def test_the_reading_at_its_lines(self):
+        at_line = self.report(self.rows(a_changes=2, a_raw_only=3, c_changes=8))
+        self.assertTrue(at_line.startswith("# TM68 pair check: a dated occurrence beside a schedule change\n"))
+        self.assertIn("| A | other | 20 | raw | 0 | 5 | 15 | 0 |", at_line)
+        self.assertIn("| A | other | 20 | after support | 0 | 2 | 18 | 0 |", at_line)
+        self.assertIn("| C | changes | 10 | after support | 0 | 8 | 2 | 0 |", at_line)
+        self.assertIn("`changes` on group C after support 8/10 (line: at least 8): met.", at_line)
+        self.assertIn("false `changes` on group A after support 2/20 (line: at most 2): **judge-2 stays", at_line)
+        self.assertIn("Group B (reported, not gated): `changes` after support 7/10.", at_line)
+        self.assertIn("after support: p00, p01; raw only (support took them back): p02, p03, p04.", at_line)
+        self.assertIn("| p00 (A, zh) | other | changes |", at_line)
+        over = self.report(self.rows(a_changes=3))
+        self.assertIn("after support 3/20 (line: at most 2): **a judge change comes before", over)
+        # the split rows: says-stands is every second pair, the first 15 lie ahead
+        self.assertIn("| the new item says the occurrence stands | 10 | 2 | 2 | 0 |", over)
+        self.assertIn("| the new item does not mention it | 10 | 1 | 1 | 0 |", over)
+        self.assertIn("| occurrence after 2026-11-01 (ahead) | 15 | 3 | 3 | 0 |", over)
+        self.assertIn("| occurrence before 2026-11-01 (past) | 5 | 0 | 0 | 0 |", over)
+        for absent in ("## Frozen gates", "Overall:", "No gate: this set is development data"):
+            self.assertNotIn(absent, over)
+
+    def test_the_primary_line_is_not_read_below_the_controls_or_on_a_partial_run(self):
+        low = self.report(self.rows(a_changes=0, c_changes=7))
+        self.assertIn("(line: at least 8): NOT met.", low)
+        self.assertIn("after support 0/20 (line: at most 2): **NOT READ", low)
+        partial = self.report(self.rows(a_changes=5)[:12], stopped="STOP")
+        self.assertIn("**PENDING (the run is not complete)**", partial)
+        self.assertIn("| C | changes | 0 | raw | 0 | 0 | 0 | 0 |", partial)
+        same = self.report(self.rows(a_same=1))
+        self.assertIn("False `same` anywhere (raw or after support): p00.", same)
+        self.assertNotIn(PAIR_MARKER, same)  # labels and counts only
+
+    def test_the_profile_pins_its_set_and_build(self):
+        parse = lambda *extra: judge.parse_args(["--pairs", "set.json", "--run-dir", "run", *extra])
+        args = parse("--set-sha256", judge.TM68_SET_SHA256, "--gate", "tm68")
+        self.assertEqual(args.vendor_sha, judge.TM68_VENDOR_SHA)
+        with redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+            parse("--set-sha256", judge.TM60B_SET_SHA256, "--gate", "tm68")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
