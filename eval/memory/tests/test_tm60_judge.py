@@ -2,26 +2,24 @@
 from __future__ import annotations
 
 import asyncio
-from collections import deque
-from contextlib import ExitStack, asynccontextmanager, redirect_stderr, redirect_stdout
 import copy
 import hashlib
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import importlib.util
 import io
 import json
 import math
 import os
-from pathlib import Path
 import signal
 import socket
 import subprocess
-import sys
 import tempfile
 import threading
 import unittest
+from collections import deque
+from contextlib import ExitStack, asynccontextmanager, redirect_stderr, redirect_stdout
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 from unittest import mock
-
 
 judge = None
 _ALLOWED_PORTS = set()
@@ -513,7 +511,7 @@ class RunPairsTests(FixtureMixin, unittest.IsolatedAsyncioTestCase):
                     with judge.stop_signals() as requested:
                         self.assertFalse(requested())
 
-                        async def interrupted(messages):
+                        async def interrupted(messages, sig=sig):
                             signal.raise_signal(sig)
                             return await send(messages)
 
@@ -639,6 +637,82 @@ class GateAndReportTests(unittest.TestCase):
         for gate, denominator in (("false_same", 45), ("false_changes", 40),
                                   ("same_recall", 15), ("changes_recall", 20)):
             self.assertRegex(complete, rf"\| raw \| {gate} \| \d+/{denominator} \|")
+
+    def test_tm60b_reads_recall_after_support_only_and_reports_an_overall_verdict(self):
+        config = dict(config_for([]), gate_profile="tm60b")
+        rows = self.threshold_rows()
+        # Raw recall fails (one same pair raw-other) while after-support recall holds: TM60b still passes.
+        rows[0]["raw_verdict"] = {"verdict": "other", "item": None}
+        report = judge.render_report(rows, 60, config)
+        self.assertTrue(report.startswith("# TM60b pair check: held-out (gates)\n"))
+        self.assertIn("raw: **PASS**. Precision passes; recall (fails) is not gated in this phase.", report)
+        self.assertIn("after support: **PASS**", report)
+        self.assertIn("Overall: **PASS**", report)
+        tm60 = judge.render_report(rows, 60, config_for([]))
+        self.assertIn("raw: **FAIL**", tm60)
+        self.assertNotIn("Overall:", tm60)
+        low_recall = copy.deepcopy(self.threshold_rows())
+        low_recall[15]["verdict_after_support"] = "other"
+        low_recall[15]["supported"] = False
+        self.assertIn("Overall: **FAIL (recall only: safe, too little gain)**",
+                      judge.render_report(low_recall, 60, config))
+        raw_precision = copy.deepcopy(self.threshold_rows())
+        raw_precision[35]["raw_verdict"] = {"verdict": "changes", "item": 1}
+        report = judge.render_report(raw_precision, 60, config)
+        self.assertIn("raw: **FAIL**", report)
+        self.assertIn("Overall: **FAIL (precision)**", report)
+        self.assertIn("Overall: **PENDING**", judge.render_report(rows[:4], 60, config, "STOP"))
+
+    def test_no_gate_profile_writes_tables_without_gate_lines(self):
+        config = dict(config_for([]), gate_profile="none")
+        report = judge.render_report(self.threshold_rows(), 60, config)
+        self.assertTrue(report.startswith("# Pair check: development (old set, no gate)\n"))
+        self.assertIn("No gate: this set is development data", report)
+        self.assertIn("## All: 60 pairs", report)
+        self.assertIn("### after support", report)
+        for absent in ("## Frozen gates", "**PASS**", "**FAIL**", "**PENDING**", "Overall:", "provisional"):
+            self.assertNotIn(absent, report)
+
+
+class ArgumentTests(unittest.TestCase):
+    SHA = "a" * 64
+    BUILD = "b" * 40
+
+    def parse(self, *extra):
+        return judge.parse_args(["--pairs", "set.json", "--run-dir", "run", *extra])
+
+    def rejected(self, *extra):
+        with redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+            self.parse(*extra)
+
+    def test_gated_profiles_pin_their_set_and_build(self):
+        args = self.parse("--set-sha256", judge.SET_SHA256, "--gate", "tm60")
+        self.assertEqual(args.vendor_sha, judge.VENDOR_SHA)
+        args = self.parse("--set-sha256", judge.TM60B_SET_SHA256, "--gate", "tm60b")
+        self.assertEqual(args.vendor_sha, judge.TM60B_VENDOR_SHA)
+        self.rejected("--set-sha256", self.SHA, "--gate", "tm60b")
+        self.rejected("--set-sha256", judge.SET_SHA256, "--gate", "tm60b")
+        self.rejected("--set-sha256", judge.TM60B_SET_SHA256, "--gate", "tm60b", "--vendor-sha", self.BUILD)
+
+    def test_no_gate_needs_an_explicit_build_and_a_well_formed_set_sha(self):
+        args = self.parse("--set-sha256", self.SHA, "--gate", "none", "--vendor-sha", self.BUILD)
+        self.assertEqual((args.gate, args.vendor_sha, args.set_sha256), ("none", self.BUILD, self.SHA))
+        self.rejected("--set-sha256", self.SHA, "--gate", "none")
+        self.rejected("--set-sha256", self.SHA, "--gate", "none", "--vendor-sha", "short")
+        self.rejected("--set-sha256", "A" * 64, "--gate", "none", "--vendor-sha", self.BUILD)
+        self.rejected("--set-sha256", self.SHA, "--vendor-sha", self.BUILD)
+        self.rejected("--gate", "none", "--vendor-sha", self.BUILD)
+
+    def test_frozen_label_counts_apply_only_when_requested(self):
+        with tempfile.TemporaryDirectory(dir=_sandbox) as root:
+            values = [pair("same"), pair("changes", 1), pair("other", 2)]
+            payload = json.dumps(values).encode()
+            path = Path(root) / "synthetic.json"
+            path.write_bytes(payload)
+            sha = hashlib.sha256(payload).hexdigest()
+            self.assertEqual(judge.load_pairs(path, sha), values)
+            with self.assertRaisesRegex(ValueError, "frozen label counts"):
+                judge.load_pairs(path, sha, judge.FROZEN_COUNTS)
 
 
 if __name__ == "__main__":

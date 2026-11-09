@@ -1,4 +1,4 @@
-"""Frozen TM60 comparison check. Run only under the pinned vendor Python.
+"""Frozen TM60/TM60b pair comparison check. Run only under the pinned vendor Python.
 
 No dataset text or model reply prose is printed or persisted. A completed check
 exits 0 even when its statistical gate fails; setup/integrity errors exit 1.
@@ -8,27 +8,28 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-from collections import Counter
-from contextlib import contextmanager
-from contextvars import ContextVar
-from datetime import datetime
+import dataclasses
 import hashlib
 import json
 import math
 import os
-from pathlib import Path
 import re
 import signal
 import statistics
 import subprocess
 import sys
 import time
+from collections import Counter
+from contextlib import contextmanager
+from contextvars import ContextVar
+from datetime import datetime
+from pathlib import Path
 from urllib.parse import urlsplit
 
 from localmelo.melo.memory.retrieval.llm import send_from_provider
 from localmelo.support.backends.registry import providers_for
 from localmelo.support.config import Config
-from localmelo.support.memory import hippo_encode, hippo_judge
+from localmelo.support.memory import hippo_encode, hippo_judge, hippo_route
 from localmelo.support.memory.hippo_route import Entry
 from localmelo.support.memory.index import ITEM_KINDS, MemoryItem
 from localmelo.support.memory.note_judge import JUDGE_TIMEOUT_S
@@ -41,11 +42,24 @@ NEW_DATE = "2026-11-01"
 LABELS = ("same", "changes", "other")
 CJK = re.compile(r"[㐀-䶿一-鿿]")
 _HTTP_COUNTS: ContextVar[dict | None] = ContextVar("tm60_http_counts", default=None)
-EVAL = Path(__file__).resolve().parents[2]
-DEFAULT_RUN = EVAL / "memory/runs/tm60-pairs-10420c7"
+TM60B_SET_SHA256 = "4aa4d5f255e9fe987f13bbf4ee0b994f572445c07fdfd460a43811b5a9d73e9a"
+TM60B_VENDOR_SHA = "4157a0d0cba2897b3e76a2f9ecefe2c133f48477"
+FROZEN_COUNTS = {"same": 15, "changes": 20, "other": 25}
+GATE_LIMITS = {"false_same_max": 1, "false_changes_max": 2, "same_recall_min": 10, "changes_recall_min": 14}
+# A gated profile pins its frozen set and build. TM60 reads all four gate lines in both phases; TM60b reads
+# precision in both phases and recall after support only. "none" writes the tables without any gate line.
+PROFILES = {
+    "tm60": {"title": "TM60 pair check", "protocol": "tm60-pairs-v2", "set_sha256": SET_SHA256,
+             "vendor_sha": VENDOR_SHA, "gated": True, "recall_phases": ("raw", "after support"), "overall": False},
+    "tm60b": {"title": "TM60b pair check: held-out (gates)", "protocol": "tm60b-pairs-v1",
+              "set_sha256": TM60B_SET_SHA256, "vendor_sha": TM60B_VENDOR_SHA, "gated": True,
+              "recall_phases": ("after support",), "overall": True},
+    "none": {"title": "Pair check: development (old set, no gate)", "protocol": "tm60b-pairs-v1",
+             "set_sha256": None, "vendor_sha": None, "gated": False, "recall_phases": (), "overall": False},
+}
 
 
-def load_pairs(path: Path, expected_sha: str = SET_SHA256) -> list[dict]:
+def load_pairs(path: Path, expected_sha: str = SET_SHA256, frozen_counts: dict | None = None) -> list[dict]:
     payload = path.read_bytes()
     if hashlib.sha256(payload).hexdigest() != expected_sha:
         raise ValueError("pair set SHA256 mismatch")
@@ -60,7 +74,7 @@ def load_pairs(path: Path, expected_sha: str = SET_SHA256) -> list[dict]:
             if (not isinstance(item, dict) or set(item) != {"kind", "text"}
                     or not isinstance(item["text"], str) or item["kind"] not in ITEM_KINDS):
                 raise ValueError("item schema mismatch")
-    if expected_sha == SET_SHA256 and Counter(p["label"] for p in pairs) != {"same": 15, "changes": 20, "other": 25}:
+    if frozen_counts is not None and Counter(p["label"] for p in pairs) != frozen_counts:
         raise ValueError("frozen label counts changed")
     return pairs
 
@@ -106,9 +120,14 @@ async def evaluate_pair(pair: dict, pair_id: str, send) -> dict:
     old, new = pair["old"], pair["new"]
     item = MemoryItem(session_id="tm60", title="", text=new["text"], kind=new["kind"],
                       created_at=datetime.fromisoformat(NEW_DATE).timestamp())
-    entry = Entry(id=1, text=old["text"], kind=old["kind"],
-                  created_at=datetime.fromisoformat(OLD_DATE).timestamp(), sources=(), vector=None,
-                  provenance={}, subject=(), tokens=frozenset(), unit=None)
+    fields = {"id": 1, "text": old["text"], "kind": old["kind"],
+              "created_at": datetime.fromisoformat(OLD_DATE).timestamp(), "sources": (), "vector": None,
+              "provenance": {}, "subject": (), "tokens": frozenset(), "unit": None}
+    if "folded" in {field.name for field in dataclasses.fields(Entry)}:
+        # Later builds keep each item's normalised text on the entry, as the library's own builder does.
+        # The judge request does not read it.
+        fields["folded"] = hippo_route.normalise(old["text"])
+    entry = Entry(**fields)
     said = [new["text"]]
     request = hippo_judge._request(item, (entry,), said)
     counts = {"http_requests": 0, "switching_retries": 0, "switching_responses": 0}
@@ -161,27 +180,32 @@ def gates(rows: list[dict], phase: str) -> dict:
 
 
 def render_report(rows: list[dict], total: int, config: dict, stopped: str | None = None) -> str:
+    profile = PROFILES[config.get("gate_profile", "tm60")]
     complete = len(rows) == total
-    out = ["# TM60 pair check", "", f"Status: {'complete' if complete else 'partial'}; {len(rows)}/{total} pairs; "
-           f"stop reason: {stopped or 'none'}. Gate results on a partial prefix are provisional, never a landing decision.", "",
+    gate_note = ("Gate results on a partial prefix are provisional, never a landing decision." if profile["gated"]
+                 else "No gate: this set is development data and its tables decide nothing.")
+    out = [f"# {profile['title']}", "",
+           (f"Status: {'complete' if complete else 'partial'}; {len(rows)}/{total} pairs; "
+            f"stop reason: {stopped or 'none'}. {gate_note}"), "",
            f"Set SHA256: `{config['set_sha256']}`; vendor SHA: `{config['vendor_sha']}`.",
-           f"Old date: **{OLD_DATE}**; new date: **{NEW_DATE}** (local midnight, rendered by the library). "
-           "These dates were fixed before the first model request.",
-           "IDs are zero-based file positions p00–p59. Chinese means either text contains U+3400–U+4DBF or "
-           "U+4E00–U+9FFF; cross-kind means old.kind != new.kind. Texts are never copied into this report.",
-           f"Model: `{config['model']}`; base URL: `{config['base_url']}`. Requests are sequential, one library attempt, "
-           f"{JUDGE_TIMEOUT_S:g} s timeout; no warmup, discovery, cache, embedding, gateway or retry loop in this runner.",
-           "Method A measures the provider as shipped: its internal switching retries remain enabled. HTTP request attempts, "
-           "switching responses and actual follow-up requests after a switching response are counted per pair. "
-           "Multi-request pairs are retained, never dropped or rerun. Request seconds include those waits/retries.",
+           (f"Old date: **{OLD_DATE}**; new date: **{NEW_DATE}** (local midnight, rendered by the library). "
+            "These dates were fixed before the first model request."),
+           (f"IDs are zero-based file positions p00–p{max(total - 1, 0):02d}. Chinese means either text contains "
+            "U+3400–U+4DBF or U+4E00–U+9FFF; cross-kind means old.kind != new.kind. Texts are never copied into this report."),
+           (f"Model: `{config['model']}`; base URL: `{config['base_url']}`. Requests are sequential, one library attempt, "
+            f"{JUDGE_TIMEOUT_S:g} s timeout; no warmup, discovery, cache, embedding, gateway or retry loop in this runner."),
+           ("Method A measures the provider as shipped: its internal switching retries remain enabled. HTTP request attempts, "
+            "switching responses and actual follow-up requests after a switching response are counted per pair. "
+            "Multi-request pairs are retained, never dropped or rerun. Request seconds include those waits/retries."),
            f"Prompt SHA256: `{config['prompt_sha256']}`; judge version: `{config['judge_version']}`.", ""]
     for subset, selected in (("All", rows), ("Chinese", [r for r in rows if r["chinese"]]),
                              ("Cross-kind", [r for r in rows if r["cross_kind"]])):
         out += [f"## {subset}: {len(selected)} pairs", "",
-                f"HTTP requests: {sum(r['http_requests'] for r in selected)}; "
-                f"switching retries: {sum(r['switching_retries'] for r in selected)}; "
-                f"switching responses: {sum(r['switching_responses'] for r in selected)}. "
-                f"Pairs with >1 HTTP request: {', '.join(r['pair_id'] for r in selected if r['http_requests'] > 1) or 'none'}.", ""]
+                (f"HTTP requests: {sum(r['http_requests'] for r in selected)}; "
+                 f"switching retries: {sum(r['switching_retries'] for r in selected)}; "
+                 f"switching responses: {sum(r['switching_responses'] for r in selected)}. "
+                 f"Pairs with >1 HTTP request: "
+                 f"{', '.join(r['pair_id'] for r in selected if r['http_requests'] > 1) or 'none'}."), ""]
         for phase in ("raw", "after support"):
             out += [f"### {phase}", "", "| Expected \\ predicted | same | changes | other |", "|---|---:|---:|---:|"]
             for label in LABELS:
@@ -189,19 +213,33 @@ def render_report(rows: list[dict], total: int, config: dict, stopped: str | Non
                                   else r["verdict_after_support"]) for r in selected if r["expected"] == label)
                 out.append(f"| {label} | {counts['same']} | {counts['changes']} | {counts['other']} |")
             out.append("")
-    out += ["## Frozen gates", "", "| Phase | Gate | Count | Limit | Result |", "|---|---|---:|---|---|"]
-    for phase in ("raw", "after support"):
-        values = gates(rows, phase)
-        for key, value in values.items():
-            limit = ("<= " if key.startswith("false_") else ">= ") + str(value["limit"])
-            denominator = {"false_same": 45, "false_changes": 40, "same_recall": 15, "changes_recall": 20}[key]
-            out.append(f"| {phase} | {key} | {value['count']}/{denominator} | {limit} | {'PASS' if value['pass'] else 'FAIL'} |")
-        precision = all(values[k]["pass"] for k in ("false_same", "false_changes"))
-        recall = all(values[k]["pass"] for k in ("same_recall", "changes_recall"))
-        status = "PENDING" if not complete else "PASS" if precision and recall else "FAIL"
-        out.append(f"\n{phase}: **{status}**. Precision {'passes' if precision else 'fails'}; "
-                   f"recall {'passes' if recall else 'fails'}. Either precision failure blocks landing as built; "
-                   "a recall failure means insufficient benefit, even if safe.\n")
+    if profile["gated"]:
+        out += ["## Frozen gates", "", "| Phase | Gate | Count | Limit | Result |", "|---|---|---:|---|---|"]
+        verdicts = []
+        for phase in ("raw", "after support"):
+            values = gates(rows, phase)
+            for key, value in values.items():
+                limit = ("<= " if key.startswith("false_") else ">= ") + str(value["limit"])
+                denominator = {"false_same": 45, "false_changes": 40, "same_recall": 15, "changes_recall": 20}[key]
+                out.append(f"| {phase} | {key} | {value['count']}/{denominator} | {limit} | "
+                           f"{'PASS' if value['pass'] else 'FAIL'} |")
+            precision = all(values[k]["pass"] for k in ("false_same", "false_changes"))
+            recall = all(values[k]["pass"] for k in ("same_recall", "changes_recall"))
+            gated_recall = phase in profile["recall_phases"]
+            verdicts.append((precision, recall or not gated_recall))
+            status = "PENDING" if not complete else "PASS" if precision and (recall or not gated_recall) else "FAIL"
+            recall_note = (f"recall {'passes' if recall else 'fails'}" if gated_recall
+                           else f"recall ({'passes' if recall else 'fails'}) is not gated in this phase")
+            out.append(f"\n{phase}: **{status}**. Precision {'passes' if precision else 'fails'}; {recall_note}. "
+                       "Either precision failure blocks landing as built; "
+                       "a recall failure means insufficient benefit, even if safe.\n")
+        if profile["overall"]:
+            precision = all(p for p, _ in verdicts)
+            recall = all(r for _, r in verdicts)
+            overall = ("PENDING" if not complete else "PASS" if precision and recall
+                       else "FAIL (precision)" if not precision else "FAIL (recall only: safe, too little gain)")
+            out.append(f"Overall: **{overall}**. Precision is read on raw and after support; "
+                       "recall after support only.\n")
     failures = Counter(r["failure_type"] for r in rows if r["failure_type"])
     seconds = [r["seconds"] for r in rows]
     timing_summary = (
@@ -209,12 +247,13 @@ def render_report(rows: list[dict], total: int, config: dict, stopped: str | Non
         f"median={statistics.median(seconds):.6f}, max={max(seconds):.6f}."
         if seconds else "Request seconds: n=0; mean, median and maximum not measured."
     )
-    out += ["## Failures and request time", "", "Failures act as other in both confusion tables, and are retained, not retried or dropped.",
+    out += ["## Failures and request time", "",
+            "Failures act as other in both confusion tables, and are retained, not retried or dropped.",
             f"Failure types/counts: `{json.dumps(dict(failures), sort_keys=True)}`.",
             f"Unsupported raw changes: {sum(r['supported'] is False for r in rows)}.",
             timing_summary,
-            "Elapsed seconds surround the full sequential library _ask call, including internal switching waits/retries, "
-            "not setup or report/checkpoint writes; they are not divided by the number of HTTP attempts.", "",
+            ("Elapsed seconds surround the full sequential library _ask call, including internal switching waits/retries, "
+             "not setup or report/checkpoint writes; they are not divided by the number of HTTP attempts."), "",
             "| Pair | Expected | Raw | After support | Failure | HTTP requests | Switching retries | Switching responses | Seconds |",
             "|---|---|---|---|---|---:|---:|---:|---:|"]
     for row in rows:
@@ -223,9 +262,9 @@ def render_report(rows: list[dict], total: int, config: dict, stopped: str | Non
                    f"{row['verdict_after_support']} | {row['failure_type'] or '-'} | {row['http_requests']} | "
                    f"{row['switching_retries']} | {row['switching_responses']} | {row['seconds']:.6f} |")
     out += ["", "## Build environment", "", f"```text\n{config['sw_vers']}\n{config['xcodebuild_version']}\n```", "",
-            f"Python: {config['python']}. Raw verdict means the library reader's parsed verdict/item, not response prose. "
-            "Only ID/label/boolean/numeric metadata is checkpointed. A completed run exits 0 regardless of gate outcome; "
-            "exit 75 means resumable stop and exit 1 means setup/integrity failure.", ""]
+            (f"Python: {config['python']}. Raw verdict means the library reader's parsed verdict/item, not response prose. "
+             "Only ID/label/boolean/numeric metadata is checkpointed. A completed run exits 0 regardless of gate outcome; "
+             "exit 75 means resumable stop and exit 1 means setup/integrity failure."), ""]
     return "\n".join(out)
 
 
@@ -291,20 +330,21 @@ def stop_signals():
             signal.signal(sig, handler)
 
 
-def provenance(base_url: str, model: str) -> dict:
+def provenance(base_url: str, model: str, gate: str, set_sha256: str, vendor_sha: str) -> dict:
     root = Path(hippo_judge.__file__).resolve().parents[2]
 
     def output(command):
         return subprocess.run(command, check=True, capture_output=True, text=True, timeout=30).stdout.strip()
 
     sha = output(["git", "-C", str(root), "rev-parse", "HEAD"])
-    if sha != VENDOR_SHA or output(["git", "-C", str(root), "status", "--porcelain"]):
+    if sha != vendor_sha or output(["git", "-C", str(root), "status", "--porcelain"]):
         raise ValueError("wrong or dirty vendor")
-    return {
-        "protocol": "tm60-pairs-v2", "set_sha256": SET_SHA256, "vendor_sha": sha,
+    profile = PROFILES[gate]
+    config = {
+        "protocol": profile["protocol"], "set_sha256": set_sha256, "vendor_sha": sha,
         "provider_switching_policy": "as_shipped_counted",
         "attempts": 1, "timeout_s": JUDGE_TIMEOUT_S,
-        "gate": {"false_same_max": 1, "false_changes_max": 2, "same_recall_min": 10, "changes_recall_min": 14},
+        "gate": dict(GATE_LIMITS) if profile["gated"] else None,
         "model": model, "base_url": base_url, "old_date": OLD_DATE, "new_date": NEW_DATE,
         "chinese": "U+3400-U+4DBF or U+4E00-U+9FFF", "cross_kind": "old.kind != new.kind",
         "judge_version": hippo_judge.JUDGE_VERSION,
@@ -312,25 +352,44 @@ def provenance(base_url: str, model: str) -> dict:
         "sw_vers": output(["sw_vers"]), "xcodebuild_version": output(["xcodebuild", "-version"]),
         "python": sys.version.split()[0],
     }
+    if gate != "tm60":  # TM60's config stays exactly as it was frozen
+        config["gate_profile"] = gate
+        config["recall_phases"] = list(profile["recall_phases"])
+    return config
 
 
 def parse_args(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--pairs", type=Path, required=True)
-    parser.add_argument("--run-dir", type=Path, default=DEFAULT_RUN)
+    parser.add_argument("--set-sha256", required=True, help="SHA256 of the pair file, checked before parsing")
+    parser.add_argument("--gate", choices=tuple(PROFILES), required=True)
+    parser.add_argument("--vendor-sha", help="full build SHA; defaults to the gate's pinned build, required for none")
+    parser.add_argument("--run-dir", type=Path, required=True)
     parser.add_argument("--base-url", default=os.environ.get("NIGHT_URL", "http://127.0.0.1:8500/v1"))
     parser.add_argument("--model", default=os.environ.get("NIGHT_MODEL", "Qwen3.8-Flash-Next-IQ3XXS-splash"))
-    return parser.parse_args(argv)
+    args = parser.parse_args(argv)
+    profile = PROFILES[args.gate]
+    if not re.fullmatch(r"[0-9a-f]{64}", args.set_sha256):
+        parser.error("--set-sha256 must be 64 lowercase hex digits")
+    if profile["set_sha256"] is not None and args.set_sha256 != profile["set_sha256"]:
+        parser.error(f"--set-sha256 is not the frozen {args.gate} set")
+    if profile["vendor_sha"] is not None and args.vendor_sha not in (None, profile["vendor_sha"]):
+        parser.error(f"--vendor-sha is not the pinned {args.gate} build")
+    args.vendor_sha = args.vendor_sha or profile["vendor_sha"]
+    if args.vendor_sha is None or not re.fullmatch(r"[0-9a-f]{40}", args.vendor_sha):
+        parser.error("--gate none needs --vendor-sha (40 lowercase hex digits)")
+    return args
 
 
 def main(argv=None) -> int:
     args = parse_args(argv)
     try:
-        pairs = load_pairs(args.pairs)  # SHA before parsing, provenance, provider or request
+        frozen = FROZEN_COUNTS if PROFILES[args.gate]["gated"] else None
+        pairs = load_pairs(args.pairs, args.set_sha256, frozen)  # SHA before parsing, provenance, provider or request
         deadline = float(os.environ["NIGHT_DEADLINE"]) if os.environ.get("NIGHT_DEADLINE") else None
         if deadline is not None and not math.isfinite(deadline):
             raise ValueError("nonfinite deadline")
-        config = provenance(args.base_url, args.model)
+        config = provenance(args.base_url, args.model, args.gate, args.set_sha256, args.vendor_sha)
 
         async def execute(requested):
             provider = make_provider(args.base_url, args.model)
@@ -342,7 +401,7 @@ def main(argv=None) -> int:
 
         with stop_signals() as requested:
             return asyncio.run(execute(requested))
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - any setup failure exits 1
         # API/config exceptions may carry the compared texts: type only.
         print(f"tm60 setup/integrity failure: {type(exc).__name__}", file=sys.stderr)
         return 1
