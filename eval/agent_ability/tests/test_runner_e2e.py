@@ -395,6 +395,54 @@ def test_watch_solution_counts_requests_after_the_first_pass(
         assert record["watch"] is None and not (run_root / record["run_dir"] / "solution_versions").exists()
 
 
+def test_the_gateway_path_runs_only_when_named(tmp_path: Path, harness, monkeypatch: pytest.MonkeyPatch) -> None:
+    """localmelo_gateway: not in the default set, its own flags, and the time limit bench.harness gives a gateway turn."""
+    assert runner._harness_list(None, False) == (["claude_code", "hermes", "localmelo"], [])
+    assert runner._harness_list(["gateway,melo"], False) == (["localmelo_gateway", "localmelo"], [])
+    with pytest.raises(SystemExit, match="no MCP client"):
+        runner._harness_list(["localmelo_gateway"], True)
+    with pytest.raises(SystemExit, match="--gateway-args needs localmelo_gateway"):
+        runner.settings_from(runner.parse_args(["--harness", "localmelo", "--gateway-args=-X a=b"]))
+    assert runner._binaries(harness)["localmelo_gateway"] == runner._binaries(harness)["localmelo"]
+
+    script = tmp_path / "fake_agent.py"
+    script.write_text(FAKE_AGENT)
+    monkeypatch.setitem(harness.BUILDERS, "localmelo_gateway", _fake(script, "solve"))
+    runs = tmp_path / "runs"
+    code = runner.main(
+        ["--harness", "melo-gateway", "--task", "aider/transpose", "--no-warmup", "--gateway-args=-X memory.across_chats=false",
+         "--timeout", "100", "--skip-preflight", "--runs-dir", str(runs)],
+        harness=harness,
+    )  # fmt: skip
+
+    assert code == 0
+    doc = _results(runs)
+    (record,) = doc["records"]
+    assert (record["harness"], record["verdict"], record["run_dir"]) == ("localmelo_gateway", "pass", "localmelo_gateway/aider__transpose")
+    assert record["native_steps"] == "turn=None approvals=0"  # the fake leaves no gateway_turn.json
+    assert doc["settings"]["gateway_args"] == ["-X", "memory.across_chats=false"]
+    argv = json.loads((Path(doc["run_root"]) / record["run_dir"] / "fake_seen.json").read_text())["argv"]
+    assert argv[-4:] == ["-X", "memory.across_chats=false", "--timeout", "55"]  # the run's 100 s less the gateway's stop time
+    proxy_log = (Path(doc["run_root"]) / record["run_dir"] / "proxy.log").read_text()
+    assert "thinking=passthrough" in proxy_log and "sampling=passthrough" in proxy_log
+    text = (Path(doc["run_root"]) / "results.md").read_text()
+    assert "localmelo_gateway as shipped" in text and "gateway turn flags `-X memory.across_chats=false`" in text
+    assert runner.report.native_steps("localmelo_gateway", {"turn": {"status": "completed", "approvals_allowed": ["shell_exec"]}}) == (
+        "turn=completed approvals=1"
+    )
+
+
+def test_the_lock_holder_name_can_be_this_machines(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import importlib
+
+    monkeypatch.setenv("BENCH_GPU_HOLDER", "bench_main")
+    try:
+        assert importlib.reload(paths).GPU_LOCK_HOLDER == "holder: bench_main"
+    finally:
+        monkeypatch.delenv("BENCH_GPU_HOLDER")
+        assert importlib.reload(paths).GPU_LOCK_HOLDER == "holder: agent-benchmark"
+
+
 def test_preflight_requires_this_sessions_gpu_lock(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     lock = tmp_path / ".gpu-lock"
     monkeypatch.setattr(paths, "GPU_LOCK", lock)

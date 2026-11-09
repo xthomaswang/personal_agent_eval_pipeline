@@ -19,6 +19,9 @@ def native_steps(harness: str, report: dict[str, Any]) -> str:
         return f"api_calls={report.get('api_call_count')} tool_use={report.get('tool_use_events')}"
     if harness == "localmelo":
         return f"steps={report.get('steps')}"
+    if harness == "localmelo_gateway":
+        turn = report.get("turn") or {}
+        return f"turn={turn.get('status')} approvals={len(turn.get('approvals_allowed') or [])}"
     return json.dumps(report, sort_keys=True) if report else ""
 
 
@@ -63,6 +66,8 @@ def write(run_root: Path, header: dict[str, Any], records: list[dict[str, Any]])
     settings = header["settings"]
     passes = settings.get("repeat") or 1
     localmelo_args = shlex.join(settings.get("localmelo_args") or [])
+    gateway_args = shlex.join(settings.get("gateway_args") or [])
+    as_shipped = "localmelo_gateway" in (settings.get("harnesses") or [])
     lines = [
         f"# Harness smoke results: {run_root.name}",
         "",
@@ -71,6 +76,8 @@ def write(run_root: Path, header: dict[str, Any], records: list[dict[str, Any]])
         f"{'; one reasoning field per replayed message' if settings.get('one_reasoning_field') else ''}"
         f"{'; request and response bodies logged' if settings.get('log_bodies') else ''}"
         f"{f'; localmelo flags `{localmelo_args}`' if localmelo_args else ''}"
+        f"{'; localmelo_gateway as shipped (the proxy sets neither thinking nor sampling on it)' if as_shipped else ''}"
+        f"{f'; gateway turn flags `{gateway_args}`' if gateway_args else ''}"
         f"{f'; {passes} passes over the tasks' if passes > 1 else ''}; "
         f"budgets {settings['max_steps']} proxy steps, "
         f"{settings['max_turns']} harness turns, {settings['timeout_s']:g} s per task",

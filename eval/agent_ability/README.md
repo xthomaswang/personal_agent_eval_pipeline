@@ -53,7 +53,17 @@ uv run python ../harness-smoke/run.py                # the full built-in-tools s
 uv run python ../harness-smoke/run.py --mcp-arm      # Claude Code + Hermes, filesystem MCP server only
 uv run python ../harness-smoke/run.py --harness hermes --task 'aider/*'
 uv run python ../harness-smoke/run.py --list-tasks
+uv run python ../harness-smoke/run.py --harness localmelo_gateway --task 'aider/*'   # the product path
 ```
+
+`localmelo_gateway` runs only when it is named. It gives the same task to the same localmelo build through its
+gateway chat, the path a person uses, instead of the direct command: `bench/gateway_turn.py` starts `melo serve` on
+the run's own HOME, opens a chat whose workspace is the task's, sends the task as the first message, allows the
+approvals the turn asks for (each is counted in the run's `gateway_turn.json`) and stops the gateway. On this path the
+proxy only records: it sets neither thinking nor sampling, so `--thinking` does not apply, and the step and time
+budgets do. `--gateway-args` passes the gateway turn's own flags (`-X KEY=VALUE`, `--set table.key=value`,
+`--embedding-model ID`). Each run's `summary.json` has the same `metrics` block as a direct run, with the figures only
+an event stream gives (time to the first sign, failed tool calls, approvals).
 
 Each task gets `bench.harness.run(..., timeout_s=600, max_steps=30, max_turns=40, thinking="off")`.
 The flags `--timeout`, `--max-steps`, `--max-turns` and `--thinking` change these values, and
@@ -80,7 +90,8 @@ Preflight refuses to start (exit 2) unless all of these hold:
 - the data verifies;
 - the smoke `.venv` imports pytest;
 - the harness binaries exist;
-- `experiments/.gpu-lock` is held by this session (`holder: agent-benchmark ...`);
+- `experiments/.gpu-lock` is held by this session (`holder: agent-benchmark ...`; on a machine whose lock is
+  written under another name, set `BENCH_GPU_HOLDER` to that name);
 - the model server answers `GET /v1/models` (with the bearer token from `BENCH_UPSTREAM_TOKEN_CMD`, if
   that is set; see `../personal-agent-bench/docs/proxy.md`);
 - for `--mcp-arm`, Node and the MCP server are installed.

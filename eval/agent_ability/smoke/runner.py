@@ -35,7 +35,11 @@ from smoke import adapters, checks, data, paths, report, tasks, watch
 from smoke.tasks import Task
 
 HARNESSES = ("claude_code", "hermes", "localmelo")
-ALIASES = {"claude-code": "claude_code", "cc": "claude_code", "melo": "localmelo"}
+# Run only when named: the same localmelo build through its gateway chat, the path a person uses (bench.gateway_turn).
+# The proxy only records on this path, so --thinking and the proxy's sampling do not apply to it.
+OPT_IN = ("localmelo_gateway",)
+ALIASES = {"claude-code": "claude_code", "cc": "claude_code", "melo": "localmelo", "gateway": "localmelo_gateway",
+           "melo-gateway": "localmelo_gateway"}  # fmt: skip
 WATCH_NOTE = "--watch-solution watches Aider tasks only; the MCPMark tasks run unwatched"
 
 
@@ -53,6 +57,7 @@ class Settings:
     one_reasoning_field: bool = False
     log_bodies: bool = False
     localmelo_args: list[str] = field(default_factory=list)
+    gateway_args: list[str] = field(default_factory=list)
     repeat: int = 1
     watch_solution: bool = False
     not_runnable: list[str] = field(default_factory=list)
@@ -96,6 +101,7 @@ def _binaries(harness: ModuleType) -> dict[str, Path]:
         "claude_code": Path(harness.manifest.CLAUDE_BIN),
         "hermes": Path(harness.HERMES_BIN),
         "localmelo": Path(harness.manifest.LOCALMELO_REPO) / ".venv" / "bin" / "melo",
+        "localmelo_gateway": Path(harness.manifest.LOCALMELO_REPO) / ".venv" / "bin" / "melo",
     }
 
 
@@ -196,7 +202,7 @@ def run_one(
                 random_seed=settings.random_seed,
                 one_reasoning_field=settings.one_reasoning_field,
                 log_bodies=settings.log_bodies,
-                harness_args=settings.localmelo_args if name == "localmelo" else (),
+                harness_args={"localmelo": settings.localmelo_args, "localmelo_gateway": settings.gateway_args}.get(name, ()),
                 extra_env=adapters.agent_env(env_file),
             )
     except Exception as exc:  # the run did not complete; record it and go on with the next one
@@ -311,10 +317,10 @@ def _harness_list(values: list[str] | None, mcp: bool) -> tuple[list[str], list[
     if not values:
         return default, (["localmelo (no MCP client)"] if mcp else [])
     names = [ALIASES.get(n.strip(), n.strip()) for v in values for n in v.split(",") if n.strip()]
-    unknown = [n for n in names if n not in HARNESSES]
+    unknown = [n for n in names if n not in HARNESSES + OPT_IN]
     if unknown:
-        raise SystemExit(f"unknown harness {', '.join(unknown)}; choose from {', '.join(HARNESSES)}")
-    if mcp and "localmelo" in names:
+        raise SystemExit(f"unknown harness {', '.join(unknown)}; choose from {', '.join(HARNESSES + OPT_IN)}")
+    if mcp and any(n.startswith("localmelo") for n in names):
         raise SystemExit("localmelo cannot run the MCP arm: it has no MCP client yet")
     return list(dict.fromkeys(names)), []
 
@@ -327,7 +333,8 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
     parser.add_argument(
         "--harness",
         action="append",
-        help="claude_code, hermes or localmelo; repeat or comma-separate (default: all three; MCP arm: claude_code,hermes)",
+        help="claude_code, hermes or localmelo; repeat or comma-separate (default: all three; MCP arm: claude_code,hermes). "
+        "localmelo_gateway runs only when named: localmelo through its gateway chat, as shipped",
     )
     parser.add_argument(
         "--task",
@@ -370,6 +377,13 @@ def parse_args(argv: list[str] | None) -> argparse.Namespace:
         help='extra localmelo flags, shell-quoted, before the prompt: --localmelo-args="--tool-exposure all"',
     )
     parser.add_argument(
+        "--gateway-args",
+        default="",
+        metavar="FLAGS",
+        help="extra flags of the gateway turn, shell-quoted: --gateway-args=\"-X memory.across_chats=false "
+        "--set agent.window_messages=32 --embedding-model ID\"",
+    )
+    parser.add_argument(
         "--repeat", type=int, default=1, help="passes over the selected tasks, one after another (default 1)"
     )
     parser.add_argument(
@@ -396,6 +410,9 @@ def settings_from(args: argparse.Namespace) -> Settings:
     localmelo_args = shlex.split(args.localmelo_args)
     if localmelo_args and "localmelo" not in harnesses:
         raise SystemExit("--localmelo-args needs localmelo among the harnesses")
+    gateway_args = shlex.split(args.gateway_args)
+    if gateway_args and "localmelo_gateway" not in harnesses:
+        raise SystemExit("--gateway-args needs localmelo_gateway among the harnesses")
     if args.repeat < 1:
         raise SystemExit("--repeat must be at least 1")
     return Settings(
@@ -411,6 +428,7 @@ def settings_from(args: argparse.Namespace) -> Settings:
         one_reasoning_field=args.one_reasoning_field,
         log_bodies=args.log_bodies,
         localmelo_args=localmelo_args,
+        gateway_args=gateway_args,
         repeat=args.repeat,
         watch_solution=args.watch_solution,
         not_runnable=not_runnable,
@@ -423,6 +441,8 @@ def print_plan(settings: Settings, run_root: Path, ws_root: Path, problems: list
     seed += "; one reasoning field per replayed message" if settings.one_reasoning_field else ""
     seed += "; request and response bodies logged" if settings.log_bodies else ""
     seed += f"; localmelo flags {shlex.join(settings.localmelo_args)}" if settings.localmelo_args else ""
+    seed += "; localmelo_gateway as shipped (no proxy thinking or sampling)" if "localmelo_gateway" in settings.harnesses else ""
+    seed += f"; gateway turn flags {shlex.join(settings.gateway_args)}" if settings.gateway_args else ""
     seed += f"; {settings.repeat} passes over the tasks" if settings.repeat > 1 else ""
     seed += "; Aider solutions watched" if settings.watch_solution else ""
     print(f"Plan: {arm}; thinking {settings.thinking}{seed}; {settings.max_steps} proxy steps, "
