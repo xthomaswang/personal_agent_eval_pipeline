@@ -139,6 +139,17 @@ def _localmelo_home(run_dir: Path, real_home: Path | None = None) -> Path:
     return home
 
 
+def gateway_home(base: Path) -> Path:
+    """A HOME for the gateway harness under ``base``, for a caller whose task writes files.
+
+    A chat has no tool that writes: it gives file work to a task, and a task may only work in a folder strictly inside
+    the gateway's HOME, in no hidden folder. A workspace outside it is refused and the work stays undone. Such a caller
+    builds its workspace inside this HOME (``<home>/work/...``) and names the HOME with ``harness_args=["--home", ...]``,
+    which takes the place of the run directory's own.
+    """
+    return _localmelo_home(base)
+
+
 def _localmelo(prompt: str, run_dir: Path, base_url: str, max_turns: int) -> Command:
     # Direct mode has no turn limit of its own; its hard cap is 30 steps, plus the proxy's --max-steps.
     # Persisting memory per run gives history.db, whose steps table is localmelo's own step count.
@@ -165,7 +176,8 @@ def _localmelo_gateway(prompt: str, run_dir: Path, base_url: str, max_turns: int
     """The same task on the product path: one chat turn through `melo serve` (bench/gateway_turn.py), not the direct command.
 
     The gateway runs with the shipped defaults on the run's own HOME; the workspace is the harness's working directory
-    (the task's). run() adds the turn's time limit. The task text is read from the run's prompt.md."""
+    (the task's). run() adds the turn's time limit. The task text is read from the run's prompt.md. A task that writes
+    files needs its workspace inside the HOME: see gateway_home()."""
     if not prompt.strip():
         raise ValueError("localmelo needs a non-blank task text")
     cmd = [
@@ -317,7 +329,8 @@ def _harness_report(harness: str, run_dir: Path) -> dict[str, Any]:
         except (OSError, json.JSONDecodeError):
             return {"turn": None}
         # the turn's own verdict: completed, failed, cancelled, timeout; "error" when the gateway did not start
-        keep = ("status", "cause", "error", "wall_ms", "ttfe_ms", "approvals_allowed", "cancelled", "events", "usage", "gateway_exit")
+        keep = ("status", "cause", "error", "wall_ms", "work_ms", "ttfe_ms", "approvals_allowed", "cancelled", "events", "usage",
+                "handed_off", "tasks", "tasks_timed_out", "gateway_exit")
         return {"turn": {k: record.get(k) for k in keep}}
     events = _events(run_dir / "stdout.log")
     result = next((e for e in reversed(events) if e.get("type") == "result"), {})

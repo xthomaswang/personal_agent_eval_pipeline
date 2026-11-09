@@ -14,7 +14,7 @@ from typing import Any
 
 import pytest
 
-from bench import harness
+from bench import gateway_turn, harness
 from memory.across import client
 from memory.tests.across_fake import FakeGateway, FakeModelServer
 
@@ -92,12 +92,13 @@ def test_a_completed_turn_leaves_its_events_its_record_and_the_reply(tmp_path: P
     assert done.returncode == 0, done.stderr
     assert done.stdout == "Noted.\n"
     assert record["status"] == "completed" and record["gateway_exit"] == 0 and record["approvals_allowed"] == []
+    assert (record["handed_off"], record["tasks"], record["tasks_timed_out"]) == (False, [], False)
     assert record["workspace"] == str((tmp_path / "ws").resolve()) and record["ttfe_ms"] is not None
     events = [json.loads(line) for line in (tmp_path / "run" / "events.jsonl").read_text().splitlines()]
     assert record["events"] == len(events)
     types = [e["type"] for e in events]
     assert types[0] == "turn.started" and types[-1] == "turn.finished" and "tool.started" in types
-    assert all(isinstance(e["ts"], float) for e in events)
+    assert all(isinstance(e["ts"], float) and e["source"] == "chat" for e in events)
     info = served(tmp_path)
     assert info["argv"][:3] == ["serve", "--port", info["argv"][2]] and info["argv"][3:] == ["-X", "memory.across_chats=false"]
     assert info["cwd"] == str((tmp_path / "home").resolve())  # the gateway's own folder; the task's is the chat's workspace
@@ -179,6 +180,86 @@ def test_allow_all_allows_any_tool_once(tmp_path: Path) -> None:
         gateway.stop()
     assert [a["tool"] for a in result.allowed] == ["shell_exec"] and not result.denied
     assert other.allowed == []  # a tool that is not named is left to the gateway without allow_all
+
+
+class TaskGateway:
+    """What follow_tasks asks of a gateway: the task list (a script of states, one row per poll), approvals, stops."""
+
+    def __init__(self, polls: list[list[dict[str, Any]]]) -> None:
+        self.polls, self.n, self.stops, self.answered = polls, 0, [], []
+
+    def request(self, method: str, path: str, body: Any = None) -> tuple[int, Any]:
+        if (method, path) == ("GET", "/api/tasks"):
+            rows = self.polls[min(self.n, len(self.polls) - 1)]
+            self.n += 1
+            return 200, {"tasks": rows}
+        if method == "PATCH":
+            self.stops.append((path, body))
+            return 200, {}
+        return 404, None
+
+    def allow_once(self, request_id: str) -> bool:
+        self.answered.append(request_id)
+        return True
+
+
+class Clock:
+    def __init__(self) -> None:
+        self.now = 0.0
+
+    def __call__(self) -> float:
+        return self.now
+
+    def sleep(self, seconds: float) -> None:
+        self.now += seconds
+
+
+def follow(gw: Any, budget: float, **kw: Any) -> tuple[dict[str, Any], Clock]:
+    clock = Clock()
+    return gateway_turn.follow_tasks(gw, budget, clock=clock, sleep=clock.sleep, **kw), clock
+
+
+def test_a_run_without_tasks_does_not_wait() -> None:
+    class NoTasks:  # a build without the route
+        def request(self, method: str, path: str, body: Any = None) -> tuple[int, Any]:
+            return 404, {"error": "not found"}
+
+    got, clock = follow(NoTasks(), 100.0)
+    assert got == {"tasks": [], "approvals_allowed": [], "timed_out": False} and clock.now == 0.0
+    got, clock = follow(NoTasks(), 100.0, expect_task=True)  # a turn that handed off: the task gets a moment to show
+    assert got["tasks"] == [] and clock.now == gateway_turn.QUIET_S
+
+
+def test_the_work_a_chat_gave_to_tasks_is_waited_for_and_its_cards_allowed() -> None:
+    card = {"request_id": "ap-1", "tool_name": "shell_exec"}
+    gw = TaskGateway([
+        [{"task_id": "t1", "state": "running", "pending_approvals": []}],
+        [{"task_id": "t1", "state": "waiting", "pending_approvals": [card]}],
+        [{"task_id": "t1", "state": "waiting", "pending_approvals": [card]}],  # still listed: not answered twice
+        [{"task_id": "t1", "state": "done"}],
+        [{"task_id": "t1", "state": "done"}, {"task_id": "t2", "state": "running"}],  # an ended task's successor goes on with it
+        [{"task_id": "t1", "state": "done"}, {"task_id": "t2", "state": "failed"}],
+    ])  # fmt: skip
+    got, clock = follow(gw, 100.0)
+
+    assert got["tasks"] == [{"task_id": "t1", "state": "done"}, {"task_id": "t2", "state": "failed"}]
+    assert got["approvals_allowed"] == ["shell_exec"] and gw.answered == ["ap-1"]
+    assert got["timed_out"] is False and gw.stops == []
+    assert clock.now >= 5 + gateway_turn.QUIET_S  # it waited for the quiet time after the last task ended
+
+
+def test_tasks_over_the_time_are_asked_to_stop() -> None:
+    gw = TaskGateway([[{"task_id": "t1", "state": "running"}]] * 12 + [[{"task_id": "t1", "state": "cancelled"}]])
+    got, clock = follow(gw, 10.0)
+
+    assert got["timed_out"] is True and got["tasks"] == [{"task_id": "t1", "state": "cancelled"}]
+    assert gw.stops and all(stop == ("/api/tasks/t1", {"state": "stop"}) for stop in gw.stops)
+    assert clock.now < 10.0 + gateway_turn.STOP_WAIT_S
+
+    stuck = TaskGateway([[{"task_id": "t1", "state": "running"}]])
+    got, clock = follow(stuck, 0.0)
+    assert got["timed_out"] is True and got["tasks"] == [{"task_id": "t1", "state": "running"}]
+    assert clock.now >= gateway_turn.STOP_WAIT_S  # a task that does not stop is not waited for longer than that
 
 
 # --- the harness ---

@@ -40,6 +40,7 @@ HARNESSES = ("claude_code", "hermes", "localmelo")
 OPT_IN = ("localmelo_gateway",)
 ALIASES = {"claude-code": "claude_code", "cc": "claude_code", "melo": "localmelo", "gateway": "localmelo_gateway",
            "melo-gateway": "localmelo_gateway"}  # fmt: skip
+GATEWAY_BASE = "gateway"  # under ws/: the gateway path's HOME of one run, with the workspace inside it
 WATCH_NOTE = "--watch-solution watches Aider tasks only; the MCPMark tasks run unwatched"
 
 
@@ -170,6 +171,21 @@ def workspace_lock(ws_root: Path) -> Iterator[None]:
         lock.unlink(missing_ok=True)
 
 
+def gateway_home_path(ws_root: Path) -> Path:
+    """Where the gateway path's HOME of a run is (bench.harness.gateway_home makes it there)."""
+    return ws_root / GATEWAY_BASE / "localmelo-home"
+
+
+def workspace_path(name: str, task: Task, ws_root: Path) -> Path:
+    """Where a run's workspace is built: the task's fixed path, the same for every harness and pass, so that the
+    prompt, which names it, is the same bytes. The gateway path is the exception. There a chat gives file work to a
+    task, and a localmelo task may only work in a folder strictly inside its HOME, so the workspace is built inside
+    the run's gateway HOME and the prompt names that path."""
+    if name == "localmelo_gateway":
+        return gateway_home_path(ws_root) / "work" / task.slug
+    return ws_root / task.slug
+
+
 def run_one(
     harness: ModuleType,
     name: str,
@@ -180,7 +196,13 @@ def run_one(
     env_file: Path,
     n: int = 1,
 ) -> dict[str, Any]:
-    ws = ws_root / task.slug
+    ws = workspace_path(name, task, ws_root)
+    home: Path | None = None
+    harness_args: list[str] = settings.localmelo_args if name == "localmelo" else []
+    if name == "localmelo_gateway":
+        shutil.rmtree(ws_root / GATEWAY_BASE, ignore_errors=True)  # what a run that crashed left
+        home = harness.gateway_home(ws_root / GATEWAY_BASE)
+        harness_args = [*settings.gateway_args, "--home", str(home)]
     tasks.build_workspace(task, ws)
     text = tasks.prompt(task, ws, mcp_arm=settings.mcp_arm)
     run_dir = run_root / name / settings.run_name(task, n)
@@ -202,7 +224,7 @@ def run_one(
                 random_seed=settings.random_seed,
                 one_reasoning_field=settings.one_reasoning_field,
                 log_bodies=settings.log_bodies,
-                harness_args={"localmelo": settings.localmelo_args, "localmelo_gateway": settings.gateway_args}.get(name, ()),
+                harness_args=harness_args,
                 extra_env=adapters.agent_env(env_file),
             )
     except Exception as exc:  # the run did not complete; record it and go on with the next one
@@ -210,6 +232,9 @@ def run_one(
         run_dir.mkdir(parents=True, exist_ok=True)
     result = checks.check(task, ws, run_dir)
     shutil.move(ws, run_dir / "workspace")
+    if home is not None:  # the gateway's sessions and memory stay with the run; the next run starts with none
+        shutil.move(home, run_dir / "gateway-home")
+        shutil.rmtree(ws_root / GATEWAY_BASE, ignore_errors=True)
     watched = watcher.finish(run_dir) if watcher else None
     steps = (summary or {}).get("steps") or {}
     if summary is not None and not steps:  # the proxy recorded no call at all
@@ -455,8 +480,8 @@ def print_plan(settings: Settings, run_root: Path, ws_root: Path, problems: list
     planned = settings.runs()
     texts: dict[str, str] = {}
     for index, (name, task, n) in enumerate(planned, 1):
-        ws = ws_root / task.slug
-        text = texts.setdefault(task.id, tasks.prompt(task, ws, mcp_arm=settings.mcp_arm))
+        ws = workspace_path(name, task, ws_root)  # the gateway path's prompt names another folder
+        text = texts.setdefault(str(ws), tasks.prompt(task, ws, mcp_arm=settings.mcp_arm))
         flag = "" if task.scored else "  (warm-up, unscored)"
         label = f"{task.id} #{n}" if settings.repeat > 1 and task.scored else task.id
         print(f"{index:3d}. {name:12s} {label:46s} prompt {_sha256(text)[:12]} ({len(text.encode())} B){flag}")

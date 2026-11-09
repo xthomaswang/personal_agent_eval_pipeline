@@ -30,7 +30,7 @@ from pathlib import Path
 
 base_url, mode, slug, run_dir, tests_dir, polyglot = sys.argv[1:7]
 seen = {"argv": sys.argv[1:], "claude_env_file": os.environ.get("CLAUDE_ENV_FILE"),
-        "path_head": os.environ["PATH"].split(os.pathsep)[:2]}
+        "path_head": os.environ["PATH"].split(os.pathsep)[:2], "cwd": os.getcwd()}
 Path(run_dir, "fake_seen.json").write_text(json.dumps(seen))
 if mode == "crash":
     sys.exit(3)
@@ -421,8 +421,16 @@ def test_the_gateway_path_runs_only_when_named(tmp_path: Path, harness, monkeypa
     assert (record["harness"], record["verdict"], record["run_dir"]) == ("localmelo_gateway", "pass", "localmelo_gateway/aider__transpose")
     assert record["native_steps"] == "turn=None approvals=0"  # the fake leaves no gateway_turn.json
     assert doc["settings"]["gateway_args"] == ["-X", "memory.across_chats=false"]
-    argv = json.loads((Path(doc["run_root"]) / record["run_dir"] / "fake_seen.json").read_text())["argv"]
-    assert argv[-4:] == ["-X", "memory.across_chats=false", "--timeout", "55"]  # the run's 100 s less the gateway's stop time
+    run_dir = Path(doc["run_root"]) / record["run_dir"]
+    seen = json.loads((run_dir / "fake_seen.json").read_text())
+    home = paths.WS_ROOT / "gateway" / "localmelo-home"
+    # its own flags, the HOME the workspace is inside, and the run's 100 s less the gateway's stop time
+    assert seen["argv"][-6:] == ["-X", "memory.across_chats=false", "--home", str(home), "--timeout", "55"]
+    # a localmelo task may only work inside its HOME: the workspace was built there, and both are kept with the run
+    assert seen["cwd"] == str((home / "work" / "aider__transpose").resolve())
+    assert (run_dir / "workspace" / "transpose.py").is_file() and (run_dir / "gateway-home").is_dir()
+    assert not (paths.WS_ROOT / "gateway").exists()
+    assert runner.workspace_path("localmelo", runner.tasks.select(["aider/transpose"])[0], paths.WS_ROOT) == paths.WS_ROOT / "aider__transpose"
     proxy_log = (Path(doc["run_root"]) / record["run_dir"] / "proxy.log").read_text()
     assert "thinking=passthrough" in proxy_log and "sampling=passthrough" in proxy_log
     text = (Path(doc["run_root"]) / "results.md").read_text()

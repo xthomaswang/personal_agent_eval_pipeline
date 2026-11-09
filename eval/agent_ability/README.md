@@ -65,6 +65,13 @@ budgets do. `--gateway-args` passes the gateway turn's own flags (`-X KEY=VALUE`
 `--embedding-model ID`). Each run's `summary.json` has the same `metrics` block as a direct run, with the figures only
 an event stream gives (time to the first sign, failed tool calls, approvals).
 
+A chat has no tool that writes a file: it gives such work to a background task, and its own turn ends at once. The
+gateway turn therefore also waits until every task has ended, and the record lists the tasks and how each ended. A
+localmelo task may only work in a folder strictly inside its HOME, so on this path the workspace is built inside the
+run's gateway HOME (`ws/gateway/localmelo-home/work/<task>`) and the prompt names that folder: it is not the same
+bytes as the other harnesses' prompt. After the run the workspace and the HOME move into the run directory
+(`workspace/`, `gateway-home/`).
+
 Each task gets `bench.harness.run(..., timeout_s=600, max_steps=30, max_turns=40, thinking="off")`.
 The flags `--timeout`, `--max-steps`, `--max-turns` and `--thinking` change these values, and
 `--no-warmup` skips the warm-up. `--random-seed` has the proxy set a fresh random `seed` on every
