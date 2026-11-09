@@ -716,6 +716,24 @@ def test_preflight_names_what_is_wrong(tmp_path, repo, models):
         bare.stop()
 
 
+def test_a_fixed_judge_on_its_own_server_is_checked_there_and_recorded(tmp_path, repo, models):
+    """The judge can be a model the chat server does not have: it is looked for on its own server, and the run's identity names that server."""
+    judge_server = FakeModelServer(["judge-model"])
+    try:
+        study = make_public_study(tmp_path, repo, models, judge_model="judge-model", judge_base_url=judge_server.base_url)
+        assert run.preflight(study) == []
+        assert study.identity()["judge_base_url"] == judge_server.base_url
+        missing = make_public_study(tmp_path, repo, models, judge_model="other", judge_base_url=judge_server.base_url)
+        assert run.preflight(missing) == [f"judge model 'other' is not listed by {judge_server.base_url}/models"]
+    finally:
+        judge_server.stop()
+    gone = make_public_study(tmp_path, repo, models, judge_model="judge-model", judge_base_url=judge_server.base_url)
+    assert any("/models is not readable" in p for p in run.preflight(gone))
+    same = make_public_study(tmp_path, repo, models)  # the judge on the chat server: the identity is as before
+    assert "judge_base_url" not in same.identity()
+    assert "judge_base_url" not in make_public_study(tmp_path, repo, models, judge_base_url=models.base_url).identity()
+
+
 def test_preflight_names_a_checkout_that_cannot_start_its_gateway(tmp_path, repo, models):
     broken = make_public_study(tmp_path, repo, models, serve_check=lambda melo, home: f"{melo.name} cannot start melo serve")
     assert run.preflight(broken) == ["melo cannot start melo serve"]

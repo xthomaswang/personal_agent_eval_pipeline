@@ -17,7 +17,8 @@ The benchmark (data.py) asks one question about a history of about 50 chats. Per
    the store gave it);
 2. for every arm and repeat copies the template to a cell HOME, rewrites config.toml with the arm's settings (the gateway's
    model calls go through a timing proxy), starts `melo serve` with `LOCALMELO_NOW` set to the day of the question, asks the
-   question in a new chat, stops the gateway, and has the model server judge the reply (judge.py). One row per
+   question in a new chat, stops the gateway, and has a judge model grade the reply (judge.py; --judge-url and
+   --judge-model name a fixed judge on its own server, so that the judge is not the model under test). One row per
    (question, arm, repeat) goes to `results.jsonl`; running again skips the rows that are there (a turn that failed or timed
    out has its row too: delete the row to ask it again; a gateway that dies stops the run without one).
 
@@ -200,6 +201,7 @@ class Study:
     embedding_model: str
     judge_model: str
     data_path: Path = Path("longmemeval_s_cleaned.json")
+    judge_base_url: str = ""  # the judge's server when it is not the chat model's (empty: base_url)
     data_sha256: str = ""
     stage: tuple[int, int, int] = (data.PER_TYPE, data.ABSTENTION_COUNT, data.SEED)  # per type, abstention, seed
     work_dir: Path | None = None  # where ingest files and HOMEs live (default <run-dir>/work)
@@ -245,7 +247,7 @@ class Study:
         if self.verdict:
             return self.verdict(question, answer)
         return judge.judge(
-            self.base_url, self.judge_model, str(question["question_type"]), str(question["question"]), question["answer"], answer,
+            self.judge_base_url or self.base_url, self.judge_model, str(question["question_type"]), str(question["question"]), question["answer"], answer,
             abstention=data.is_abstention(question))
 
     def identity(self) -> dict[str, Any]:
@@ -261,6 +263,7 @@ class Study:
             "model": self.model,
             "embedding_model": self.embedding_model,
             "judge_model": self.judge_model,
+            **({"judge_base_url": self.judge_base_url} if self.judge_base_url and self.judge_base_url != self.base_url else {}),
             "base_settings": BASE_SETTINGS,
             "ingest": {"notes": INGEST_NOTES, **({"x": list(self.ingest_x)} if self.ingest_x else {}),
                        **({"settings": dict(self.ingest_settings)} if self.ingest_settings else {}),
@@ -315,9 +318,18 @@ def preflight(study: Study) -> list[str]:
     except (OSError, ValueError) as exc:
         problems.append(f"{study.base_url}/models is not readable: {exc}")
     else:
-        for role, model in (("chat", study.model), ("embedding", study.embedding_model), ("judge", study.judge_model)):
+        elsewhere = bool(study.judge_base_url) and study.judge_base_url != study.base_url
+        for role, model in (("chat", study.model), ("embedding", study.embedding_model), *(() if elsewhere else (("judge", study.judge_model),))):
             if model not in listed:
                 problems.append(f"{role} model {model!r} is not listed by {study.base_url}/models")
+        if elsewhere:  # a fixed judge on its own server: it is never the model under test
+            try:
+                judges, _ = server.model_ids(study.judge_base_url)
+            except (OSError, ValueError) as exc:
+                problems.append(f"{study.judge_base_url}/models is not readable: {exc}")
+            else:
+                if study.judge_model not in judges:
+                    problems.append(f"judge model {study.judge_model!r} is not listed by {study.judge_base_url}/models")
     if study.cold_start and server.loaded_models(study.base_url).get("loaded") is None:
         problems.append(f"{study.base_url} does not say which models are loaded (its admin routes need --admin-token-cmd); "
                         "pass it, or --no-cold-start")
@@ -1191,7 +1203,8 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     ap.add_argument("--model", default=across.CHAT_MODEL, help="the chat model id as the server lists it (default %(default)s)")
     ap.add_argument(
         "--embedding-model", default=across.EMBEDDING_MODEL, help="the embedding model id of the same server (default %(default)s)")
-    ap.add_argument("--judge-model", default=None, help="the model id that grades the replies, on the same server (default: --model)")
+    ap.add_argument("--judge-model", default=None, help="the model id that grades the replies (default: --model)")
+    ap.add_argument("--judge-url", default=None, help="the judge model's server up to /v1, when it is not --base-url (a fixed judge that is not the model under test)")
     ap.add_argument(
         "--data", type=Path, default=os.environ.get("LONGMEMEVAL_DATA"), help="longmemeval_s_cleaned.json (default: $LONGMEMEVAL_DATA)")
     ap.add_argument(
@@ -1325,7 +1338,7 @@ def build_study(args: argparse.Namespace) -> Study:
     return Study(
         run_dir=run_dir, questions=questions, ids=ids, arms=arms, arm_names=names, repeats=args.repeats, localmelo=args.localmelo,
         expect_sha=args.localmelo_sha, base_url=args.base_url, model=args.model, embedding_model=args.embedding_model,
-        judge_model=args.judge_model or args.model, data_path=args.data, data_sha256=data.file_sha256(args.data),
+        judge_model=args.judge_model or args.model, judge_base_url=args.judge_url or "", data_path=args.data, data_sha256=data.file_sha256(args.data),
         stage=(args.per_type, args.abstention, args.seed), work_dir=args.work_dir, keep_homes=args.keep_homes, ingest_x=tuple(args.ingest_x),
         ingest_settings=parse_settings(args.ingest_setting), ingest_extra_body=ingest_body(args.ingest_extra_body),
         ingest_fail_fast=args.ingest_fail_fast, encode_share=encode_share(args.encode_share, args.ingest_x),
