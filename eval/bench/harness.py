@@ -31,7 +31,7 @@ from typing import Any
 
 import yaml
 
-from bench import manifest
+from bench import manifest, metrics
 from bench.proxy.steps import load_calls, step_counts
 
 AGENT_ROOT = manifest.MLSYS_ROOT / "agent"
@@ -368,6 +368,7 @@ def run(
     finally:
         _stop(proxy)
     calls = run_dir / "calls.jsonl"
+    records = load_calls(calls) if calls.exists() else None
     summary = {
         "run_id": run_dir.name,
         "harness": harness,
@@ -377,7 +378,9 @@ def run(
         "timed_out": timed_out,
         "wall_s": round(t_end - t0, 3),
         "harness_args": list(harness_args),
-        "steps": step_counts(load_calls(calls), t0, t_end) if calls.exists() else None,
+        "steps": step_counts(records, t0, t_end) if records is not None else None,
+        # the same block in every cell (bench/metrics.py); a direct run has no event stream, so its stream figures are null
+        "metrics": metrics.block(records, wall_s=t_end - t0) if records is not None else None,
         "harness_report": _harness_report(harness, run_dir),
     }
     (run_dir / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")

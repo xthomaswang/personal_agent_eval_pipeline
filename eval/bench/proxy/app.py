@@ -423,6 +423,7 @@ class ProxyApp:
             "usage_raw": None,
             "tool_calls": None,
             "tool_names": None,
+            "tool_call_sha256": None,
             "stop_reason": None,
             "output_text_chars": None,
             "output_reasoning_chars": None,

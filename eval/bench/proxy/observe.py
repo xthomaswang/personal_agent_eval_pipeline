@@ -1,13 +1,15 @@
 """Watch an upstream response on its way to the client.
 
 The observer sees the same bytes the client gets and extracts what the call
-record needs: usage, tool-call names, stop reason, the amount of generated
-text and thinking, and the time of the first generated token. It never keeps
-generated text.
+record needs: usage, tool-call names, a hash of each tool call (its name and
+arguments, so that a repeated call can be counted without the bodies), stop
+reason, the amount of generated text and thinking, and the time of the first
+generated token. It never keeps generated text.
 """
 
 from __future__ import annotations
 
+import hashlib
 import json
 from typing import Any
 
@@ -29,6 +31,22 @@ MAX_TEXT = 300
 
 def clip(text: str, limit: int = MAX_TEXT) -> str:
     return text if len(text) <= limit else text[:limit] + "..."
+
+
+def tool_call_sha256(name: Any, arguments: Any) -> str:
+    """16 hex digits that are the same for two calls of one tool with the same arguments.
+
+    *arguments* is the JSON text a model wrote (OpenAI) or an object (Anthropic). JSON objects are compared by content,
+    not by key order or spacing; text that is not JSON is compared as written, without the spaces around it.
+    """
+    value = arguments
+    if isinstance(value, str):
+        try:
+            value = json.loads(value)
+        except ValueError:
+            value = value.strip()
+    canon = value if isinstance(value, str) else json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return hashlib.sha256(f"{name}\n{canon}".encode()).hexdigest()[:16]
 
 
 def _int(value: Any) -> int | None:
@@ -139,6 +157,10 @@ class ResponseObserver:
         self.first_output_kind: str | None = None
         self._tool_names: list[str | None] = []
         self._stream_tools: dict[tuple[Any, Any], str | None] = {}
+        # Each tool call's arguments, beside its name: whole (an object or JSON text) or as the pieces of a stream.
+        self._tool_args: list[Any] = []
+        self._stream_args: dict[tuple[Any, Any], list[str]] = {}
+        self._block_args: dict[Any, int] = {}  # Anthropic stream: content block index -> position in _tool_args
 
     # -- feeding --------------------------------------------------------
 
@@ -164,11 +186,16 @@ class ResponseObserver:
     def results(self) -> dict[str, Any]:
         model_call = self.endpoint in MODEL_ENDPOINTS
         names = list(self._stream_tools.values()) if self._stream_tools else list(self._tool_names)
+        if self._stream_tools:
+            args: list[Any] = ["".join(self._stream_args.get(key, [])) for key in self._stream_tools]
+        else:
+            args = ["".join(a) if isinstance(a, list) else a for a in self._tool_args]
         return {
             "usage": normalize_usage(self.protocol, self.usage_raw) if model_call else None,
             "usage_raw": self.usage_raw if model_call else None,
             "tool_calls": len(names) if model_call else None,
             "tool_names": names if model_call else None,
+            "tool_call_sha256": [tool_call_sha256(n, a) for n, a in zip(names, args)] if model_call else None,
             "stop_reason": self.stop_reason,
             "output_text_chars": self.text_chars if model_call else None,
             "output_reasoning_chars": self.reasoning_chars if model_call else None,
@@ -254,6 +281,7 @@ class ResponseObserver:
                     if isinstance(call, dict):
                         function = call.get("function")
                         self._tool_names.append(function.get("name") if isinstance(function, dict) else None)
+                        self._tool_args.append(function.get("arguments") if isinstance(function, dict) else None)
             if choice.get("finish_reason") and self.stop_reason is None:
                 self.stop_reason = choice["finish_reason"]
 
@@ -276,6 +304,7 @@ class ResponseObserver:
                 self.reasoning_chars += len(block.get("thinking") or "")
             elif kind == "tool_use":
                 self._tool_names.append(block.get("name"))
+                self._tool_args.append(block.get("input"))
 
     # -- SSE --------------------------------------------------------------
 
@@ -337,6 +366,9 @@ class ResponseObserver:
                     name = function.get("name") if isinstance(function, dict) else None
                     if not self._stream_tools.get(key):
                         self._stream_tools[key] = name or None
+                    piece = function.get("arguments") if isinstance(function, dict) else None
+                    if isinstance(piece, str) and piece:
+                        self._stream_args.setdefault(key, []).append(piece)
                     self._mark(wall, mono, "tool")
             if choice.get("finish_reason"):
                 self.stop_reason = choice["finish_reason"]
@@ -360,6 +392,9 @@ class ResponseObserver:
             block_type = block.get("type")
             if block_type == "tool_use":
                 self._tool_names.append(block.get("name"))
+                # the input arrives in input_json_delta pieces; a start block that already has one keeps it
+                self._tool_args.append(block.get("input") or [])
+                self._block_args[obj.get("index")] = len(self._tool_args) - 1
                 self._mark(wall, mono, "tool")
             elif block_type == "text" and block.get("text"):
                 self.text_chars += len(block["text"])
@@ -379,6 +414,11 @@ class ResponseObserver:
                 self.reasoning_chars += len(delta["thinking"])
                 self._mark(wall, mono, "reasoning")
             elif delta_type == "input_json_delta" and delta.get("partial_json"):
+                at = self._block_args.get(obj.get("index"))
+                if at is not None:
+                    if not isinstance(self._tool_args[at], list):
+                        self._tool_args[at] = []  # pieces replace the start block's placeholder input
+                    self._tool_args[at].append(delta["partial_json"])
                 self._mark(wall, mono, "tool")
         elif kind == "message_delta":
             delta = obj.get("delta")

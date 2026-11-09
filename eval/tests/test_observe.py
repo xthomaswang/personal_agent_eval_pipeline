@@ -6,10 +6,25 @@ import json
 
 import pytest
 
-from bench.proxy.observe import ResponseObserver, normalize_usage, summarize_error
-from bench.proxy.request_info import classify, summarize_request, tool_names_sha256, tools_raw_sha256
+from bench.proxy.observe import (
+    ResponseObserver,
+    normalize_usage,
+    summarize_error,
+    tool_call_sha256,
+)
+from bench.proxy.request_info import (
+    classify,
+    summarize_request,
+    tool_names_sha256,
+    tools_raw_sha256,
+)
 from bench.proxy.sse import SSEParser
-from tests.support import ANTHROPIC_MESSAGE, OPENAI_COMPLETION, anthropic_stream, openai_stream
+from tests.support import (
+    ANTHROPIC_MESSAGE,
+    OPENAI_COMPLETION,
+    anthropic_stream,
+    openai_stream,
+)
 
 
 def parse_all(data: bytes, chunk_size: int) -> list:
@@ -53,6 +68,8 @@ def test_openai_stream_observation(chunk_size: int) -> None:
     r = observer.results()
     assert r["usage"] == {"prompt_tokens": 11, "completion_tokens": 7, "cached_tokens": 3}
     assert r["tool_names"] == ["get_weather", "get_time"] and r["tool_calls"] == 2
+    # the argument pieces of a stream are joined per call, whatever the chunking
+    assert r["tool_call_sha256"] == [tool_call_sha256("get_weather", '{"city": "Paris"}'), tool_call_sha256("get_time", "{}")]
     assert r["stop_reason"] == "tool_calls"
     assert r["sse_keepalives"] == 1 and r["stream_complete"] is True
     assert (r["output_text_chars"], r["output_reasoning_chars"]) == (11, 18)
@@ -73,6 +90,7 @@ def test_anthropic_stream_observation(chunk_size: int) -> None:
     assert r["usage"] == {"prompt_tokens": 12, "completion_tokens": 9, "cached_tokens": 4}
     assert r["usage_raw"]["input_tokens"] == 0
     assert r["tool_names"] == ["Read", "Bash"] and r["tool_calls"] == 2
+    assert r["tool_call_sha256"] == [tool_call_sha256("Read", {"file_path": "/tmp/a"}), tool_call_sha256("Bash", '{"command": "ls"}')]
     assert r["stop_reason"] == "tool_use"
     assert r["sse_keepalives"] == 1 and r["stream_complete"] is True
     assert (r["output_text_chars"], r["output_reasoning_chars"]) == (len("Reading."), len("Hmm."))
@@ -82,11 +100,25 @@ def test_non_streaming_bodies_with_keepalive_spaces() -> None:
     data = b"   " + json.dumps(OPENAI_COMPLETION).encode()
     r = observe("openai", "chat_completions", data, "application/json", 2).results()
     assert r["tool_names"] == ["get_weather"] and r["usage"]["prompt_tokens"] == 11
+    assert r["tool_call_sha256"] == [tool_call_sha256("get_weather", {"city": "Paris"})]
     assert r["sse_events"] is None and r["stream_complete"] is None
 
     r = observe("anthropic", "messages", b" " + json.dumps(ANTHROPIC_MESSAGE).encode(), "application/json").results()
     assert r["tool_names"] == ["Read"] and r["stop_reason"] == "tool_use"
+    assert r["tool_call_sha256"] == [tool_call_sha256("Read", '{"file_path":"/tmp/a"}')]
     assert r["usage"] == {"prompt_tokens": 12, "completion_tokens": 9, "cached_tokens": 4}
+
+
+def test_tool_call_hash_is_about_the_call_not_its_spelling() -> None:
+    same = tool_call_sha256("web_fetch", '{"url": "https://example.org/a", "part": 2}')
+    assert same == tool_call_sha256("web_fetch", ' {"part":2,"url":"https://example.org/a"} ')  # key order and spacing
+    assert same == tool_call_sha256("web_fetch", {"part": 2, "url": "https://example.org/a"})  # an object, as Anthropic sends it
+    assert same != tool_call_sha256("web_fetch", '{"url": "https://example.org/a", "part": 3}')
+    assert same != tool_call_sha256("web_search", '{"url": "https://example.org/a", "part": 2}')
+    assert tool_call_sha256("bash", " ls -l ") == tool_call_sha256("bash", "ls -l")  # not JSON: compared as written
+    assert tool_call_sha256("noop", None) == tool_call_sha256("noop", "null") and len(same) == 16
+    # an endpoint that is not a model call has no tool fields
+    assert ResponseObserver(None, "models", 200, "application/json").results()["tool_call_sha256"] is None
 
 
 def test_stream_without_end_marker_is_not_complete() -> None:
