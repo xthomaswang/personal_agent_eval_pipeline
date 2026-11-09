@@ -35,9 +35,12 @@ from typing import Any
 HOP_BY_HOP = {"connection", "keep-alive", "proxy-authenticate", "proxy-authorization", "te", "trailers", "transfer-encoding", "upgrade", "host"}
 CHUNK = 65536
 JSON_BODY_LIMIT = 8 * 1024 * 1024
-TAIL_BYTES = 4096  # what is kept of a reply's end for its finish_reason and completion_tokens
+TAIL_BYTES = 4096  # what is kept of a reply's end for its finish_reason and its usage numbers
 FINISH_RE = re.compile(rb'"finish_reason"\s*:\s*"([a-z_]+)"')
 TOKENS_RE = re.compile(rb'"completion_tokens"\s*:\s*(\d+)')
+# The other usage numbers of the reply's end. cached_tokens is how much of the prompt the server took from its prefix
+# cache: a prompt whose early part changes every turn shows as a low number here and nowhere else.
+USAGE_RES = {name: re.compile(rb'"' + name.encode() + rb'"\s*:\s*(\d+)') for name in ("prompt_tokens", "cached_tokens", "reasoning_tokens")}
 
 
 def describe(path: str, body: bytes) -> dict[str, Any]:
@@ -221,12 +224,16 @@ class TimingProxy:
 
 
 def reply_end(tail: bytes) -> dict[str, Any]:
-    """``finish_reason`` and ``completion_tokens`` of a chat completion, from the last bytes of its body (a JSON reply or
-    the last events of a stream both end with them); None where the tail does not say."""
+    """``finish_reason`` and the usage numbers of a chat completion (``completion_tokens``, ``prompt_tokens``,
+    ``cached_tokens``, ``reasoning_tokens``), from the last bytes of its body (a JSON reply or the last events of a
+    stream both end with them); None where the tail does not say. A stream has usage only when the client asked for it
+    (``stream_options.include_usage``)."""
     reasons = FINISH_RE.findall(tail)
     tokens = TOKENS_RE.findall(tail)
+    usage = {name: pattern.findall(tail) for name, pattern in USAGE_RES.items()}
     return {"finish_reason": reasons[-1].decode() if reasons else None,
-            "completion_tokens": int(tokens[-1]) if tokens else None}
+            "completion_tokens": int(tokens[-1]) if tokens else None,
+            **{name: int(found[-1]) if found else None for name, found in usage.items()}}
 
 
 def read_log(path: Path) -> list[dict[str, Any]]:

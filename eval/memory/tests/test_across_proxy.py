@@ -172,8 +172,18 @@ def test_a_reply_longer_than_the_limit_is_not_captured_and_without_a_path_nothin
 def test_reply_end_reads_how_a_chat_reply_ended():
     whole = json.dumps({"choices": [{"message": {"content": "x" * 9000}, "finish_reason": "length"}],
                         "usage": {"prompt_tokens": 10, "completion_tokens": 2000}}).encode()
-    assert proxy.reply_end(whole[-proxy.TAIL_BYTES:]) == {"finish_reason": "length", "completion_tokens": 2000}
+    none = {"prompt_tokens": None, "cached_tokens": None, "reasoning_tokens": None}
+    assert proxy.reply_end(whole[-proxy.TAIL_BYTES:]) == {"finish_reason": "length", "completion_tokens": 2000, **none, "prompt_tokens": 10}
     stream = (b'data: {"choices": [{"delta": {"content": "a"}, "finish_reason": null}]}\n\n'
               b'data: {"choices": [{"delta": {}, "finish_reason": "stop"}], "usage": {"completion_tokens": 7}}\n\ndata: [DONE]\n\n')
-    assert proxy.reply_end(stream) == {"finish_reason": "stop", "completion_tokens": 7}
-    assert proxy.reply_end(b"") == {"finish_reason": None, "completion_tokens": None}
+    assert proxy.reply_end(stream) == {"finish_reason": "stop", "completion_tokens": 7, **none}
+    assert proxy.reply_end(b"") == {"finish_reason": None, "completion_tokens": None, **none}
+
+
+def test_reply_end_reads_the_cached_and_reasoning_tokens():
+    whole = json.dumps({"choices": [{"message": {"content": "ok"}, "finish_reason": "stop"}],
+                        "usage": {"prompt_tokens": 4551, "completion_tokens": 23, "total_tokens": 4574,
+                                  "prompt_tokens_details": {"cached_tokens": 4096},
+                                  "completion_tokens_details": {"reasoning_tokens": 5}}}).encode()
+    assert proxy.reply_end(whole) == {"finish_reason": "stop", "completion_tokens": 23, "prompt_tokens": 4551,
+                                      "cached_tokens": 4096, "reasoning_tokens": 5}
