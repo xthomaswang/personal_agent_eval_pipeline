@@ -248,6 +248,7 @@ def run_turn(
     after: int = 0,
     deny_approvals: bool = True,
     allow_tools: Collection[str] = (),
+    allow_all: bool = False,
     clock: Callable[[], float] = time.perf_counter,
     sleep: Callable[[float], None] = time.sleep,
     epoch: Callable[[], float] = time.time,
@@ -260,6 +261,8 @@ def run_turn(
     keep the turn waiting; the denials are in ``TurnResult.denied``. A request whose tool is in ``allow_tools`` (e.g.
     ``browser:http://127.0.0.1:PORT``, a fixture server the chat asks about) is allowed once instead (``TurnResult.allowed``). ``after`` is the id of the newest event of the chat
     seen so far: the stream starts there, so a later turn of a long chat does not replay (and wait for) the earlier ones.
+    With ``allow_all`` every approval request of the turn is allowed once, as a person doing the task would (a task run on
+    the product path); each is in ``TurnResult.allowed``.
     """
     if not KEY_RE.fullmatch(key):
         raise ValueError(f"client_request_id {key!r} breaks the gateway's grammar")
@@ -279,7 +282,7 @@ def run_turn(
     denied_ids: set[str] = set()
 
     def deny(request_id: str, tool: str) -> None:
-        allow = tool in allow_tools
+        allow = allow_all or tool in allow_tools
         if (deny_approvals or allow) and request_id and request_id not in denied_ids:
             denied_ids.add(request_id)
             try:
@@ -320,7 +323,7 @@ def run_turn(
             if finished_at is None:
                 finished_at, result.ended_epoch = clock(), epoch()
             break
-        if deny_approvals or allow_tools:
+        if deny_approvals or allow_tools or allow_all:
             for pending in gw.pending_approvals(session_id):
                 deny(str(pending.get("request_id") or ""), str(pending.get("tool_name") or ""))
         if clock() - t0 > timeout_s:

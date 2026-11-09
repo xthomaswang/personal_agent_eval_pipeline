@@ -161,15 +161,40 @@ def _localmelo(prompt: str, run_dir: Path, base_url: str, max_turns: int) -> Com
     return cmd, env
 
 
+def _localmelo_gateway(prompt: str, run_dir: Path, base_url: str, max_turns: int) -> Command:
+    """The same task on the product path: one chat turn through `melo serve` (bench/gateway_turn.py), not the direct command.
+
+    The gateway runs with the shipped defaults on the run's own HOME; the workspace is the harness's working directory
+    (the task's). run() adds the turn's time limit. The task text is read from the run's prompt.md."""
+    if not prompt.strip():
+        raise ValueError("localmelo needs a non-blank task text")
+    cmd = [
+        sys.executable, "-m", "bench.gateway_turn",
+        "--melo", str(manifest.LOCALMELO_REPO / ".venv" / "bin" / "melo"),
+        "--home", str(_localmelo_home(run_dir)),
+        "--run-dir", str(run_dir),
+        "--base-url", f"{base_url}/v1",
+        "--model", MODEL,
+        "--prompt-file", str(run_dir / "prompt.md"),
+    ]  # fmt: skip
+    # the command runs in the task's workspace, so the package is found through PYTHONPATH (this file's parent's parent)
+    return cmd, {"PYTHONPATH": str(Path(__file__).resolve().parents[1]), "PYTHONDONTWRITEBYTECODE": "1"}
+
+
 BUILDERS: dict[str, Callable[[str, Path, str, int], Command]] = {
     "claude_code": _claude_code,
     "hermes": _hermes,
     "localmelo": _localmelo,
+    "localmelo_gateway": _localmelo_gateway,
 }
+# The product path is measured as shipped: the proxy records and forwards, it sets neither sampling nor thinking.
+AS_SHIPPED = ("localmelo_gateway",)
+GATEWAY_STOP_S = 45.0  # what the gateway turn keeps of the run's time limit to stop its gateway and write its records
 
 # Harnesses whose command line takes extra flags from run(harness_args=...): localmelo's options
 # (--tool-exposure, --builtins, --request-timeout, ...) vary per experiment, the others' do not.
-HARNESS_ARGS = ("localmelo",)
+# The gateway turn takes its own flags the same way (-X pairs, --set, --embedding-model).
+HARNESS_ARGS = ("localmelo", "localmelo_gateway")
 
 
 def _with_harness_args(cmd: list[str], prompt: str, harness_args: Sequence[str]) -> list[str]:
@@ -198,8 +223,10 @@ def _start_proxy(
         "--harness", harness,
         "--run-id", run_dir.name,
         "--run-dir", str(run_dir),
-        "--thinking", thinking,
+        "--thinking", "passthrough" if harness in AS_SHIPPED else thinking,
     ]  # fmt: skip
+    if harness in AS_SHIPPED:
+        cmd += ["--sampling", "passthrough"]
     if max_steps:
         cmd += ["--max-steps", str(max_steps)]
     if random_seed:
@@ -233,13 +260,13 @@ def _without(environ: Any, name: str) -> dict[str, str]:
     return {k: v for k, v in environ.items() if k != name}
 
 
-def _stop(proc: subprocess.Popen[Any], group: bool = False) -> int:
-    """SIGTERM, then SIGKILL after 10 s. Returns the exit code."""
+def _stop(proc: subprocess.Popen[Any], group: bool = False, grace: float = 10) -> int:
+    """SIGTERM, then SIGKILL after ``grace`` seconds. Returns the exit code."""
     send = (lambda s: os.killpg(proc.pid, s)) if group else proc.send_signal
     if proc.poll() is None:
         try:
             send(signal.SIGTERM)
-            return proc.wait(timeout=10)
+            return proc.wait(timeout=grace)
         except subprocess.TimeoutExpired:
             send(signal.SIGKILL)
         except ProcessLookupError:
@@ -276,8 +303,22 @@ def _sqlite_scalar(db: Path, query: str) -> int | None:
     return int(value) if value is not None else None
 
 
+def _gateway_events(run_dir: Path) -> list[dict[str, Any]] | None:
+    """The event stream a gateway turn left in the run directory; None for a run that has none (a direct run)."""
+    path = run_dir / "events.jsonl"
+    return _events(path) if path.exists() else None
+
+
 def _harness_report(harness: str, run_dir: Path) -> dict[str, Any]:
     """What the harness itself says about the run: its own step count and final status."""
+    if harness == "localmelo_gateway":
+        try:
+            record = json.loads((run_dir / "gateway_turn.json").read_text())
+        except (OSError, json.JSONDecodeError):
+            return {"turn": None}
+        # the turn's own verdict: completed, failed, cancelled, timeout; "error" when the gateway did not start
+        keep = ("status", "cause", "error", "wall_ms", "ttfe_ms", "approvals_allowed", "cancelled", "events", "usage", "gateway_exit")
+        return {"turn": {k: record.get(k) for k in keep}}
     events = _events(run_dir / "stdout.log")
     result = next((e for e in reversed(events) if e.get("type") == "result"), {})
     if harness == "claude_code":
@@ -329,7 +370,7 @@ def run(
 ) -> dict[str, Any]:
     """extra_env is merged into the harness's environment last, e.g. a PATH with a task's tools first.
 
-    harness_args go on the harness's command line before the prompt (localmelo only); log_bodies is
+    harness_args go on the harness's command line before the prompt (localmelo and its gateway turn only); log_bodies is
     the proxy's --log-bodies, which proxy.log records with the proxy's other settings.
     """
     if harness_args and harness not in HARNESS_ARGS:
@@ -346,6 +387,8 @@ def run(
         cmd, builder_env = BUILDERS[harness](prompt, run_dir, base_url, max_turns)
         if harness_args:
             cmd = _with_harness_args(cmd, prompt, harness_args)
+        if harness in AS_SHIPPED:  # the turn ends itself before the run's limit, so that it can stop its own gateway
+            cmd += ["--timeout", f"{max(timeout_s - GATEWAY_STOP_S, 30.0):g}"]
         started_at = time.time()
         t0 = time.monotonic()
         with (run_dir / "stdout.log").open("w") as out, (run_dir / "stderr.log").open("w") as err:
@@ -362,7 +405,8 @@ def run(
                 exit_code = proc.wait(timeout=timeout_s)
                 timed_out = False
             except subprocess.TimeoutExpired:
-                exit_code = _stop(proc, group=True)
+                # the gateway turn stops its gateway (another process group) on TERM: give it the time to
+                exit_code = _stop(proc, group=True, grace=GATEWAY_STOP_S - 5 if harness in AS_SHIPPED else 10)
                 timed_out = True
         t_end = time.monotonic()
     finally:
@@ -379,8 +423,9 @@ def run(
         "wall_s": round(t_end - t0, 3),
         "harness_args": list(harness_args),
         "steps": step_counts(records, t0, t_end) if records is not None else None,
-        # the same block in every cell (bench/metrics.py); a direct run has no event stream, so its stream figures are null
-        "metrics": metrics.block(records, wall_s=t_end - t0) if records is not None else None,
+        # the same block in every cell (bench/metrics.py); a direct run has no event stream, so its stream figures are
+        # null, and a gateway run's come from its events.jsonl
+        "metrics": metrics.block(records, _gateway_events(run_dir), wall_s=t_end - t0) if records is not None else None,
         "harness_report": _harness_report(harness, run_dir),
     }
     (run_dir / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")

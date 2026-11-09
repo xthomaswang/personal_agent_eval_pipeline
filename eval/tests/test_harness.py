@@ -203,7 +203,7 @@ def test_run_puts_harness_args_before_the_prompt_and_logs_bodies(
 
 
 def test_harness_args_are_refused_for_other_harnesses(tmp_path: Path, no_manifest: None) -> None:
-    with pytest.raises(ValueError, match="localmelo only"):
+    with pytest.raises(ValueError, match="localmelo, localmelo_gateway only, not hermes"):
         harness.run("hermes", "task", tmp_path, tmp_path / "runs" / "r5", harness_args=["--x"])
     assert not (tmp_path / "runs").exists()
     # A command without a trailing prompt gets the flags at the end
