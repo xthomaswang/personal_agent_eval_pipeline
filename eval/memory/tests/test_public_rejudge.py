@@ -202,6 +202,7 @@ def test_report_counts_and_flips_of_a_run_with_two_arms(world):
     tmp_path, _, _ = world
     assert cli(tmp_path, FakeJudge())[0] == 0
     report = json.loads((tmp_path / "out" / rejudge.REPORT_JSON).read_text())
+    assert len(report["provenance"]["bench_sha"]) == 40 and report["provenance"]["at"][:2] == "20"  # what wrote the report
     arms = report["runs"]["runA"]["arms"]
     # arm A: old right on q1 and q2; the new judge says yes only to "alpha yes"
     assert counts(arms["A"]) == (3, 2, 1, 1, 0)

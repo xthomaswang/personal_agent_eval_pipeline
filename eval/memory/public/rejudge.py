@@ -829,11 +829,22 @@ def main(
     return _finish(args.out, collection, verdicts, dataset, args.judge_model, say)
 
 
+def provenance() -> dict[str, Any]:
+    """What wrote the report: this repo's commit, the machine's build numbers and the time."""
+    bench = Path(__file__).resolve().parents[3]  # <repo>/eval/memory/public/rejudge.py
+    return {
+        "at": datetime.now().astimezone().isoformat(timespec="seconds"),
+        "bench_sha": server.git_sha(bench), "bench_dirty": server.git_dirty(bench),
+        "sw_vers_build": server.out(["sw_vers", "-buildVersion"]), "xcodebuild_version": server.out(["xcodebuild", "-version"]),
+    }
+
+
 def _finish(
     out_dir: Path, collection: Collection, verdicts: Mapping[Key, Mapping[str, Any]], dataset: Dataset, judge_model: str,
     say: Callable[[str], None],
 ) -> int:
     report = build_report(collection, verdicts, dataset, judge_model)
+    report["provenance"] = provenance()
     write_reports(out_dir, report)
     overall = report["overall"]
     say(f"wrote {REPORT_JSON} and {REPORT_MD} in {out_dir}: {overall['n']} answers compared, agreement {_pct(overall['agreement'])}, "
