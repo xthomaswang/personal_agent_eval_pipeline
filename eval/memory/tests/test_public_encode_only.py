@@ -1,6 +1,7 @@
 """Encode-only checkpoint/stop behavior on invented data and a fake ingest only."""
 from dataclasses import replace
 import json
+from pathlib import Path
 import signal
 
 import pytest
@@ -183,7 +184,9 @@ def test_term_and_int_handlers_request_stopping_and_restore_the_previous_handler
     assert all(signal.getsignal(sig) == handler for sig, handler in previous.items())
 
 
-def test_cli_builds_the_same_ingest_settings_without_a_vendor_build(tmp_path, monkeypatch):
+@pytest.mark.parametrize("relative_vendor", [False, True])
+def test_cli_builds_the_same_ingest_settings_without_a_vendor_build(tmp_path, monkeypatch, relative_vendor):
+    monkeypatch.chdir(tmp_path)
     dataset = tmp_path / "synthetic.json"
     dataset.write_text(json.dumps(mini_questions()))
     selected = tmp_path / "synthetic-ids.json"
@@ -193,7 +196,8 @@ def test_cli_builds_the_same_ingest_settings_without_a_vendor_build(tmp_path, mo
     (app / ".venv/bin/melo").write_text("Synthetic executable placeholder, never run.")
     monkeypatch.setattr(enc.across, "make_guards", lambda *args: (lambda: None, lambda: None))
     args = enc.parse_args([
-        "--run-dir", str(tmp_path / "encode"), "--localmelo", str(app), "--localmelo-sha", "51c7a59e",
+        "--run-dir", str(tmp_path / "encode"), "--localmelo", "stub-app" if relative_vendor else str(app),
+        "--localmelo-sha", "51c7a59e", "--base-url", "synthetic",
         "--data", str(dataset), "--questions-file", str(selected), "--compress-cache", str(tmp_path / "cache.json"),
     ])
     built = enc.build_study(args)
@@ -203,6 +207,28 @@ def test_cli_builds_the_same_ingest_settings_without_a_vendor_build(tmp_path, mo
     assert built.encode_share is built.encode_turn_share is None and not built.keep_answer_sessions_plain
     assert not built.cold_start and not built.do_warmup and not built.keep_homes
     assert not built.run_dir.exists()
+    built.snapshot = lambda study: {"synthetic": True}
+    seen = []
+
+    def fake_subprocess(command, **kwargs):
+        # Exercise real run.ingest/run_ingest, but emulate exec's cwd resolution;
+        # no child process, socket, gateway, vendor code or model is ever run.
+        executable = Path(command[0])
+        actual = executable if executable.is_absolute() else Path(kwargs["cwd"]) / executable
+        if not actual.is_file():
+            raise FileNotFoundError(2, "Synthetic executable is absent from the child cwd", command[0])
+        assert command[1:3] == ["memory", "ingest"]
+        seen.append((executable, Path(kwargs["cwd"])))
+        raw = {"sessions": 1, "turns": 2, "compress": {"synthetic": {"windows": [{"cached": False, "failed": False}]}},
+               "cache_hits": 0, "model_calls": 1, "seconds": 0.1, "error": ""}
+        return run.subprocess.CompletedProcess(command, 0, json.dumps(raw), "")
+
+    monkeypatch.setattr(run.subprocess, "run", fake_subprocess)
+    assert enc.encode(built) == 0
+    assert len(seen) == 2 and all(executable == app / ".venv/bin/melo" for executable, cwd in seen)
+    assert all(cwd != tmp_path and "template" == cwd.name for executable, cwd in seen)
+    assert built.localmelo == app.resolve()
+    assert list(built.work.iterdir()) == []
 
 
 def test_main_passes_night_deadline_and_stopped_code(study, monkeypatch):

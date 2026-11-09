@@ -183,16 +183,19 @@ def build_study(args: argparse.Namespace) -> run.Study:
     by_id = {q["question_id"]: q for q in questions}
     if not set(ids) <= by_id.keys():
         raise ValueError("an encode ID is absent from the dataset")
-    sha = server.git_sha(args.localmelo)
-    if not args.localmelo_sha or not sha.startswith(args.localmelo_sha) or server.git_dirty(args.localmelo):
+    # run_study normally does this before ingest changes the child's cwd to
+    # its temporary HOME. A relative executable otherwise disappears there.
+    localmelo = args.localmelo.resolve()
+    sha = server.git_sha(localmelo)
+    if not args.localmelo_sha or not sha.startswith(args.localmelo_sha) or server.git_dirty(localmelo):
         raise ValueError("the vendor must match the requested SHA with a clean tree")
-    if not (args.localmelo / ".venv/bin/melo").is_file():
+    if not (localmelo / ".venv/bin/melo").is_file():
         raise ValueError("the prepared vendor's melo executable is absent")
     run_dir = args.run_dir.resolve()
     _, guard = across.make_guards(run_dir, args.gpu_lock, args.lock_holder)
     return run.Study(
         run_dir=run_dir, questions=[by_id[qid] for qid in ids], ids=ids, arms={}, arm_names=(), repeats=0,
-        localmelo=args.localmelo, expect_sha=args.localmelo_sha, base_url=args.base_url, model=args.model,
+        localmelo=localmelo, expect_sha=args.localmelo_sha, base_url=args.base_url, model=args.model,
         embedding_model=args.embedding_model, judge_model="", data_path=args.data,
         data_sha256=data.file_sha256(args.data), ingest_x=("ingest=compress",),
         ingest_settings={"memory.compress_parallel": 4, "memory.compress_cache": str(args.compress_cache.resolve())},
