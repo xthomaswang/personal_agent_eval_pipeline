@@ -38,7 +38,7 @@ const scoreNumber = (row, name) => {
 };
 
 function brandStats() {
-  return `<div class="hero-stats"><span><b>${DATA.buildCount}</b> model builds</span><i class="divider"></i><span><b>${DATA.harnessCount}</b> agent harnesses</span><i class="divider"></i><span><b>${DATA.machineCount}</b> Apple-silicon ${DATA.machineCount === 1 ? 'Mac' : 'Macs'}</span><span class="quiet-meta updated">UPDATED ${(DATA.latest ?? 'No results').replaceAll('-', '.')}</span></div>`;
+  return `<div class="hero-stats"><span><b>${DATA.buildCount}</b> model builds</span><i class="divider"></i><span><b>${DATA.harnessCount}</b> agent harnesses</span><i class="divider"></i><span><b>${DATA.machineCount}</b> Apple-silicon ${DATA.machineCount === 1 ? 'Mac' : 'Macs'}</span><span class="quiet-meta updated">${DATA.latest ? `RESULTS AS OF ${DATA.latest.replaceAll('-', '.')}` : 'NO RESULTS'}</span></div>`;
 }
 
 function benchmarkPage() {
