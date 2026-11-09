@@ -7,6 +7,8 @@ Prompts follow the recipe in the smoke-test report, the same bytes for every har
 - MCPMark: description.md + the note MCPMark's task manager appends
   (src/base/task_manager.py: _format_task_instruction), then the closing sentence.
 - The MCP arm keeps only the path in the closing sentence: it has no shell.
+- Long document (smoke/longdoc.py): a generated register and the question of one fact per section, then the closing
+  sentence. Not in the default suite: name it with --task 'longdoc/*'.
 """
 
 from __future__ import annotations
@@ -16,7 +18,7 @@ import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
-from smoke import data, paths
+from smoke import data, longdoc, paths
 
 MCPMARK_TASKS = (
     "file_context/file_splitting",
@@ -35,6 +37,8 @@ AIDER_CORE = ("transpose", "proverb", "pig-latin", "list-ops", "variable-length-
 AIDER_EXTENDED = ("robot-name", "grade-school", "affine-cipher", "scale-generator", "wordy", "phone-number", "react")
 # Exercises whose stub or reference solution misbehaves under the checker (see tests/test_aider_checks.py)
 AIDER_EXCLUDED: dict[str, str] = {}
+# The long-reading case in two sizes: about 80 KB (a pilot) and about 265 KB of text. The number is the section count.
+LONGDOC_TASKS = ("register-24", "register-80")
 
 # Verbatim from aider's benchmark/prompts.py (instructions_addendum)
 AIDER_ADDENDUM = """
@@ -55,7 +59,7 @@ WARMUP_TEXT = "Create a file named warmup.txt that contains the single word: rea
 @dataclass(frozen=True)
 class Task:
     id: str
-    kind: str  # "mcpmark", "aider" or "warmup"
+    kind: str  # "mcpmark", "aider", "longdoc" or "warmup"
     scored: bool = True
 
     @property
@@ -83,6 +87,10 @@ def aider_task(name: str) -> Task:
     return Task(f"aider/{name}", "aider")
 
 
+def longdoc_task(name: str) -> Task:
+    return Task(f"longdoc/{name}", "longdoc")
+
+
 def default_suite(extended: bool = False, mcp_arm: bool = False) -> list[Task]:
     tasks = [mcpmark_task(n) for n in MCPMARK_TASKS]
     if not mcp_arm:
@@ -93,9 +101,10 @@ def default_suite(extended: bool = False, mcp_arm: bool = False) -> list[Task]:
 
 
 def known_tasks() -> list[Task]:
-    """Every task --task can select: the ten MCPMark tasks and every usable Python exercise."""
+    """Every task --task can select: the ten MCPMark tasks, every usable Python exercise and the long-document tasks."""
     tasks = [mcpmark_task(n) for n in MCPMARK_TASKS]
     tasks += [aider_task(n) for n in data.exercise_names() if n not in AIDER_EXCLUDED]
+    tasks += [longdoc_task(n) for n in LONGDOC_TASKS]
     return tasks
 
 
@@ -112,7 +121,7 @@ def select(patterns: list[str]) -> list[Task]:
 
 
 def build_workspace(task: Task, ws: Path) -> None:
-    """A fresh workspace: the stub and its tests (Aider), or the unzipped start folder (MCPMark)."""
+    """A fresh workspace: the stub and its tests (Aider), the unzipped start folder (MCPMark), or the register (long document)."""
     if ws.exists():
         shutil.rmtree(ws)
     if task.kind == "aider":
@@ -122,6 +131,10 @@ def build_workspace(task: Task, ws: Path) -> None:
             data.copy_regular_file(ex.directory / rel, ws / rel)
     elif task.kind == "mcpmark":
         data.extract_category(data.verified_zip(task.category), task.category, ws)
+    elif task.kind == "longdoc":
+        ws.mkdir(parents=True)
+        text, _facts = longdoc.document(sections=longdoc.sections_of(task.name))
+        (ws / longdoc.FILE_NAME).write_text(text, encoding="utf-8")
     elif task.kind == "warmup":
         ws.mkdir(parents=True)
     else:
@@ -138,6 +151,8 @@ def prompt(task: Task, ws: Path, mcp_arm: bool = False) -> str:
     if task.kind == "mcpmark":
         description = (paths.MCPMARK_EASY / task.name / "description.md").read_text()
         return description + MCPMARK_NOTE + "\n\n" + closing
+    if task.kind == "longdoc":
+        return longdoc.prompt_text(longdoc.sections_of(task.name)) + "\n" + closing
     if task.kind == "warmup":
         return WARMUP_TEXT + "\n" + closing
     raise ValueError(f"unknown task kind {task.kind!r}")

@@ -46,6 +46,8 @@ def _notes(record: dict[str, Any]) -> str:
         notes.append("tests modified")
     if check.get("missing_solution_files"):
         notes.append("solution missing")
+    if check.get("register_untouched") is False:
+        notes.append("register changed")
     if record["exit_code"] not in (0, None):
         notes.append(f"exit {record['exit_code']}")
     if record["timed_out"] and check.get("passed"):

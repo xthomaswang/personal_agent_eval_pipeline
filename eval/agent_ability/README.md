@@ -17,6 +17,13 @@ benchmark's own checker.
   `--extended` adds `robot-name`, `grade-school`, `affine-cipher`, `scale-generator`, `wordy`,
   `phone-number` and `react`. `--task 'aider/<name>'` selects any of the 34 Python exercises.
 - **Warm-up**, unscored, first for every harness: create `warmup.txt` containing `ready`.
+- **Long document**, not in the default suite (`--task 'longdoc/*'`): `longdoc/register-24` (about 80 KB of text)
+  and `longdoc/register-80` (about 265 KB). The workspace holds one generated register that no model can know from
+  training; every section names three officers, and the task asks who closed each entry, one line per section in
+  `digest.md`. The check makes the register again from its seed and records the coverage: sections right, wrong
+  and missing, and the furthest section answered right. A run passes only with every section right. A text search
+  finds some of the answers without a full read, so read the coverage beside the run's tool calls
+  (`smoke/longdoc.py`).
 
 The default run is 3 harnesses x (15 tasks + warm-up) = 48 runs, 45 scored, in harness-major order.
 The MCP-only arm (`--mcp-arm`) runs the 10 MCPMark tasks on Claude Code and Hermes: 22 runs, 20 scored.

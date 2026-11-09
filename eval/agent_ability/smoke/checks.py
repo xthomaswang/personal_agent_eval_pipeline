@@ -8,6 +8,8 @@
 - MCPMark: the task's own verify.py runs with FILESYSTEM_TEST_DIR set to the workspace, from a
   directory outside it.
 - Warm-up: warmup.txt contains "ready". Unscored.
+- Long document: digest.md is scored against the facts of the register, made again from its seed (smoke/longdoc.py).
+  The record carries the coverage (sections right, wrong, missing); the run passes only when every section is right.
 
 Downloaded code (the unit tests and verify.py) runs only here, with `python -I -B` from the smoke
 environment, in a new session that is killed as a group on timeout.
@@ -22,7 +24,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from smoke import data, paths
+from smoke import data, longdoc, paths
 from smoke.tasks import Task
 
 AIDER_TIMEOUT_S = 180  # aider's run_unit_tests uses 3 minutes
@@ -145,11 +147,32 @@ def check_warmup(task: Task, ws: Path, run_dir: Path) -> dict[str, Any]:
     return {"kind": "warmup", "passed": ok, "detail": "warmup.txt says ready" if ok else "warmup.txt missing or wrong"}
 
 
+def check_longdoc(task: Task, ws: Path, run_dir: Path) -> dict[str, Any]:
+    text, facts = longdoc.document(sections=longdoc.sections_of(task.name))
+    digest, source = ws / longdoc.DIGEST_NAME, ws / longdoc.FILE_NAME
+    written = digest.is_file() and not digest.is_symlink()
+    score = longdoc.score(digest.read_text(encoding="utf-8", errors="replace") if written else "", facts)
+    untouched = source.is_file() and not source.is_symlink() and source.read_text(encoding="utf-8", errors="replace") == text
+    detail = f"{score['correct']}/{score['sections']} sections right, {score['wrong']} wrong, {score['missing']} missing"
+    if not written:
+        detail = f"{longdoc.DIGEST_NAME} missing"
+    return {
+        "kind": "longdoc",
+        **score,
+        "digest_written": written,
+        "register_untouched": untouched,
+        "passed": written and score["correct"] == score["sections"],
+        "detail": detail,
+    }
+
+
 def check(task: Task, ws: Path, run_dir: Path) -> dict[str, Any]:
     if task.kind == "aider":
         return check_aider(task, ws, run_dir)
     if task.kind == "mcpmark":
         return check_mcpmark(task, ws, run_dir)
+    if task.kind == "longdoc":
+        return check_longdoc(task, ws, run_dir)
     if task.kind == "warmup":
         return check_warmup(task, ws, run_dir)
     raise ValueError(f"unknown task kind {task.kind!r}")
