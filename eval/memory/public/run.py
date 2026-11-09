@@ -789,16 +789,24 @@ def first_prompt_tokens(res: client.TurnResult) -> int | None:
 
 def proxy_view(log: Sequence[Mapping[str, Any]], started: float, ended: float) -> dict[str, Any]:
     """The timing proxy's view of a turn: its agent request (the first chat completion in the turn that offers tools) and the
-    time from its start to its first byte; for a request that streams, that is the first token."""
+    time from its start to its first byte; for a request that streams, that is the first token. Over all the turn's chat
+    requests: the largest prompt, the share of prompt tokens the server took from its cache, and the thinking tokens
+    (None when the server's replies carried no such numbers, as in logs written before the proxy read them)."""
     chats = sorted((r for r in log if str(r.get("path", "")).endswith("/chat/completions") and r.get("t_start")), key=lambda r: r["t_start"])
     inside = [r for r in chats if not (started and ended) or started <= r["t_start"] <= ended]
     agent = next((r for r in inside if r.get("tools")), None)
     first = agent.get("t_first_byte") if agent else None
     embeds = [r for r in log if str(r.get("path", "")).endswith("/embeddings")]
+    counted = [r for r in inside if isinstance(r.get("prompt_tokens"), int)]
+    prompts = sum(r["prompt_tokens"] for r in counted)
+    thinking = [r["reasoning_tokens"] for r in inside if isinstance(r.get("reasoning_tokens"), int)]
     return {
         "ttft_ms": round((first - agent["t_start"]) * 1000.0, 1) if agent and first else None,
         "req_bytes": agent.get("req_bytes") if agent else None, "streamed": bool(agent.get("stream")) if agent else None,
         "chat_requests": len(inside), "embed_requests": len(embeds),
+        "prompt_tokens_max": max((r["prompt_tokens"] for r in counted), default=None),
+        "cached_share": round(sum(r.get("cached_tokens") or 0 for r in counted) / prompts, 3) if prompts else None,
+        "reasoning_tokens": sum(thinking) if thinking else None,
     }
 
 
@@ -821,6 +829,20 @@ def reply_notices(events: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
     return {"notices": kinds, "reply_retries": retries, "final_text_tool_call": final_text_call}
 
 
+def repeat_tools(events: Sequence[Mapping[str, Any]]) -> int:
+    """Tool calls of the turn with the same tool and the same arguments as an earlier call of it."""
+    seen: set[str] = set()
+    repeats = 0
+    for event in events:
+        if event.get("type") != "tool.started":
+            continue
+        call = event.get("data") or {}
+        key = json.dumps([call.get("name"), call.get("arguments")], sort_keys=True, ensure_ascii=False, default=str)
+        repeats += key in seen
+        seen.add(key)
+    return repeats
+
+
 def turn_fields(res: client.TurnResult | None, error: str) -> dict[str, Any]:
     """What a row keeps of a turn, whatever its kind: the outcome, the timings and the usage, the tools it called."""
     if res is None:
@@ -832,6 +854,7 @@ def turn_fields(res: client.TurnResult | None, error: str) -> dict[str, Any]:
         "wall_ms": res.wall_ms, "ttfe_ms": res.ttfe_ms, "server_ms": res.server_ms(), "usage": res.usage,
         "timed_out": res.status == "timeout", "denied": len(res.denied),
         "tools": [(e.get("data") or {}).get("name") for e in res.events if e.get("type") == "tool.started"],
+        "repeat_tools": repeat_tools(res.events),
         "prompt_tokens": first_prompt_tokens(res), **reply_notices(res.events),
     }
 

@@ -402,8 +402,25 @@ def test_proxy_view_reads_the_agent_request():
         {"path": "/v1/chat/completions", "tools": True, "t_start": 500.0, "t_first_byte": 501.0, "req_bytes": 1, "stream": True},
     ]
     view = run.proxy_view(log, 99.0, 102.0)
-    assert view == {"ttft_ms": 500.0, "req_bytes": 4000, "streamed": True, "chat_requests": 2, "embed_requests": 1}
+    assert view == {"ttft_ms": 500.0, "req_bytes": 4000, "streamed": True, "chat_requests": 2, "embed_requests": 1,
+                    "prompt_tokens_max": None, "cached_share": None, "reasoning_tokens": None}  # an old log: no usage numbers
     assert run.proxy_view([], 1.0, 2.0)["ttft_ms"] is None
+    log[1].update(prompt_tokens=400, cached_tokens=None, reasoning_tokens=5)
+    log[2].update(prompt_tokens=1600, cached_tokens=1500, reasoning_tokens=None)
+    log[3].update(prompt_tokens=9000, cached_tokens=9000, reasoning_tokens=70)  # after the turn: not counted
+    view = run.proxy_view(log, 99.0, 102.0)
+    assert (view["prompt_tokens_max"], view["cached_share"], view["reasoning_tokens"]) == (1600, 0.75, 5)
+
+
+def test_repeat_tools_counts_the_same_call_again():
+    def started(name, **arguments):
+        return {"type": "tool.started", "data": {"name": name, "arguments": arguments}}
+
+    events = [started("search_memory", query="rent"), {"type": "tool.finished", "data": {"name": "search_memory"}},
+              started("open_memory", id=3), started("search_memory", query="rent"), started("search_memory", query="rent 2024"),
+              started("open_memory", id=3)]
+    assert run.repeat_tools(events) == 2
+    assert run.repeat_tools([]) == 0
 
 
 # --- a run ---
