@@ -28,6 +28,7 @@ from typing import Any
 from memory.across import server
 
 MAX_TOKENS = 10
+THINKING_MAX_TOKENS = 8192  # with thinking on: the reasoning and the one word after it
 TIMEOUT_S = 300.0
 _FIRST_WORD = re.compile(r"[^A-Za-z]*([A-Za-z]+)")
 
@@ -79,6 +80,7 @@ class Verdict:
     error: str = ""  # the judge could not be reached or answered with something that is not a chat completion
     ms: float = 0.0
     model: str = ""
+    thinking: bool = False  # the judge reasoned before its yes or no
 
     @property
     def correct(self) -> bool | None:
@@ -89,11 +91,16 @@ class Verdict:
         return asdict(self)
 
 
-def request_body(model: str, prompt: str, *, sampling: bool = True) -> dict[str, Any]:
-    """The chat completion that asks one yes/no question; without ``sampling`` the temperature is left to the server."""
+def request_body(model: str, prompt: str, *, sampling: bool = True, thinking: bool = False) -> dict[str, Any]:
+    """The chat completion that asks one yes/no question; without ``sampling`` the temperature is left to the server.
+
+    With ``thinking`` the model reasons first (the prompt is the same): the reply's text, read as before, comes after the
+    reasoning, so the token limit is ``THINKING_MAX_TOKENS``. A reply cut off inside the reasoning has no text and is asked
+    again like any reply that is neither yes nor no."""
     body: dict[str, Any] = {
-        "model": model, "messages": [{"role": "user", "content": prompt}], "max_tokens": MAX_TOKENS,
-        "chat_template_kwargs": {"enable_thinking": False},
+        "model": model, "messages": [{"role": "user", "content": prompt}],
+        "max_tokens": THINKING_MAX_TOKENS if thinking else MAX_TOKENS,
+        "chat_template_kwargs": {"enable_thinking": thinking},
     }
     if sampling:
         body["temperature"] = 0
@@ -114,15 +121,16 @@ def ask(
 
 def judge_prompt(
     base_url: str, model: str, prompt: str, *, post: Callable[..., tuple[float, Any]] = server.http_json, timeout: float = TIMEOUT_S,
+    thinking: bool = False,
 ) -> Verdict:
     """Ask the model server one yes/no ``prompt`` the way ``judge`` asks LongMemEval's: a reply that is neither is asked again once."""
-    verdict = Verdict(label=None, model=model)
+    verdict = Verdict(label=None, model=model, thinking=thinking)
     try:
-        verdict.reply, verdict.ms = ask(base_url, request_body(model, prompt), post, timeout)
+        verdict.reply, verdict.ms = ask(base_url, request_body(model, prompt, thinking=thinking), post, timeout)
         verdict.label = parse_verdict(verdict.reply)
         if verdict.label is None:
             verdict.retry = True
-            verdict.retry_reply, ms = ask(base_url, request_body(model, prompt, sampling=False), post, timeout)
+            verdict.retry_reply, ms = ask(base_url, request_body(model, prompt, sampling=False, thinking=thinking), post, timeout)
             verdict.ms += ms
             verdict.label = parse_verdict(verdict.retry_reply)
             verdict.unparsed = verdict.label is None
@@ -135,7 +143,7 @@ def judge_prompt(
 
 def judge(
     base_url: str, model: str, question_type: str, question: str, answer: Any, response: str, *, abstention: bool = False,
-    post: Callable[..., tuple[float, Any]] = server.http_json, timeout: float = TIMEOUT_S,
+    post: Callable[..., tuple[float, Any]] = server.http_json, timeout: float = TIMEOUT_S, thinking: bool = False,
 ) -> Verdict:
     """Ask the model server whether ``response`` answers ``question`` the way LongMemEval's prompt for the type wants."""
-    return judge_prompt(base_url, model, get_anscheck_prompt(question_type, question, answer, response, abstention), post=post, timeout=timeout)
+    return judge_prompt(base_url, model, get_anscheck_prompt(question_type, question, answer, response, abstention), post=post, timeout=timeout, thinking=thinking)

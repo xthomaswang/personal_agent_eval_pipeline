@@ -476,7 +476,7 @@ class _Count:
 
 def judge_pending(
     tasks: Sequence[Task], log: VerdictLog, *, total: int, done: int, base_url: str, model: str, workers: int, post: Post,
-    timeout: float, stop: Stop, clock: Callable[[], float] = time.monotonic, say: Callable[[str], None] = _say,
+    timeout: float, stop: Stop, thinking: bool = False, clock: Callable[[], float] = time.monotonic, say: Callable[[str], None] = _say,
 ) -> Outcome:
     """Ask the judge about ``tasks`` with ``workers`` threads and write each verdict as it arrives.
 
@@ -494,7 +494,7 @@ def judge_pending(
                 return
             verdict = judge.judge(
                 base_url, model, task.question_type, task.question, task.gold, task.answer, abstention=task.abstention,
-                post=post, timeout=timeout)
+                post=post, timeout=timeout, thinking=thinking)
             log.append(task, verdict)
             if count.note(verdict):
                 stop.set(JUDGE_DOWN)
@@ -730,6 +730,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--base-url", help="the judge server's OpenAI-compatible base URL, ending in /v1")
     parser.add_argument("--judge-model", help="the id of the judge model")
     parser.add_argument("--out", type=Path, help="directory for verdicts.jsonl, rejudge.json and rejudge.md")
+    parser.add_argument("--thinking", choices=("on", "off"), default="off", help="let the judge reason before its yes or no (default off)")
     parser.add_argument("--workers", type=int, default=4, help="judge calls in parallel (default 4)")
     parser.add_argument("--limit", type=int, default=None, help="judge only the first N distinct answers (a timing pilot; no report)")
     parser.add_argument("--stop-file", type=Path, default=None, help="stop (exit 75) as soon as this file exists; it is never removed here")
@@ -799,6 +800,9 @@ def main(
     if models - {args.judge_model}:
         say(f"{VERDICTS_FILE} already holds verdicts of {', '.join(sorted(models))}; use a new --out for {args.judge_model}")
         return 2
+    if {bool(verdicts[k].get("thinking")) for k in settled} - {args.thinking == "on"}:
+        say(f"{VERDICTS_FILE} already holds verdicts asked with thinking {'off' if args.thinking == 'on' else 'on'}; use a new --out")
+        return 2
     if not keys:
         say("no answers to grade")
         return 2
@@ -807,7 +811,7 @@ def main(
         with stop_on_signals(stop), VerdictLog(args.out / VERDICTS_FILE, verdicts) as log:
             outcome = judge_pending(
                 todo, log, total=len(keys), done=len(settled), base_url=args.base_url, model=args.judge_model, workers=args.workers,
-                post=post, timeout=args.timeout, stop=stop, say=say)
+                post=post, timeout=args.timeout, stop=stop, say=say, thinking=args.thinking == "on")
         rate = outcome.calls / outcome.seconds * 60.0 if outcome.seconds > 0 else 0.0
         say(f"{outcome.calls} judge calls in {outcome.seconds:.1f} s ({rate:.1f} per minute with {args.workers} workers); "
             f"{outcome.errors} got no reply; mean judge time {outcome.judge_ms / max(outcome.calls, 1):.0f} ms")

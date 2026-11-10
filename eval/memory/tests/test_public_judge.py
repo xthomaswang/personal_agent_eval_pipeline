@@ -95,3 +95,20 @@ def test_an_unreachable_judge_leaves_the_verdict_open():
     assert v.label is None and v.correct is None and v.error and not v.unparsed
     broken = judge.judge("http://127.0.0.1:1/v1", "m", "multi-session", "Q?", 42, "R", post=lambda *a, **k: (1.0, {"nope": 1}))
     assert broken.error.startswith("ValueError") and broken.correct is None  # not a chat completion
+
+
+def test_thinking_keeps_the_prompt_and_raises_the_token_limit() -> None:
+    off = judge.request_body("m", "the prompt")
+    on = judge.request_body("m", "the prompt", thinking=True)
+    assert on["messages"] == off["messages"] and on["temperature"] == 0
+    assert off["chat_template_kwargs"] == {"enable_thinking": False} and off["max_tokens"] == judge.MAX_TOKENS
+    assert on["chat_template_kwargs"] == {"enable_thinking": True} and on["max_tokens"] == judge.THINKING_MAX_TOKENS
+    seen = []
+
+    def post(url, body, timeout):
+        seen.append(body)
+        return 1.0, {"choices": [{"message": {"content": "" if len(seen) == 1 else "Yes"}}]}
+
+    verdict = judge.judge_prompt("http://x/v1", "m", "p", post=post, thinking=True)
+    assert verdict.thinking and verdict.retry and verdict.label is True  # a reply cut off in its reasoning is asked again
+    assert all(b["chat_template_kwargs"] == {"enable_thinking": True} for b in seen)
