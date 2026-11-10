@@ -1089,6 +1089,7 @@ def run_cell(study: Study, cell: Mapping[str, Any]) -> str:
         study.base_url, cell_dir / "proxy.jsonl", capture=cell_dir / "proxy_captures.jsonl" if study.capture_chars > 0 else None,
         capture_chars=study.capture_chars) if study.use_proxy else None
     running = None
+    gw: client.Gateway | None = None
     fixtures: gate.Fixtures | None = None
     stopped = False
     try:
@@ -1189,6 +1190,10 @@ def run_cell(study: Study, cell: Mapping[str, Any]) -> str:
                     stopped = ask()
     finally:
         if running is not None:
+            if gw is not None and running.alive():  # the home is opened again (a resumed cell, a cell that copies it)
+                tasks_stopped = client.stop_tasks(gw, sleep=study.sleep)
+                if tasks_stopped:
+                    info["tasks_stopped"] = tasks_stopped
             info["gateway_exit"] = running.stop()
         if fixtures:
             fixtures.stop()

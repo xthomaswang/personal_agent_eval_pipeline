@@ -268,6 +268,14 @@ def test_tasks_over_the_time_are_asked_to_stop() -> None:
     assert clock.now >= gateway_turn.STOP_WAIT_S  # a task that does not stop is not waited for longer than that
 
 
+def test_a_task_that_waits_for_a_resume_is_not_waited_for() -> None:
+    gw = TaskGateway([[{"task_id": "t1", "state": "running"}], [{"task_id": "t1", "state": "interrupted"}]])
+    got, clock = follow(gw, 600.0)
+
+    assert got["timed_out"] is False and got["tasks"] == [{"task_id": "t1", "state": "interrupted"}]
+    assert not gw.stops and clock.now < 60.0  # it does not change while this gateway runs: no stop, no wait to the budget
+
+
 # --- the harness ---
 
 

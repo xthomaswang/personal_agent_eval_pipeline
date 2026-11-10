@@ -37,7 +37,9 @@ from typing import Any
 from memory.across import client, server
 
 EXIT_TIMEOUT = 124
-TASK_FINISHED = ("done", "failed", "cancelled", "expired")  # the task states that do not change by themselves
+# The task states that do not change while this gateway runs: the four ends, and `interrupted` (a task that waits for a
+# person's Resume; one a stopped gateway left goes on only at the next start, and a run's home has one gateway).
+TASK_FINISHED = (*client.TASK_ENDED, "interrupted")
 QUIET_S = 3.0  # nothing running for this long: the work is over (an ended task can start one more that goes on with it)
 STOP_WAIT_S = 20.0  # what tasks asked to stop get to end
 

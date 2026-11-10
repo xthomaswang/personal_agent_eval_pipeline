@@ -83,3 +83,51 @@ def test_server_ms_is_none_without_event_clocks():
 def test_frames_skip_noise():
     body = io.BytesIO(b"retry: 2000\n\nid: 1\ndata: {\"id\": 1}\n\n: keepalive\n\ndata: not json\n\ndata: [1]\n\ndata:{\"id\": 2}\n")
     assert [e["id"] for e in client._frames(body)] == [1, 2]
+
+
+class _Tasks:
+    """What stop_tasks asks of a gateway: the task list (one row of states per poll) and the stops it is sent."""
+
+    def __init__(self, polls, fail=None):
+        self.polls, self.n, self.stops, self.fail = polls, 0, [], fail
+
+    def request(self, method, path, body=None, *, timeout=None):
+        if self.fail is not None:
+            raise self.fail
+        if (method, path) == ("GET", "/api/tasks"):
+            rows = self.polls[min(self.n, len(self.polls) - 1)]
+            self.n += 1
+            return 200, {"tasks": rows}
+        self.stops.append((method, path, body))
+        return 200, {}
+
+
+class _Time:
+    def __init__(self):
+        self.now = 0.0
+
+    def __call__(self):
+        return self.now
+
+    def sleep(self, seconds):
+        self.now += seconds
+
+
+def test_stop_tasks_stops_what_has_not_ended():
+    going = [{"task_id": "t1", "state": "running"}, {"task_id": "t2", "state": "done"}, {"task_id": "t3", "state": "interrupted"},
+             {"task_id": "t4", "state": "queued"}, {"state": "running"}, "noise"]
+    ended = [{"task_id": "t1", "state": "cancelled"}, {"task_id": "t2", "state": "done"}, {"task_id": "t3", "state": "cancelled"},
+             {"task_id": "t4", "state": "cancelled"}]
+    fake, time = _Tasks([going, going, ended]), _Time()
+    assert client.stop_tasks(fake, clock=time, sleep=time.sleep) == ["t1", "t3", "t4"]  # an ended task is left alone
+    assert fake.stops[:3] == [("PATCH", f"/api/tasks/{t}", {"state": "stop"}) for t in ("t1", "t3", "t4")]
+    assert len(fake.stops) == 6 and time.now == 1.0  # asked again while they go on, and no wait once they have ended
+
+
+def test_stop_tasks_gives_up_after_its_wait_and_never_raises(gateway):
+    stuck, time = _Tasks([[{"task_id": "t1", "state": "running"}]]), _Time()
+    assert client.stop_tasks(stuck, wait_s=3.0, poll_s=1.0, clock=time, sleep=time.sleep) == ["t1"]
+    assert time.now == 3.0 and len(stuck.stops) == 3
+    assert client.stop_tasks(_Tasks([[]])) == []
+    assert client.stop_tasks(_Tasks([], fail=ConnectionRefusedError("gone"))) == []
+    assert client.stop_tasks(gw(gateway)) == []  # a gateway without the route (the fake, an old build): nothing to stop

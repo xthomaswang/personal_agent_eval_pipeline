@@ -159,6 +159,42 @@ class Gateway:
             conn.close()
 
 
+TASK_ENDED = ("done", "failed", "cancelled", "expired")  # a task in one of these never runs again
+
+
+def stop_tasks(
+    gw: Any, *, wait_s: float = 20.0, poll_s: float = 0.5, clock: Callable[[], float] = time.monotonic,
+    sleep: Callable[[float], None] = time.sleep,
+) -> list[str]:
+    """Stop every task of the gateway that has not ended, as the page's Stop does, and give them ``wait_s`` to end.
+
+    For a home that another gateway will open (a cell that is resumed, a cell that copies a taught home): from
+    localmelo d2ab2117 a task that is running when its gateway stops goes on by itself at the next start on that home,
+    and only a task a person stopped does not. Returns the ids it asked to stop, in the order it saw them. A gateway
+    that does not answer, or a build without tasks, gives an empty list: this never raises.
+    """
+    asked: list[str] = []
+    deadline = clock() + wait_s
+    while True:
+        try:
+            status, body = gw.request("GET", "/api/tasks", timeout=10.0)
+        except (OSError, http.client.HTTPException, ValueError):
+            return asked
+        rows = body.get("tasks") if status == 200 and isinstance(body, dict) else None
+        going = [
+            str(r["task_id"]) for r in (rows if isinstance(rows, list) else [])
+            if isinstance(r, dict) and r.get("task_id") and r.get("state") not in TASK_ENDED
+        ]  # fmt: skip
+        if not going or clock() >= deadline:
+            return asked
+        for task_id in going:  # again each round: a task the stop let start is stopped too
+            with contextlib.suppress(OSError, http.client.HTTPException, ValueError):
+                gw.request("PATCH", f"/api/tasks/{task_id}", {"state": "stop"}, timeout=10.0)
+            if task_id not in asked:
+                asked.append(task_id)
+        sleep(poll_s)
+
+
 def _frames(resp: Any) -> Iterator[dict[str, Any]]:
     """One dict per ``data:`` line of an event stream; other lines (retry, keepalive, ids) are skipped."""
     for raw in resp:
