@@ -25,8 +25,8 @@ def call(
             "tool_call_sha256": [tool_call_sha256(n, a) for n, a in tools], **more}  # fmt: skip
 
 
-def event(ts: float, kind: str, **data: Any) -> dict[str, Any]:
-    return {"ts": ts, "type": kind, "data": data}
+def event(ts: float, type_: str, **data: Any) -> dict[str, Any]:
+    return {"ts": ts, "type": type_, "data": data}
 
 
 FETCH_1 = ("web_fetch", '{"url": "https://example.org/doc", "part": 1}')
@@ -54,6 +54,7 @@ def test_a_direct_run_has_no_stream_figures() -> None:
         b["first_sign_s"] is None
         and b["failed_tools"] is None
         and b["approvals_asked"] is None
+        and b["checkpoints"] is None
     )  # not 0: not countable
     assert (
         metrics.block(calls)["wall_s"] == 35.0
@@ -85,7 +86,9 @@ def test_a_gateway_run_counts_from_its_events() -> None:
         event(52.2, "tool.started", name="web_fetch", arguments={"url": "u", "part": 1}), event(53.0, "tool.finished", name="web_fetch", status="success"),
         event(60.0, "tool.started", name="web_fetch", arguments={"part": 1, "url": "u"}), event(61.0, "tool.finished", name="web_fetch", status="error"),
         event(62.0, "approval.requested", tool_name="file_write"), event(63.0, "tool.started", name="file_write", arguments={"path": "a"}),
-        event(64.0, "tool.finished", name="file_write", status="success"), event(70.0, "turn.finished"),
+        event(64.0, "tool.finished", name="file_write", status="success"),
+        event(65.0, "notice", kind="checkpoint", detail={"units": 4, "before": 111000, "after": 60000}),
+        event(66.0, "notice", kind="retry", detail={"request_attempt": 1}), event(70.0, "turn.finished"),
     ]  # fmt: skip
     b = metrics.block([call(1, 500, 0), call(2, 900, 450)], events)
     assert (b["wall_s"], b["first_sign_s"]) == (
@@ -98,11 +101,14 @@ def test_a_gateway_run_counts_from_its_events() -> None:
         b["failed_tools"],
         b["approvals_asked"],
     ) == (3, 1, 1, 1)
+    assert b["checkpoints"] == 1 and "· 1 checkpoints ·" in metrics.line(b)  # the retry notice is not one
     assert b["cached_share"] == round(450 / 1400, 3)
     assert (
         metrics.block([], [])["tool_calls"] == 0
         and metrics.block([], [])["first_sign_s"] is None
+        and metrics.block([], [])["checkpoints"] == 0
     )  # an empty stream is still a stream
+    assert "checkpoints" not in metrics.line(metrics.block([], []))  # none in the run: not in its line
 
 
 def test_nothing_recorded() -> None:

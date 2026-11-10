@@ -27,6 +27,7 @@ KEYS = (
     "repeat_calls",  # tool calls with the same tool and arguments as an earlier call of the run
     "failed_tools",  # tool calls that did not end in success (events)
     "approvals_asked",  # approval cards (events)
+    "checkpoints",  # work checkpoints: the run noted where it stood and its oldest tool results left the context (events)
     "prompt_first",  # prompt tokens of the first main call, of the median one and of the largest
     "prompt_median",
     "prompt_max",
@@ -96,6 +97,12 @@ def call_repeats(calls: Iterable[dict[str, Any]]) -> int | None:
 def failed_tools(events: Iterable[dict[str, Any]]) -> int:
     return sum(1 for e in events if e.get("type") == "tool.finished"
                and isinstance(e.get("data"), dict) and e["data"].get("status") not in (None, "success"))  # fmt: skip
+
+
+def checkpoints(events: Iterable[dict[str, Any]]) -> int:
+    """Notices of kind ``checkpoint``. Each one is one more model request (the notes) and a smaller prompt after it."""
+    return sum(1 for e in events if e.get("type") == "notice"
+               and isinstance(e.get("data"), dict) and e["data"].get("kind") == "checkpoint")  # fmt: skip
 
 
 def _failed(row: dict[str, Any]) -> bool:
@@ -178,6 +185,7 @@ def block(
         )
         if has_events
         else None,
+        "checkpoints": checkpoints(events) if has_events else None,
         "prompt_first": prompts[0] if prompts else None,
         "prompt_median": statistics.median(prompts) if prompts else None,
         "prompt_max": max(prompts) if prompts else None,
@@ -192,7 +200,7 @@ def block(
 
 
 def line(b: dict[str, Any]) -> str:
-    """The block as one line of a summary (a figure that is None is left out)."""
+    """The block as one line of a summary (a figure that is None is left out, and so is a run with no checkpoint)."""
 
     def part(text: str, *keys: str) -> str | None:
         return None if any(b.get(k) is None for k in keys) else text.format(**b)
@@ -209,6 +217,7 @@ def line(b: dict[str, Any]) -> str:
         part("{repeat_calls} repeated", "repeat_calls"),
         part("{failed_tools} failed tools", "failed_tools"),
         part("{approvals_asked} approvals", "approvals_asked"),
+        part("{checkpoints} checkpoints", "checkpoints") if b.get("checkpoints") else None,
         part(
             "prompt {prompt_first} / {prompt_median:.0f} / {prompt_max} (first / median / max)",
             "prompt_first",
