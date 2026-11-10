@@ -1,4 +1,4 @@
-"""Frozen TM60/TM60b/TM68 pair comparison check. Run only under the pinned vendor Python.
+"""Frozen TM60/TM60b/TM68/TM70 pair comparison check. Run only under the pinned vendor Python.
 
 No dataset text or model reply prose is printed or persisted. A completed check
 exits 0 even when its statistical gate fails; setup/integrity errors exit 1.
@@ -51,6 +51,11 @@ TM68_VENDOR_SHA = "2e53cca4712ea2126b4be628c6e2bc87fdc34a10"
 TM68_GROUPS = {"A": ("other", 20), "B": ("changes", 10), "C": ("changes", 10)}  # group: (label, frozen count)
 TM68_OCCURRENCE = ("ahead", "past")  # group A: the old occurrence lies after or before the new item's date
 TM68_READING = {"a_false_changes_max": 2, "c_changes_min": 8}  # fixed in the brief before any judge saw the set
+# TM70: the fresh set for a judge that lets a dated occurrence stand. TM68's schema plus group D (an occurrence on or
+# after the day the new arrangement starts). Neither its set nor its build is pinned here: the set is frozen and the
+# judge pushed only after this profile was written, so both come as arguments and are recorded in the run's config.
+TM70_GROUPS = {**TM68_GROUPS, "D": ("changes", 6)}
+TM70_READING = {"c_changes_min": 8, "a_false_changes_max": 3, "b_changes_min": 6, "false_same_max": 1}
 GATE_LIMITS = {"false_same_max": 1, "false_changes_max": 2, "same_recall_min": 10, "changes_recall_min": 14}
 # A gated profile pins its frozen set and build. TM60 reads all four gate lines in both phases; TM60b reads
 # precision in both phases and recall after support only. "none" writes the tables without any gate line.
@@ -65,14 +70,18 @@ PROFILES = {
     # TM68 runs exactly as TM60b (same protocol) and is read per group, by the reading fixed in its brief.
     "tm68": {"title": "TM68 pair check: a dated occurrence beside a schedule change", "protocol": "tm60b-pairs-v1",
              "set_sha256": TM68_SET_SHA256, "vendor_sha": TM68_VENDOR_SHA, "gated": False, "recall_phases": (),
-             "overall": False, "groups": True},
+             "overall": False, "groups": TM68_GROUPS, "reading": TM68_READING},
+    # TM70 runs the same way and is read by its own lines, fixed before its set was seen.
+    "tm70": {"title": "TM70 pair check: a dated occurrence stands beside a later change", "protocol": "tm60b-pairs-v1",
+             "set_sha256": None, "vendor_sha": None, "gated": False, "recall_phases": (), "overall": False,
+             "groups": TM70_GROUPS, "reading": TM70_READING},
 }
 
 
-def group_fields_ok(pair: dict) -> bool:
-    """A TM68 pair: its group fixes its label; group A alone says whether the new item names the old occurrence and when it lies."""
+def group_fields_ok(pair: dict, groups: dict = TM68_GROUPS) -> bool:
+    """A grouped pair: its group fixes its label; group A alone says whether the new item names the old occurrence and when it lies."""
     group = pair.get("group")
-    if group not in TM68_GROUPS or pair.get("label") != TM68_GROUPS[group][0]:
+    if group not in groups or pair.get("label") != groups[group][0]:
         return False
     if group == "A":
         return (set(pair) == {"label", "old", "new", "group", "says_stands", "occurrence"}
@@ -80,15 +89,18 @@ def group_fields_ok(pair: dict) -> bool:
     return set(pair) == {"label", "old", "new", "group"}
 
 
-def load_pairs(path: Path, expected_sha: str = SET_SHA256, frozen_counts: dict | None = None, *, groups: bool = False) -> list[dict]:
+def load_pairs(path: Path, expected_sha: str = SET_SHA256, frozen_counts: dict | None = None, *,
+               groups: dict | bool = False) -> list[dict]:
+    """*groups*: a profile's group table ({group: (label, frozen count)}); True means TM68's."""
+    groups = TM68_GROUPS if groups is True else groups
     payload = path.read_bytes()
     if hashlib.sha256(payload).hexdigest() != expected_sha:
         raise ValueError("pair set SHA256 mismatch")
     pairs = json.loads(payload)
     if not isinstance(pairs, list) or not pairs:
         raise ValueError("pair set must be a nonempty list")
-    if groups and (not all(isinstance(p, dict) and group_fields_ok(p) for p in pairs)
-                   or Counter(p["group"] for p in pairs) != {g: n for g, (_, n) in TM68_GROUPS.items()}):
+    if groups and (not all(isinstance(p, dict) and group_fields_ok(p, groups) for p in pairs)
+                   or Counter(p["group"] for p in pairs) != {g: n for g, (_, n) in groups.items()}):
         raise ValueError("group schema or frozen group counts mismatch")
     for pair in pairs:
         if groups:
@@ -211,14 +223,55 @@ def _predicted(row: dict, phase: str) -> str:
     return (row["raw_verdict"] or {"verdict": "other"})["verdict"] if phase == "raw" else row["verdict_after_support"]
 
 
-def group_reading(rows: list[dict], complete: bool) -> list[str]:
-    """TM68's tables per group and its reading, as fixed in the brief before the run (counts only, no text)."""
+def lines_reading(rows: list[dict], complete: bool, reading: dict) -> list[str]:
+    """TM70's lines, all after support, as fixed in its brief before the set was seen (counts and pair IDs only)."""
+    def of(group: str) -> list[dict]:
+        return [r for r in rows if r.get("group") == group]
+
+    def changes(group: str) -> int:
+        return sum(_predicted(r, "after support") == "changes" for r in of(group))
+
+    false_same = [r["pair_id"] for r in rows if r["expected"] != "same" and _predicted(r, "after support") == "same"]
+    raw_same = [r["pair_id"] for r in rows if r["expected"] != "same" and _predicted(r, "raw") == "same"
+                and _predicted(r, "after support") != "same"]
+    controls_ok = changes("C") >= reading["c_changes_min"]
+
+    def status(met: bool, below: str) -> str:
+        if not complete:
+            return "PENDING (the run is not complete)"
+        if not controls_ok:
+            return "NOT READ (the controls are below their line: the run or the set is off)"
+        return "met" if met else below
+
+    a = of("A")
+    return ["", "### Lines, after support (fixed before the set was seen)", "",
+            (f"- Controls: `changes` on group C {changes('C')}/{len(of('C'))} (line: at least {reading['c_changes_min']}): "
+             f"{'met' if controls_ok else 'NOT met'}."),
+            (f"- A: false `changes` {changes('A')}/{len(a)} (line: at most {reading['a_false_changes_max']}): "
+             f"**{status(changes('A') <= reading['a_false_changes_max'], 'NOT met')}**."),
+            (f"- B: `changes` {changes('B')}/{len(of('B'))} (line: at least {reading['b_changes_min']}): "
+             f"**{status(changes('B') >= reading['b_changes_min'], 'below the line')}**."),
+            f"- D (reported, not gated): `changes` {changes('D')}/{len(of('D'))}.",
+            (f"- False `same` anywhere: {len(false_same)} (line: at most {reading['false_same_max']}): "
+             f"**{status(len(false_same) <= reading['false_same_max'], 'NOT met')}**; pairs: {', '.join(false_same) or 'none'}; "
+             f"raw only (support took them back): {', '.join(raw_same) or 'none'}."),
+            (f"- Group A pairs judged `changes`: "
+             f"{', '.join(r['pair_id'] for r in a if _predicted(r, 'after support') == 'changes') or 'none'}; "
+             f"raw only (support took them back): "
+             f"{', '.join(r['pair_id'] for r in a if _predicted(r, 'raw') == 'changes' and _predicted(r, 'after support') != 'changes') or 'none'}."), ""]
+
+
+def group_reading(rows: list[dict], complete: bool, groups: dict = TM68_GROUPS, reading: dict | None = None) -> list[str]:
+    """The tables per group and the reading fixed in the set's brief before the run (counts only, no text)."""
+    reading = TM68_READING if reading is None else reading
     out = ["## Groups", "",
            ("A: the old item is one dated occurrence that still stands beside a later schedule change (expected `other`). "
             "B: that very occurrence moved or was cancelled (expected `changes`). C: a standing fact got a new value "
-            "(expected `changes`, the controls)."), "",
+            "(expected `changes`, the controls)."
+            + (" D: a dated occurrence on or after the day the new arrangement starts, which the new arrangement rules out "
+               "(expected `changes`)." if "D" in groups else "")), "",
            "| Group | Expected | Pairs | Phase | same | changes | other | Failed requests |", "|---|---|---:|---|---:|---:|---:|---:|"]
-    for group, (label, _) in TM68_GROUPS.items():
+    for group, (label, _) in groups.items():
         selected = [r for r in rows if r.get("group") == group]
         for phase in ("raw", "after support"):
             counts = Counter(_predicted(r, phase) for r in selected)
@@ -236,6 +289,8 @@ def group_reading(rows: list[dict], complete: bool) -> list[str]:
         out.append(f"| {name} | {len(selected)} | {sum(_predicted(r, 'raw') == 'changes' for r in selected)} | "
                    f"{sum(_predicted(r, 'after support') == 'changes' for r in selected)} | "
                    f"{sum(_predicted(r, 'after support') == 'same' for r in selected)} |")
+    if "b_changes_min" in reading:  # TM70's lines; TM68's reading below stays as it was frozen
+        return out + lines_reading(rows, complete, reading)
     a_false = sum(_predicted(r, "after support") == "changes" for r in a)
     c_right = sum(_predicted(r, "after support") == "changes" for r in rows if r.get("group") == "C")
     b_right = sum(_predicted(r, "after support") == "changes" for r in rows if r.get("group") == "B")
@@ -285,7 +340,7 @@ def render_report(rows: list[dict], total: int, config: dict, stopped: str | Non
             "Multi-request pairs are retained, never dropped or rerun. Request seconds include those waits/retries."),
            f"Prompt SHA256: `{config['prompt_sha256']}`; judge version: `{config['judge_version']}`.", ""]
     if profile.get("groups"):
-        out += group_reading(rows, complete)
+        out += group_reading(rows, complete, profile["groups"], profile["reading"])
     for subset, selected in (("All", rows), ("Chinese", [r for r in rows if r["chinese"]]),
                              ("Cross-kind", [r for r in rows if r["cross_kind"]])):
         out += [f"## {subset}: {len(selected)} pairs", "",
@@ -445,7 +500,7 @@ def provenance(base_url: str, model: str, gate: str, set_sha256: str, vendor_sha
         config["gate_profile"] = gate
         config["recall_phases"] = list(profile["recall_phases"])
     if profile.get("groups"):
-        config["reading"] = dict(TM68_READING)
+        config["reading"] = dict(profile["reading"])
     return config
 
 
@@ -468,7 +523,7 @@ def parse_args(argv=None):
         parser.error(f"--vendor-sha is not the pinned {args.gate} build")
     args.vendor_sha = args.vendor_sha or profile["vendor_sha"]
     if args.vendor_sha is None or not re.fullmatch(r"[0-9a-f]{40}", args.vendor_sha):
-        parser.error("--gate none needs --vendor-sha (40 lowercase hex digits)")
+        parser.error(f"--gate {args.gate} needs --vendor-sha (40 lowercase hex digits)")
     return args
 
 
@@ -477,7 +532,7 @@ def main(argv=None) -> int:
     try:
         frozen = FROZEN_COUNTS if PROFILES[args.gate]["gated"] else None
         # SHA before parsing, provenance, provider or request
-        pairs = load_pairs(args.pairs, args.set_sha256, frozen, groups=bool(PROFILES[args.gate].get("groups")))
+        pairs = load_pairs(args.pairs, args.set_sha256, frozen, groups=PROFILES[args.gate].get("groups") or False)
         deadline = float(os.environ["NIGHT_DEADLINE"]) if os.environ.get("NIGHT_DEADLINE") else None
         if deadline is not None and not math.isfinite(deadline):
             raise ValueError("nonfinite deadline")

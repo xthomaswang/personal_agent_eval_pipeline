@@ -715,12 +715,12 @@ class ArgumentTests(unittest.TestCase):
                 judge.load_pairs(path, sha, judge.FROZEN_COUNTS)
 
 
-class GroupProfileTests(unittest.TestCase):
-    """TM68: pairs carry a group (and group A two more labels); the report is read per group by a fixed reading."""
+class GroupedPairs:
+    """Made-up grouped pairs for the profiles that read per group."""
 
     @staticmethod
     def grouped(group, index, **more):
-        label = judge.TM68_GROUPS[group][0]
+        label = judge.TM70_GROUPS[group][0]  # TM68's groups and D
         return {**pair(label, index, old_kind="episodic"), "group": group, **more}
 
     def frozen_set(self):
@@ -733,6 +733,10 @@ class GroupProfileTests(unittest.TestCase):
             path = Path(root) / "grouped.json"
             path.write_bytes(payload)
             return judge.load_pairs(path, hashlib.sha256(payload).hexdigest(), **kwargs)
+
+
+class GroupProfileTests(GroupedPairs, unittest.TestCase):
+    """TM68: pairs carry a group (and group A two more labels); the report is read per group by a fixed reading."""
 
     def test_the_grouped_schema_and_its_frozen_counts(self):
         values = self.frozen_set()
@@ -809,6 +813,81 @@ class GroupProfileTests(unittest.TestCase):
         self.assertEqual(args.vendor_sha, judge.TM68_VENDOR_SHA)
         with redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
             parse("--set-sha256", judge.TM60B_SET_SHA256, "--gate", "tm68")
+
+
+class LinesProfileTests(GroupedPairs, unittest.TestCase):
+    """TM70: TM68's groups and group D, read by its own lines after support; set and build come as arguments."""
+
+    def tm70_set(self):
+        return self.frozen_set() + [self.grouped("D", 40 + i) for i in range(6)]
+
+    def tm70_rows(self, a_changes=0, b_changes=10, c_changes=10, d_changes=6, same_after=0, same_raw_only=0):
+        """The first pairs of a group get the given verdict; false `same` goes to the last pairs of group A."""
+        out, right = [], {"B": b_changes, "C": c_changes, "D": d_changes}
+        for index, source in enumerate(self.tm70_set()):
+            group = source["group"]
+            n = sum(r["group"] == group for r in out)
+            if group == "A":
+                raw = after = "changes" if n < a_changes else "other"
+                if n >= 20 - same_after:
+                    raw = after = "same"
+                elif n >= 20 - same_after - same_raw_only:
+                    raw = "same"
+            else:
+                raw = after = "changes" if n < right[group] else "other"
+            row = metadata(source["label"], raw, after=after, chinese=False)
+            row.update(pair_id=f"p{index:02d}", group=group)
+            row.update({k: source[k] for k in ("says_stands", "occurrence") if k in source})
+            out.append(row)
+        return out
+
+    def tm70_report(self, rows, total=46, **kwargs):
+        return judge.render_report(rows, total, dict(config_for([]), gate_profile="tm70"), **kwargs)
+
+    def test_group_d_belongs_to_this_profile_only(self):
+        values = self.tm70_set()
+        self.assertEqual(self.load(values, groups=judge.TM70_GROUPS), values)
+        for broken, table in ((values, judge.TM68_GROUPS), (values, True), (values[:-1], judge.TM70_GROUPS),
+                              ([*values[:-1], dict(values[-1], label="other")], judge.TM70_GROUPS),
+                              ([*values[:-1], dict(values[-1], occurrence="ahead")], judge.TM70_GROUPS)):
+            with self.assertRaisesRegex(ValueError, "group schema or frozen group counts"):
+                self.load(broken, groups=table)
+
+    def test_the_lines_at_their_limits(self):
+        at_line = self.tm70_report(self.tm70_rows(a_changes=3, b_changes=6, c_changes=8, d_changes=4, same_after=1, same_raw_only=2))
+        self.assertTrue(at_line.startswith("# TM70 pair check: a dated occurrence stands beside a later change\n"))
+        self.assertIn("| D | changes | 6 | after support | 0 | 4 | 2 | 0 |", at_line)
+        self.assertIn("D: a dated occurrence on or after the day the new arrangement starts", at_line)
+        self.assertIn("- Controls: `changes` on group C 8/10 (line: at least 8): met.", at_line)
+        self.assertIn("- A: false `changes` 3/20 (line: at most 3): **met**.", at_line)
+        self.assertIn("- B: `changes` 6/10 (line: at least 6): **met**.", at_line)
+        self.assertIn("- D (reported, not gated): `changes` 4/6.", at_line)
+        self.assertIn("- False `same` anywhere: 1 (line: at most 1): **met**; pairs: p19; raw only (support took them back): p17, p18.", at_line)
+        self.assertIn("- Group A pairs judged `changes`: p00, p01, p02; raw only (support took them back): none.", at_line)
+        self.assertNotIn("judge-2 stays", at_line)  # TM68's reading is not this profile's
+        over = self.tm70_report(self.tm70_rows(a_changes=4, b_changes=5, same_after=2))
+        self.assertIn("- A: false `changes` 4/20 (line: at most 3): **NOT met**.", over)
+        self.assertIn("- B: `changes` 5/10 (line: at least 6): **below the line**.", over)
+        self.assertIn("- False `same` anywhere: 2 (line: at most 1): **NOT met**; pairs: p18, p19;", over)
+
+    def test_nothing_is_read_below_the_controls_or_on_a_partial_run(self):
+        low = self.tm70_report(self.tm70_rows(c_changes=7))
+        self.assertIn("(line: at least 8): NOT met.", low)
+        self.assertEqual(low.count("**NOT READ (the controls are below their line: the run or the set is off)**"), 3)
+        partial = self.tm70_report(self.tm70_rows(a_changes=5)[:12], stopped="STOP")
+        self.assertEqual(partial.count("**PENDING (the run is not complete)**"), 3)
+        self.assertNotIn(PAIR_MARKER, partial)
+
+    def test_set_and_build_come_as_arguments(self):
+        parse = lambda *extra: judge.parse_args(["--pairs", "set.json", "--run-dir", "run", "--gate", "tm70", *extra])
+        args = parse("--set-sha256", "ab" * 32, "--vendor-sha", "cd" * 20)
+        self.assertEqual((args.set_sha256, args.vendor_sha), ("ab" * 32, "cd" * 20))
+        err = io.StringIO()
+        with redirect_stderr(err), self.assertRaises(SystemExit):
+            parse("--set-sha256", "ab" * 32)
+        self.assertIn("--gate tm70 needs --vendor-sha", err.getvalue())
+        self.assertEqual(judge.PROFILES["tm70"]["reading"], {"c_changes_min": 8, "a_false_changes_max": 3, "b_changes_min": 6,
+                                                             "false_same_max": 1})
 
 
 if __name__ == "__main__":
