@@ -72,6 +72,8 @@ ARMS: dict[str, tuple[str, ...]] = {
     "SH-C": ("--builtins", "file_read,file_write,python_exec,shell_exec", "-X", "agent.confine_direct_runs=true"),
     # The one-fit A/B: attempts of 10 steps, so a 30-step run reflects 2 or 3 times
     "A10": ("-X", "agent.steps_per_attempt=10"),
+    # Tool exposure: every registered tool in each request, against the default of a direct run (retrieve)
+    "XA": ("-X", "agent.tool_exposure=all"),
 }
 DEFAULT_ARMS = ("S0", "C1", "B1", "B2", "S2")   # E3's five
 EXERCISES = (
