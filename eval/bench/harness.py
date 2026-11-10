@@ -201,7 +201,9 @@ BUILDERS: dict[str, Callable[[str, Path, str, int], Command]] = {
 }
 # The product path is measured as shipped: the proxy records and forwards, it sets neither sampling nor thinking.
 AS_SHIPPED = ("localmelo_gateway",)
-GATEWAY_STOP_S = 45.0  # what the gateway turn keeps of the run's time limit to stop its gateway and write its records
+# What the gateway turn keeps of the run's time limit: its wait for the turn can overrun by one read of the event
+# stream (60 s), then it asks the turn to stop, reads the stored events, stops its gateway and writes its records.
+GATEWAY_STOP_S = 90.0
 
 # Harnesses whose command line takes extra flags from run(harness_args=...): localmelo's options
 # (--tool-exposure, --builtins, --request-timeout, ...) vary per experiment, the others' do not.

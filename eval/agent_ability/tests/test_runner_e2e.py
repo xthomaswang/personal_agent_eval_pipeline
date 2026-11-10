@@ -411,7 +411,7 @@ def test_the_gateway_path_runs_only_when_named(tmp_path: Path, harness, monkeypa
     runs = tmp_path / "runs"
     code = runner.main(
         ["--harness", "melo-gateway", "--task", "aider/transpose", "--no-warmup", "--gateway-args=-X memory.across_chats=false",
-         "--timeout", "100", "--skip-preflight", "--runs-dir", str(runs)],
+         "--timeout", "200", "--skip-preflight", "--runs-dir", str(runs)],
         harness=harness,
     )  # fmt: skip
 
@@ -425,7 +425,7 @@ def test_the_gateway_path_runs_only_when_named(tmp_path: Path, harness, monkeypa
     seen = json.loads((run_dir / "fake_seen.json").read_text())
     home = paths.WS_ROOT / "gateway" / "localmelo-home"
     # its own flags, the HOME the workspace is inside, and the run's 100 s less the gateway's stop time
-    assert seen["argv"][-6:] == ["-X", "memory.across_chats=false", "--home", str(home), "--timeout", "55"]
+    assert seen["argv"][-6:] == ["-X", "memory.across_chats=false", "--home", str(home), "--timeout", "110"]
     # a localmelo task may only work inside its HOME: the workspace was built there, and both are kept with the run
     assert seen["cwd"] == str((home / "work" / "aider__transpose").resolve())
     assert (run_dir / "workspace" / "transpose.py").is_file() and (run_dir / "gateway-home").is_dir()

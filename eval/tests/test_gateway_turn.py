@@ -129,6 +129,10 @@ def test_a_turn_over_its_time_is_asked_to_stop_and_exits_124(tmp_path: Path) -> 
     assert done.returncode == 124
     assert record["status"] == "timeout" and record["cancelled"] is True
     assert gone(served(tmp_path)["pid"])
+    # the turn came back without its events: what the gateway stored of it is kept, so the run shows how far it got
+    events = [json.loads(line) for line in (tmp_path / "run" / "events.jsonl").read_text().splitlines()]
+    assert record["events"] == len(events) >= 1 and {e["source"] for e in events} == {"chat"}
+    assert events[0]["type"] == "turn.started"
 
 
 def test_a_term_signal_stops_the_gateway_before_the_exit(tmp_path: Path) -> None:
@@ -148,6 +152,8 @@ def test_a_term_signal_stops_the_gateway_before_the_exit(tmp_path: Path) -> None
     record = json.loads((tmp_path / "run" / "gateway_turn.json").read_text())
     assert record["status"] == "stopped" and record["gateway_exit"] == 0
     assert gone(served(tmp_path)["pid"])
+    events = [json.loads(line) for line in (tmp_path / "run" / "events.jsonl").read_text().splitlines()]
+    assert record["events"] == len(events) >= 1 and events[0]["type"] == "turn.started"  # read before the gateway stopped
 
 
 def test_a_gateway_that_does_not_start_is_an_error_record(tmp_path: Path) -> None:
@@ -332,6 +338,6 @@ def test_the_gateway_turn_gets_the_runs_limit_less_its_stop_time(tmp_path: Path,
     for name, limit in (("a", 600.0), ("b", 50.0)):
         harness.run("localmelo_gateway", "task", workspace, tmp_path / "runs" / name, timeout_s=limit)
         seen.append(json.loads((tmp_path / "runs" / name / "stdout.log").read_text()))
-    assert seen == [["--timeout", "555"], ["--timeout", "30"]]
+    assert seen == [["--timeout", "510"], ["--timeout", "30"]]  # 600 less harness.GATEWAY_STOP_S; never under 30
     # no gateway_turn.json: the report says the turn left none
     assert json.loads((tmp_path / "runs" / "a" / "summary.json").read_text())["harness_report"] == {"turn": None}

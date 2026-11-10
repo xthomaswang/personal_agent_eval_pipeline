@@ -23,6 +23,7 @@ own process group).
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import os
 import signal
@@ -124,6 +125,39 @@ def task_events(gw: Any, task_id: str) -> list[dict[str, Any]]:
         return []
 
 
+def stored_events(gw: Any) -> list[dict[str, Any]]:
+    """Everything the gateway has stored of the run, for a turn that did not come back (its time limit, a signal).
+
+    The gateway's HOME is the run's own, so every chat and every task of it belongs to the run: the events of each,
+    with its ``source``. What cannot be read is left out; a gateway without the list route gives the tasks only.
+    """
+    events: list[dict[str, Any]] = []
+    try:
+        status, body = gw.request("GET", "/api/sessions?kind=chat", timeout=10.0)
+    except (client.GatewayError, OSError):
+        status, body = 0, None
+    rows = [body.get("main"), *(body.get("sessions") or [])] if status == 200 and isinstance(body, dict) else []
+    for row in rows:
+        if isinstance(row, dict) and row.get("id"):
+            try:
+                events += [{**e, "source": "chat"} for e in gw.events_once(str(row["id"]))]
+            except (client.GatewayError, OSError):
+                continue
+    try:
+        tasks = tasks_of(gw)
+    except (client.GatewayError, OSError):
+        tasks = []
+    for task in tasks:
+        events += task_events(gw, str(task["task_id"]))
+    return events
+
+
+def write_events(run_dir: Path, events: list[dict[str, Any]]) -> None:
+    with (run_dir / "events.jsonl").open("w", encoding="utf-8") as out:
+        for event in events:
+            out.write(json.dumps(event, ensure_ascii=False) + "\n")
+
+
 def task_reply(gw: Any, task_id: str) -> str:
     try:
         row = gw.last_turn(task_id)
@@ -149,6 +183,7 @@ def run(args: argparse.Namespace) -> int:
 
     previous = {sig: signal.signal(sig, stop) for sig in (signal.SIGTERM, signal.SIGINT)}
     code = 1
+    gw: Any = None
     try:
         gw = server.wait_ready(gateway, timeout=args.ready_timeout)
         t0 = time.monotonic()
@@ -163,9 +198,10 @@ def run(args: argparse.Namespace) -> int:
         for task in followed["tasks"]:
             events += task_events(gw, task["task_id"])
             replies.append(task_reply(gw, task["task_id"]))
-        with (run_dir / "events.jsonl").open("w", encoding="utf-8") as out:
-            for event in events:
-                out.write(json.dumps(event, ensure_ascii=False) + "\n")
+        if result.status == "timeout" and not result.events:
+            # a turn over its time comes back without its events: what the gateway stored is how far it got
+            events = stored_events(gw)
+        write_events(run_dir, events)
         record.update(status=result.status, cause=result.cause, error=result.error, wall_ms=result.wall_ms, wall_source=result.wall_source,
                       ttfe_ms=result.ttfe_ms, usage=result.usage, session_id=result.session_id, turn_id=result.turn_id,
                       approvals_allowed=[a["tool"] for a in result.allowed] + followed["approvals_allowed"], cancelled=result.cancelled,
@@ -185,6 +221,12 @@ def run(args: argparse.Namespace) -> int:
     finally:
         for sig in previous:
             signal.signal(sig, signal.SIG_IGN)  # nothing may cut the stop short
+        if record["status"] == "stopped" and gw is not None:
+            # stopped from outside while the turn ran: keep what the gateway stored of it, as far as it can be read
+            with contextlib.suppress(Exception):
+                events = stored_events(gw)
+                write_events(run_dir, events)
+                record["events"] = len(events)
         record["gateway_exit"] = gateway.stop()
         (run_dir / "gateway_turn.json").write_text(json.dumps(record, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
         for sig, handler in previous.items():

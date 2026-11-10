@@ -267,6 +267,9 @@ class FakeGateway:
                 return self.reply(h, 409, {"error": {"code": "turn_not_running"}})
             flag.set()
             return self.reply(h, 202, {"turn_id": parts[2], "cancelling": True})
+        if method == "GET" and parts == ["api", "sessions"]:
+            with self.lock:
+                return self.reply(h, 200, {"main": None, "sessions": [{"id": sid} for sid in self.sessions]})
         if len(parts) >= 3 and parts[:2] == ["api", "sessions"]:
             sid = parts[2]
             session = self.sessions.get(sid)
