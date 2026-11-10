@@ -51,6 +51,9 @@ SERVER = web_arms.SERVER
 TOOL_PREFIX = f"mcp__{SERVER}__"
 DEFAULT_MODEL = "Qwen3.8-Flash-Next-IQ3XXS-splash"
 EMBEDDING_MODEL = "Qwen3-Embedding-0.6B"
+# On this pin a run sends each tool step to the embedding model and opens its requests with earlier step summaries.
+# From localmelo 8e03a749 a run in the default reasoning mode does neither (n_embedding_calls reads 0, the request
+# prefix differs): rows of the two kinds are not compared, so the pin moves only with a rerun of the arms compared.
 LOCALMELO = AGENT_ABILITY / "e3" / "vendor" / "localmelo-f234b37"
 LOCALMELO_SHA = "f234b37b0a08b0decc3f8cfc68f70f2bedf60897"
 MELO_TIMEOUT_MARGIN_S = 30  # melo's own -t ends the run this much before the wall cap, so it leaves its record
