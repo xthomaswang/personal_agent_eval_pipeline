@@ -303,8 +303,9 @@ and the import switch are part of the study's identity. The gateway never sees `
 question, the sources of the used items.
 
 **Memory sleep.** An arm may carry `"sleep": "<variant>"` (with `"config": {"ui.mode": "developer"}`, which the sleep
-route needs) and `"sleep_options": {...}`, more fields of the request (`{"budget": 100}`; `data/arms_sleep2.json` has
-S0, S1 rules, S2 model, S3 model+tags and S2max, the model at budget 100). Once per cell, after the teaching and before the questions (v1 studies too, so a guard can run across a
+route needs) and `"sleep_options": {...}`, more fields of the request (`{"budget": 100}`). `data/arms_sleep2.json` has
+S0 and S1 rules; its arms S2 model, S3 model+tags and S2max (the model at budget 100) ran until the product dropped
+sleep by the model, and stay in the records of those runs: a build after that refuses the variant. Once per cell, after the teaching and before the questions (v1 studies too, so a guard can run across a
 night), the driver calls `POST /api/memory/sleep {"variant": ...}`; the report it answers goes to the cell's
 `sleep.json` (with the request), a copy of the notes as the night left them to `after_sleep_records.db`, a summary
 (changes by op, model calls, refused proposals, refusals, ms, turns processed, capped, error) to `cell.json`. A failed sleep is recorded, not raised. The v2 report's sleep section lists

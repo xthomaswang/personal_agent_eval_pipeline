@@ -158,7 +158,7 @@ def test_sleep_options_go_into_the_request_and_the_summary(tmp_path, models):
 def test_the_round_two_sleep_arms_load():
     arms = run.load_arms(data_v2.DATA_FILE.parent / "arms_sleep2.json")
     assert {k: (a.sleep, dict(a.sleep_options)) for k, a in arms.items()} == {
-        "S0": ("", {}), "S1": ("rules", {}), "S2": ("model", {}), "S3": ("model+tags", {}), "S2max": ("model", {"budget": 100})}
+        "S0": ("", {}), "S1": ("rules", {})}  # the model arms left with the product's model sleep
 
 
 def test_a_sleep_waits_longer_than_the_client_s_ten_seconds(tmp_path):
