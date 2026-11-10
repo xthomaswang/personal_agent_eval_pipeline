@@ -1,6 +1,6 @@
 {
   "T-first": {
-    "description": "thinks on an attempt's first plan and after a failed step, off after a tool step that worked",
+    "description": "thinks on an attempt's first plan and after a failed step, off after a tool step that worked (agent.thinking_steps: the last localmelo build that has it is 015b30d8)",
     "settings": {"agent.thinking_steps": "first_and_failed"}
   }
 }

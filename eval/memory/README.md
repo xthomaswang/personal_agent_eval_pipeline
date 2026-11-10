@@ -288,6 +288,14 @@ questions). An arms file (`--arms-file`) may give an arm a `base`, the arm whose
 follows: `{"M2-on": {"x": ["memory.retriever=embedding", "memory.context_query=on"], "embedding": true, "base":
 "M2"}}` runs the kinds M2 runs, with M2's window rule.
 
+**Arms and builds.** The plan refuses an arm that sets a key the pinned build does not have (`this localmelo build
+does not know the setting ...`). localmelo 66954760 removed thirteen `[memory]` developer keys (`recall_records`,
+`recall_docs`, `recall_chars`, `recall_item_chars`, `compress_at_chars`, `gather_min_cosine`, `excerpt_open`,
+`premise_check`, `gather`, `search_when_empty`, `recall_notes`, `open_sources`, `keep_statements`) and the value
+`note_gate=model`. The arm files that set one of them are records of what ran and rerun only on a build at or before
+fdde1f73: `public/arms_stage.json`, `arms_r2.json`, `arms_rerun.json`, `arms_tm22.json`, `arms_open.json`,
+`arms_premise.json`, `arms_gather.json`, `arms_gather_p2.json` and `across/data/arms_notegate.json`.
+
 **Seeded HOME and memory import.** An arm in an arms file may carry `"seed": "<folder>"` (relative to the arms file)
 and `"import": true`. Before a new cell's gateway first starts, the driver copies the seed folder into the cell's HOME
 at the same relative paths (`seed_home` in `across/run.py`). A `seed.json` at the folder's top maps placeholder folder

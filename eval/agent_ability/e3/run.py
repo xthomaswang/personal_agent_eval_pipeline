@@ -62,7 +62,8 @@ ARMS: dict[str, tuple[str, ...]] = {
     # O20 opts out to the previous v2 layout and a 20-message window
     "O20": ("--cache-layout", "v2", "--window-messages", "20"),
     # E6 (output tokens), on a build that has agent.lean_output: shell_exec added to the three default built-in
-    # tools, the lean output option, and both
+    # tools, the lean output option, and both. localmelo removed agent.lean_output after 015b30d8 (a later build
+    # exits 2 on it), so L and LSH run only on a build at or before that one.
     "SH": ("--builtins", "file_read,file_write,python_exec,shell_exec"),
     "L": ("-X", "agent.lean_output=true"),
     "LSH": ("-X", "agent.lean_output=true", "--builtins", "file_read,file_write,python_exec,shell_exec"),
