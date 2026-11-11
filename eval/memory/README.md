@@ -295,6 +295,10 @@ does not know the setting ...`). localmelo 66954760 removed thirteen `[memory]` 
 `note_gate=model`. The arm files that set one of them are records of what ran and rerun only on a build at or before
 fdde1f73: `public/arms_stage.json`, `arms_r2.json`, `arms_rerun.json`, `arms_tm22.json`, `arms_open.json`,
 `arms_premise.json`, `arms_gather.json`, `arms_gather_p2.json` and `across/data/arms_notegate.json`.
+localmelo ecfa4d93 changed the default of `note_gate` to `pointed` and no longer has the value `typed`: a build from
+there on reads `-X memory.note_gate=typed` as `pointed` without an error, so an arm that names `typed` measures the
+old gate only on a build at or before 9399392c. A build before ecfa4d93 and one after it also differ in their default
+arm (what a run with no `note_gate` setting keeps from a page or file), so default arms are compared within one build.
 
 **Seeded HOME and memory import.** An arm in an arms file may carry `"seed": "<folder>"` (relative to the arms file)
 and `"import": true`. Before a new cell's gateway first starts, the driver copies the seed folder into the cell's HOME
