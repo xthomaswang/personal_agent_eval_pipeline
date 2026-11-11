@@ -299,6 +299,11 @@ localmelo ecfa4d93 changed the default of `note_gate` to `pointed` and no longer
 there on reads `-X memory.note_gate=typed` as `pointed` without an error, so an arm that names `typed` measures the
 old gate only on a build at or before 9399392c. A build before ecfa4d93 and one after it also differ in their default
 arm (what a run with no `note_gate` setting keeps from a page or file), so default arms are compared within one build.
+Two more build lines for reading counts across builds: from localmelo 0a98e0d3 a run with no embedding model and no
+`memory.retriever` setting lets the chat model choose among word candidates (one more chat request per message that
+shares a word with a note or turn; `-X memory.retriever=bm25` is the old arm), and from 55ee2ec0 a run that ends
+`stuck` makes one more request without tools and can carry an answer (status `stuck` and exit code 2 as before; it is
+scored as a step-limit run with an answer).
 
 **Seeded HOME and memory import.** An arm in an arms file may carry `"seed": "<folder>"` (relative to the arms file)
 and `"import": true`. Before a new cell's gateway first starts, the driver copies the seed folder into the cell's HOME
