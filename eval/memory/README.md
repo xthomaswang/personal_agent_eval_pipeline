@@ -302,6 +302,9 @@ arm (what a run with no `note_gate` setting keeps from a page or file), so defau
 localmelo 1a163380 removed `note_gate` and `note_min_cosine` altogether (`-X memory.note_gate=...` exits 2 there):
 `across/data/arms_notegate.json`, `arms_notegate_dedup.json` and the gate arms G0 to G3 are records that rerun only on
 a build at or before 55ee2ec0.
+localmelo c6c2e803 removed `recall_min_cosine`, `recall_min_coverage` and `recall_excerpt` (the recall bars are
+constants there: cosine 0.45, coverage 0.4, before it 0.55 and 0.6): an arm that names one of them runs only on a
+build before c6c2e803, and a default arm on a newer build measures the looser bars.
 Two more build lines for reading counts across builds: from localmelo 0a98e0d3 a run with no embedding model and no
 `memory.retriever` setting lets the chat model choose among word candidates (one more chat request per message that
 shares a word with a note or turn; `-X memory.retriever=bm25` is the old arm), and from 55ee2ec0 a run that ends
