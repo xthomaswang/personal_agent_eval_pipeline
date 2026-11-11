@@ -312,6 +312,9 @@ def run_turn(
         status, body = gw.request("POST", f"/api/sessions/{session_id}/turns", {"text": text, "client_request_id": key})
         if status not in TURN_OK or not isinstance(body, dict):
             raise GatewayError(status, f"POST turns: {json.dumps(body, ensure_ascii=False)[:300]}", body)
+    if not body.get("turn_id"):
+        # The gateway's own rules took the message (a command, an answer to a waiting task): it made no turn.
+        raise GatewayError(status, f"no turn was started (the gateway handled the message itself): {json.dumps(body.get('echo'), ensure_ascii=False)[:300]}", body)
     turn_id = str(body["turn_id"])
     turn_no = int((body.get("turn") or {}).get("turn") or 1)
     result = TurnResult(session_id, turn_id, turn_no, "running", http_status=status, started_epoch=e0)

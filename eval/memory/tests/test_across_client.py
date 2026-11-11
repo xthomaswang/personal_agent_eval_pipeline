@@ -131,3 +131,14 @@ def test_stop_tasks_gives_up_after_its_wait_and_never_raises(gateway):
     assert client.stop_tasks(_Tasks([[]])) == []
     assert client.stop_tasks(_Tasks([], fail=ConnectionRefusedError("gone"))) == []
     assert client.stop_tasks(gw(gateway)) == []  # a gateway without the route (the fake, an old build): nothing to stop
+
+
+def test_a_message_the_gateway_handles_itself_is_a_gateway_error():
+    """A first message the gateway's own rules take is answered with the chat and an echo, and no turn."""
+    class NoTurn:
+        def request(self, method, path, body=None):
+            return 201, {"session": {"id": "s-1"}, "echo": {"text": "Stopped."}}
+
+    with pytest.raises(client.GatewayError) as err:
+        client.run_turn(NoTurn(), "stop the task", "k-1", workspace="/tmp")
+    assert err.value.status == 201 and "no turn was started" in str(err.value) and "Stopped." in str(err.value)
