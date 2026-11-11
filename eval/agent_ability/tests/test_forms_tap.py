@@ -156,3 +156,7 @@ def test_every_call_is_logged(rig: test_web_tap.Rig, tmp_path: Path) -> None:
     client.close()
     calls = [e for e in rig.log_entries() if e.get("event") == "call"]
     assert [(c["tool"], c["status"]) for c in calls] == [("fill_form", "ok")]
+
+
+def test_the_password_handle_is_taken_with_any_number():
+    assert forms_tap.with_password({"a": "[password-1]", "b": ["x [password-482913] y"]}, "pw\\1") == {"a": "pw\\1", "b": ["x pw\\1 y"]}

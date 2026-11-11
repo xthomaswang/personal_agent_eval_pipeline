@@ -22,6 +22,7 @@ melo's own browser tool types the value. These runs reach Chrome through this ta
 from __future__ import annotations
 
 import os
+import re
 import sys
 import urllib.parse
 from typing import Any
@@ -36,6 +37,8 @@ UPLOAD_ROOT_ENV = "FORMS_TAP_UPLOAD_ROOT"
 SITE_ENV = "FORMS_TAP_SITE"
 PASSWORD_ENV = "FORMS_TAP_PASSWORD"
 PASSWORD_HANDLE = "[password-1]"
+# Newer melo builds number the handle with six digits picked per process (``[password-482913]``); both forms are taken.
+PASSWORD_HANDLE_RE = re.compile(r"\[password-\d+\]")
 TYPING_TOOLS = ("fill", "fill_form", "type_text")
 EXTRA_TOOLS = ("fill_form", "upload_file", "take_screenshot")
 TOOLS = (*base.DOM_TOOLS, *EXTRA_TOOLS)
@@ -70,7 +73,7 @@ def upload_refusal(paths: Any, root: str | None) -> str | None:
 def with_password(value: Any, password: str) -> Any:
     """*value*, a tool's arguments, with the handle in its strings replaced by *password*."""
     if isinstance(value, str):
-        return value.replace(PASSWORD_HANDLE, password)
+        return PASSWORD_HANDLE_RE.sub(lambda _: password, value)
     if isinstance(value, dict):
         return {k: with_password(v, password) for k, v in value.items()}
     if isinstance(value, list):
